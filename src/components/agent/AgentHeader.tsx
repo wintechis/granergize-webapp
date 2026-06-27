@@ -35,44 +35,44 @@ import type { SavedAgent } from "../../services/savedAgents.ts";
  * for a KNOWN agent it's an inline `[Edit]`. The edits write a **local record** in
  * the user's own `agents.ttl` (the agent's own profile is read-only, not ours to
  * own) via {@link useSaveAgent} (re-saving the same WebID updates in place): a
- * person's stored name + a "works for" edge (`org:memberOf`) to an org contact; an
+ * person's stored name + a "works for" edge (`org:memberOf`) to an org agent; an
  * organisation's name + homepage + cross-reference + a logo (uploaded to the user's
  * own Pod as `vcard:logo`). The organisation read/edit body reuses the shared
  * {@link OrgEditor}/{@link OrgReadView} with the Organisation page; this header adds
- * only the contact-specific chrome (the kind toggle, add-to-contacts, and the
+ * only the address-book chrome (the kind toggle, add-to-book, and the
  * person "works for" edge).
  */
 export default function AgentHeader({ webId }: { webId: string }) {
   const { data: agent } = useResolveAgent(webId);
   const { data: org } = useResolveOrg(webId);
-  const contacts = useAgents();
-  const saveContact = useSaveAgent();
+  const agents = useAgents();
+  const saveAgent = useSaveAgent();
 
-  const contact = (contacts.data ?? []).find((c) => c.webId === webId);
-  const known = contact != null;
+  const savedAgent = (agents.data ?? []).find((c) => c.webId === webId);
+  const known = savedAgent != null;
   // The local record wins over the resolved profile; an unrecognised agent defaults
   // to a person (correctable by re-saving with an explicit kind).
-  const kind = contact?.kind ?? agent?.kind ?? "person";
+  const kind = savedAgent?.kind ?? agent?.kind ?? "person";
   const isOrg = kind === "organisation";
-  // A known contact shows its STORED label (what the user can edit); otherwise the
+  // A known agent shows its STORED label (what the user can edit); otherwise the
   // resolved profile name, falling back to the WebID until a name resolves.
-  const displayName = (known ? contact!.name : agent?.name) || webId;
+  const displayName = (known ? savedAgent!.name : agent?.name) || webId;
   // Logo precedence: the user's local record wins, then the resolved profile.
-  const logoUrl = contact?.logoUrl ?? agent?.logoUrl ?? org?.logoUrl;
+  const logoUrl = savedAgent?.logoUrl ?? agent?.logoUrl ?? org?.logoUrl;
   // The header's org rows are the user's *curated* record only — the canonical
   // profile's website/etc. stay in AgentProfileSection, so nothing shows twice.
   // Editing still seeds from the canonical value (precedence: local over profile).
-  const homepage = contact?.homepage;
-  const sameAs = contact?.sameAs ?? [];
-  const memberOf = contact?.memberOf;
-  // Org contacts the user already keeps — the "works for" edge can only point at one
-  // (excluding this contact itself).
-  const orgOptions = (contacts.data ?? []).filter(
+  const homepage = savedAgent?.homepage;
+  const sameAs = savedAgent?.sameAs ?? [];
+  const memberOf = savedAgent?.memberOf;
+  // Org agents the user already keeps — the "works for" edge can only point at one
+  // (excluding this agent itself).
+  const orgOptions = (agents.data ?? []).filter(
     (c) => c.kind === "organisation" && c.webId !== webId,
   );
-  // The "works for" target's curated name (the edge points at an org contact); the
+  // The "works for" target's curated name (the edge points at an org agent); the
   // user's stored label wins over the resolved profile, so prefer it over AgentLabel.
-  const memberOrgName = (contacts.data ?? []).find((c) => c.webId === memberOf)?.name;
+  const memberOrgName = (agents.data ?? []).find((c) => c.webId === memberOf)?.name;
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
@@ -81,15 +81,15 @@ export default function AgentHeader({ webId }: { webId: string }) {
   const [sameAsDraft, setSameAsDraft] = useState("");
   const [memberOfDraft, setMemberOfDraft] = useState("");
   const [pickedLogo, setPickedLogo] = useState<File | null>(null);
-  const saving = saveContact.isPending;
-  // The user can re-classify a contact in the editor (the resolved profile rarely
+  const saving = saveAgent.isPending;
+  // The user can re-classify an agent in the editor (the resolved profile rarely
   // types unreachable agents) — the draft kind drives the form while editing.
   const editingOrg = kindDraft === "organisation";
 
   const startEdit = () => {
-    setName(contact?.name ?? agent?.name ?? "");
+    setName(savedAgent?.name ?? agent?.name ?? "");
     setKindDraft(kind);
-    setHomepageDraft(contact?.homepage ?? agent?.website ?? "");
+    setHomepageDraft(savedAgent?.homepage ?? agent?.website ?? "");
     setSameAsDraft(sameAs[0] ?? "");
     setMemberOfDraft(memberOf ?? "");
     setPickedLogo(null);
@@ -108,17 +108,17 @@ export default function AgentHeader({ webId }: { webId: string }) {
     };
     if (editingOrg) {
       const ref = sameAsDraft.trim();
-      saveContact.mutate({
-        contact: {
+      saveAgent.mutate({
+        agent: {
           ...base,
           homepage: homepageDraft.trim() || undefined,
           sameAs: ref ? [ref] : undefined,
-          logoUrl: contact?.logoUrl,
+          logoUrl: savedAgent?.logoUrl,
         },
         logo: pickedLogo,
       }, { onSuccess });
     } else {
-      saveContact.mutate({
+      saveAgent.mutate({
         ...base,
         avatarUrl: agent?.avatarUrl,
         memberOf: memberOfDraft || undefined,
@@ -142,7 +142,7 @@ export default function AgentHeader({ webId }: { webId: string }) {
       variant="outlined"
       disabled={saving}
       onClick={() =>
-        saveContact.mutate({
+        saveAgent.mutate({
           webId,
           kind,
           name: agent?.name,
@@ -183,7 +183,7 @@ export default function AgentHeader({ webId }: { webId: string }) {
             />
           )
           : <Typography variant="h5" sx={{ flexGrow: 1 }}>{displayName}</Typography>}
-        {editing ? saveCancel : known ? editButton : contacts.isSuccess ? addButton : null}
+        {editing ? saveCancel : known ? editButton : agents.isSuccess ? addButton : null}
       </Stack>
 
       {/* In the editor, the kind is re-classifiable (the form follows the draft). */}
@@ -203,9 +203,9 @@ export default function AgentHeader({ webId }: { webId: string }) {
         </ToggleButtonGroup>
       )}
 
-      {/* Person extra: the local "works for" edge to an org contact (editor: a
-          dropdown of org contacts; read view: the linked org). Independent of the
-          person's own profile — see contacts.ts memberOf. */}
+      {/* Person extra: the local "works for" edge to an org agent (editor: a
+          dropdown of org agents; read view: the linked org). Independent of the
+          person's own profile — see savedAgents.ts memberOf. */}
       {!editingOrg && editing && orgOptions.length > 0 && (
         <TextField
           select

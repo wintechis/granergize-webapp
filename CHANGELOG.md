@@ -2,7 +2,144 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-27]
+- **The building object's TS shape is generated from the vocab.** A new generator
+  `scripts/genVocabInterface.ts` (`deno task gen:interface`) groups `vocab/building.ttl` properties
+  by `rdfs:domain` (folding subclasses) and emits `buildingShape.generated.ts`: `BuildingFlatFields`
+  (the ~32 flat fields, from the `BUILDING_FIELDS` bridge), the node-field interfaces
+  (`TechnicalSystemFields`/`OperatingCostsFields`/`BuildingCertificationFields`/`GeoPointFields`),
+  and **proper enum unions** from each controlled-vocab class's instances (`ShiftRegime`,
+  `TenancyType`, `IndoorTemperatureClass`, `ServiceLevel`, `GeocodePrecision`). `BuildingType` now
+  `extends BuildingFlatFields, GeoPointFields` and the node interfaces intersect the generated fields
+  with their hand-written app/runtime envelope — only `id`/`uri`/structured-collection/computed
+  fields stay authored by hand. Freshness-guarded like the labels/schema.
+- **Controlled-vocab fields store the stable token, not a display label.** `shiftRegime` etc. now
+  hold the vocab token (`"OneShift"`) in memory and render the label via `optionLabel` at the edge,
+  removing the `investorLocalNameLabels` map + the form's label↔token reverse step (the round-trip is
+  now token-throughout). `geocodePrecision` aligned to its tokens (`Address`/`Postcode`/`City`).
+  Certification fields renamed to the vocab local names (`certificationLevel`/`certificationScope`).
+  Operating-cost values are genuinely free-text in the data (`"Landlord"`, German labels, amounts),
+  so the vocab range was corrected `:ServiceLevel` → `xsd:string` and they stay `string`.
+  (plans/done/plan-vocab-derived-interface.md; check/lint/unit all green.)
+- **Building parsing config is vocab-derived (no more restated `rdfs:range`).** Extending the
+  vocab-driven-labels pattern to the parsing schema: a new generator
+  `scripts/genVocabSchema.ts` (`deno task gen:schema`) parses `vocab/*.ttl` into
+  `vocabSchema.generated.ts` — per-property `{ kind (literal/agent/enum/structured), datatype,
+  range, functional, instances }` — freshness-guarded like the labels. `BUILDING_FIELDS` shrank
+  to the irreducible `{ field, iri }` app-key↔IRI bridge; the predicate/object/agent maps,
+  datatype coercion, serializer datatype sets (`buildingConfig.ts`) and the selector's
+  `FIELD_KIND` (`selector.ts`) now derive their range from the generated schema via `schemaFor`,
+  removing the duplication `vocab.test` policed. Added range declarations for the reused
+  external agent properties (`rec:operatedBy`/`rec:ownedBy` → `owl:ObjectProperty`/`foaf:Agent`)
+  so they classify. No behaviour change — round-trip parser/serializer tests + full unit green.
+- **Energy metric units are vocab-driven too.** `consumption.ttl` now declares a
+  `cons:canonicalUnit` per `sosa:ObservableProperty`; the schema generator emits it, and
+  `ENERGY_METRICS` (`energyDataset.ts`) derives each metric's `{ prop, unit }` from its key
+  (PascalCase under `cons:`) + the generated unit instead of inlined constants. `EnergyMetricKey`
+  is now derived from the `METRIC_KEYS` list (one source). Identical values; energy round-trip
+  tests green. (Slices 1+2 of plans/plan-vocab-derived-schema.md. Slice 3 — core roles — was
+  already at target: `roleLabel` reads vocab labels and the role IRIs are drift-guarded. The only
+  deferred piece is generating the flat `BuildingType` interface from the schema.)
+- **Building master-data field labels are vocab-driven (one source, no read/edit drift).**
+  The read view (`MasterDataSection`) and edit form (`BuildingDetailFields`) sourced field
+  labels from three families (`md*` ids, `lbl*` ids, raw `fieldLabel()`), so a field's
+  wording was authored twice and could diverge. Both now read `fieldLabel(field)` from the
+  vocab: the `building.ttl` `rdfs:label`s were made display-ready (Title Case; units kept in
+  the label, consistent across de/en/fr) and labels were minted for the reused REC/schema
+  IRIs (`rec:operatedBy`/`rec:ownedBy`/`schema:customer`/`rec:nace-code`); the read-view value
+  drops the now-redundant unit; agent edit fields append a "(WebID)" input hint
+  (`withWebId`). Removed the 21 master-data `md*` + 6 agent `lbl*` catalog ids. Regenerated
+  `vocabLabels.generated.ts`; new e2e helper `agentFieldT`. (Closes stumble [165], folded into
+  the vocab-driven-labels lane.)
+- **e2e cleanup (stumble follow-ups).** Two test-suite tidies, no app change:
+  - The inline "close the energy-year editor" step (the snackbar-X-vs-editor "Close"
+    disambiguation) was hand-copied across `energy-entry`, `palette-add-and-energy` and
+    `manage.ts` — extracted to one `closeEnergyEditor(page)` helper (6 call sites; the two
+    end-of-test copies now also assert the editor closed).
+  - `support/screenshots.spec.ts` (handbuch figures): scoped its 5 ambiguous "Map" toggle
+    clicks to the Buildings-view group (`getByLabel(bldgsViewAria)`, matching
+    `openBuildingsMap`) so they don't strict-mode-match a building detail page's own "Map"
+    toggle, and converted 17 literal nav-tab names to `en(navId)` (drift-proofing).
+- **e2e specs partition by FOLDER, not a hand-maintained list.** The `SOLO_SPECS` /
+  `DUO_SPECS` / `TRIO_SPECS` arrays in `playwright.config.ts` are gone; specs now live in
+  `test/e2e/{solo,duo,trio}/` (and `stress/`) and each project's `testMatch` is its folder
+  glob, so a new/renamed spec auto-registers by location instead of silently dropping out
+  of an un-updated list. The move surfaced exactly that bug: `rooms-finder.spec.ts` was
+  orphaned (in `tasks/`, in no list → run by nothing); it's a solo spec and now runs.
+  Relative `../helpers` imports are unchanged (same depth); `--list` confirms 48 solo + 7
+  duo + 1 trio. README + `.env.e2e.example` paths updated.
+- **Finish the Contacts→Agents rename in the SaveAgent intent internals.** The leftover
+  `contact` naming is gone: the core `saveContactCore` → `saveAgentCore`, its
+  `SaveAgentParams.contact` → `agent` (and the `SaveAgent` param schema + the `useSaveAgent`
+  `{ contact }` contract), and `AgentHeader`'s `contact`/`contacts`/`saveContact` locals →
+  `savedAgent`/`agents`/`saveAgent`. The `SavedAgent` type and the vCard "contact facts"
+  terminology are unchanged. Pure rename — typecheck/lint/unit green; no e2e/eval fixture
+  touched the param name.
+- **Centralize the remaining inlined namespace IRIs in the Turtle serializers.** The
+  sibling serializers that still hardcoded `@prefix` namespace strings now use the
+  `vocabularies.ts` constants like the rest of the RDF layer: `sharingLog.ts`,
+  `energySeriesXlsx.ts` (xsd/sosa/ssn/time/unit), `aggregationManager.ts`'s `TTL_PREFIXES`
+  (rdf/xsd) and `dataRoom.ts`'s `Writer` prefixes (xsd). New `RDF_NS` constant (with
+  `RDF_TYPE` derived from it). Output is byte-identical (the constants resolve to the same
+  IRIs); the round-trip unit suites stay green.
+
 ## [2026-06-26]
+- **Clarity & consistency sweep (code-review follow-up).** No behaviour change —
+  internal clarity/consistency only; typecheck, lint, and the touched unit suites stay
+  green (and `session-restore.spec.ts` e2e passes 2/2 for the `Login` change).
+  - *Energy-dataset serialization via the n3 `Writer`.* `serializeEnergyDataset` was
+    hand-built Turtle string templates; it now builds quads and emits them through the
+    n3 `Writer` like `buildingSerializer`, which drops the inlined XSD namespace and
+    types `cons:granularity` as `^^xsd:duration` (the building-file restatements too).
+    Quads go straight to the `Writer` (not via an n3 `Store`, which mangles a
+    document-relative IRI) so a relative `featureOfInterest` like `../../buildings/x.ttl#pv`
+    round-trips verbatim. New `XSD_DURATION` constant.
+  - *Centralized inlined IRIs.* `SCHEMA_CUSTOMER`, `RDFS_LABEL` (`buildingConfig`) and
+    `PIM_NS` (`solidUtils`) now come from `vocabularies.ts` instead of inline IRI strings.
+  - *User-facing strings → message catalog.* Hardcoded English in `App.tsx`, `AppShell.tsx`
+    and the `Login.tsx` sign-in error now resolve through `messages.ts` (six new en/de/fr
+    entries; the sign-in hint split from its conditional `{idp}` clause so it stays DRY).
+  - *"URL" → "IRI" terminology.* ~25 comments/docs across the data layer where the referent
+    is an RDF/Solid resource identity (Pod-resource / WebID / storage-root IRIs, dereferenced
+    linked-data IRIs, the named-graph source IRI, `foaf:logo`/`foaf:homepage`); genuine
+    browser-address / HTTP-request / blob `URL`s left as-is. Honours the URI/IRI education
+    mandate.
+  - *`Login.tsx` timer lifecycle.* All four deferred timers (watchdog, route-restore,
+    restore-decision, loading-clear) route through one tracked `schedule()` helper the effect
+    cleanup cancels at unmount — the same discipline as its event listeners; removed the dead
+    `setClearInitialLoad` state (its value was never read).
+  - *One back-link.* `DetailView.BackLink` renders an MUI `ArrowBackIcon` + `btnBack` instead
+    of a raw `🠠` glyph; `DataSources` reuses `<BackLink>` (dropping the bespoke `dsBack`
+    "← Back" glyph-in-copy entry).
+  - *Dialog discard-guard uses the in-app confirm, not native `window.confirm`.* The last
+    native `confirm()` (the Escape-while-dirty "Discard changes?" prompt in `dialogGuard`)
+    now goes through the shared themed `ConfirmContext` dialog like every other confirm.
+    `dialogGuard` stays pure/unit-tested by returning a decision (`close` / `keepOpen` /
+    `confirm`) instead of calling `confirm()` itself; `<Modal>` runs the async confirm on a
+    `"confirm"` result (a themed dialog above the form). New `dlgDiscardTitle`/`dlgDiscardBody`/
+    `btnDiscard` catalog entries. The full `e2e:local` suite stays green with no spec changes
+    (Escape in the edit forms is consumed by the autocomplete popper, and cleanup closes only
+    non-dirty dialogs); the `confirmDialog` helper gained a `"Discard"` verb for any future
+    spec that Escape-closes a dirty dialog.
+  - *Decompose `AppShell.tsx` (831 → 656 lines).* The ~170-line account dropdown moved to a
+    presentational `AccountMenu.tsx` (it reads/toggles the locale + dev-mode signals itself;
+    every action is a prop owned by the shell), and the fresh-Pod demo banner to
+    `OnboardingBanner.tsx`. No logic moved — pure presentational extraction, prop wiring
+    verified by `noUnusedLocals` typecheck.
+  - *Decompose `BuildingsMap.tsx` (903 → 599 lines).* Two pure extractions: the marker
+    component + its icon cache + the `MapLens` type → `BuildingMarker.tsx`, and the six
+    non-rendering Leaflet viewport/sync helpers (`InvalidateOnActive`, `FitToBuildings`,
+    `ViewportUrlSync`, `BoundsWatcher`, `ZoomWatcher`) → `mapViewportLayers.tsx`. No
+    behaviour change; the map body is now about the cube surface, not Leaflet plumbing.
+  - *Split the 3291-line `messages.ts` catalog into per-area slices.* The single giant
+    `MESSAGES` object (787 ids) is now nine themed modules under `src/lib/messages/`
+    (`navFinders`, `buildingForms`, `energyRegional`, `buildingDetail`, `cubeObservation`,
+    `shellAuth`, `detailRooms`, `dialogsShare`, `notifications`) merged by spread in
+    `messages.ts`, which keeps only the lookup machinery (94 lines) and the unchanged public
+    API (`msg`/`translate`/`MessageId`). Shared `Message`/`PluralForms` types live in
+    `messages/messageTypes.ts`. A new `messages.test.ts` guard asserts the slices *partition*
+    the catalog (slice key-counts sum to the merged count) so no id can be silently shadowed
+    by a spread. Pure mechanical move — same 787 ids, no call-site changes.
 - **Open tier: opt-in exploration mode.** An "Explore this area" toggle (`?explore=1`,
   shown when the open tier is ticked) anchors the open layers to the map **viewport**
   instead of your own buildings (`viewportAnchor` reading `?c`/`?z`) — browse open data

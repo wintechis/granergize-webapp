@@ -1,3 +1,19 @@
+import type {
+  BuildingCertificationFields,
+  BuildingFlatFields,
+  GeoPointFields,
+  OperatingCostsFields,
+  TechnicalSystemFields,
+} from "./services/rdf/buildingShape.generated.ts";
+
+// Re-export the vocab-derived enums so the rest of the app reaches them via `types.ts`.
+export type {
+  GeocodePrecision,
+  IndoorTemperatureClass,
+  ShiftRegime,
+  TenancyType,
+} from "./services/rdf/buildingShape.generated.ts";
+
 export type UserRole =
   | "dummy"
   | "investor"
@@ -19,24 +35,13 @@ export interface AnnualData {
   electricityGeneration?: number; // kWh
 }
 
-export interface InvestorOperatingCosts {
-  wasteDisposal?: string;
-  insurance?: string;
-  operationInspectionAndMaintenance?: string;
-  routineCleaningOffice?: string;
-  routineCleaningWarehouse?: string;
-  glassCleaning?: string;
-  exteriorMaintenance?: string;
-  security?: string;
-  propertyManagement?: string;
-  caretaker?: string;
-  repairAndMaintenance?: string;
-}
+/** The 11 operating-cost categories (free-text values), generated from the
+ *  `:OperatingCosts`-domained properties (vocab/building.ttl). */
+export type InvestorOperatingCosts = OperatingCostsFields;
 
-export interface InvestorCertification {
-  type: string; // "BREEAM" | "DGNB" | "LEED"
-  level?: string;
-  scope?: string;
+export interface InvestorCertification extends BuildingCertificationFields {
+  /** The certification standard (BREEAM/DGNB/LEED), from the node's `rdf:type` local name. */
+  type: string;
 }
 
 /** The kind of energy / heat unit, fixed by the node's `rdf:type` (all ⊑
@@ -78,20 +83,22 @@ export const isHeatKind = (k: SystemKind): boolean =>
  * depends on `kind`: PV/CHP electrical → `capacityKW`, battery → `storageCapacityKWh`,
  * CHP heat → `thermalCapacityKW`.
  */
-export interface TechnicalSystem {
+export interface TechnicalSystem extends TechnicalSystemFields {
   /** Stable node fragment local-name — the node IRI is `<buildingFile>#{id}`, and the
    * feature-of-interest a per-unit observation attaches to. */
   id: string;
   kind: SystemKind;
-  capacityKW?: number; // :capacityKW (xsd:decimal) — PV/CHP electrical nameplate
-  storageCapacityKWh?: number; // :storageCapacityKWh — battery usable energy
-  thermalCapacityKW?: number; // :thermalCapacityKW — CHP heat output
-  commissioningYear?: number; // :commissioningYear (xsd:gYear)
   operatedBy?: string; // rec:operatedBy — the UNIT operator's WebID/IRI
   sameAs?: string; // owl:sameAs the external MaStR Einheit IRI
+  // capacityKW / storageCapacityKWh / thermalCapacityKW / commissioningYear ← TechnicalSystemFields
 }
 
-export interface BuildingType {
+// The flat building fields (customer, areas, agents, the controlled-vocab enums, …) and the
+// geo:Point's geocodePrecision are GENERATED from vocab/building.ttl — see BuildingFlatFields /
+// GeoPointFields (`buildingShape.generated.ts`). BuildingType adds only the structured node
+// collections + the app-runtime fields below. The index signature stays for the parser/form/import
+// dynamic field machinery (its removal is a tracked follow-up).
+export interface BuildingType extends BuildingFlatFields, GeoPointFields {
   [key: string]:
     | string
     | number
@@ -116,53 +123,23 @@ export interface BuildingType {
    * in data rooms). Never drives parsing/loading/rendering. */
   attributedTo?: string;
   type: string;
-  customer?: string;
-  /** URL of the energy certificate file, if any (`bldg:hasEnergyCertificate`). */
-  energyCertificate?: string;
   /**
    * Files attached to the building (`bldg:hasAttachment`), incl. the energy
    * certificate (flagged `isEnergyCertificate`). Stored under the per-building
    * `files/` container on the owner's Pod; downloaded via authed `session.fetch`.
    */
   attachments?: AttachmentRef[];
+  /** Latitude/longitude on the building's `geo:Point` (external `geo:lat`/`geo:long`;
+   * `geocodePrecision` is the vocab-derived field from `GeoPointFields`). */
   lat?: number;
   long?: number;
-  /** How precisely lat/long were geocoded (from the geo:Point), when known. */
-  geocodePrecision?: "address" | "postcode" | "city";
-  locality?: string;
-  /** An identifier, not a number (leading zeros: "01067"). */
-  postalCode?: string;
-  region?: string;
   /** The building's 8-digit Gemeinde AGS, resolved from its coordinates at geocode time
    * (`dcterms:spatial`). Kreis = first 5 digits, Land = first 2. Drives the regional-statistics
    * join and the aggregation spatial coordinate without a per-read reverse-geocode. */
   regionAgs?: string;
-  streetAddress?: string;
-  buildingArea?: number;
-  landArea?: number;
   /** The building's energy units (`bldg:hasSystem` nodes) — PV plants, batteries,
    * CHP. A flat list (several of a kind allowed); each carries a stable `id`. */
   systems?: TechnicalSystem[];
-  /** Investor WebID (`bldg:investor`, ranges over foaf:Agent — an agent link like
-   * operatedBy, not a free-text label). Legacy literal values tolerated on read. */
-  investor?: string;
-  officeArea?: number;
-  usedAs?: string;
-  yearOfConstruction?: number;
-  /** An identifier, not a number ("52.10" ≠ 52.1). */
-  naceCode?: string;
-  operatedBy?: string;
-  /** Owner WebID (`rec:ownedBy`, ranges over foaf:Agent — an agent link like
-   * operatedBy). Legacy literal values tolerated on read. */
-  ownedBy?: string;
-  /** Facility-manager WebID (`bldg:facilityManagedBy`) — an agent link, distinct
-   * from the operator. */
-  facilityManagedBy?: string;
-  /** Project-developer WebID (`bldg:developedBy`) — who developed the building. */
-  developedBy?: string;
-  /** Consultant/broker WebID (`bldg:consultedBy`) — who consults for / markets
-   * the building (Vertriebsunterstützung). */
-  consultedBy?: string;
   /**
    * Unified energy model: the building's `cons:hasEnergyDataset` links (one per
    * year/granularity/scenario), derived from the link slugs. The actual figures
@@ -177,26 +154,6 @@ export interface BuildingType {
   isOpen?: boolean;
   /** Open-tier only: the LoD2 installable rooftop-PV capacity [kWp] (display-only). */
   openKwp?: number;
-  logisticsFunction?: string;
-  climateControlType?: string;
-  greenLeaseShare?: number; // %
-  companyName?: string;
-  // Investor role fields
-  label?: string;
-  buildingCode?: string;
-  hallArea?: number;
-  officeSocialArea?: number;
-  buildingHeight?: number;
-  numberOfLoadingDocks?: number;
-  yearOfRenovation?: number;
-  shiftRegime?: string;
-  tenancyType?: string;
-  leaseType?: string;
-  tenantIndustry?: string;
-  indoorTemperatureClass?: string;
-  // Heat generators (oil/gas/electric boiler, heat pump, district heating) are no longer
-  // booleans — they're :TechnicalSystem nodes in `systems` (the "Heat generation" section),
-  // carrying thermalCapacityKW + commissioningYear like PV/battery/CHP.
   certifications?: InvestorCertification[];
   annualData?: AnnualData[];
   operatingCosts?: InvestorOperatingCosts;

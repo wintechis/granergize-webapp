@@ -442,22 +442,22 @@ export function useSaveOrganization() {
   });
 }
 
-// ── Contacts (address book) ──────────────────────────────────────────────────
+// ── Agents (address book) ────────────────────────────────────────────────────
 
-/** Save (or update) a contact in the address book. Accepts a bare {@link SavedAgent}
- *  or `{ contact, logo }` when an org contact's logo image is being uploaded. */
+/** Save (or update) an agent in the address book. Accepts a bare {@link SavedAgent}
+ *  or `{ agent, logo }` when an org agent's logo image is being uploaded. */
 export function useSaveAgent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: SavedAgent | { contact: SavedAgent; logo?: File | null }) => {
-      const params = "contact" in vars ? vars : { contact: vars };
+    mutationFn: (vars: SavedAgent | { agent: SavedAgent; logo?: File | null }) => {
+      const params = "agent" in vars ? vars : { agent: vars };
       return invoke("SaveAgent", params, getGateway());
     },
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.agents }),
   });
 }
 
-/** Remove a contact from the address book. */
+/** Remove an agent from the address book. */
 export function useRemoveAgent() {
   const qc = useQueryClient();
   return useMutation({
@@ -466,7 +466,7 @@ export function useRemoveAgent() {
   });
 }
 
-/** Dev-mode: seed the demo contacts (see the SeedDemoAgents core). */
+/** Dev-mode: seed the demo agents (see the SeedDemoAgents core). */
 export function useSeedDemoAgents() {
   const qc = useQueryClient();
   return useMutation({

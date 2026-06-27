@@ -1,0 +1,365 @@
+/** Catalog slice — Cube / observation UI: metric selector, xlsx export, band labels, choropleths, calendar heatmap, weather overlay, energy-years dialog.
+ *
+ * Part of the message catalog assembled in `../messages.ts`; see it for the
+ * translator/lookup machinery. */
+import type { Message } from "./messageTypes.ts";
+
+export const cubeObservation = {
+  // Create-aggregation dialog form-field labels (the radio/metric/mode chrome is a
+  // separate follow-up slice).
+  aggTypeLabel: {
+    en: "Aggregation type",
+    de: "Aggregationsart",
+    fr: "Type d'agrégation",
+  },
+  aggSelectBuildings: {
+    en: "Select Buildings",
+    de: "Gebäude auswählen",
+    fr: "Sélectionner les bâtiments",
+  },
+  aggNameLabel: {
+    en: "Aggregation name",
+    de: "Name der Aggregation",
+    fr: "Nom de l'agrégation",
+  },
+  aggMonthLabel: { en: "Month", de: "Monat", fr: "Mois" },
+  aggCreateTitle: {
+    en: "Create aggregation",
+    de: "Aggregation erstellen",
+    fr: "Créer une agrégation",
+  },
+  aggCreatingSnapshot: {
+    en: "Creating aggregation and computing snapshot…",
+    de: "Aggregation wird erstellt und Snapshot berechnet…",
+    fr: "Création de l'agrégation et calcul de l'instantané…",
+  },
+  aggModeAnnual: {
+    en: "Annual portfolio",
+    de: "Jahresportfolio",
+    fr: "Portefeuille annuel",
+  },
+  aggModeMonthly: {
+    en: "Monthly (15-minute series)",
+    de: "Monatlich (15-Minuten-Reihe)",
+    fr: "Mensuel (série de 15 minutes)",
+  },
+  aggModeBenchmark: {
+    en: "Compare shared buildings",
+    de: "Geteilte Gebäude vergleichen",
+    fr: "Comparer les bâtiments partagés",
+  },
+  aggDescAnnual: {
+    en:
+      "Aggregate annual energy figures across your buildings. The computed values are " +
+      "stored as a privacy-preserving snapshot that can be shared without revealing the " +
+      "source buildings.",
+    de:
+      "Aggregiere die Jahresenergiewerte über deine Gebäude. Die berechneten Werte werden " +
+      "als datenschutzfreundlicher Snapshot gespeichert, der geteilt werden kann, ohne die " +
+      "zugrunde liegenden Gebäude offenzulegen.",
+    fr:
+      "Agrégez les valeurs énergétiques annuelles de vos bâtiments. Les valeurs calculées " +
+      "sont stockées sous forme d'instantané préservant la confidentialité, partageable sans " +
+      "révéler les bâtiments sources.",
+  },
+  aggDescMonthly: {
+    en:
+      "Aggregate monthly electricity consumption across buildings that carry a 15-minute " +
+      "load profile. The result is a privacy-preserving snapshot of the combined kWh total.",
+    de:
+      "Aggregiere den monatlichen Stromverbrauch über Gebäude mit einem 15-Minuten-Lastprofil. " +
+      "Das Ergebnis ist ein datenschutzfreundlicher Snapshot der kombinierten kWh-Summe.",
+    fr:
+      "Agrégez la consommation d'électricité mensuelle des bâtiments dotés d'un profil de " +
+      "charge de 15 minutes. Le résultat est un instantané préservant la confidentialité du " +
+      "total kWh combiné.",
+  },
+  aggDescBenchmark: {
+    en:
+      "Aggregate annual consumption across the buildings shared with you. " +
+      "Metrics: electricity, heat, water, and wastewater consumption (kWh / m³).",
+    de:
+      "Aggregiere den Jahresverbrauch über die mit dir geteilten Gebäude. " +
+      "Kennzahlen: Strom-, Wärme-, Wasser- und Abwasserverbrauch (kWh / m³).",
+    fr:
+      "Agrégez la consommation annuelle des bâtiments partagés avec vous. " +
+      "Indicateurs : consommation d'électricité, de chaleur, d'eau et d'eaux usées (kWh / m³).",
+  },
+  // Generic "Loading…" region text (reused wherever a region waits on data).
+  loadingEllipsis: { en: "Loading…", de: "Wird geladen…", fr: "Chargement…" },
+  // Metric selector (the cube's measure axis) — the picker label and the
+  // selectable observed properties (consumption set + generation).
+  metricSelectLabel: { en: "Metric", de: "Kennzahl", fr: "Indicateur" },
+  metricElectricityConsumption: {
+    en: "Electricity",
+    de: "Strom",
+    fr: "Électricité",
+  },
+  metricHeatConsumption: { en: "Heat", de: "Wärme", fr: "Chaleur" },
+  metricWaterConsumption: { en: "Water", de: "Wasser", fr: "Eau" },
+  metricWastewaterConsumption: {
+    en: "Wastewater",
+    de: "Abwasser",
+    fr: "Eaux usées",
+  },
+  metricElectricityGeneration: {
+    en: "Electricity generation",
+    de: "Stromerzeugung",
+    fr: "Production d'électricité",
+  },
+  // xlsx export — sheet names + the Observations sheet's column headers. These are
+  // human-facing chrome, so they localise. (The generic round-trip columns are
+  // machine keys, and the investor/benchmark labels are detection-keyed German, so
+  // both of those stay fixed regardless of locale.)
+  xlsxSheetBuildings: { en: "Buildings", de: "Gebäude", fr: "Bâtiments" },
+  xlsxSheetObservations: {
+    en: "Observations",
+    de: "Beobachtungen",
+    fr: "Observations",
+  },
+  xlsxObsYear: { en: "Year", de: "Jahr", fr: "Année" },
+  xlsxObsElectricity: {
+    en: "Electricity (kWh)",
+    de: "Strom (kWh)",
+    fr: "Électricité (kWh)",
+  },
+  xlsxObsElectricityGeneration: {
+    en: "Electricity generation (kWh)",
+    de: "Stromerzeugung (kWh)",
+    fr: "Production d'électricité (kWh)",
+  },
+  xlsxObsHeat: { en: "Heat (kWh)", de: "Wärme (kWh)", fr: "Chaleur (kWh)" },
+  xlsxObsWater: { en: "Water (m³)", de: "Wasser (m³)", fr: "Eau (m³)" },
+  xlsxObsWastewater: {
+    en: "Wastewater (m³)",
+    de: "Abwasser (m³)",
+    fr: "Eaux usées (m³)",
+  },
+  xlsxObsRenewable: {
+    en: "Renewable self-generated (%)",
+    de: "Erneuerbar selbst erzeugt (%)",
+    fr: "Renouvelable autoproduit (%)",
+  },
+  // Cube-view band labels — efficiency tiers (consumption framing) and the
+  // neutral low/mid/high magnitude buckets (generation framing).
+  lensTierEfficient: {
+    en: "More efficient",
+    de: "Effizienter",
+    fr: "Plus efficace",
+  },
+  lensTierTypical: { en: "Typical", de: "Typisch", fr: "Typique" },
+  lensTierInefficient: {
+    en: "Less efficient",
+    de: "Weniger effizient",
+    fr: "Moins efficace",
+  },
+  lensMagnitudeLow: { en: "Lower", de: "Niedriger", fr: "Plus faible" },
+  lensMagnitudeMid: { en: "Medium", de: "Mittel", fr: "Moyen" },
+  lensMagnitudeHigh: { en: "Higher", de: "Höher", fr: "Plus élevé" },
+  // Observations finder — the View toggle (Map/List reuse btnMap/btnList) + the
+  // per-building trend labels (the Trend view + each row's direction).
+  obsViewAria: {
+    en: "Observations view",
+    de: "Beobachtungsansicht",
+    fr: "Vue des observations",
+  },
+  obsViewOvertime: { en: "Over time", de: "Im Zeitverlauf", fr: "Dans le temps" },
+  obsWithoutBuilding: {
+    en: "Without a building",
+    de: "Ohne Gebäude",
+    fr: "Sans bâtiment",
+  },
+  obsLooseOnlyHint: {
+    en:
+      "{count} observation(s) aren't linked to a building yet — link them in the List to compare them here.",
+    de:
+      "{count} Beobachtung(en) sind noch keinem Gebäude zugeordnet — verknüpfen Sie sie in der Liste, um sie hier zu vergleichen.",
+    fr:
+      "{count} observation(s) ne sont pas encore associées à un bâtiment — associez-les dans la liste pour les comparer ici.",
+  },
+  obsOpenSection: {
+    en: "Open generation (nearby)",
+    de: "Offene Erzeugung (in der Nähe)",
+    fr: "Production ouverte (à proximité)",
+  },
+  openObsUnavailable: {
+    en: "This open observation's data couldn't be loaded.",
+    de: "Die Daten dieser offenen Beobachtung konnten nicht geladen werden.",
+    fr: "Les données de cette observation ouverte n'ont pas pu être chargées.",
+  },
+  openObsNoGeneration: {
+    en: "No settled generation reported for this plant.",
+    de: "Für diese Anlage ist keine abgerechnete Erzeugung gemeldet.",
+    fr: "Aucune production réglée déclarée pour cette installation.",
+  },
+  obsOpenFallback: {
+    en: "Renewable installation",
+    de: "Erneuerbare-Anlage",
+    fr: "Installation renouvelable",
+  },
+  obsOpenGenerationRow: {
+    en: "{kwh} kWh generated ({year})",
+    de: "{kwh} kWh erzeugt ({year})",
+    fr: "{kwh} kWh produits ({year})",
+  },
+  obsLinkToBuilding: {
+    en: "Link to a building",
+    de: "Mit Gebäude verknüpfen",
+    fr: "Associer à un bâtiment",
+  },
+  obsViewOveryears: { en: "Over years", de: "Über die Jahre", fr: "Au fil des ans" },
+  obsViewTrend: { en: "Trend", de: "Trend", fr: "Tendance" },
+  trendImproving: {
+    en: "Improving",
+    de: "Verbessert sich",
+    fr: "En amélioration",
+  },
+  trendFlat: { en: "Little change", de: "Kaum Veränderung", fr: "Peu de changement" },
+  trendWorsening: {
+    en: "Worsening",
+    de: "Verschlechtert sich",
+    fr: "En dégradation",
+  },
+  trendUnknown: {
+    en: "No trend yet",
+    de: "Noch kein Trend",
+    fr: "Pas encore de tendance",
+  },
+  lensBandNoData: {
+    en: "No data",
+    de: "Keine Daten",
+    fr: "Aucune donnée",
+  },
+  // Region choropleth — the statistics map shaded by AGS-keyed regionalstatistik.
+  choroplethTitle: {
+    en: "Regional statistics",
+    de: "Regionalstatistik",
+    fr: "Statistiques régionales",
+  },
+  choroplethLevelLand: {
+    en: "Bundesländer",
+    de: "Bundesländer",
+    fr: "Länder",
+  },
+  choroplethLevelKreis: {
+    en: "Kreise",
+    de: "Kreise",
+    fr: "Arrondissements",
+  },
+  choroplethLoading: {
+    en: "Loading regions…",
+    de: "Regionen werden geladen…",
+    fr: "Chargement des régions…",
+  },
+  choroplethLevelGemeinde: {
+    en: "Gemeinden",
+    de: "Gemeinden",
+    fr: "Communes",
+  },
+  choroplethZoomHint: {
+    en: "Zoom in for finer regions",
+    de: "Für feinere Regionen hineinzoomen",
+    fr: "Zoomez pour des régions plus fines",
+  },
+  choroplethGemeindeMetric: {
+    en: "Rooftop-PV build-out (Ausbaugrad)",
+    de: "PV-Dachflächen-Ausbaugrad",
+    fr: "Taux d'équipement PV en toiture",
+  },
+  // Neighbourhood energy-profile choropleth on the building's observation page.
+  neighbourhoodTitle: {
+    en: "Location energy profile — neighbourhood",
+    de: "Standort-Energieprofil — Umgebung",
+    fr: "Profil énergétique du site — voisinage",
+  },
+  neighbourhoodSource: {
+    en: "Rooftop-PV build-out per municipality · Energie-Atlas Bayern (Bavaria only)",
+    de: "PV-Dachausbaugrad je Gemeinde · Energie-Atlas Bayern (nur Bayern)",
+    fr: "Taux d'équipement PV par commune · Energie-Atlas Bayern (Bavière)",
+  },
+  choroplethGemeindeSource: {
+    en: "Bavaria only · Energie-Atlas Bayern",
+    de: "nur Bayern · Energie-Atlas Bayern",
+    fr: "Bavière uniquement · Energie-Atlas Bayern",
+  },
+  // Calendar-heatmap view (day × hour) of a building's 15-minute series — the
+  // tab label, its short legend captions, and the no-data / no-coverage states.
+  calendarTab: {
+    en: "Calendar",
+    de: "Kalender",
+    fr: "Calendrier",
+  },
+  calendarSubtitle: {
+    en: "Hourly consumption (kWh) by day and hour",
+    de: "Stündlicher Verbrauch (kWh) nach Tag und Stunde",
+    fr: "Consommation horaire (kWh) par jour et heure",
+  },
+  calendarLegendLess: { en: "Less", de: "Weniger", fr: "Moins" },
+  calendarLegendMore: { en: "More", de: "Mehr", fr: "Plus" },
+  calendarNoData: {
+    en: "No readings for this month.",
+    de: "Keine Messwerte für diesen Monat.",
+    fr: "Aucun relevé pour ce mois.",
+  },
+  calendarAxisHour: { en: "Hour", de: "Stunde", fr: "Heure" },
+  // Energy × weather overlay (Step 6a of plan-cube-ui): the toggle, the chart's
+  // weather-axis label, the station-distance caveat, and the no-overlap note.
+  weatherOverlayToggle: {
+    en: "Overlay weather",
+    de: "Wetter überlagern",
+    fr: "Superposer la météo",
+  },
+  weatherOverlayTitle: {
+    en: "Energy and weather",
+    de: "Energie und Wetter",
+    fr: "Énergie et météo",
+  },
+  weatherOverlayEnergyAxis: {
+    en: "Energy (kWh)",
+    de: "Energie (kWh)",
+    fr: "Énergie (kWh)",
+  },
+  weatherOverlayTempAxis: {
+    en: "Mean temperature (°C)",
+    de: "Mitteltemperatur (°C)",
+    fr: "Température moyenne (°C)",
+  },
+  weatherOverlayTempSeries: {
+    en: "Mean temperature",
+    de: "Mitteltemperatur",
+    fr: "Température moyenne",
+  },
+  // Honest station-distance caveat (mirrors the Weather panel): which station and
+  // how far. {name}/{id}/{km} are interpolated.
+  weatherOverlayStation: {
+    en: "Nearest station {name} ({id}), {km} km away · Deutscher Wetterdienst (DWD)",
+    de: "Nächste Station {name} ({id}), {km} km entfernt · Deutscher Wetterdienst (DWD)",
+    fr: "Station la plus proche {name} ({id}), à {km} km · Deutscher Wetterdienst (DWD)",
+  },
+  weatherOverlayNoStation: {
+    en: "No nearby weather station found for this location.",
+    de: "Keine nahegelegene Wetterstation für diesen Standort gefunden.",
+    fr: "Aucune station météo proche trouvée pour cet emplacement.",
+  },
+  weatherOverlayNoOverlap: {
+    en:
+      "No year has both energy and weather data, so they can't be compared on one axis.",
+    de:
+      "Kein Jahr hat sowohl Energie- als auch Wetterdaten, daher sind sie nicht auf einer Achse vergleichbar.",
+    fr:
+      "Aucune année ne dispose à la fois de données énergétiques et météo, elles ne peuvent donc pas être comparées sur un même axe.",
+  },
+  compareYearsEmpty: {
+    en:
+      "No annual energy data yet. Add energy years to your buildings to compare " +
+      "them side by side here.",
+    de:
+      "Noch keine Jahresenergiedaten. Füge deinen Gebäuden Energiejahre hinzu, um sie " +
+      "hier nebeneinander zu vergleichen.",
+    fr:
+      "Aucune donnée énergétique annuelle pour l'instant. Ajoutez des années " +
+      "énergétiques à vos bâtiments pour les comparer côte à côte ici.",
+  },
+  // Energy-years dialog.
+  eyAction: { en: "Energy years", de: "Energiejahre", fr: "Années énergétiques" },
+} satisfies Record<string, Message>;

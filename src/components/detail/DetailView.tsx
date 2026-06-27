@@ -11,7 +11,9 @@ import {
   Typography,
 } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import type { SxProps, Theme } from "@mui/material/styles";
+import { useT } from "../../context/I18nProvider.tsx";
 import { safeHref } from "../../lib/safeHref.ts";
 import { useDevMode } from "../../hooks/devMode.ts";
 import { useNavTrail, useTrailState } from "../../hooks/navTrail.ts";
@@ -173,6 +175,7 @@ export function RefLink({ to, onClick, children, stamp = true }: RefLinkProps) {
  * {@link backTarget}.
  */
 export function BackLink({ fallback = HOME }: { fallback?: string }) {
+  const t = useT();
   const trail = useNavTrail();
   const target = backTarget(trail, fallback);
   const rest = trail.slice(0, -1);
@@ -181,8 +184,11 @@ export function BackLink({ fallback = HOME }: { fallback?: string }) {
       component={RouterLink}
       to={target}
       state={rest.length ? { trail: rest } : undefined}
+      sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}
     >
-      🠠 Back
+      {/* eslint-disable-next-line no-restricted-syntax -- icon scales with surrounding text (em), not a fixed tier */}
+      <ArrowBackIcon sx={{ fontSize: "0.85em" }} />
+      {t("btnBack")}
     </Link>
   );
 }

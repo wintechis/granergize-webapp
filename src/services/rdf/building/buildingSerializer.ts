@@ -45,6 +45,7 @@ import {
   type GeocodePrecision,
   XSD_BOOLEAN,
   XSD_DECIMAL,
+  XSD_DURATION,
   XSD_GYEAR,
   XSD_INTEGER,
   XSD_STRING,
@@ -605,7 +606,7 @@ export function serializeBuildingToTurtle(
     store.addQuad(
       node,
       namedNode(`${CONSUMPTION_NS}granularity`),
-      literal(ds.granularity),
+      literal(ds.granularity, namedNode(XSD_DURATION)),
     );
     store.addQuad(
       node,
@@ -658,7 +659,7 @@ function linkEnergyDatasetInStore(
   store.addQuad(
     node,
     namedNode(`${CONSUMPTION_NS}granularity`),
-    literal(link.granularity),
+    literal(link.granularity, namedNode(XSD_DURATION)),
   );
   store.addQuad(
     node,
@@ -1191,7 +1192,7 @@ export async function updateBuilding(
   });
 }
 
-/** Construct the POD URL for a new building file. */
+/** Construct the POD IRI for a new building file. */
 export function newBuildingUri(webId: string, id: string): string {
   return `${podResources(webId).buildings}${id}.ttl`;
 }

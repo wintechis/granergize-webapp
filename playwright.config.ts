@@ -91,84 +91,15 @@ if (!LOCAL && !process.env.VITE_POD_APP_DIR) {
 
 const CHROME = { ...devices["Desktop Chrome"] };
 const FIREFOX = { ...devices["Desktop Firefox"] };
-// ── Redesign (2026-06-14): active vs. quarantined specs ──────────────────────
-// During the master-detail redesign we DON'T keep the whole legacy suite green —
-// the surfaces are being rewritten, so most legacy specs reference the old
-// Explore/Manage tabs (gone, merged into one Buildings tab with a Map⇄List
-// toggle). The ACTIVE lists below are the small, growing set of specs expected to
-// pass against the redesigned shell. A quarantined spec re-joins its list once the
-// redesign has rebuilt its surface AND the spec is rewritten to the new nav
-// (helper `openBuildingsList` in test/e2e/helpers/manage.ts is the seam).
-//
-// QUARANTINED (re-add to the lists below when rewritten):
-// (none — session-restore re-activated 2026-06-15; its post-login readiness
-// locator still matches the AppShell top-nav, which renders as role="tab".)
-
-// SOLO — one pod (Alice): single-account specs.
-const SOLO_SPECS = [
-  "**/building-page.spec.ts",
-  "**/agent-page.spec.ts",
-  "**/observations-finder.spec.ts",
-  "**/search-finder.spec.ts",
-  "**/uri-state.spec.ts",
-  "**/add-building.spec.ts",
-  "**/aggregations.spec.ts",
-  "**/energy-entry.spec.ts",
-  "**/energy-resolutions.spec.ts",
-  "**/agents.spec.ts",
-  "**/edit-building-fields.spec.ts",
-  "**/attachments.spec.ts",
-  "**/excel-export.spec.ts",
-  "**/excel-import.spec.ts",
-  "**/building-details.spec.ts",
-  "**/login.spec.ts",
-  "**/logout.spec.ts",
-  "**/archive-restore.spec.ts",
-  "**/archive-systems.spec.ts",
-  "**/archive-full-load.spec.ts",
-  "**/map-energy-lens.spec.ts",
-  "**/regional-context.spec.ts",
-  "**/data-sources.spec.ts",
-  "**/building-attribution.spec.ts",
-  "**/neighbourhood-energy.spec.ts",
-  "**/aggregations-open-tier.spec.ts",
-  "**/buildings-open-tier.spec.ts",
-  "**/buildingless-observations.spec.ts",
-  "**/open-observations.spec.ts",
-  "**/map-viewport.spec.ts",
-  "**/map-clustering.spec.ts",
-  "**/map-region-choropleth.spec.ts",
-  "**/map-explore.spec.ts",
-  "**/nearby-installations.spec.ts",
-  "**/dev-source-links.spec.ts",
-  "**/seed-demos.spec.ts",
-  // Cube UI — CQ-anchored space-time-cube specs (plans/plan-cube-ui.md).
-  "**/cube-time-cut.spec.ts",
-  "**/cube-space-cut.spec.ts",
-  "**/cube-metric-selector.spec.ts",
-  "**/cube-calendar-weather.spec.ts",
-  "**/organisation.spec.ts",
-  "**/data-room.spec.ts",
-  "**/building-form-and-energy.spec.ts",
-  "**/session-restore.spec.ts",
-  "**/i18n.spec.ts",
-  "**/palette-add-and-energy.spec.ts",
-  "**/palette-launch-json.spec.ts",
-];
-// DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
-const DUO_SPECS: string[] = [
-  "**/share-building.spec.ts",
-  "**/share-aggregation.spec.ts",
-  "**/share-files.spec.ts",
-  "**/share-attachment-subset.spec.ts",
-  "**/palette-share-building.spec.ts",
-  "**/palette-hide-shared-building.spec.ts",
-  "**/palette-benchmark-share.spec.ts",
-];
-// TRIO — three pods (A + B + C = Charlie): the benchmark-service round-trip.
-const TRIO_SPECS: string[] = [
-  "**/peer-benchmark.spec.ts",
-];
+// ── e2e spec layout ──────────────────────────────────────────────────────────
+// Specs are partitioned by POD COUNT via DIRECTORY, not a hand-maintained list:
+//   test/e2e/solo/   — one pod (Alice): single-account specs
+//   test/e2e/duo/    — two pods (A = Alice + B = Bob): cross-Pod sharing handshakes
+//   test/e2e/trio/   — three pods (A + B + C = Charlie): the benchmark round-trip
+// Each project's testMatch is its folder glob, so a new/renamed spec auto-registers
+// by where it lives — no list to update (and none to silently fall out of, the old
+// failure mode). The `local` project (Tier 3) is the union of all three. `stress/`,
+// `support/`, `videos/`, `bench/` are their own folders, gated by the env switches below.
 
 export default defineConfig({
   testDir: "./test/e2e",
@@ -235,13 +166,13 @@ export default defineConfig({
     ...(REUSE
       ? [{ name: "setup", use: CHROME, testMatch: ["**/setup/**/*.setup.ts"] }]
       : []),
-    { name: "solo", use: CHROME, testMatch: SOLO_SPECS },
+    { name: "solo", use: CHROME, testMatch: ["**/solo/**/*.spec.ts"] },
     // Same solo specs under Firefox — opt-in via `--project=solo-firefox`, never part
     // of `e2e:remote` (which selects solo/duo/trio). For cross-browser triage of
     // engine-specific failures (e.g. DPoP-nonce / conditional-PUT timing on a burst).
-    { name: "solo-firefox", use: FIREFOX, testMatch: SOLO_SPECS },
-    { name: "duo", use: CHROME, testMatch: DUO_SPECS },
-    { name: "trio", use: CHROME, testMatch: TRIO_SPECS },
+    { name: "solo-firefox", use: FIREFOX, testMatch: ["**/solo/**/*.spec.ts"] },
+    { name: "duo", use: CHROME, testMatch: ["**/duo/**/*.spec.ts"] },
+    { name: "trio", use: CHROME, testMatch: ["**/trio/**/*.spec.ts"] },
     { name: "support", use: CHROME, testMatch: ["**/support/**/*.spec.ts"] },
     // Gated on E2E_LOCAL so the default/real-Pod runs don't re-run these specs
     // (they'd duplicate solo+duo+trio). Selected via `--project=local`. In reuse
@@ -251,7 +182,11 @@ export default defineConfig({
       ? [{
         name: "local",
         use: CHROME,
-        testMatch: [...SOLO_SPECS, ...DUO_SPECS, ...TRIO_SPECS],
+        testMatch: [
+          "**/solo/**/*.spec.ts",
+          "**/duo/**/*.spec.ts",
+          "**/trio/**/*.spec.ts",
+        ],
         ...(REUSE ? { dependencies: ["setup"] } : {}),
       }]
       : []),
@@ -292,7 +227,7 @@ export default defineConfig({
       ? [{
         name: "stress",
         use: CHROME,
-        testMatch: ["**/login-stress.spec.ts"],
+        testMatch: ["**/stress/**/*.spec.ts"],
       }]
       : []),
   ],

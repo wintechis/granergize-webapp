@@ -10,6 +10,8 @@
     "eval:intent": "deno run -A --env-file=.env.local test/eval/intent-translation.eval.ts",
     "eval:sweep": "deno run -A --env-file=.env.local test/eval/sweep.ts",
     "gen:labels": "deno run --allow-env --allow-read --allow-write scripts/genVocabLabels.ts",
+    "gen:schema": "deno run --allow-env --allow-read --allow-write scripts/genVocabSchema.ts",
+    "gen:interface": "deno run --allow-env --allow-read --allow-write scripts/genVocabInterface.ts",
     "doc:intents": "deno run -A npm:typedoc",
     "loc": "deno run --allow-read --allow-run=git test/loc.ts",
     "lint": "deno run -A npm:eslint .",

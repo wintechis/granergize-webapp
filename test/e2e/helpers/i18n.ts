@@ -2,6 +2,7 @@ import { type MessageId, type MessageParams, translate } from "../../../src/lib/
 import type { Lang } from "../../../src/lib/language.ts";
 import { roleLabel } from "../../../src/constants/roles.ts";
 import { annualMetricLabel } from "../../../src/constants/annualMetrics.ts";
+import { fieldLabel } from "../../../src/services/rdf/vocabLabels.ts";
 import { getEnv } from "../../config/env.ts";
 
 /**
@@ -111,6 +112,13 @@ export function roleT(role: string): string {
  * d'électricité (kWh)". The energy-entry spinbutton labels use this. */
 export function metricT(key: string): string {
   return annualMetricLabel(key, E2E_LANG);
+}
+
+/** A building agent-field's EDIT-form label in the run language — the vocab field
+ * label plus the "(WebID)" input hint (mirrors `BuildingDetailFields`' `withWebId`),
+ * e.g. `"operatedBy"` → "Operated by (WebID)" / "Betrieben von (WebID)". */
+export function agentFieldT(field: string): string {
+  return `${fieldLabel(field as Parameters<typeof fieldLabel>[0], E2E_LANG)} (WebID)`;
 }
 
 /**

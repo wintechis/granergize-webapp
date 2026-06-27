@@ -11,6 +11,7 @@ import {
   BENCH_METRIC_PERIOD,
   BENCH_RESULT,
   CONSUMPTION_NS,
+  RDF_NS,
   RDF_TYPE,
   SOSA_NS,
   SSN_NS,
@@ -19,6 +20,7 @@ import {
   XSD_DECIMAL,
   XSD_GYEAR,
   XSD_INTEGER,
+  XSD_NS,
 } from "../rdf/vocabularies.ts";
 import { ENERGY_METRICS } from "../rdf/energyDataset.ts";
 import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
@@ -64,9 +66,8 @@ function readSpatialExtent(
 /**
  * Standard prefixes for Turtle serialization
  */
-const TTL_PREFIXES =
-  `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+const TTL_PREFIXES = `@prefix rdf: <${RDF_NS}> .
+@prefix xsd: <${XSD_NS}> .
 @prefix cons: <${VOCAB_PREFIX}> .
 
 `;

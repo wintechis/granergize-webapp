@@ -62,7 +62,7 @@ function assertCapability(source: SourceId, verb: SourceCapability): void {
 }
 
 /** GET `path` (relative to the source base) as Turtle → a `Store` based at the
- *  document URL, so relative IRIs resolve to absolutes. */
+ *  document IRI, so relative IRIs resolve to absolutes. */
 async function fetchRdf(
   gw: SourceGateway,
   source: SourceId,

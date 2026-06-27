@@ -147,7 +147,7 @@ test.describe("handbuch screenshots", () => {
         Record<string, string>;
       contactWebId = webIds.B ?? contactWebId;
       await page.reload();
-      await expect(page.getByRole("tab", { name: "Buildings" }))
+      await expect(page.getByRole("tab", { name: en("navBuildings") }))
         .toBeVisible({ timeout: 60_000 });
     }
 
@@ -167,8 +167,8 @@ test.describe("handbuch screenshots", () => {
     //     seeded org logo + avatar (from /seed-profiles). Best-effort: on an
     //     idempotent re-run against a non-fresh Pod the banner is absent and the
     //     map already has markers, so the committed figure is kept. ---
-    await page.getByRole("tab", { name: "Buildings" }).click();
-    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await page.getByRole("tab", { name: en("navBuildings") }).click();
+    await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
     await page.getByRole("button", { name: en("onboardAddExamples") })
       .waitFor({ timeout: 15_000 }).catch(() => {});
     await waitForMapTiles(page);
@@ -210,7 +210,7 @@ test.describe("handbuch screenshots", () => {
     //     finder; enter the active room if one exists, else host a fresh one
     //     ("Host a data room" navigates straight onto the new room's page). The
     //     room.png figure now captures that room page (with a role assigned). ---
-    await page.getByRole("tab", { name: "Meet" }).click();
+    await page.getByRole("tab", { name: en("navMeet") }).click();
     const activeRoomRow = page.locator("li", { hasText: /active/ }).first();
     if (await activeRoomRow.count()) {
       await activeRoomRow.getByRole("link").first().click();
@@ -238,9 +238,9 @@ test.describe("handbuch screenshots", () => {
     // Back to the app shell (the room page is a standalone route without tabs) so
     // the onboarding "Add examples" banner (on the Buildings Map) is reachable.
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: en("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
 
     // Dismiss the "Roles updated" toast, then ACCEPT the fresh-Pod onboarding
     // banner's "Add examples": every figure is captured over the SAME four demo
@@ -277,7 +277,7 @@ test.describe("handbuch screenshots", () => {
         // C owns no buildings: dismiss C's fresh-Pod onboarding banner.
         await c.page.getByRole("button", { name: "No thanks" })
           .click({ timeout: 8_000 }).catch(() => {});
-        await c.page.getByRole("tab", { name: "Aggregations" }).click();
+        await c.page.getByRole("tab", { name: en("navAggregations") }).click();
         const aggregationRow = c.page.locator("li").filter({ hasText: BENCHMARK_NAME })
           .first();
         await expect(aggregationRow).toBeVisible({ timeout: 60_000 });
@@ -332,7 +332,7 @@ test.describe("handbuch screenshots", () => {
     // --- Data: the four demo buildings (seeded via "Add examples" above) give
     //     every later figure its content; the Add Building dialog lives on the
     //     Buildings tab's List view ---
-    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByRole("button", { name: en("btnList") }).click();
     const dialog = page.getByRole("dialog");
     // Wait for a building ROW to be present (only present once buildings have
@@ -382,7 +382,7 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "manage-actions.png");
     // Back to the app shell (the building page is a standalone route without tabs).
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: en("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
 
     // --- Energy-year dialog: the per-year consumption form plus the "Stored
@@ -392,7 +392,7 @@ test.describe("handbuch screenshots", () => {
     //     redesign moved energy entry off the finder row onto the building's
     //     OBSERVATION page (`/observation/:id`); resolve the Nordostpark id from
     //     the list, route there, click "Edit energy years". ---
-    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByRole("button", { name: en("btnList") }).click();
     const nordostparkRow = page.locator("li[data-building-id]")
       .filter({ hasText: "Nordostpark" }).first();
@@ -411,11 +411,11 @@ test.describe("handbuch screenshots", () => {
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 10_000 });
     // /observation/:id is a standalone route (no app-shell tabs) — return to the shell.
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: en("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
 
     // --- Aggregations: aggregations (Create aggregation lives here, with buildings) ---
-    await page.getByRole("tab", { name: "Aggregations" }).click();
+    await page.getByRole("tab", { name: en("navAggregations") }).click();
     await page.waitForTimeout(500);
 
     // --- Create aggregation dialog (buildings are now selectable) ---
@@ -461,19 +461,19 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "aggregated-view.png");
     // Back to the app shell (the view page is a standalone route without tabs).
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: en("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
 
     // --- The Buildings map finder (map-tabs.png): the map is a pure finder now
     //     (a marker click navigates to /building/:id; there is no detail pane).
     //     Resolve the Nordostpark demo's id from the List for the energy shots
     //     below, then show the map with all four demo markers settled. ---
-    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByRole("button", { name: en("btnList") }).click();
     const nordRow = page.locator("li").filter({ hasText: "Nordostpark" }).first();
     await expect(nordRow).toBeVisible({ timeout: 30_000 });
     const buildingId = await nordRow.getAttribute("data-building-id");
-    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
     const markers = page.locator(".leaflet-marker-icon");
     await markers.first().waitFor({ timeout: 20_000 }).catch(() => {});
     await page.waitForLoadState("networkidle").catch(() => {});
@@ -488,8 +488,8 @@ test.describe("handbuch screenshots", () => {
     //     demo buildings carry areas + energy years, so their intensities are
     //     computable. Phase-2 energy must have landed for the tint, so allow it to
     //     settle before the shot. ---
-    await page.getByRole("tab", { name: "Observations" }).click();
-    await page.getByRole("button", { name: en("btnMap"), exact: true })
+    await page.getByRole("tab", { name: en("navObservations") }).click();
+    await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true })
       .click({ force: true }).catch(() => {});
     await page.waitForLoadState("networkidle").catch(() => {});
     await waitForMapTiles(page);
@@ -565,7 +565,7 @@ test.describe("handbuch screenshots", () => {
 
       // Back to the app shell (the detail page is a standalone route without tabs).
       await page.goto("/");
-      await expect(page.getByRole("tab", { name: "Buildings" }))
+      await expect(page.getByRole("tab", { name: en("navBuildings") }))
         .toBeVisible({ timeout: 30_000 });
     }
 
@@ -590,7 +590,7 @@ test.describe("handbuch screenshots", () => {
       // the finder row onto the building page's SharingSection: resolve the first
       // row's id, route to /building/:id, click the section's "Share" button,
       // then drive the same by-WebID dialog flow (mirrors manage.ts shareByWebId).
-      await page.getByRole("tab", { name: "Buildings" }).click();
+      await page.getByRole("tab", { name: en("navBuildings") }).click();
       await page.getByRole("button", { name: en("btnList") }).click();
       const aRowId = await page.locator("li[data-building-id]").first()
         .getAttribute("data-building-id");
@@ -616,7 +616,7 @@ test.describe("handbuch screenshots", () => {
       // session → drainInbox archives the grant into shared-in/).
       await page.waitForTimeout(COOLDOWN_MS);
       await b.page.reload();
-      await b.page.getByRole("tab", { name: "Sharing" }).click();
+      await b.page.getByRole("tab", { name: en("navSharing") }).click();
       await expect(
         b.page.getByRole("list", { name: /buildings shared with you/i })
           .getByText(/^Building /),
@@ -651,8 +651,8 @@ test.describe("handbuch screenshots", () => {
       //     live from A's Pod. Local-only: it needs the seeded share (remote
       //     keeps the committed figure). ---
       if (E2E_LOCAL) {
-        await b.page.getByRole("tab", { name: "Buildings" }).click();
-        await b.page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+        await b.page.getByRole("tab", { name: en("navBuildings") }).click();
+        await b.page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
         const sharedMarker = b.page
           .locator(".leaflet-marker-icon.pin-shared").first();
         await sharedMarker.waitFor({ timeout: 60_000 });

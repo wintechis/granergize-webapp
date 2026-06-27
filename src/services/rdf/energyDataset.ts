@@ -1,6 +1,6 @@
 import type { PodGateway } from "../pod/podGateway.ts";
-import { DataFactory, Parser, Store } from "n3";
-import type { Term } from "n3";
+import { DataFactory, Parser, Store, Writer } from "n3";
+import type { BlankNode, Literal, NamedNode, Term } from "n3";
 import {
   CONSUMPTION_NS,
   RDF_TYPE,
@@ -8,7 +8,12 @@ import {
   SSN_NS,
   TIME_NS,
   UNIT_NS,
+  XSD_DATE,
+  XSD_DECIMAL,
+  XSD_DURATION,
+  XSD_NS,
 } from "./vocabularies.ts";
+import { VOCAB_SCHEMA } from "./vocabSchema.generated.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
 import { sameUnit, toCanonical } from "../energy/units.ts";
 import {
@@ -20,7 +25,7 @@ import {
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { logError } from "../../lib/logError.ts";
 
-const { namedNode } = DataFactory;
+const { namedNode, literal, blankNode } = DataFactory;
 
 export type { EnergyDatasetRef, Scenario };
 
@@ -67,46 +72,35 @@ export type { EnergyDatasetRef, Scenario };
  *      cons:datasetLocation <observations/2024/> .
  */
 
-export type EnergyMetricKey =
-  | "electricityConsumption"
-  | "heatConsumption"
-  | "waterConsumption"
-  | "wastewaterConsumption"
-  | "renewableSelfGeneratedShare"
-  | "electricityGeneration";
+/** The energy metric keys, in cube/UI order. Each maps to a `cons:` observed-property
+ *  IRI by PascalCase; its canonical unit comes from the vocab (`cons:canonicalUnit`). */
+export const METRIC_KEYS = [
+  "electricityConsumption",
+  "heatConsumption",
+  "waterConsumption",
+  "wastewaterConsumption",
+  "renewableSelfGeneratedShare",
+  "electricityGeneration",
+] as const;
+
+export type EnergyMetricKey = typeof METRIC_KEYS[number];
 
 export type AnnualMetrics = Partial<Record<EnergyMetricKey, number>>;
 
-/** Each metric's observed-property IRI + result unit IRI (unified under cons:). */
-export const ENERGY_METRICS: Record<
-  EnergyMetricKey,
-  { prop: string; unit: string }
-> = {
-  electricityConsumption: {
-    prop: `${CONSUMPTION_NS}ElectricityConsumption`,
-    unit: `${UNIT_NS}KiloW-HR`,
-  },
-  heatConsumption: {
-    prop: `${CONSUMPTION_NS}HeatConsumption`,
-    unit: `${UNIT_NS}KiloW-HR`,
-  },
-  waterConsumption: {
-    prop: `${CONSUMPTION_NS}WaterConsumption`,
-    unit: `${UNIT_NS}M3`,
-  },
-  wastewaterConsumption: {
-    prop: `${CONSUMPTION_NS}WastewaterConsumption`,
-    unit: `${UNIT_NS}M3`,
-  },
-  renewableSelfGeneratedShare: {
-    prop: `${CONSUMPTION_NS}RenewableSelfGeneratedShare`,
-    unit: `${UNIT_NS}PERCENT`,
-  },
-  electricityGeneration: {
-    prop: `${CONSUMPTION_NS}ElectricityGeneration`,
-    unit: `${UNIT_NS}KiloW-HR`,
-  },
-};
+const pascal = (k: string): string => k.charAt(0).toUpperCase() + k.slice(1);
+
+/** Each metric's observed-property IRI + canonical result unit IRI — derived from the
+ *  metric key (its PascalCase name under `cons:`) and the vocab's `cons:canonicalUnit`
+ *  (see vocabSchema.generated.ts), so the units live in one place: the ontology. */
+export const ENERGY_METRICS: Record<EnergyMetricKey, { prop: string; unit: string }> = Object
+  .fromEntries(
+    METRIC_KEYS.map((key) => {
+      const prop = `${CONSUMPTION_NS}${pascal(key)}`;
+      const unit = VOCAB_SCHEMA[prop]?.unit;
+      if (!unit) throw new Error(`vocab declares no cons:canonicalUnit for ${prop}`);
+      return [key, { prop, unit }];
+    }),
+  ) as Record<EnergyMetricKey, { prop: string; unit: string }>;
 
 const PROP_TO_METRIC: Record<string, EnergyMetricKey> = Object.fromEntries(
   (Object.entries(ENERGY_METRICS) as [EnergyMetricKey, { prop: string }][])
@@ -346,62 +340,83 @@ export function findDatasetLink(
  * aggregate, or the located descriptor when `datasetLocation` is set.
  */
 export function serializeEnergyDataset(ds: EnergyDataset): string {
-  const scenarioIri = ds.scenario === "planned" ? "cons:Planned" : "cons:Actual";
-  const interval = `[ a time:Interval ;\n` +
-    `        time:hasBeginning "${ds.year}-01-01"^^xsd:date ;\n` +
-    `        time:hasEnd "${ds.year}-12-31"^^xsd:date ]`;
-  const header = [
-    `@prefix cons: <${CONSUMPTION_NS}> .`,
-    `@prefix sosa: <${SOSA_NS}> .`,
-    `@prefix ssn: <${SSN_NS}> .`,
-    `@prefix time: <${TIME_NS}> .`,
-    `@prefix unit: <${UNIT_NS}> .`,
-    `@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .`,
-    "",
-    "",
-  ].join("\n");
+  const writer = new Writer({
+    prefixes: {
+      cons: CONSUMPTION_NS,
+      sosa: SOSA_NS,
+      ssn: SSN_NS,
+      time: TIME_NS,
+      unit: UNIT_NS,
+      xsd: XSD_NS,
+    },
+  });
+  // Feed quads straight to the Writer (not via an n3 Store): the Store's entity
+  // index mangles a document-relative IRI like `../../buildings/x.ttl#pv`, which
+  // a featureOfInterest may legitimately be; the Writer serializes term values
+  // verbatim. Subject is relative to the file it is PUT at — written `<#ds>`.
+  const node = namedNode("#ds");
+  const type = namedNode(RDF_TYPE);
+  const cons = (local: string) => namedNode(`${CONSUMPTION_NS}${local}`);
+  const sosa = (local: string) => namedNode(`${SOSA_NS}${local}`);
+  const add = (
+    s: NamedNode | BlankNode,
+    p: NamedNode,
+    o: NamedNode | BlankNode | Literal,
+  ) => writer.addQuad(s, p, o);
 
-  // The component the observations are about, when not the building itself
-  // (e.g. generation is about the <#pv> plant). Reuses SOSA directly.
-  const foi = ds.featureOfInterest
-    ? `   sosa:hasFeatureOfInterest <${ds.featureOfInterest}> ;\n`
-    : "";
+  add(node, type, cons("EnergyDataset"));
+  // An annual aggregate also declares sosa:ObservationCollection (so aggregators
+  // can spot it); the located series descriptor does not.
+  if (!ds.datasetLocation) add(node, type, sosa("ObservationCollection"));
 
   // The building this observation is about — OMITTED when unbound (a building-less
-  // observation, to be linked to a building later); emitting `<>` would be invalid.
-  const ofBuilding = ds.building
-    ? `   cons:ofBuilding <${ds.building}> ;\n`
-    : "";
+  // observation, linked to a building later); emitting `<>` would be invalid.
+  if (ds.building) add(node, cons("ofBuilding"), namedNode(ds.building));
+  // The component the observations are about, when not the building itself
+  // (e.g. generation is about the <#pv> plant). Reuses SOSA directly.
+  if (ds.featureOfInterest) {
+    add(node, sosa("hasFeatureOfInterest"), namedNode(ds.featureOfInterest));
+  }
+  add(node, cons("granularity"), literal(ds.granularity, namedNode(XSD_DURATION)));
+  add(node, cons("scenario"), cons(ds.scenario === "planned" ? "Planned" : "Actual"));
+
+  // The covered period as a time:Interval (the whole year).
+  const interval = blankNode("interval");
+  add(node, sosa("phenomenonTime"), interval);
+  add(interval, type, namedNode(`${TIME_NS}Interval`));
+  add(interval, namedNode(`${TIME_NS}hasBeginning`), literal(`${ds.year}-01-01`, namedNode(XSD_DATE)));
+  add(interval, namedNode(`${TIME_NS}hasEnd`), literal(`${ds.year}-12-31`, namedNode(XSD_DATE)));
 
   if (ds.datasetLocation) {
-    return header +
-      `<#ds> a cons:EnergyDataset ;\n` +
-      ofBuilding +
-      foi +
-      `   cons:granularity "${ds.granularity}" ;\n` +
-      `   cons:scenario ${scenarioIri} ;\n` +
-      `   sosa:phenomenonTime ${interval} ;\n` +
-      `   cons:datasetLocation <${ds.datasetLocation}> .\n`;
+    // Series descriptor: the daily chunk files are located under this container.
+    add(node, cons("datasetLocation"), namedNode(ds.datasetLocation));
+  } else {
+    // Annual aggregate: one inline sosa:Observation per present metric.
+    let i = 0;
+    for (
+      const [k, v] of Object.entries(ds.metrics ?? {}) as [EnergyMetricKey, number][]
+    ) {
+      if (v === undefined || v === null) continue;
+      const m = ENERGY_METRICS[k];
+      const obs = blankNode(`obs${i}`);
+      const result = blankNode(`result${i}`);
+      i++;
+      add(node, sosa("hasMember"), obs);
+      add(obs, type, sosa("Observation"));
+      add(obs, sosa("observedProperty"), namedNode(m.prop));
+      add(obs, sosa("hasResult"), result);
+      add(result, sosa("hasSimpleResult"), literal(String(v), namedNode(XSD_DECIMAL)));
+      add(result, namedNode(`${SSN_NS}hasUnit`), namedNode(m.unit));
+    }
   }
 
-  const members = (Object.entries(ds.metrics ?? {}) as [EnergyMetricKey, number][])
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => {
-      const m = ENERGY_METRICS[k];
-      return `      [ a sosa:Observation ; sosa:observedProperty <${m.prop}> ;\n` +
-        `        sosa:hasResult [ sosa:hasSimpleResult "${v}"^^xsd:decimal ;\n` +
-        `                         ssn:hasUnit <${m.unit}> ] ]`;
-    })
-    .join(" ,\n");
-
-  return header +
-    `<#ds> a cons:EnergyDataset , sosa:ObservationCollection ;\n` +
-    ofBuilding +
-    foi +
-    `   cons:granularity "${ds.granularity}" ;\n` +
-    `   cons:scenario ${scenarioIri} ;\n` +
-    `   sosa:phenomenonTime ${interval}` +
-    (members ? ` ;\n   sosa:hasMember\n${members} .\n` : ` .\n`);
+  // Writer.end() invokes its callback synchronously, so `out` is set before return.
+  let out = "";
+  writer.end((error, result) => {
+    if (error) throw error;
+    out = result;
+  });
+  return out;
 }
 
 /**

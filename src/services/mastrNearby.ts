@@ -90,7 +90,7 @@ const FETCH_CAP = 500;
 
 /** The WGS84 bounding box of half-width `radiusKm` around a point (~111 km per
  *  degree latitude; longitude shrinks by cos). Shared by the fetch and the
- *  dev-link URL so they can't diverge. */
+ *  dev-link IRI so they can't diverge. */
 function boxAround(lat: number, long: number, radiusKm: number): Box {
   const dLat = radiusKm / 111;
   const dLon = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
@@ -213,7 +213,7 @@ export async function fetchInstallationsByAgs(
 
 /** The trailing plant number from a `…/eeg/{number}#it` IRI (the netztransparenz key),
  *  or null. The IRI is relative to the MaStR host — we want only the number, to build
- *  the netztransparenz URL, NOT follow it to the mastr host. */
+ *  the netztransparenz IRI, NOT follow it to the mastr host. */
 export function eegNumberFromIri(iri: string): string | null {
   const m = iri.match(/\/eeg\/(\d+)/);
   return m ? m[1] : null;

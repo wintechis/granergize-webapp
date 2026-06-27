@@ -10,7 +10,6 @@ import type {
   InvestorCertification,
   InvestorOperatingCosts,
 } from "../types.ts";
-import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
 
 /** Scalar building keys that never become editable form fields (identity, derived
  * collections, or the nested sub-structures seeded explicitly below). `type` is the
@@ -30,19 +29,6 @@ const SKIP_FIELDS = new Set([
   "energyCertificate",
 ]);
 
-/** Fields stored as human-readable labels in the object model; the form edits the
- * controlled-vocab local name, so they're reversed on seed. */
-const ENUM_FIELDS = new Set([
-  "shiftRegime",
-  "tenancyType",
-  "indoorTemperatureClass",
-]);
-
-/** Reverse of `investorLocalNameLabels`: human label → local name. */
-const labelToLocalName: Record<string, string> = Object.fromEntries(
-  Object.entries(investorLocalNameLabels).map(([ln, label]) => [label, ln]),
-);
-
 /**
  * Seed the Add/Edit dialogs' flat `fields` map from a building. Scalars go in by key;
  * the nested investor operating-costs / certifications and the PV-system node are
@@ -60,8 +46,7 @@ export function buildingToFields(b: BuildingType): Record<string, string> {
     } else if (typeof val === "number") {
       fields[key] = String(val);
     } else if (typeof val === "string") {
-      // Enum fields are stored as human-readable labels; the form needs local names.
-      fields[key] = ENUM_FIELDS.has(key) ? (labelToLocalName[val] ?? val) : val;
+      fields[key] = val;
     }
   }
   const oc = b.operatingCosts as InvestorOperatingCosts | undefined;
@@ -76,8 +61,8 @@ export function buildingToFields(b: BuildingType): Record<string, string> {
   const certs = b.certifications as InvestorCertification[] | undefined;
   certs?.forEach((c, i) => {
     if (c.type) fields[`_cert_${i}_type`] = c.type;
-    if (c.level) fields[`_cert_${i}_level`] = c.level;
-    if (c.scope) fields[`_cert_${i}_scope`] = c.scope;
+    if (c.certificationLevel) fields[`_cert_${i}_level`] = c.certificationLevel;
+    if (c.certificationScope) fields[`_cert_${i}_scope`] = c.certificationScope;
   });
   // Energy units (PV/battery/CHP) are NOT flat fields — they're edited as a
   // TechnicalSystem[] in the per-unit editor and written via updateBuilding's

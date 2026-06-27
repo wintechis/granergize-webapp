@@ -52,7 +52,7 @@ function commonsFilenameFromClaims(
 }
 
 /**
- * Resolve a logo image URL for a Wikidata entity IRI, or `undefined`. Performs
+ * Resolve a logo image IRI for a Wikidata entity IRI, or `undefined`. Performs
  * NO fetch for a non-Wikidata IRI. Best-effort — swallows every error.
  * @operation query
  */

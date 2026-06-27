@@ -1,4 +1,5 @@
 /** Shared RDF vocabulary IRI constants used across services */
+import type { GeocodePrecision } from "./buildingShape.generated.ts";
 
 // The three Granergize vocabularies, partitioned by subject (see vocab/README.md):
 // core (app/interop plumbing), building (rec:Building master data), consumption
@@ -65,12 +66,13 @@ export const GEO_LONG = `${GEO_NS}long`;
  * the lookup had to fall back to a coarser query. IRI-valued (controlled vocab).
  */
 export const GRAN_GEOCODE_PRECISION = `${BUILDING_NS}geocodePrecision`;
-export const GEOCODE_PRECISION_IRI = {
-  address: `${BUILDING_NS}Address`,
-  postcode: `${BUILDING_NS}Postcode`,
-  city: `${BUILDING_NS}City`,
-} as const;
-export type GeocodePrecision = keyof typeof GEOCODE_PRECISION_IRI;
+// Keyed by the vocab-derived GeocodePrecision token; the IRI local name IS the token.
+export const GEOCODE_PRECISION_IRI: Record<GeocodePrecision, string> = {
+  Address: `${BUILDING_NS}Address`,
+  Postcode: `${BUILDING_NS}Postcode`,
+  City: `${BUILDING_NS}City`,
+};
+export type { GeocodePrecision };
 /** Reverse of {@link GEOCODE_PRECISION_IRI} (IRI → precision key), for parsing. */
 export const IRI_TO_GEOCODE_PRECISION: Record<string, GeocodePrecision> = Object
   .fromEntries(
@@ -84,6 +86,11 @@ export const ORG_MEMBER_OF = `${ORG_NS}memberOf`;
 /** OWL — owl:sameAs links the local org node to the org's own WebID, if any. */
 export const OWL_NS = "http://www.w3.org/2002/07/owl#";
 export const OWL_SAME_AS = `${OWL_NS}sameAs`;
+
+/** W3C PIM (Solid storage space) — `pim:storage` on the WebID profile points at
+ *  the Pod root; the root container is typed `pim:Storage`. Drives storage-root
+ *  discovery (see `solidUtils.ts`). */
+export const PIM_NS = "http://www.w3.org/ns/pim/space#";
 
 export const SOSA_NS = "http://www.w3.org/ns/sosa/";
 export const TIME_NS = "http://www.w3.org/2006/time#";
@@ -133,7 +140,8 @@ export const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
 // sharing event logs (shared-in/ and shared-out/) and the inbox messages.
 export const INTEROP_NS = "http://www.w3.org/ns/solid/interop#";
 
-export const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+export const RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+export const RDF_TYPE = `${RDF_NS}type`;
 export const RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#";
 export const RDFS_LABEL = `${RDFS_NS}label`;
 export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
@@ -159,6 +167,8 @@ export const XSD_DATE = `${XSD_NS}date`;
 export const XSD_STRING = `${XSD_NS}string`;
 export const XSD_BOOLEAN = `${XSD_NS}boolean`;
 export const XSD_GYEAR = `${XSD_NS}gYear`;
+/** xsd:duration — an energy dataset's `cons:granularity` ("P1Y" annual, "PT15M" series). */
+export const XSD_DURATION = `${XSD_NS}duration`;
 
 /** LDP — container membership (`ldp:contains`) and inbox discovery (`ldp:inbox`). */
 export const LDP_NS = "http://www.w3.org/ns/ldp#";
@@ -183,12 +193,16 @@ export const REC_OWNED_BY = `${REC_NS}ownedBy`;
 export const GRAN_HAS_ATTACHMENT = `${BUILDING_NS}hasAttachment`;
 export const GRAN_HAS_ENERGY_CERTIFICATE = `${BUILDING_NS}hasEnergyCertificate`;
 
-/** schema.org — file metadata (a `schema:MediaObject` describing a stored file). */
+/** schema.org — file metadata (a `schema:MediaObject` describing a stored file).
+ *  NB: kept on the `http://` namespace (schema.org is inconsistently http/https
+ *  across stored Pod data; switching would orphan existing triples). */
 export const SCHEMA_NS = "http://schema.org/";
 export const SCHEMA_MEDIA_OBJECT = `${SCHEMA_NS}MediaObject`;
 export const SCHEMA_NAME = `${SCHEMA_NS}name`;
 export const SCHEMA_ENCODING_FORMAT = `${SCHEMA_NS}encodingFormat`;
 export const SCHEMA_CONTENT_SIZE = `${SCHEMA_NS}contentSize`;
+/** schema:customer — the building's customer/owner label (a building master-data field). */
+export const SCHEMA_CUSTOMER = `${SCHEMA_NS}customer`;
 
 /** Dublin Core Terms — `dcterms:created` for an attachment's upload timestamp;
  *  `dcterms:spatial` links a building to the region (a `…/ags/{code}` place) it sits in. */

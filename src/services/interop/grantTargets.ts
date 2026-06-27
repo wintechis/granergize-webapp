@@ -70,7 +70,7 @@ export function energyTargetsFromStore(
  * already-parsed building store: the building file (optional), its `files/`
  * container (`acl:default`), a legacy energy certificate stored outside `files/`,
  * and — when energy is included — every `cons:EnergyDataset` (year-filtered) plus
- * a series' daily-files container. Deduped by URL.
+ * a series' daily-files container. Deduped by IRI.
  *
  * The grant side ({@link buildingGrantTargets}) and the revoke side
  * ({@link getSubresourceAclTargets}) both derive from this one function, so the

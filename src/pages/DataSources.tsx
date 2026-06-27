@@ -1,6 +1,6 @@
 import { Box, Divider, Link, Stack, Typography } from "@mui/material";
 import { msg } from "../lib/messages.ts";
-import { RefLink } from "../components/detail/DetailView.tsx";
+import { BackLink } from "../components/detail/DetailView.tsx";
 import { DATA_SOURCES } from "../constants/dataSources.ts";
 import { HOME } from "../routes.ts";
 
@@ -15,7 +15,7 @@ export default function DataSources() {
   return (
     <Box>
       <Box sx={{ mb: 1 }}>
-        <RefLink to={HOME}>{msg("dsBack")}</RefLink>
+        <BackLink fallback={HOME} />
       </Box>
       <Typography variant="h5" gutterBottom>{msg("menuDataSources")}</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>

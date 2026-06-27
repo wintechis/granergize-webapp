@@ -12,23 +12,26 @@ const VERB_ID: Record<Verb, MessageId> = {
   "Remove all": "btnRemoveAll",
   "Restore": "btnRestore",
   "Confirm": "btnConfirm",
+  "Discard": "btnDiscard",
 };
 
-type Verb = "Delete" | "Revoke" | "Remove all" | "Restore" | "Confirm";
+type Verb = "Delete" | "Revoke" | "Remove all" | "Restore" | "Confirm" | "Discard";
 
 /**
  * Click the primary button of the shared in-app confirm dialog (the MUI
- * `ConfirmProvider` that replaced the native `window.confirm` for destructive
- * actions). The button's accessible name is the action verb — given here in
- * English (`"Delete"`, "Revoke", …) but resolved to the RUN's language via the
- * catalog, so the helper works in any `E2E_LANG`. None of the verbs collides with
- * a destructive *trigger* button (those are "Delete building", "Revoke access", …),
- * so an exact-name match is unambiguous without scoping to the dialog.
+ * `ConfirmProvider` that replaced the native `window.confirm`). The button's
+ * accessible name is the action verb — given here in English (`"Delete"`,
+ * "Revoke", …) but resolved to the RUN's language via the catalog, so the helper
+ * works in any `E2E_LANG`. None of the verbs collides with a destructive
+ * *trigger* button (those are "Delete building", "Revoke access", …), so an
+ * exact-name match is unambiguous without scoping to the dialog.
  *
  * Triggering a destructive action used to need only a `page.on("dialog")`
- * auto-accept; now the spec must call this afterwards. (The Escape-while-dirty
- * "Discard your changes?" prompt is still a native dialog and still relies on
- * the `page.on("dialog")` handler.)
+ * auto-accept; now the spec must call this afterwards. The Escape-while-dirty
+ * "Discard changes?" guard is ALSO this in-app dialog now (no native prompt) —
+ * pressing Escape in a dirty `<Modal>` opens it, so confirm with
+ * `confirmDialog(page, "Discard")` (the old `page.on("dialog")` auto-accept no
+ * longer fires for it).
  */
 export async function confirmDialog(
   page: Page,

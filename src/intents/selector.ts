@@ -11,13 +11,7 @@
  * the URI, the command box / LLM, and a macro step.
  */
 import type { BuildingType } from "../types.ts";
-import { BUILDING_FIELDS } from "../services/rdf/building/buildingConfig.ts";
-import {
-  FOAF_AGENT,
-  XSD_BOOLEAN,
-  XSD_DECIMAL,
-  XSD_INTEGER,
-} from "../services/rdf/vocabularies.ts";
+import { BUILDING_FIELDS, schemaFor } from "../services/rdf/building/buildingConfig.ts";
 
 /** The kind of a filterable field — decides which ops/values apply. */
 export type FieldKind = "numeric" | "boolean" | "text";
@@ -48,16 +42,17 @@ export interface Selector {
   readonly and: ReadonlyArray<Constraint>;
 }
 
-/** field name → kind, derived ONCE from the building schema's `rdfs:range`. */
+/** field name → kind, derived ONCE from the building schema's `rdfs:range`
+ *  (via the vocab-sourced {@link schemaFor}). */
 export const FIELD_KIND: ReadonlyMap<string, FieldKind> = new Map(
   BUILDING_FIELDS.map((f) => {
-    const r = f.range;
-    const kind: FieldKind = r === XSD_INTEGER || r === XSD_DECIMAL
+    const dt = schemaFor(f.iri).datatype;
+    // agent (IRI) and controlled-vocab/string ranges are all matched as text.
+    const kind: FieldKind = dt === "integer" || dt === "decimal"
       ? "numeric"
-      : r === XSD_BOOLEAN
+      : dt === "boolean"
       ? "boolean"
-      // foaf:Agent (IRI) and controlled-vocab/string ranges are matched as text.
-      : (r === FOAF_AGENT ? "text" : "text");
+      : "text";
     return [String(f.field), kind] as const;
   }),
 );

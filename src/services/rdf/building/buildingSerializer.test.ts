@@ -366,7 +366,7 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
       locality: "Reutlingen",
       lat: "48.46",
       long: "9.15",
-      geocodePrecision: "postcode",
+      geocodePrecision: "Postcode",
     },
     uri,
   );
@@ -400,7 +400,7 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
   assert.equal(store.getObjects(point, namedNode(GEO_LONG), null)[0]?.value, "9.15");
   assert.equal(
     store.getObjects(point, namedNode(GRAN_GEOCODE_PRECISION), null)[0]?.value,
-    GEOCODE_PRECISION_IRI.postcode,
+    GEOCODE_PRECISION_IRI.Postcode,
   );
 
   // Round-trips through the parser back to flat BuildingType fields.
@@ -408,14 +408,14 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
   assert.ok(b, "building parsed back");
   assert.equal(b!.lat, 48.46);
   assert.equal(b!.long, 9.15);
-  assert.equal(b!.geocodePrecision, "postcode");
+  assert.equal(b!.geocodePrecision, "Postcode");
 });
 
 Deno.test("geocoded coordinates carry OSM/Nominatim provenance (ODbL) on the geo:Point", () => {
   const uri = newBuildingUri(WEBID, "b-geo-prov");
   const store = parse(
     serializeBuildingToTurtle(
-      { lat: "49.45", long: "11.08", geocodePrecision: "address" },
+      { lat: "49.45", long: "11.08", geocodePrecision: "Address" },
       uri,
     ),
   );
@@ -573,11 +573,11 @@ Deno.test("serializeBuildingToTurtle round-trips multiple building certification
   assert.equal(certs.length, 2);
   const breeam = certs.find((c) => c.type === "BREEAM");
   assert.ok(breeam, "BREEAM certification present");
-  assert.equal(breeam!.level, "Very Good");
-  assert.equal(breeam!.scope, "WholeBuilding");
+  assert.equal(breeam!.certificationLevel, "Very Good");
+  assert.equal(breeam!.certificationScope, "WholeBuilding");
   const dgnb = certs.find((c) => c.type === "DGNB");
   assert.ok(dgnb, "DGNB certification present");
-  assert.equal(dgnb!.level, "Gold");
+  assert.equal(dgnb!.certificationLevel, "Gold");
 });
 
 Deno.test("serializeBuildingToTurtle rejects an IRI-unsafe certification type (no silent corruption)", () => {
@@ -662,7 +662,7 @@ Deno.test("parseCsvToFields extracts investor operating costs + certification, e
   assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, "Hoch");
   assert.equal(b!.certifications!.length, 1);
   assert.equal(b!.certifications![0].type, "BREEAM");
-  assert.equal(b!.certifications![0].level, "Very Good");
+  assert.equal(b!.certifications![0].certificationLevel, "Very Good");
 });
 
 Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the building", async () => {
@@ -672,7 +672,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
     buildingCode: "B-1",
     streetAddress: "Nordostpark 84",
     yearOfConstruction: 1998,
-    shiftRegime: "1-Shift", // stored as a label; normalises back on import
+    shiftRegime: "OneShift",
     annualData: [
       { year: 2023, electricityConsumption: 121500, heatConsumption: 232000 },
     ],
@@ -680,7 +680,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
       wasteDisposal: "Landlord",
       operationInspectionAndMaintenance: "Hoch",
     },
-    certifications: [{ type: "BREEAM", level: "Very Good", scope: "WholeBuilding" }],
+    certifications: [{ type: "BREEAM", certificationLevel: "Very Good", certificationScope: "WholeBuilding" }],
   } as unknown as BuildingType;
 
   // Export → bytes → re-import via the investor (row-label) path.
@@ -702,7 +702,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
     .get(`${uri}#it`);
   assert.ok(rt);
   assert.equal(rt!.streetAddress, "Nordostpark 84");
-  assert.equal(rt!.shiftRegime, "1-Shift");
+  assert.equal(rt!.shiftRegime, "OneShift");
   assert.equal(rt!.operatingCosts!.wasteDisposal, "Landlord");
   assert.equal(rt!.certifications![0].type, "BREEAM");
   // Energy now lives in separate dataset resources; the imported fields convert
@@ -722,7 +722,7 @@ Deno.test("buildingsToXlsx: a buildings sheet (one row per building) + an Observ
       yearOfConstruction: 1990,
       annualData: [{ year: 2023, electricityConsumption: 1000 }],
       operatingCosts: { wasteDisposal: "Landlord" },
-      certifications: [{ type: "BREEAM", level: "Very Good" }],
+      certifications: [{ type: "BREEAM", certificationLevel: "Very Good" }],
     },
     {
       id: "2",
@@ -1066,9 +1066,9 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.equal(inv.customer, "Muster Logistik GmbH");
   assert.equal(inv.buildingCode, "NOP-84");
   assert.equal(inv.numberOfLoadingDocks, 14);
-  assert.equal(inv.shiftRegime, "2-Shift"); // controlled vocab → label
-  assert.equal(inv.tenancyType, "Multi Tenant");
-  assert.equal(inv.indoorTemperatureClass, "≤18 °C");
+  assert.equal(inv.shiftRegime, "TwoShift");
+  assert.equal(inv.tenancyType, "MultiTenant");
+  assert.equal(inv.indoorTemperatureClass, "MaxEighteenDegrees");
   // Heat generation is a :TechnicalSystem now (thermal capacity + commissioning year),
   // not a boolean — the demo investor carries a gas boiler + a heat pump.
   const hp = (inv.systems ?? []).find((s) => s.kind === "heatpump");
@@ -1078,10 +1078,10 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     (inv.systems ?? []).some((s) => s.kind === "gasboiler"),
     "investor demo has a gas-boiler system",
   );
-  const certs = inv.certifications as Array<{ type?: string; level?: string }>;
+  const certs = inv.certifications as Array<{ type?: string; certificationLevel?: string }>;
   assert.equal(certs?.length, 1, "one certification");
   assert.equal(certs[0].type, "DGNB");
-  assert.equal(certs[0].level, "Gold");
+  assert.equal(certs[0].certificationLevel, "Gold");
   const opcosts = inv.operatingCosts as Record<string, unknown> | undefined;
   assert.equal(opcosts?.propertyManagement, "Medium");
   assert.equal(opcosts?.operationInspectionAndMaintenance, "High");

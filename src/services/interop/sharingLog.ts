@@ -10,6 +10,7 @@ import {
   PROV_WAS_ASSOCIATED_WITH,
   RDF_TYPE,
   REC_BUILDING,
+  XSD_NS,
 } from "../rdf/vocabularies.ts";
 import { podResources } from "../pod/solidUtils.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
@@ -133,7 +134,7 @@ export function buildSharingEventTurtle(e: SharingEvent): string {
     `@prefix prov: <${PROV_NS}> .`,
     `@prefix acl: <${ACL_NS}> .`,
     `@prefix gran: <${GRAN_NS}> .`,
-    `@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .`,
+    `@prefix xsd: <${XSD_NS}> .`,
     "",
     `<> ${triples.join(" ;\n   ")} .`,
     "",

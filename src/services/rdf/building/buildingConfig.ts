@@ -1,46 +1,36 @@
 import type { BuildingType } from "../../../types.ts";
 import {
   BUILDING_NS,
-  FOAF_AGENT,
+  RDFS_LABEL,
   REC_NS,
   REC_OWNED_BY,
+  SCHEMA_CUSTOMER,
   VCARD_NS,
-  XSD_BOOLEAN,
-  XSD_DECIMAL,
-  XSD_INTEGER,
-  XSD_NS,
 } from "../vocabularies.ts";
+import { type TermSchema, VOCAB_SCHEMA } from "../vocabSchema.generated.ts";
 
 /**
- * Single source of truth for the building field schema: predicate IRI ⇄ object
- * field, plus the property's `rdfs:range`. Everything else in the read/write path
- * is derived from this table (predicate maps, parse functions, the serializer's
- * datatype sets), so a field is declared in exactly one place.
+ * The building field BRIDGE: each app field's `keyof BuildingType` key ⇄ its
+ * predicate IRI. This is the ONE thing the vocab can't supply (the app's camelCase
+ * key isn't derivable from the IRI local name), so it stays here; everything else —
+ * the property's `rdfs:range`, datatype, and literal/agent/enum classification — is
+ * read from `vocabSchema.generated.ts` (generated from `vocab/*.ttl`). A field whose
+ * IRI the vocab doesn't declare (reused external string predicates: `schema:customer`,
+ * `vcard:*`, `rdfs:label`) defaults to an `xsd:string` literal, as before.
  *
- * - `field` is `keyof BuildingType`, so the table and the TS type can't drift on
- *   names (a rename is a compile error).
- * - `range` is the property's `rdfs:range` and decides how the object is read/written:
- *   - an **XSD datatype** IRI (or omitted ⇒ `xsd:string`) → a typed **literal**;
- *   - **`foaf:Agent`** → an **IRI reference** (a WebID NamedNode, written verbatim);
- *   - any other **class IRI** → a controlled-vocabulary **object** whose instance is
- *     read/written by its local name (e.g. `shiftRegime` ranges over
- *     `bldg:ShiftRegime`, value `OneShift`); its display label comes from the vocab
- *     via `optionLabel(IRI)` (see plans/plan-vocab-driven-labels.md).
- *
- * See notes/data-schema.md → "Two schemas: RDF graph ⇄ app objects".
+ * `field` is `keyof BuildingType`, so the table and the TS type can't drift on names
+ * (a rename is a compile error). See notes/data-schema.md → "Two schemas".
  */
 interface FieldDesc {
   field: keyof BuildingType;
   iri: string;
-  /** rdfs:range — XSD datatype (literal; omitted ⇒ xsd:string), foaf:Agent (IRI ref), or a class IRI (object). */
-  range?: string;
 }
 
 export const BUILDING_FIELDS: FieldDesc[] = [
-  // NOTE: schema.org is inconsistently http/https across the codebase. Left as
-  // http here to preserve matching of existing Pod data — reconciling it is a
-  // separate, data-affecting change.
-  { field: "customer", iri: "http://schema.org/customer" },
+  // SCHEMA_CUSTOMER stays on the http:// schema.org namespace (see SCHEMA_NS) to
+  // keep matching existing Pod data; reconciling http/https is a separate,
+  // data-affecting change.
+  { field: "customer", iri: SCHEMA_CUSTOMER },
   // Coordinates are NOT mapped here — they live on a `geo:Point` blank node
   // (`addGeoPoint` / parser pass-2), never as flat `geo:lat`/`geo:long` on the building.
   { field: "locality", iri: `${VCARD_NS}locality` },
@@ -49,9 +39,9 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "postalCode", iri: `${VCARD_NS}postal-code` },
   { field: "region", iri: `${VCARD_NS}region` },
   { field: "streetAddress", iri: `${VCARD_NS}street-address` },
-  { field: "label", iri: "http://www.w3.org/2000/01/rdf-schema#label" },
-  { field: "buildingArea", iri: `${BUILDING_NS}hasBuildingArea`, range: XSD_INTEGER },
-  { field: "landArea", iri: `${BUILDING_NS}hasLandArea`, range: XSD_INTEGER },
+  { field: "label", iri: RDFS_LABEL },
+  { field: "buildingArea", iri: `${BUILDING_NS}hasBuildingArea` },
+  { field: "landArea", iri: `${BUILDING_NS}hasLandArea` },
   // PV is no longer a flat field — it's the `<#pv>` :PVSystem node (bldg:hasSystem),
   // parsed/serialized as a subordinate node (see buildingParser/buildingSerializer).
   // Agent (WebID) links — building→agent relationship properties (NOT roles;
@@ -60,53 +50,56 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   // Owner and operator are REC properties reused directly; the rest are minted
   // in BUILDING_NS. Only operatedBy carries behaviour (the Betreiber
   // benchmark); the others are descriptive.
-  { field: "investor", iri: `${BUILDING_NS}investor`, range: FOAF_AGENT },
-  { field: "ownedBy", iri: REC_OWNED_BY, range: FOAF_AGENT },
-  { field: "operatedBy", iri: `${REC_NS}operatedBy`, range: FOAF_AGENT },
-  { field: "facilityManagedBy", iri: `${BUILDING_NS}facilityManagedBy`, range: FOAF_AGENT },
-  { field: "developedBy", iri: `${BUILDING_NS}developedBy`, range: FOAF_AGENT },
-  { field: "consultedBy", iri: `${BUILDING_NS}consultedBy`, range: FOAF_AGENT },
-  { field: "officeArea", iri: `${BUILDING_NS}officeArea`, range: XSD_INTEGER },
+  { field: "investor", iri: `${BUILDING_NS}investor` },
+  { field: "ownedBy", iri: REC_OWNED_BY },
+  { field: "operatedBy", iri: `${REC_NS}operatedBy` },
+  { field: "facilityManagedBy", iri: `${BUILDING_NS}facilityManagedBy` },
+  { field: "developedBy", iri: `${BUILDING_NS}developedBy` },
+  { field: "consultedBy", iri: `${BUILDING_NS}consultedBy` },
+  { field: "officeArea", iri: `${BUILDING_NS}officeArea` },
   { field: "usedAs", iri: `${BUILDING_NS}usedAs` },
-  { field: "yearOfConstruction", iri: `${BUILDING_NS}yearOfConstruction`, range: XSD_INTEGER },
+  { field: "yearOfConstruction", iri: `${BUILDING_NS}yearOfConstruction` },
   { field: "energyCertificate", iri: `${BUILDING_NS}hasEnergyCertificate` },
   // naceCode is an identifier, not a number — xsd:decimal mangled it
   // ("52.10" → 52.1, a DIFFERENT NACE class).
   { field: "naceCode", iri: `${REC_NS}nace-code` },
 
   { field: "buildingCode", iri: `${BUILDING_NS}buildingCode` },
-  { field: "hallArea", iri: `${BUILDING_NS}hallArea`, range: XSD_DECIMAL },
-  { field: "officeSocialArea", iri: `${BUILDING_NS}officeSocialArea`, range: XSD_DECIMAL },
-  { field: "buildingHeight", iri: `${BUILDING_NS}buildingHeight`, range: XSD_DECIMAL },
-  { field: "numberOfLoadingDocks", iri: `${BUILDING_NS}numberOfLoadingDocks`, range: XSD_INTEGER },
-  { field: "yearOfRenovation", iri: `${BUILDING_NS}yearOfRenovation`, range: XSD_INTEGER },
+  { field: "hallArea", iri: `${BUILDING_NS}hallArea` },
+  { field: "officeSocialArea", iri: `${BUILDING_NS}officeSocialArea` },
+  { field: "buildingHeight", iri: `${BUILDING_NS}buildingHeight` },
+  { field: "numberOfLoadingDocks", iri: `${BUILDING_NS}numberOfLoadingDocks` },
+  { field: "yearOfRenovation", iri: `${BUILDING_NS}yearOfRenovation` },
   { field: "leaseType", iri: `${BUILDING_NS}leaseType` },
   { field: "tenantIndustry", iri: `${BUILDING_NS}tenantIndustry` },
   // Heat generators (oil/gas/electric boiler, heat pump, district heating) are NOT flat
   // fields — they're :TechnicalSystem nodes (bldg:hasSystem), parsed/serialised by kind
   // like PV/battery/CHP and edited in the "Heat generation" section.
   // Object properties (controlled vocabulary — range is the value's class).
-  { field: "shiftRegime", iri: `${BUILDING_NS}shiftRegime`, range: `${BUILDING_NS}ShiftRegime` },
-  { field: "tenancyType", iri: `${BUILDING_NS}tenancyType`, range: `${BUILDING_NS}TenancyType` },
-  { field: "indoorTemperatureClass", iri: `${BUILDING_NS}indoorTemperatureClass`, range: `${BUILDING_NS}IndoorTemperatureClass` },
+  { field: "shiftRegime", iri: `${BUILDING_NS}shiftRegime` },
+  { field: "tenancyType", iri: `${BUILDING_NS}tenancyType` },
+  { field: "indoorTemperatureClass", iri: `${BUILDING_NS}indoorTemperatureClass` },
 
   { field: "logisticsFunction", iri: `${BUILDING_NS}logisticsFunction` },
   { field: "climateControlType", iri: `${BUILDING_NS}climateControlType` },
-  { field: "greenLeaseShare", iri: `${BUILDING_NS}greenLeaseShare`, range: XSD_DECIMAL },
+  { field: "greenLeaseShare", iri: `${BUILDING_NS}greenLeaseShare` },
   // Battery storage is no longer a flat field — it's the `<#battery>` :BatteryStorage
   // node (bldg:hasSystem), like PV. The parser/UI for it land with the loader work.
   { field: "companyName", iri: `${BUILDING_NS}companyName` },
 ];
 
-// ── Range classification (don't edit — change BUILDING_FIELDS) ──────────────────
-// Literal: range is an XSD datatype, or omitted (⇒ xsd:string). IRI ref: foaf:Agent.
-// Object (controlled vocab): any other class IRI.
-const isXsd = (range?: string): boolean => !range || range.startsWith(XSD_NS);
-const isAgent = (range?: string): boolean => range === FOAF_AGENT;
+// ── Range classification (sourced from the vocab via vocabSchema.generated.ts) ──
+// A field's kind/datatype is read from the generated schema by its IRI; a field the
+// vocab doesn't declare (reused external string predicates) defaults to a string
+// literal — the app's prior behaviour.
+const DEFAULT_SCHEMA: TermSchema = { kind: "literal", datatype: "string", functional: true };
+/** A field IRI's vocab schema (kind/datatype/…), defaulting an undeclared external
+ *  predicate to a string literal. The single read path for range-derived info. */
+export const schemaFor = (iri: string): TermSchema => VOCAB_SCHEMA[iri] ?? DEFAULT_SCHEMA;
 
-const literals = BUILDING_FIELDS.filter((f) => isXsd(f.range));
-const objects = BUILDING_FIELDS.filter((f) => !isXsd(f.range) && !isAgent(f.range));
-const iris = BUILDING_FIELDS.filter((f) => isAgent(f.range));
+const literals = BUILDING_FIELDS.filter((f) => schemaFor(f.iri).kind === "literal");
+const objects = BUILDING_FIELDS.filter((f) => schemaFor(f.iri).kind === "enum");
+const iris = BUILDING_FIELDS.filter((f) => schemaFor(f.iri).kind === "agent");
 
 /** Literal predicate IRI → BuildingType field. */
 export const predicateMap: { [iri: string]: keyof BuildingType } = Object
@@ -120,53 +113,30 @@ export const objectPropertyMap: { [iri: string]: keyof BuildingType } = Object
 export const iriPropertyMap: { [iri: string]: keyof BuildingType } = Object
   .fromEntries(iris.map((f) => [f.iri, f.field]));
 
+// Keyed by the XSD datatype LOCAL NAME (the generated schema's `datatype`).
 const PARSERS: Record<string, (v: string) => number | boolean> = {
-  [XSD_INTEGER]: (v: string) => parseInt(v, 10),
-  [XSD_DECIMAL]: (v: string) => parseFloat(v),
-  [XSD_BOOLEAN]: (v: string) => v.toLowerCase() === "true",
+  integer: (v: string) => parseInt(v, 10),
+  decimal: (v: string) => parseFloat(v),
+  boolean: (v: string) => v.toLowerCase() === "true",
 };
 
 /** Field → literal coercion (string fields have no entry — left as-is). */
 export const parsingFunctions: { [field: string]: (value: string) => number | boolean } = Object
   .fromEntries(
     literals
-      .filter((f) => f.range && PARSERS[f.range])
-      .map((f) => [f.field as string, PARSERS[f.range as string]]),
+      .filter((f) => {
+        const dt = schemaFor(f.iri).datatype;
+        return !!(dt && PARSERS[dt]);
+      })
+      .map((f) => [f.field as string, PARSERS[schemaFor(f.iri).datatype as string]]),
   );
 
 /** Field-name sets by literal datatype — consumed by the serializer (read+write
  * share one source). */
-export const INTEGER_FIELDS: Set<string> = new Set(
-  literals.filter((f) => f.range === XSD_INTEGER).map((f) => f.field as string),
-);
-export const DECIMAL_FIELDS: Set<string> = new Set(
-  literals.filter((f) => f.range === XSD_DECIMAL).map((f) => f.field as string),
-);
-export const BOOLEAN_FIELDS: Set<string> = new Set(
-  literals.filter((f) => f.range === XSD_BOOLEAN).map((f) => f.field as string),
-);
-
-/**
- * IRI local-name → display string for the operating-cost controlled-vocabulary
- * instances the parser materialises into `BuildingType` (see `buildingParser.ts`
- * pass 2). UI **option labels** no longer come from here — the building form and
- * the master-data view source those from the vocab via `optionLabel(IRI)` (see
- * plans/plan-vocab-driven-labels.md); this map remains only for the parser's
- * local-name → label projection of the operating-cost blank-node values, which is
- * not (yet) routed through the vocab catalog.
- */
-export const investorLocalNameLabels: Record<string, string> = {
-  OneShift: "1-Shift",
-  TwoShift: "2-Shift",
-  ThreeShift: "3-Shift",
-  SingleTenant: "Single Tenant",
-  MultiTenant: "Multi Tenant",
-  MaxTwelveDegrees: "≤12 °C",
-  MaxEighteenDegrees: "≤18 °C",
-  Low: "Low",
-  Simple: "Simple",
-  Medium: "Medium",
-  High: "High",
-  AllRisk: "All-Risk",
-  FullServiceManagement: "Full Service",
-};
+const fieldsWithDatatype = (dt: string): Set<string> =>
+  new Set(
+    literals.filter((f) => schemaFor(f.iri).datatype === dt).map((f) => f.field as string),
+  );
+export const INTEGER_FIELDS: Set<string> = fieldsWithDatatype("integer");
+export const DECIMAL_FIELDS: Set<string> = fieldsWithDatatype("decimal");
+export const BOOLEAN_FIELDS: Set<string> = fieldsWithDatatype("boolean");

@@ -37,7 +37,7 @@ Deno.test("geocodeFields returns an address-precision hit on the first try (no d
       locality: "Nürnberg",
       region: "Bayern",
     });
-    assert.deepEqual(got, { lat: "49.45", long: "11.07", precision: "address" });
+    assert.deepEqual(got, { lat: "49.45", long: "11.07", precision: "Address" });
     assert.equal(queried.length, 1, "a first-try hit makes exactly one request");
   } finally {
     restore();
@@ -55,7 +55,7 @@ Deno.test("geocodeFields coarsens to postcode when the full address misses", asy
       postalCode: "90402",
       locality: "Nürnberg",
     });
-    assert.deepEqual(got, { lat: "49.45", long: "11.07", precision: "postcode" });
+    assert.deepEqual(got, { lat: "49.45", long: "11.07", precision: "Postcode" });
     assert.deepEqual(queried, ["Nonexistent 999, 90402, Nürnberg", "90402, Nürnberg"]);
   } finally {
     restore();
@@ -66,7 +66,7 @@ Deno.test("geocodeFields tags a city-only resolution as city precision", async (
   const { queried, restore } = stubFetch({ "Nürnberg": { lat: "49.45", lon: "11.07" } });
   try {
     const got = await geocodeFields({ locality: "Nürnberg" });
-    assert.equal(got?.precision, "city");
+    assert.equal(got?.precision, "City");
     assert.equal(queried.length, 1);
   } finally {
     restore();
@@ -119,7 +119,7 @@ Deno.test("geocodeWithRegion adds the Gemeinde AGS from the /contains lookup", a
   try {
     const got = await geocodeWithRegion({ locality: "Nürnberg" });
     assert.equal(got?.lat, "49.45");
-    assert.equal(got?.precision, "city");
+    assert.equal(got?.precision, "City");
     assert.equal(got?.regionAgs, "09564000");
   } finally {
     restore();

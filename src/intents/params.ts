@@ -205,12 +205,12 @@ export const INTENT_PARAMS = {
     roles: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
   },
   SeedDemoRooms: {},
-  // ── Contacts ─────────────────────────────────────────────────────────────────
-  // `contact` is an opaque SavedAgent instance (not an IRI to resolve) → placeholder;
-  // `logo` an opaque File (an org contact's logo image, optional); `webId` is a
-  // removable contact's WebID → IRI reference. SeedDemoAgents is paramless.
+  // ── Agents ───────────────────────────────────────────────────────────────────
+  // `agent` is an opaque SavedAgent instance (not an IRI to resolve) → placeholder;
+  // `logo` an opaque File (an org agent's logo image, optional); `webId` is a
+  // removable agent's WebID → IRI reference. SeedDemoAgents is paramless.
   SaveAgent: {
-    contact: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+    agent: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
     logo: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
   },
   RemoveAgent: {

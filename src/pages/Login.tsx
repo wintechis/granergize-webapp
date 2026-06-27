@@ -137,7 +137,6 @@ export const Login: React.FC<LoginProps> = ({
   // click to take over the screen with a "Redirecting…" message until the
   // browser leaves for the provider (cleared only if login fails to start).
   const [redirectingTo, setRedirectingTo] = useState<string | null>(null);
-  const [, setClearInitialLoad] = useState<ReturnType<typeof setTimeout>>();
 
   // The silent-restore decision runs inside a deferred timer, so it must read
   // the LIVE expiry/responded flags, not the values captured when the effect
@@ -171,6 +170,21 @@ export const Login: React.FC<LoginProps> = ({
   };
 
   useEffect(() => {
+    // Every deferred timer this effect schedules is tracked, so the cleanup can
+    // cancel any still pending at unmount — the same discipline as the listener
+    // removal below. `cancelled` additionally stops a timer scheduled *later*
+    // from an async callback that resolves after the effect has been torn down.
+    let cancelled = false;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const schedule = (fn: () => void, ms: number) => {
+      if (cancelled) return;
+      const id = setTimeout(() => {
+        timers.delete(id);
+        fn();
+      }, ms);
+      timers.add(id);
+    };
+
     // A failed silent restore (stale OIDC client registration → "Unknown
     // client") comes back as a TOP-LEVEL redirect to `?error=…&error_description=…`
     // — a full page reload, so the deferred-restore `.catch` below never sees it.
@@ -192,7 +206,7 @@ export const Login: React.FC<LoginProps> = ({
     // restore hangs (e.g. the IdP never resolves `handleIncomingRedirect`).
     // After this fires we fall through to the login form; a late restore that
     // still succeeds will set `activeWebId` and swap in the app.
-    const watchdog = setTimeout(() => setLoading(false), 8000);
+    schedule(() => setLoading(false), 8000);
 
     // Restoring a session on refresh does a *silent redirect* through the Solid
     // identity provider, which returns to the registered redirect_uri (the app
@@ -215,7 +229,7 @@ export const Login: React.FC<LoginProps> = ({
     // route (session-restore.spec.ts + uri-state.spec.ts).
     const restoreRouteFrom = (url?: string) => {
       if (!url) return;
-      setTimeout(() => {
+      schedule(() => {
         try {
           const target = new URL(url);
           const current = window.location;
@@ -284,7 +298,7 @@ export const Login: React.FC<LoginProps> = ({
         setActiveWebId(sessionInfo.webId);
         fireLogin();
       } else {
-        setTimeout(() => {
+        schedule(() => {
           // Decide against LIVE flags (via refs), not the values captured when
           // this effect ran — the session may have expired during the delay.
           // `restoreAlreadyAttempted` is the loop guard: a prior silent restore
@@ -313,11 +327,9 @@ export const Login: React.FC<LoginProps> = ({
                   // to restore) — clear the breadcrumb so it only ever persists
                   // across an actual IdP redirect (the loop case).
                   clearRestoreAttempt();
-                  setClearInitialLoad(
-                    setTimeout(() => {
-                      setLoading(false);
-                    }, 1000),
-                  );
+                  schedule(() => {
+                    setLoading(false);
+                  }, 1000);
                 }
               })
               .catch((err) => {
@@ -339,7 +351,9 @@ export const Login: React.FC<LoginProps> = ({
       .catch((err) => logError("handle the incoming auth redirect", err));
 
     return () => {
-      clearTimeout(watchdog);
+      cancelled = true;
+      for (const id of timers) clearTimeout(id);
+      timers.clear();
       // Remove the listeners this effect registered, so a re-run (deps change)
       // doesn't stack duplicates that leak across the component's lifetime.
       session.events.off("logout", handleLogoutEvent);
@@ -662,10 +676,10 @@ export const Login: React.FC<LoginProps> = ({
                 </Box>
                 {invalidIDP && (
                   <Alert severity="error" sx={{ mt: 1 }}>
-                    Couldn’t sign in{attemptedIdp ? ` to ${attemptedIdp}` : ""}.
-                    Enter your identity provider’s web address — for example{" "}
-                    https://login.inrupt.com or https://solidcommunity.net — not
-                    your email or WebID.
+                    {attemptedIdp
+                      ? msg("loginCouldNotSignInTo", { idp: attemptedIdp })
+                      : msg("loginCouldNotSignIn")}{" "}
+                    {msg("loginEnterIdpHint")}
                     {loginErrorDetail && (
                       <Typography
                         variant="body2"

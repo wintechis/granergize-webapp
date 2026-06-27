@@ -11,9 +11,9 @@ const BUILDING_NS = "https://solid.ti.rw.fau.de/gra/building.ttl#";
 const YEAR_OF_CONSTRUCTION = `${BUILDING_NS}yearOfConstruction`;
 
 Deno.test("label resolves de/en from the generated vocab", () => {
-  assert.equal(label(YEAR_OF_CONSTRUCTION, "en"), "year of construction");
+  assert.equal(label(YEAR_OF_CONSTRUCTION, "en"), "Year of construction");
   assert.equal(label(YEAR_OF_CONSTRUCTION, "de"), "Baujahr");
-  assert.equal(label(YEAR_OF_CONSTRUCTION, "fr"), "année de construction");
+  assert.equal(label(YEAR_OF_CONSTRUCTION, "fr"), "Année de construction");
 });
 
 Deno.test("label falls back chosen → en → local-name fragment", () => {
@@ -30,7 +30,7 @@ Deno.test("label falls back chosen → en → local-name fragment", () => {
 });
 
 Deno.test("fieldLabel resolves a building field via buildingConfig's field→IRI map", () => {
-  assert.equal(fieldLabel("yearOfConstruction", "en"), "year of construction");
+  assert.equal(fieldLabel("yearOfConstruction", "en"), "Year of construction");
   assert.equal(fieldLabel("yearOfConstruction", "de"), "Baujahr");
 });
 

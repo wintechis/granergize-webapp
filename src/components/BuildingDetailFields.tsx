@@ -6,6 +6,9 @@ import { AgentField } from "./AgentField.tsx";
 import { fieldLabel, optionLabel } from "../services/rdf/vocabLabels.ts";
 import { BUILDING_NS } from "../services/rdf/vocabularies.ts";
 
+/** Agent fields take a WebID — append that input hint to the vocab field label. */
+const withWebId = (label: string): string => `${label} (WebID)`;
+
 /**
  * The Address / Location & Physical / agent-link block shared by the Add and
  * Edit dialogs — ONE rendering, so the two dialogs can't drift on this set
@@ -61,32 +64,32 @@ export function BuildingAddressFields(
           {tf(fieldLabel("landArea"), "landArea", { type: "number" })}
           {tf(fieldLabel("yearOfConstruction"), "yearOfConstruction", { type: "number" })}
           <AgentField
-            label={msg("lblOperatedBy")}
+            label={withWebId(fieldLabel("operatedBy"))}
             value={fields.operatedBy ?? ""}
             onChange={(v) => setField("operatedBy", v)}
           />
           <AgentField
-            label={msg("lblOwnedBy")}
+            label={withWebId(fieldLabel("ownedBy"))}
             value={fields.ownedBy ?? ""}
             onChange={(v) => setField("ownedBy", v)}
           />
           <AgentField
-            label={msg("lblInvestor")}
+            label={withWebId(fieldLabel("investor"))}
             value={fields.investor ?? ""}
             onChange={(v) => setField("investor", v)}
           />
           <AgentField
-            label={msg("lblFacilityManager")}
+            label={withWebId(fieldLabel("facilityManagedBy"))}
             value={fields.facilityManagedBy ?? ""}
             onChange={(v) => setField("facilityManagedBy", v)}
           />
           <AgentField
-            label={msg("lblDevelopedBy")}
+            label={withWebId(fieldLabel("developedBy"))}
             value={fields.developedBy ?? ""}
             onChange={(v) => setField("developedBy", v)}
           />
           <AgentField
-            label={msg("lblConsultant")}
+            label={withWebId(fieldLabel("consultedBy"))}
             value={fields.consultedBy ?? ""}
             onChange={(v) => setField("consultedBy", v)}
           />
@@ -118,8 +121,8 @@ export function BuildingDetailFields(
       {tf(fieldLabel("buildingCode"), "buildingCode", buildingCode)}
       {tf(msg("lblLabelName"), "label")}
       {tf(fieldLabel("companyName"), "companyName")}
-      {tf(msg("mdCustomer"), "customer")}
-      {tf(msg("mdNaceCode"), "naceCode")}
+      {tf(fieldLabel("customer"), "customer")}
+      {tf(fieldLabel("naceCode"), "naceCode")}
       {tf(fieldLabel("hallArea"), "hallArea", { type: "number" })}
       {tf(fieldLabel("officeSocialArea"), "officeSocialArea", { type: "number" })}
       {tf(fieldLabel("buildingHeight"), "buildingHeight", { type: "number" })}

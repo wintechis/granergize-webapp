@@ -36,7 +36,7 @@ export async function buildBuildingDeletionPreview(
     if (gateway.webId) root = getStorageRoot(gateway.webId);
   } catch (err) {
     logError("resolve storage root for deletion preview", err);
-    /* storage root not resolved — fall back to absolute URLs */
+    /* storage root not resolved — fall back to absolute IRIs */
   }
 
   const resources = [fileUri];

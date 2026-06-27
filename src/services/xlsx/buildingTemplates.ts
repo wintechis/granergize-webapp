@@ -112,7 +112,7 @@ export const INVESTOR_ROW_MAP: Record<string, string> = {
  *
  * These are the labels of the template's "Servicelevel" section (the operating-
  * cost categories carry a categorical service level — Einfach/Mittel/Hoch/
- * All-Risk/…, see {@link investorLocalNameLabels}), matched verbatim to
+ * All-Risk/…), matched verbatim to
  * the partner sheet (`test/e2e/fixtures/investor-import.xlsx` is the synthetic
  * stand-in). (`operationInspectionAndMaintenance`
  * is modelled as a boolean and round-trips as true/false.) Rows that don't match
@@ -192,10 +192,13 @@ export function normalizeNumber(val: string): string {
 const SHIFT_MAP: Record<string, string> = {
   "1 schicht": "OneShift",
   "1-shift": "OneShift",
+  "oneshift": "OneShift", // the stored/exported token itself
   "2 schicht": "TwoShift",
   "2-shift": "TwoShift",
+  "twoshift": "TwoShift",
   "3 schicht": "ThreeShift",
   "3-shift": "ThreeShift",
+  "threeshift": "ThreeShift",
 };
 function normalizeShift(val: string): string {
   return SHIFT_MAP[val.trim().toLowerCase()] ?? "";
@@ -208,9 +211,11 @@ function normalizeShift(val: string): string {
 const TENANCY_MAP: Record<string, string> = {
   "single": "SingleTenant",
   "single tenant": "SingleTenant",
+  "singletenant": "SingleTenant", // the stored/exported token itself
   "1": "SingleTenant",
   "multi-tenant": "MultiTenant",
   "multi tenant": "MultiTenant",
+  "multitenant": "MultiTenant",
 };
 function normalizeTenancy(val: string): string {
   const s = val.trim().toLowerCase();
@@ -226,8 +231,10 @@ function normalizeTenancy(val: string): string {
 const TEMP_MAP: Record<string, string> = {
   "<= 12°c": "MaxTwelveDegrees",
   "≤12 °c": "MaxTwelveDegrees",
+  "maxtwelvedegrees": "MaxTwelveDegrees", // the stored/exported token itself
   "<= 18°c": "MaxEighteenDegrees",
   "≤18 °c": "MaxEighteenDegrees",
+  "maxeighteendegrees": "MaxEighteenDegrees",
 };
 function normalizeTempClass(val: string): string {
   return TEMP_MAP[val.trim().toLowerCase()] ?? "";
