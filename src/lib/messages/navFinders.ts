@@ -113,8 +113,8 @@ export const navFinders = {
     de: "JSON-Intent starten — Enter zum Ausführen",
     fr: "Lancer l'intention JSON — Entrée pour exécuter",
   },
-  // Dev-mode NL→intent translation: a query starting with `>` is natural language
-  // the LLM turns into intent JSON (which then lands in the JSON launch mode).
+  // NL→intent translation: a query starting with `>` is natural language the LLM
+  // turns into intent JSON (which then lands in the JSON launch mode). User-facing.
   paletteNlHint: {
     en: "Translate to intent — press Enter",
     de: "In Intent übersetzen — Enter drücken",

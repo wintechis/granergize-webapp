@@ -2,6 +2,14 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-28]
+- **Palette JSON paste-and-launch + NL→intent translation are now user-facing, not dev-only.** The
+  `{…}`-prefixed JSON launcher (`jsonMode`) and the `>`-prefixed natural-language translator
+  (`nlMode`) in the command palette dropped their `devMode` gate — typing `{` or `>` in ⌘K now works
+  for everyone, since the NL launcher is a genuine user feature (and the JSON mode is where its
+  reviewed output lands). Comment/help text reworded accordingly (`navFinders.ts`). check + targeted
+  lint green.
+
 ## [2026-06-27]
 - **Lazy-load the command-palette body (`index` 62 → 40 kB / 20 → 13 kB gzip).** `CommandPalette`
   was mounted eagerly in the shell to own the ⌘K listener, dragging its whole graph (the intent

@@ -223,12 +223,15 @@ export default function CommandPaletteBody(
     ? 0
     : Math.min(active, filtered.length - 1);
 
-  // Dev-mode paste-and-launch (§10): a query that starts with `{` is a pasted JSON
-  // intent, not a filter — the palette becomes the launcher's pre-filled input mode.
-  const jsonMode = devMode && query.trim().startsWith("{");
-  // Dev-mode NL mode (§10 front half): a query starting with `>` is natural language
-  // the LLM translates into intent JSON, which then lands in jsonMode for review.
-  const nlMode = devMode && query.trim().startsWith(">");
+  // Paste-and-launch (§10): a query that starts with `{` is a pasted JSON intent,
+  // not a filter — the palette becomes the launcher's pre-filled input mode. This is
+  // also where the NL translation below lands its reviewed JSON, so it is not
+  // dev-gated.
+  const jsonMode = query.trim().startsWith("{");
+  // NL mode (§10 front half): a query starting with `>` is natural language the LLM
+  // translates into intent JSON, which then lands in jsonMode for review. The
+  // natural-language launcher is a user-facing feature, not a dev-only affordance.
+  const nlMode = query.trim().startsWith(">");
 
   const close = () => {
     onClose();
