@@ -217,21 +217,22 @@ test.describe("handbuch video: Prolog", () => {
     );
     await demoA.click(stageA.getByRole("button", { name: new RegExp(`^${vt("menuAccountAria")}`) }));
     await demoA.click(stageA.getByRole("menuitem", { name: vt("menuOrganisation") }));
-    const orgDialog = stageA.getByRole("dialog");
-    await expect(orgDialog).toBeVisible({ timeout: 10_000 });
-    await demoA.type(orgDialog.getByLabel(vt("lblCompanyName")), "Ahlmann Logistik");
+    // Organisation editing moved from a dialog to a standalone page: land on the
+    // read view, then flip to its inline editor via [Edit].
+    await demoA.click(stageA.getByRole("button", { name: vt("btnEdit"), exact: true }));
+    await stageA.waitForLoadState("networkidle").catch(() => {});
+    await demoA.type(stageA.getByLabel(vt("lblCompanyName")), "Ahlmann Logistik");
     // "Logo wählen…" opens a native file chooser the hidden <input type=file>
     // backs; capture the chooser event and hand it the SVG fixture.
     const [chooser] = await Promise.all([
       stageA.waitForEvent("filechooser"),
-      demoA.click(orgDialog.getByRole("button", { name: vt("orgChooseLogo") })),
+      demoA.click(stageA.getByRole("button", { name: vt("orgChooseLogo") })),
     ]);
     await chooser.setFiles(ORG_LOGO);
     await demoA.pause(1_000);
-    await demoA.click(orgDialog.getByRole("button", { name: vt("btnSave"), exact: true }));
+    await demoA.click(stageA.getByRole("button", { name: vt("btnSave"), exact: true }));
     await expect(stageA.getByText(vt("organisationSaved")).first())
       .toBeVisible({ timeout: 60_000 });
-    await expect(orgDialog).toBeHidden({ timeout: 10_000 });
     await demoA.moveTo(
       stageA.getByRole("img", { name: vt("orgLogoAlt") }).first(),
     );
@@ -247,6 +248,10 @@ test.describe("handbuch video: Prolog", () => {
     );
     await demoA.click(stageA.getByRole("tab", { name: vt("navBuildings") }));
     await demoA.click(stageA.getByRole("button", { name: vt("btnList") }));
+    // Fresh Pod: the empty Buildings finder offers a demo-seed prompt; decline it
+    // so the "Create Building" toolbar action is reachable.
+    await stageA.getByRole("button", { name: vt("btnNoThanks") })
+      .click({ timeout: 5_000 }).catch(() => {});
     await demoA.click(
       stageA.getByRole("button", { name: vt("addBuildingBtn") }).first(),
     );

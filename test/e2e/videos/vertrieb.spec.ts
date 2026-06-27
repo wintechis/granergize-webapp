@@ -229,6 +229,12 @@ test.describe("handbuch video: Vertriebsunterstützung", () => {
       "Auf der Karte: A's freigegebene Halle (orange markiert) neben B's eigenen Objekten",
     );
     await demoB.click(stageB.getByRole("tab", { name: vt("navBuildings") }));
+    // Establish the List finder first so B's buildings (own + A's shared) load
+    // before toggling to the map — otherwise the shared marker's click can fire
+    // before the finder settles and never navigates.
+    await demoB.click(stageB.getByRole("button", { name: vt("btnList") }));
+    await stageB.locator("li[data-building-id]").first()
+      .waitFor({ timeout: 60_000 });
     await demoB.click(
       stageB.getByLabel(vt("bldgsViewAria"))
         .getByRole("button", { name: vt("btnMap"), exact: true }),
@@ -240,7 +246,9 @@ test.describe("handbuch video: Vertriebsunterstützung", () => {
     await demoB.pause(1_500);
     // The map is a pure finder: clicking the shared marker NAVIGATES to A's
     // building page (`/building?…`), where B reads A's data live.
-    await demoB.click(sharedMarker);
+    // Plain click, no cursor-hover: hovering a building marker opens its tooltip,
+    // which then swallows the click; a direct click navigates to A's building page.
+    await sharedMarker.click();
 
     await demoB.scene(
       "payoff",

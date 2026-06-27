@@ -286,8 +286,9 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await stageC.keyboard.press("Escape");
     await demoC.pause(600);
     await demoC.click(dlg.getByRole("button", { name: vt("aggCreateTitle") }));
-    await expect(stageC.getByText(vt("aggregationCreated")))
-      .toBeVisible({ timeout: 60_000 });
+    // Create computes the snapshot synchronously — wait for the dialog to CLOSE,
+    // not the success toast (the single FIFO snackbar buries it).
+    await expect(dlg).toBeHidden({ timeout: 120_000 });
     await dismissToasts(stageC);
 
     await demoC.scene(
@@ -356,6 +357,10 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       "Auf der Energie-Detailseite füllt sich die Zeile „Benchmark“ – mit dem Branchenwert von C",
     );
     await stageA2.goto(buildingRoute("observation", buildingId));
+    // The benchmark was shared back AFTER this page first loaded for A2 — reload so
+    // the energy page refetches and the received benchmark fills its column.
+    await stageA2.reload();
+    await stageA2.waitForLoadState("networkidle").catch(() => {});
     await expect(
       stageA2.getByRole("row").filter({ hasText: vt("aeBenchmark") }).first(),
     ).toBeVisible({ timeout: 60_000 });
