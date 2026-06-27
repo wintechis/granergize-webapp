@@ -8,6 +8,7 @@ import {
   normalizeRegionGeometry,
   parseRegionMatches,
   type RegionFeatureCollection,
+  regionAgsFromConcept,
   regionContainsUrl,
   regionGeometryUrl,
   searchRegions,
@@ -142,6 +143,23 @@ Deno.test("gemeindeAgsFromContains: the containing Gemeinde's AGS from the SKOS 
   const nutsOnly =
     `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n<n> a skos:Concept ; skos:notation "DE254" .`;
   assert.equal(gemeindeAgsFromContains(store(nutsOnly, BASE)), null);
+});
+
+Deno.test("regionAgsFromConcept: the bare AGS from a dereferenced concept's dcterms:identifier", () => {
+  const BASE = "https://wunderfacts.com/lau/lau/DE_09564000";
+  // Post-deploy: the wrapper serves the bare AGS as dcterms:identifier.
+  const bare = `
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+<lau/DE_09564000#it> a skos:Concept ; skos:notation "DE_09564000" ; dcterms:identifier "09564000" .
+`;
+  assert.equal(regionAgsFromConcept(store(bare, BASE)), "09564000");
+  // Pre-deploy fallback: a legacy `DE_`-prefixed identifier is stripped to the bare AGS.
+  const prefixed =
+    `@prefix dcterms: <http://purl.org/dc/terms/> .\n<lau/DE_09564000#it> dcterms:identifier "DE_09564000" .`;
+  assert.equal(regionAgsFromConcept(store(prefixed, BASE)), "09564000");
+  // No identifier on the concept → null.
+  assert.equal(regionAgsFromConcept(store("", BASE)), null);
 });
 
 // ── searchRegions: the LAU keyword discovery that opens the exploration path ────

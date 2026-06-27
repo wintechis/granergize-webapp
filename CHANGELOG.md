@@ -2,6 +2,24 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-28]
+- **Region → the authoritative LAU/NUTS `skos:Concept`; the AGS is resolved by dereferencing it.**
+  A building's `dcterms:spatial` now references the LAU/NUTS concept IRI (the authority,
+  `lauConceptUrl` → `…/lau/DE_<ags>#it`) instead of the regionalstatistik cube-dimension IRI; the
+  parser keeps it verbatim as `Building.regionConceptIri`. The bare AGS join key is **no longer
+  stored on the building** — it is the concept's own `dcterms:identifier`, served by the wrapper and
+  read on demand by dereferencing the concept (`regionGeometry.fetchRegionAgs`: deref → read
+  identifier, memoised per IRI, strips a legacy `DE_` prefix defensively). This generalises to NUTS,
+  whose IRI is a code, not an AGS. Read-side consumers resolve the AGS lazily — the choropleth
+  (`BuildingsMap`, batch `useQueries`, only while shown), the regional panel (`regional` hook), and
+  aggregation rollup (`aggregationComputer`, keeping its lat/long fallback) — so the map paint isn't
+  gated on region derefs. Edits preserve the region (the concept IRI rides through `buildingToFields`;
+  the serializer writes `regionConceptIri || lauConceptUrl(regionAgs)`); a re-geocode clears the
+  concept so the fresh AGS wins. No data migration (re-seed). check/lint green, unit 1072. **Needs the
+  linked-lau/linked-nuts deploy** for the live bare-AGS identifier; until then the defensive
+  `DE_`-strip covers it. An `e2e:local` choropleth pass is warranted (the specs assert polygon
+  presence, not building-driven shading, so expected green).
+
 ## [2026-06-27]
 - **Lazy-load the command-palette body (`index` 62 → 40 kB / 20 → 13 kB gzip).** `CommandPalette`
   was mounted eagerly in the shell to own the ⌘K listener, dragging its whole graph (the intent

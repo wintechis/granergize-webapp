@@ -29,8 +29,11 @@ export function useGeocodeFields(
       setField("lat", coords.lat);
       setField("long", coords.long);
       setField("geocodePrecision", coords.precision);
-      // The region resolved from the new coordinates (empty clears a stale one).
+      // The region resolved from the new coordinates (empty clears a stale one). Clear
+      // any carried-over concept IRI too, so the serializer rebuilds dcterms:spatial
+      // from this fresh AGS rather than reusing the old region.
       setField("regionAgs", coords.regionAgs ?? "");
+      setField("regionConceptIri", "");
       showNotification(successMessage, "success");
     } finally {
       setBusy(false);

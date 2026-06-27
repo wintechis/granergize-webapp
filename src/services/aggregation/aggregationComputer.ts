@@ -10,7 +10,7 @@ import type {
 } from "../../types.ts";
 import { getAggregationDefinition, storeComputedSnapshot } from "./aggregation.ts";
 import { commonRegion, type RegionLevel } from "./regionRollup.ts";
-import { fetchContainingGemeindeAgs } from "../sources/regionGeometry.ts";
+import { fetchContainingGemeindeAgs, fetchRegionAgs } from "../sources/regionGeometry.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import {
   type EnergyDatasetRef,
@@ -74,9 +74,14 @@ export async function resolveSpatialExtent(
   if (buildingUris.length === 0) return undefined;
   const codes = (await mapPooled(buildingUris, 4, async (uri) => {
     const b = cachedBuilding(uri);
-    // Prefer the region resolved at geocode time; only fall back to a live /contains
-    // lookup for a building stored before the region was captured.
+    // Prefer the region recorded on the building (its dcterms:spatial concept),
+    // dereferenced to the bare AGS; fall back to a live /contains lookup by coordinates
+    // for a building stored without a region.
     if (b?.regionAgs) return b.regionAgs;
+    if (b?.regionConceptIri) {
+      const ags = await fetchRegionAgs(b.regionConceptIri);
+      if (ags) return ags;
+    }
     if (b?.lat == null || b?.long == null) return null;
     return await resolveAgs(b.lat, b.long);
   })).filter((a): a is string => !!a);
