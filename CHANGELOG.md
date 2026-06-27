@@ -3,6 +3,35 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **Extract the auth boundary into `useSessionLifecycle` (`main.tsx` 312 → 118 lines).** The entry
+  module's `AppContent` had accreted the entire session lifecycle — the `session`/`suppressRestore`
+  state, the `useSyncExternalStore` expiry gate, three effects (fetch instrumentation, expiry→logout,
+  logged-out cache eviction), and the `handleLogin`/`handleLogout` handlers. That now lives in
+  `src/hooks/useSessionLifecycle.ts`; `AppContent` is just the Login → App hand-off. Byte-for-byte
+  behaviour preservation (the lazy `getDefaultSession()` init, expiry ordering, and the
+  `set-state-in-effect` carve-out all moved verbatim) — deliberately **not** rewritten as a
+  `useReducer` (that would change update ordering in the auth path for no functional gain; left as an
+  optional follow-up). Wants a login/logout/session-restore e2e pass to confirm. check/lint/build green.
+- **Extract `useAccountActions` from `AppShell` (657 → 428 lines).** The shell had grown to bundle the
+  persistent chrome with ~250 lines of dev-mode account *operations* (archive download/restore, the
+  sharing audit/repair pair, the observation-link drift check, and the destructive "Remove all app
+  data" flow). Those self-contained Pod mutations now live in `src/hooks/useAccountActions.ts`, wired
+  straight to `AccountMenu`; the shell passes only its two state touch-points (`onMenuClose`,
+  `onResetOnboarding`) and reads back the handlers + `accountBusy`/`removing`. Pure relocation — no
+  behaviour change (the moved flows stay covered by the existing archive/remove/audit e2e specs).
+  Destructuring the hook's returned ref (rather than `account.archiveInput.current`) keeps the
+  `react-hooks/refs` rule happy. check/lint/build green.
+- **Route-level code splitting: pages are lazy chunks (app `index` 315 → 62 kB / 92 → 20 kB gzip).**
+  `App.tsx` eagerly imported all ~14 page components, so every route's code (and its transitive deps)
+  rode in the initial bundle. Each page is now `React.lazy(() => import(...))` with a `<Suspense>`
+  boundary in the route table; `AppShell` (the shared finder chrome) stays eager. For finders the
+  boundary sits inside AppShell's `<Outlet>` so the nav stays mounted while a chunk loads
+  (`ContentFallback`); detail routes get a `FullPageSpinner` — the sanctioned lazy-chunk exception to
+  the single-indicator loading policy. Knock-on wins: Leaflet (`vendor-map`, 188 kB) and the 243 kB
+  building-marker chunk drop off the critical path (load only with a map). Remaining eager weight is
+  now almost all vendors — plus `vendor-charts`/`mastrNearby`/`navTrail`, which `<CommandPalette/>`
+  (eager in AppShell) drags in via the statically-imported intent registry → a follow-up. check/lint/
+  build green.
 - **`xlsx` import parser is now a lazy chunk (~113 kB gzip off the initial load).** The ~960 kB
   community `xlsx` parser was statically imported and sat in the eager `vendor` bundle, even though
   it's only needed in the Add-building / autofill-from-file import flow. It's now `await import("xlsx")`

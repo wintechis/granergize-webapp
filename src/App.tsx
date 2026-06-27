@@ -1,6 +1,6 @@
 import { sessionGateway } from "./services/pod/podGateway.ts";
 import { msg } from "./lib/messages.ts";
-import { type ReactNode, useEffect, useState } from "react";
+import { lazy, type ReactNode, Suspense, useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import {
@@ -9,24 +9,32 @@ import {
 } from "./services/pod/solidUtils.ts";
 import { DETAIL_PATTERNS, FINDERS, HOME } from "./routes.ts";
 import AppShell from "./pages/AppShell.tsx";
-import BuildingsFinder from "./pages/BuildingsFinder.tsx";
-import ObservationsFinder from "./pages/ObservationsFinder.tsx";
-import AggregationsFinder from "./pages/AggregationsFinder.tsx";
-import RoomsFinder from "./pages/RoomsFinder.tsx";
-import AgentsFinder from "./pages/AgentsFinder.tsx";
-import SharingFinder from "./pages/SharingFinder.tsx";
-import Building from "./pages/Building.tsx";
 import OpenBuildingDetail from "./components/building/OpenBuildingDetail.tsx";
 import OpenObservationDetail from "./components/building/OpenObservationDetail.tsx";
 import { isOpenBuildingIri } from "./services/lod2Rooftop.ts";
 import { isOpenObservationIri } from "./services/openObservations.ts";
-import Energy from "./pages/Energy.tsx";
-import Agent from "./pages/Agent.tsx";
-import Room from "./pages/Room.tsx";
-import Aggregation from "./pages/Aggregation.tsx";
-import RegionalDataset from "./pages/RegionalDataset.tsx";
-import DataSources from "./pages/DataSources.tsx";
-import Organisation from "./pages/Organisation.tsx";
+
+// Route targets are code-split: each page is its own chunk fetched on first
+// navigation, not carried in the initial bundle. `AppShell` (the shared finder
+// chrome) stays eager — it mounts on the first post-login route. The <Suspense>
+// boundaries in the route table render a spinner while a page chunk loads; for
+// finders the boundary sits inside AppShell's <Outlet>, so the nav stays put.
+// (This lazy-chunk fallback is the sanctioned exception to the single-indicator
+// loading policy — see CLAUDE.md.)
+const BuildingsFinder = lazy(() => import("./pages/BuildingsFinder.tsx"));
+const ObservationsFinder = lazy(() => import("./pages/ObservationsFinder.tsx"));
+const AggregationsFinder = lazy(() => import("./pages/AggregationsFinder.tsx"));
+const RoomsFinder = lazy(() => import("./pages/RoomsFinder.tsx"));
+const AgentsFinder = lazy(() => import("./pages/AgentsFinder.tsx"));
+const SharingFinder = lazy(() => import("./pages/SharingFinder.tsx"));
+const Building = lazy(() => import("./pages/Building.tsx"));
+const Energy = lazy(() => import("./pages/Energy.tsx"));
+const Agent = lazy(() => import("./pages/Agent.tsx"));
+const Room = lazy(() => import("./pages/Room.tsx"));
+const Aggregation = lazy(() => import("./pages/Aggregation.tsx"));
+const RegionalDataset = lazy(() => import("./pages/RegionalDataset.tsx"));
+const DataSources = lazy(() => import("./pages/DataSources.tsx"));
+const Organisation = lazy(() => import("./pages/Organisation.tsx"));
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -81,6 +89,24 @@ function FullPageSpinner() {
         justifyContent: "center",
         alignItems: "center",
         height: "100vh",
+      }}
+    >
+      <CircularProgress />
+    </Box>
+  );
+}
+
+/** Suspense fallback for a finder route: fills the AppShell content region
+ *  (which is a flex column) so the chrome stays put while the chunk loads. */
+function ContentFallback() {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        flexGrow: 1,
+        minHeight: 0,
       }}
     >
       <CircularProgress />
@@ -340,11 +366,19 @@ function App({ onLogout, session }: AppProps) {
         <Route element={<AppShell onLogout={onLogout} session={session} />}>
           <Route path={HOME} element={<Navigate to={FINDERS.buildings} replace />} />
           {finderRoutes.map((r) => (
-            <Route key={r.path} path={r.path} element={r.element} />
+            <Route
+              key={r.path}
+              path={r.path}
+              element={<Suspense fallback={<ContentFallback />}>{r.element}</Suspense>}
+            />
           ))}
         </Route>
         {detailRoutes.map((r) => (
-          <Route key={r.path} path={r.path} element={r.element} />
+          <Route
+            key={r.path}
+            path={r.path}
+            element={<Suspense fallback={<FullPageSpinner />}>{r.element}</Suspense>}
+          />
         ))}
       </Routes>
     </BrowserRouter>
