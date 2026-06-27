@@ -1,4 +1,7 @@
-import * as XLSX from "xlsx";
+// `xlsx` (the ~960 kB community parser) is dynamic-imported inside the two async
+// parse functions below, not statically — so it lands in its own chunk fetched
+// only when a user actually imports a spreadsheet, instead of the eager bundle.
+// Mirrors the lazy `exceljs` import on the export side (buildingWorkbook.ts).
 import {
   applyNormalization,
   BSP_COL_MAP,
@@ -30,6 +33,7 @@ import { parseLastgangXlsx } from "../../xlsx/energySeriesXlsx.ts";
 export async function detectSpreadsheetFormat(
   file: File,
 ): Promise<SpreadsheetFormat> {
+  const XLSX = await import("xlsx");
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(new Uint8Array(buffer), { type: "array", raw: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -68,6 +72,7 @@ export async function parseCsvToFields(
   file: File,
   template: SpreadsheetFormat,
 ): Promise<Record<string, string>[]> {
+  const XLSX = await import("xlsx");
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(new Uint8Array(buffer), { type: "array", raw: true });
   const ws = wb.Sheets[wb.SheetNames[0]];

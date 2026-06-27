@@ -1,4 +1,10 @@
-import * as XLSX from "xlsx";
+// `xlsx` is used here ONLY for its types (CellObject/WorkSheet/Range) — the one
+// runtime use, A1-cell-ref encoding, is the local `encodeCell` below. Keeping the
+// import type-only means this file (which is reachable from eager paths like
+// buildingSerializer/mutations) carries no runtime `xlsx` dependency, so the
+// heavy parser stays off the initial bundle and loads only via the dynamic
+// import in buildingImport.ts.
+import type * as XLSX from "xlsx";
 import {
   CONSUMPTION_NS,
   SOSA_NS,
@@ -20,6 +26,16 @@ export interface LastgangReading {
   beginTs: string;  // ISO 8601 UTC
   endTs: string;    // ISO 8601 UTC
   valueKwh: string; // kW × 0.25, 6 decimal places
+}
+
+/** A1-style cell reference (e.g. {r:0,c:0} → "A1"), matching `XLSX.utils.encode_cell`.
+ * Inlined so this file needs no runtime `xlsx` import (see the import note above). */
+function encodeCell(r: number, c: number): string {
+  let col = "";
+  for (let n = c + 1; n > 0; n = Math.floor((n - 1) / 26)) {
+    col = String.fromCharCode(((n - 1) % 26) + 65) + col;
+  }
+  return col + (r + 1);
 }
 
 function lastSundayOf(year: number, month: number): number {
@@ -122,9 +138,9 @@ export function parseLastgangXlsx(ws: XLSX.WorkSheet, range: XLSX.Range): Record
   const readings: LastgangReading[] = [];
 
   for (let r = range.s.r; r <= range.e.r; r++) {
-    const cellA = ws[XLSX.utils.encode_cell({ r, c: 0 })];
-    const cellB = ws[XLSX.utils.encode_cell({ r, c: 1 })];
-    const cellC = ws[XLSX.utils.encode_cell({ r, c: 2 })];
+    const cellA = ws[encodeCell(r, 0)];
+    const cellB = ws[encodeCell(r, 1)];
+    const cellC = ws[encodeCell(r, 2)];
 
     const labelA = cellA?.v != null ? String(cellA.v).trim() : "";
 

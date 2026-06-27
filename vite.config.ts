@@ -45,6 +45,11 @@ export default defineConfig({
           // Keep the camera QR scanner (and its core-js polyfills) out of the
           // eager vendor chunk so it stays lazy-loaded with QrScanner.
           if (id.includes("html5-qrcode") || id.includes("core-js")) return;
+          // xlsx (the community import parser) is dynamic-imported by
+          // buildingImport.ts; let it stay in its own lazy chunk (a named
+          // manualChunk here would override that and pull it eager). The export
+          // side already does this via the exceljs rule below.
+          if (id.includes("/xlsx/")) return;
           // exceljs (the styled-XLSX writer) is dynamic-imported by
           // buildingWorkbook.ts; keep it out of the eager vendor chunk so it
           // loads only when a user exports.

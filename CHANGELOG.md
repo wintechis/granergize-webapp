@@ -3,6 +3,17 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **`xlsx` import parser is now a lazy chunk (~113 kB gzip off the initial load).** The ~960 kB
+  community `xlsx` parser was statically imported and sat in the eager `vendor` bundle, even though
+  it's only needed in the Add-building / autofill-from-file import flow. It's now `await import("xlsx")`
+  inside the two async parse functions in `buildingImport.ts` — mirroring the export side's lazy
+  `exceljs` import. The real anchor was `energySeriesXlsx.ts` (reachable from eager paths like
+  `buildingSerializer`/`mutations`): its `import * as XLSX` is now `import type`, with the one runtime
+  use (`XLSX.utils.encode_cell`) inlined as a local `encodeCell`. `vite.config.ts` gains an `xlsx`
+  fall-through in `manualChunks` — a named manualChunk would otherwise override the dynamic split and
+  pull `xlsx` back into the eager `vendor` catch-all (same trick the QR-scanner rule uses). Result:
+  eager `vendor` 964 → 631 kB (306 → 193 kB gzip); `xlsx` splits into its own 425 kB / 142 kB-gzip
+  chunk fetched only on import. check/lint/build + the 55 affected unit tests green.
 - **Object model split into `src/types/` per family + first-class agents + generated docs.** The
   342-line `src/types.ts` (mixing building/consumption/aggregation + a 89-line energy model) is now
   a **barrel** re-exporting `src/types/{building,consumption,aggregation,agent,core}.ts` — every
