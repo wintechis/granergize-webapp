@@ -13,6 +13,9 @@ import {
 } from "./buildingTemplates.ts";
 import { GRANERGIZE_LOGO_PNG_BASE64 } from "../../lib/logoPng.ts";
 import { BRAND_PRIMARY } from "../../constants/chartColors.ts";
+import { optionLabel } from "../rdf/vocabLabels.ts";
+import { BUILDING_FIELDS, schemaFor } from "../rdf/building/buildingConfig.ts";
+import { BUILDING_NS } from "../rdf/vocabularies.ts";
 
 // ---------------------------------------------------------------------------
 // XLSX export (inverse of parseCsvToFields) — build per-building and combined
@@ -34,6 +37,19 @@ function cellValue(v: unknown): Cell {
   return String(v);
 }
 
+// Controlled-vocab fields whose VALUE is a token (shiftRegime/tenancyType/…).
+const ENUM_FIELDS = new Set(
+  BUILDING_FIELDS.filter((f) => schemaFor(f.iri).kind === "enum").map((f) => String(f.field)),
+);
+/** Export a cell's value: a controlled-vocab token becomes its German vocab label
+ *  (human-readable AND re-importable — the import accepts the de label); anything
+ *  else passes through. Headers stay in the partner sheet's wording. */
+function exportValue(field: string, raw: unknown): unknown {
+  return typeof raw === "string" && raw && ENUM_FIELDS.has(field)
+    ? optionLabel(`${BUILDING_NS}${raw}`, "de")
+    : raw;
+}
+
 /**
  * The investor row-label rows (label in col B, value in col D) so the file
  * re-imports via `parseCsvToFields("investor")`:
@@ -49,7 +65,7 @@ function investorRows(b: BuildingType): Cell[][] {
     if (v !== null) rows.push([null, label, null, v]);
   };
   for (const [field, label] of Object.entries(INV_FIELD_TO_LABEL)) {
-    put(label, b[field as keyof BuildingType]);
+    put(label, exportValue(field, b[field as keyof BuildingType]));
   }
   let renewDone = false;
   for (const y of b.annualData ?? []) {
@@ -89,7 +105,7 @@ function buildingRecord(
   if (style === "benchmark") {
     for (const [field, header] of Object.entries(BSP_FIELD_TO_HEADER)) {
       if (field.startsWith("_")) continue; // energy headers handled below
-      const v = cellValue(b[field as keyof BuildingType]);
+      const v = cellValue(exportValue(field, b[field as keyof BuildingType]));
       if (v !== null) record[header] = v;
     }
     const y = b.annualData?.[0];
@@ -106,7 +122,7 @@ function buildingRecord(
   } else {
     // Generic (user / dummy / unknown): BuildingType field names as headers.
     for (const field of SCALAR_FIELDS) {
-      const v = cellValue(b[field as keyof BuildingType]);
+      const v = cellValue(exportValue(field, b[field as keyof BuildingType]));
       if (v !== null) record[field] = v;
     }
   }
@@ -130,7 +146,7 @@ function buildingToFlatRecord(b: BuildingType): Record<string, string | number> 
     if (v !== null) rec[k] = v;
   };
   set("id", b.id);
-  for (const field of SCALAR_FIELDS) set(field, b[field as keyof BuildingType]);
+  for (const field of SCALAR_FIELDS) set(field, exportValue(field, b[field as keyof BuildingType]));
 
   const hasWastewater = (b.annualData ?? []).some(
     (y) => y.wastewaterConsumption != null,

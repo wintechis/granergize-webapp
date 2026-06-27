@@ -3,6 +3,12 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **Follow-ups to the vocab-derived interface.** The XLSX export now writes controlled-vocab
+  cells as their German vocab label (via `optionLabel`) instead of the raw token, and the import
+  accepts the label (round-trips); workbook *headers* stay in the partner sheet's wording by design
+  (the XLSX is a partner-data format, not the app UI). And `BuildingType`'s loose `[key: string]`
+  index signature was removed — the parser's dynamic field writes now go through a single typed
+  `setField` helper, so the generated fields are the only shape. (Building e2e + check/lint/unit green.)
 - **The building object's TS shape is generated from the vocab.** A new generator
   `scripts/genVocabInterface.ts` (`deno task gen:interface`) groups `vocab/building.ttl` properties
   by `rdfs:domain` (folding subclasses) and emits `buildingShape.generated.ts`: `BuildingFlatFields`

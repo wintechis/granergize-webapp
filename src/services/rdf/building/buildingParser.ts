@@ -7,6 +7,7 @@ import type {
   InvestorOperatingCosts,
   SystemKind,
 } from "../../../types.ts";
+import { setField } from "../../../types.ts";
 
 /** Raw props collected off one `bldg:hasSystem` node before dispatch on its type. */
 interface SystemRaw {
@@ -211,7 +212,7 @@ export function parseBuildings(
     ) {
       const propertyName = objectPropertyMap[pred];
       const ln = localName(obj.value);
-      building[propertyName] = ln;
+      setField(building, propertyName, ln);
       return;
     }
 
@@ -219,7 +220,7 @@ export function parseBuildings(
     // NamedNode; tolerate a legacy xsd:string literal (old Pods stored operatedBy
     // as a string) — obj.value yields the IRI/text either way.
     if (Object.prototype.hasOwnProperty.call(iriPropertyMap, pred)) {
-      building[iriPropertyMap[pred]] = obj.value;
+      setField(building, iriPropertyMap[pred], obj.value);
       return;
     }
 
@@ -228,9 +229,9 @@ export function parseBuildings(
       const propertyName = predicateMap[pred];
       const parseFn = parsingFunctions[propertyName as string];
       if (parseFn) {
-        building[propertyName] = parseFn(obj.value);
+        setField(building, propertyName, parseFn(obj.value));
       } else {
-        building[propertyName] = obj.value;
+        setField(building, propertyName, obj.value);
       }
     }
   });

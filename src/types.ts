@@ -96,20 +96,9 @@ export interface TechnicalSystem extends TechnicalSystemFields {
 // The flat building fields (customer, areas, agents, the controlled-vocab enums, …) and the
 // geo:Point's geocodePrecision are GENERATED from vocab/building.ttl — see BuildingFlatFields /
 // GeoPointFields (`buildingShape.generated.ts`). BuildingType adds only the structured node
-// collections + the app-runtime fields below. The index signature stays for the parser/form/import
-// dynamic field machinery (its removal is a tracked follow-up).
+// collections + the app-runtime fields below. Dynamic field access goes through the typed
+// `getField`/`setField` helpers (no loose index signature).
 export interface BuildingType extends BuildingFlatFields, GeoPointFields {
-  [key: string]:
-    | string
-    | number
-    | boolean
-    | EnergyDatasetRef[]
-    | AttachmentRef[]
-    | AnnualData[]
-    | InvestorCertification[]
-    | InvestorOperatingCosts
-    | TechnicalSystem[]
-    | undefined;
   /** The building's identifier IS its subject IRI (see buildingId.ts):
    * storage-root-relative for the user's own buildings
    * (`granergize/buildings/<file>.ttl#it`), the full absolute IRI for
@@ -157,6 +146,13 @@ export interface BuildingType extends BuildingFlatFields, GeoPointFields {
   certifications?: InvestorCertification[];
   annualData?: AnnualData[];
   operatingCosts?: InvestorOperatingCosts;
+}
+
+/** Typed dynamic write of a building field — the single place the dynamic-key cast
+ *  lives, now that `BuildingType` carries no loose index signature. Used by the parser
+ *  to assign a parsed RDF value to the field its predicate maps to. */
+export function setField(b: BuildingType, field: keyof BuildingType, value: unknown): void {
+  (b as unknown as Record<string, unknown>)[field] = value;
 }
 
 /**

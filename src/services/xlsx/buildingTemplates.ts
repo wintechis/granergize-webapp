@@ -192,12 +192,15 @@ export function normalizeNumber(val: string): string {
 const SHIFT_MAP: Record<string, string> = {
   "1 schicht": "OneShift",
   "1-shift": "OneShift",
-  "oneshift": "OneShift", // the stored/exported token itself
+  "1-schicht": "OneShift", // the German vocab label the export writes
+  "oneshift": "OneShift", // the stored token itself
   "2 schicht": "TwoShift",
   "2-shift": "TwoShift",
+  "2-schicht": "TwoShift",
   "twoshift": "TwoShift",
   "3 schicht": "ThreeShift",
   "3-shift": "ThreeShift",
+  "3-schicht": "ThreeShift",
   "threeshift": "ThreeShift",
 };
 function normalizeShift(val: string): string {
@@ -211,10 +214,12 @@ function normalizeShift(val: string): string {
 const TENANCY_MAP: Record<string, string> = {
   "single": "SingleTenant",
   "single tenant": "SingleTenant",
-  "singletenant": "SingleTenant", // the stored/exported token itself
+  "einzelmieter": "SingleTenant", // the German vocab label the export writes
+  "singletenant": "SingleTenant", // the stored token itself
   "1": "SingleTenant",
   "multi-tenant": "MultiTenant",
   "multi tenant": "MultiTenant",
+  "mehrere mieter": "MultiTenant",
   "multitenant": "MultiTenant",
 };
 function normalizeTenancy(val: string): string {
