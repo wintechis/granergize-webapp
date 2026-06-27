@@ -14,6 +14,33 @@
  * The capability vocabulary (`deref`/`search`/`bbox`/`point`/`contains`/`filter`)
  * lives as typed helpers OVER this port in `./capabilities.ts`, not on it — the
  * port stays as thin as `PodGateway`.
+ *
+ * ## Why an ambient singleton (`getSourceGateway()`), not passed-in like `PodGateway`
+ *
+ * The two transports are reached differently *on purpose*; the split tracks
+ * **identity**. `PodGateway` carries a *who* and so must be an explicit argument
+ * (the intent cores take it; they never call `getSession()`):
+ *   - several exist at once — the two-actor / two-pod tests run Alice's and Bob's
+ *     authed sessions simultaneously, so a singleton couldn't answer "whose Pod?";
+ *   - it is mutable over a session (login/logout/expiry/re-login as another user);
+ *   - **mixing identities is a security bug**, so the identity belongs in the call,
+ *     not in ambient state (the React Query keys are WebID-namespaced for the same
+ *     reason — a re-login must not read the previous user's cache).
+ *
+ * `SourceGateway` carries **no** identity: it is unauthenticated, read-only, and
+ * there is exactly one public external world (no "Alice's MaStR" vs "Bob's"). With
+ * nothing to vary per caller and no cross-user leak possible, it is effectively
+ * *configuration* (`baseOf` resolves from the static `dataSources.ts` registry +
+ * env) — the canonical thing to reach ambiently. The only reason to inject it is
+ * hermetic tests, met by {@link _setSourceGatewayForTesting}; you never need two
+ * *different* source worlds live in one run.
+ *
+ * The accepted cost: an open-tier core's signature is then slightly dishonest — it
+ * takes a `PodGateway` (e.g. to resolve a building's coords) while reaching this
+ * singleton underneath, so the external dependency isn't visible/injectable at the
+ * core boundary (the test override buys back testability, not signature clarity).
+ * Rule of thumb: **thread the dependency that genuinely varies and whose mixing is
+ * a bug (Pod identity); make ambient the single immutable public resource (sources).**
  */
 import { type SourceId, sourceBase } from "../../constants/dataSources.ts";
 import { trackedFetch } from "../../lib/networkActivity.ts";

@@ -13,6 +13,7 @@
     "gen:schema": "deno run --allow-env --allow-read --allow-write scripts/genVocabSchema.ts",
     "gen:interface": "deno run --allow-env --allow-read --allow-write scripts/genVocabInterface.ts",
     "doc:intents": "deno run -A npm:typedoc",
+    "doc:gateways": "deno run -A npm:typedoc --options typedoc.gateways.json",
     "loc": "deno run --allow-read --allow-run=git test/loc.ts",
     "lint": "deno run -A npm:eslint .",
     "check": "deno run -A npm:typescript/tsc --noEmit -p tsconfig.check.json",
