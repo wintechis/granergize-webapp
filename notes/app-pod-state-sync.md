@@ -197,6 +197,48 @@ The app today keys and invalidates at the grain of **app-shaped queries**
 restore is the coarsest point, invalidate-everything. The grain of invalidation is
 therefore what bounds write responsiveness here.
 
+## Two assemblies of the projection — the cached read and the headless read
+
+Everything above describes one way the projection is built: the React Query read
+hooks (`queries.ts`). There is a **second, parallel** assembly over the *same* data
+layer — the intent **query** cores (`query(name, …)` / `READ_CORES` in
+`intents/registry.ts`), used where a read is itself a user action or must run with no
+component tree: the command palette, a deep link's `entityQuery.resolve(iri)`, an LLM
+tool, a Tier-2 runner. The two are not stacked; they are parallel callers of the same
+primitives, and they overlap almost entirely — diverging only in the assembly on top.
+
+The shared core is identical on both paths: the deref + parse primitives `fetchFresh`
+(conditional GET over the gateway) and `parseBuildings` (quads → `BuildingType`), and
+the collection loader `loadBuildings` / `loadEnergy`. The intent collection read
+(`FindBuildings` → `fetchAndParseData`) calls the *same* `loadBuildings` the hooks do
+([`data-deref.md`](./data-deref.md)). They diverge on three axes, all *above*
+`loadBuildings`:
+
+- **Caching / reactivity** — the hook path wraps the load in React Query: the cache,
+  `staleTime: 0` freshness, and the invalidation-on-write this whole note is about.
+  The intent paths are **one-shot and uncached** — fire, return, done; nothing
+  invalidates them and nothing holds their result.
+- **Who folds the side-inputs** — `loadBuildings` needs two derived inputs, the
+  shared-in source list and the hidden-prefs set. The hook path folds them as
+  **separate cached queries** (`sharedInLog`, `prefs`) and passes them in, so each
+  fold is cached and invalidated on its own; `fetchAndParseData` folds them **inline
+  itself**, every call, because a headless caller has no cache. Same `loadBuildings`,
+  different *suppliers* of its arguments.
+- **Addressing** — the single-entity read (`GetBuilding` → `entityQuery.resolve`)
+  skips discovery entirely: `fetchFresh` + `parseBuildings` on one known IRI, no
+  container listing, no shared-in fold, no hidden filter (`isShared` is a storage-root
+  check on the IRI). The collection reads discover-then-parse; this one parses one IRI.
+
+So the same projection is assembled twice by different front doors — the reactive
+cache for what the screen renders, the one-shot callable for what the user invokes or
+a headless caller needs. The redundancy is deliberate (the two have genuinely
+different needs) but real: `fetchAndParseData` re-folds the shared-in/prefs inputs the
+hooks already cache, and there are two entry *shapes* (collection-load vs
+single-resolve) over one parser. Collapsing both onto a single IRI-keyed resource
+store — so the cache and the headless callers read **one** projection rather than two
+assemblies over shared primitives — is the direction the LDP-direction query-layer
+work points at.
+
 ## The principle
 
 Prefer making the refetch fall out of the data over making it fall out of
