@@ -2,7 +2,7 @@ import type { PodGateway } from "../../pod/podGateway.ts";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type {
   AnnualData,
-  BuildingType,
+  Building,
   Scenario,
   SystemKind,
   TechnicalSystem,
@@ -90,7 +90,7 @@ import {
 
 const { namedNode, literal, blankNode } = DataFactory;
 
-// Inverse maps: BuildingType field name → predicate IRI
+// Inverse maps: Building field name → predicate IRI
 const fieldToPredicate: Record<string, string> = Object.fromEntries(
   Object.entries(predicateMap).map(([iri, field]) => [field as string, iri]),
 );
@@ -915,9 +915,9 @@ export async function deleteEnergyYear(
  * before `buildingToXlsx` / `buildingsToXlsx` (buildingWorkbook.ts).
  */
 export function attachAnnualData(
-  buildings: BuildingType[],
+  buildings: Building[],
   gateway: PodGateway,
-): Promise<BuildingType[]> {
+): Promise<Building[]> {
   return Promise.all(buildings.map(async (b) => {
     const refs = (b.energyDatasets ?? []).filter(
       (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),

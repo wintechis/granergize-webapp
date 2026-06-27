@@ -5,12 +5,12 @@ import {
   openRegionalItemsFromBuildings,
 } from "./openRegional.ts";
 import { REGIONAL_TABLES } from "./regionalCube.ts";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 
 const LAND_TABLES = REGIONAL_TABLES.filter((t) => t.grain === "land");
 
-function building(region: string | undefined): BuildingType {
-  return { id: region ?? "x", uri: `urn:${region}`, region } as BuildingType;
+function building(region: string | undefined): Building {
+  return { id: region ?? "x", uri: `urn:${region}`, region } as Building;
 }
 
 Deno.test("derives one item per land-grain table for each distinct Bundesland", () => {

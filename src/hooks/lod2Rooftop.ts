@@ -10,7 +10,7 @@
  * for a non-critical context layer. The request still shows in the global activity indicator.
  */
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import {
   fetchNearbyRooftopGeometry,
   fetchNearbyRooftops,
@@ -52,7 +52,7 @@ export function useOpenBuildingDetail(
 }
 
 export function useLod2Rooftop(
-  building: BuildingType,
+  building: Building,
 ): UseQueryResult<RooftopPotential | null> {
   const { lat, long } = building;
   const located = lat != null && long != null;
@@ -80,7 +80,7 @@ export function useLod2Rooftop(
  * coverage, or the fetch failed. Hour-long `staleTime` — the LoD2 model changes slowly.
  */
 export function useNearbyRooftops(
-  building: BuildingType,
+  building: Building,
 ): UseQueryResult<NearbyRooftop[]> {
   const { lat, long } = building;
   const located = lat != null && long != null;
@@ -107,7 +107,7 @@ export function useNearbyRooftops(
  * is actually open (the list/summary need just the cheap point summary). `[]` on no-coords/failure.
  */
 export function useNearbyRooftopGeometry(
-  building: BuildingType,
+  building: Building,
   enabled: boolean,
 ): UseQueryResult<NearbyRooftopGeometry[]> {
   const { lat, long } = building;

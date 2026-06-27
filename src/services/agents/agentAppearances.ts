@@ -1,4 +1,4 @@
-import type { BuildingType, SystemKind } from "../../types.ts";
+import type { Building, SystemKind } from "../../types.ts";
 import type { Tier } from "../../constants/tiers.ts";
 
 /**
@@ -15,7 +15,7 @@ import type { Tier } from "../../constants/tiers.ts";
  * separately from `building.systems[].operatedBy` (see below) — that's where the
  * bulk-imported plant operators live.
  */
-export const AGENT_ROLES: Array<{ field: keyof BuildingType; label: string }> = [
+export const AGENT_ROLES: Array<{ field: keyof Building; label: string }> = [
   { field: "ownedBy", label: "Owned by" },
   { field: "operatedBy", label: "Operated by" },
   { field: "facilityManagedBy", label: "Facility management" },
@@ -37,7 +37,7 @@ const systemOperatorLabel = (kind: SystemKind): string =>
 
 /** A building this agent is referenced by, with the role(s) it fills there. */
 export interface Appearance {
-  building: BuildingType;
+  building: Building;
   roles: string[];
 }
 
@@ -47,7 +47,7 @@ export interface Appearance {
  */
 export function appearancesOf(
   webId: string,
-  buildings: BuildingType[],
+  buildings: Building[],
 ): Appearance[] {
   const out: Appearance[] = [];
   for (const building of buildings) {
@@ -74,7 +74,7 @@ export function appearancesOf(
  * finder: parties that appear in your data but aren't (yet) in your address book. A
  * pure selector over already-loaded buildings — no fetch.
  */
-export function referencedAgentWebIds(buildings: BuildingType[]): string[] {
+export function referencedAgentWebIds(buildings: Building[]): string[] {
   return [...new Set(buildings.flatMap(agentWebIdsOf))];
 }
 
@@ -82,7 +82,7 @@ export function referencedAgentWebIds(buildings: BuildingType[]): string[] {
  * field that holds an IRI plus each technical system's `operatedBy`. Free-text names
  * are excluded (not resolvable agents). The per-building primitive
  * {@link referencedAgentWebIds} and {@link referencedAgentTiers} build on. */
-export function agentWebIdsOf(building: BuildingType): string[] {
+export function agentWebIdsOf(building: Building): string[] {
   const out: string[] = [];
   const add = (value: string | undefined) => {
     if (typeof value === "string" && /^https?:\/\//i.test(value)) out.push(value);
@@ -103,7 +103,7 @@ export function agentWebIdsOf(building: BuildingType): string[] {
  * selector over already-loaded buildings — the Agents finder's source facet.
  */
 export function referencedAgentTiers(
-  buildings: BuildingType[],
+  buildings: Building[],
 ): Map<string, Set<Tier>> {
   const map = new Map<string, Set<Tier>>();
   for (const building of buildings) {

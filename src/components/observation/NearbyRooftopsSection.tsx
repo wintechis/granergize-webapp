@@ -7,7 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import RoofingIcon from "@mui/icons-material/Roofing";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import NearbyRooftopsMap from "./NearbyRooftopsMap.tsx";
 import MagnitudeLegend from "../region/MagnitudeLegend.tsx";
 import { useNearbyRooftopGeometry, useNearbyRooftops } from "../../hooks/lod2Rooftop.ts";
@@ -31,7 +31,7 @@ import { useT } from "../../context/I18nProvider.tsx";
  * source link (`RdfSourceLink` self-hides).
  */
 export default function NearbyRooftopsSection(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const t = useT();
   const rooftops = useNearbyRooftops(building).data ?? [];

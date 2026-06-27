@@ -1,5 +1,5 @@
 import type { Borders, Fill, Worksheet } from "exceljs";
-import type { AnnualData, BuildingType } from "../../types.ts";
+import type { AnnualData, Building } from "../../types.ts";
 import { msg, type MessageId } from "../../lib/messages.ts";
 import {
   BSP_FIELD_TO_HEADER,
@@ -58,14 +58,14 @@ function exportValue(field: string, raw: unknown): unknown {
  *   projection); the 15-minute user series lives in separate lazy files and is
  *   not included.
  */
-function investorRows(b: BuildingType): Cell[][] {
+function investorRows(b: Building): Cell[][] {
   const rows: Cell[][] = [];
   const put = (label: string, raw: unknown) => {
     const v = cellValue(raw);
     if (v !== null) rows.push([null, label, null, v]);
   };
   for (const [field, label] of Object.entries(INV_FIELD_TO_LABEL)) {
-    put(label, exportValue(field, b[field as keyof BuildingType]));
+    put(label, exportValue(field, b[field as keyof Building]));
   }
   let renewDone = false;
   for (const y of b.annualData ?? []) {
@@ -98,14 +98,14 @@ function investorRows(b: BuildingType): Cell[][] {
 
 /** Single-building column record for the benchmark / generic table layouts. */
 function buildingRecord(
-  b: BuildingType,
+  b: Building,
   style: SpreadsheetFormat,
 ): Record<string, string | number> {
   const record: Record<string, string | number> = {};
   if (style === "benchmark") {
     for (const [field, header] of Object.entries(BSP_FIELD_TO_HEADER)) {
       if (field.startsWith("_")) continue; // energy headers handled below
-      const v = cellValue(exportValue(field, b[field as keyof BuildingType]));
+      const v = cellValue(exportValue(field, b[field as keyof Building]));
       if (v !== null) record[header] = v;
     }
     const y = b.annualData?.[0];
@@ -120,9 +120,9 @@ function buildingRecord(
       if (ww !== null) record["Schmutzwasser (m³)"] = ww;
     }
   } else {
-    // Generic (user / dummy / unknown): BuildingType field names as headers.
+    // Generic (user / dummy / unknown): Building field names as headers.
     for (const field of SCALAR_FIELDS) {
-      const v = cellValue(exportValue(field, b[field as keyof BuildingType]));
+      const v = cellValue(exportValue(field, b[field as keyof Building]));
       if (v !== null) record[field] = v;
     }
   }
@@ -131,7 +131,7 @@ function buildingRecord(
 
 /**
  * Flatten one building to a single spreadsheet row. Master-data columns use the
- * BuildingType field names (so the row re-imports via the generic path), and the
+ * Building field names (so the row re-imports via the generic path), and the
  * structured parts use the importer's intermediate keys (`_inv_*` / `_bsp_*` /
  * `_opcost_*` / `_cert_0_*`) so energy, operating costs and the first
  * certification round-trip too. `id` is a reference column (no predicate, ignored
@@ -139,14 +139,14 @@ function buildingRecord(
  * wastewater (the BSP shape) round-trips through `_bsp_*`; otherwise the years go
  * out as multi-year `_inv_*`.
  */
-function buildingToFlatRecord(b: BuildingType): Record<string, string | number> {
+function buildingToFlatRecord(b: Building): Record<string, string | number> {
   const rec: Record<string, string | number> = {};
   const set = (k: string, raw: unknown) => {
     const v = cellValue(raw);
     if (v !== null) rec[k] = v;
   };
   set("id", b.id);
-  for (const field of SCALAR_FIELDS) set(field, exportValue(field, b[field as keyof BuildingType]));
+  for (const field of SCALAR_FIELDS) set(field, exportValue(field, b[field as keyof Building]));
 
   const hasWastewater = (b.annualData ?? []).some(
     (y) => y.wastewaterConsumption != null,
@@ -344,10 +344,10 @@ async function sheetToBytes(ws: Worksheet): Promise<ArrayBuffer> {
  * (default generic) so the file re-imports via `parseCsvToFields`:
  *   - investor → row-label sheet (label in col B, value in col D);
  *   - benchmark → single header row + value row, energy as BSP columns;
- *   - generic → flat sheet keyed by BuildingType field names.
+ *   - generic → flat sheet keyed by Building field names.
  */
 export async function buildingToXlsx(
-  b: BuildingType,
+  b: Building,
   style: SpreadsheetFormat = "generic",
 ): Promise<ArrayBuffer> {
   const ws = await newSheet();
@@ -378,7 +378,7 @@ const OBS_COLS: ReadonlyArray<{ header: MessageId; field: keyof AnnualData }> = 
  * at all is skipped.
  */
 function observationRecords(
-  buildings: BuildingType[],
+  buildings: Building[],
 ): Record<string, string | number>[] {
   const yearHeader = msg("xlsxObsYear");
   const headers = OBS_COLS.map((c) => msg(c.header));
@@ -409,7 +409,7 @@ function observationRecords(
  * round-trips every year through its `_inv_*` columns).
  */
 export async function buildingsToXlsx(
-  buildings: BuildingType[],
+  buildings: Building[],
 ): Promise<ArrayBuffer> {
   const ws = await newSheet();
   writeTableSheet(ws, buildings.map(buildingToFlatRecord));

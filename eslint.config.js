@@ -66,8 +66,8 @@ export default tseslint.config(
       "src/components/Modal.tsx", // the dialog wrapper
       "src/components/NetworkActivityIndicator.tsx", // the one allowed spinner + debug popup
       "src/App.tsx", // full-page route spinners (header not mounted)
-      "src/pages/Agent.tsx",
-      "src/pages/Aggregation.tsx",
+      "src/pages/AgentDetail.tsx",
+      "src/pages/AggregationDetail.tsx",
       "src/pages/BuildingsFinder.tsx", // lazy-chunk (BuildingsMap) Suspense fallback
       "src/pages/ObservationsFinder.tsx", // lazy-chunk (BuildingsMap) Suspense fallback
     ],

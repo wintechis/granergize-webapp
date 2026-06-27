@@ -62,7 +62,7 @@ export async function detectSpreadsheetFormat(
  *                 Energy observations extracted from per-year rows.
  * Benchmark template: column-header format (German headers, one row per building).
  *                 Energy columns mapped to _bsp_* keys; year defaults to 2024.
- * Generic:        flat CSV with BuildingType field names as headers, or Lastgang.
+ * Generic:        flat CSV with Building field names as headers, or Lastgang.
  */
 export async function parseCsvToFields(
   file: File,

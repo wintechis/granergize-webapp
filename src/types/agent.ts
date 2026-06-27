@@ -1,5 +1,5 @@
 // Agent object model — the saved-agent address-book record and the organisation
-// profile node. First-class peers of BuildingType (the persisted records the user
+// profile node. First-class peers of Building (the persisted records the user
 // curates); their parse/serialize lives in `services/savedAgents.ts` /
 // `services/organisation/organisation.ts`, which re-export these for their
 // existing importers. Reached via the `src/types.ts` barrel.

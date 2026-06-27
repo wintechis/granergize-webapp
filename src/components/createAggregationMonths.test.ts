@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { BuildingType, EnergyDatasetRef } from "../types.ts";
+import type { Building, EnergyDatasetRef } from "../types.ts";
 import { monthsFromDays, selectedSeriesRefs } from "./createAggregationMonths.ts";
 
 function ref(
@@ -13,13 +13,13 @@ function ref(
 function building(
   id: string,
   energyDatasets: EnergyDatasetRef[],
-): BuildingType {
+): Building {
   return {
     id,
     uri: `https://pod.example/granergize/buildings/${id}.ttl#${id}`,
     type: "x",
     energyDatasets,
-  } as unknown as BuildingType;
+  } as unknown as Building;
 }
 
 const A = building("a", [

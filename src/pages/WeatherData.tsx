@@ -33,11 +33,11 @@ import {
   Typography,
 } from "@mui/material";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
-import { BuildingType } from "../types.ts";
+import { Building } from "../types.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 
 interface WeatherDataProps {
-  building: BuildingType;
+  building: Building;
 }
 
 
@@ -61,7 +61,7 @@ const parameterUnits: Record<string, string> = {
  * isn't auto-instrumented like the Solid session, so the fetch opts into the
  * global activity store (`beginActivity`/`endActivity`).
  */
-function useWeatherStations(building: BuildingType, parameter: string) {
+function useWeatherStations(building: Building, parameter: string) {
   const lat = building?.lat;
   const long = building?.long;
   return useQuery({

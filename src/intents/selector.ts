@@ -10,7 +10,7 @@
  * React-free and dependency-light so it serves four consumers at once: the finder,
  * the URI, the command box / LLM, and a macro step.
  */
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { BUILDING_FIELDS, schemaFor } from "../services/rdf/building/buildingConfig.ts";
 
 /** The kind of a filterable field — decides which ops/values apply. */
@@ -76,7 +76,7 @@ function eqValue(raw: unknown, value: Constraint["value"]): boolean {
 }
 
 /** Does one constraint hold for a building? Unknown field ⇒ false (conservative). */
-export function matchConstraint(b: BuildingType, c: Constraint): boolean {
+export function matchConstraint(b: Building, c: Constraint): boolean {
   const raw = (b as unknown as Record<string, unknown>)[c.field];
   switch (c.op) {
     case "has":
@@ -105,15 +105,15 @@ export function matchConstraint(b: BuildingType, c: Constraint): boolean {
 }
 
 /** Does the building satisfy EVERY constraint? Empty selector ⇒ true. */
-export function matches(b: BuildingType, sel: Selector): boolean {
+export function matches(b: Building, sel: Selector): boolean {
   return sel.and.every((c) => matchConstraint(b, c));
 }
 
 /** Filter a building set by a selector (the in-hand local mode). */
 export function filter(
-  buildings: ReadonlyArray<BuildingType>,
+  buildings: ReadonlyArray<Building>,
   sel: Selector,
-): BuildingType[] {
+): Building[] {
   return buildings.filter((b) => matches(b, sel));
 }
 

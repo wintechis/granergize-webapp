@@ -32,9 +32,9 @@ Spreadsheet import/export layout is a *separate* concern with its own type —
 A building file records **who** produced the data as a PROV-O qualified attribution —
 `<#b> prov:qualifiedAttribution [ a prov:Attribution ; prov:agent <webid> ]` — with **no
 `prov:hadRole`** and no producing-role category. `buildingParser.ts` reads `prov:agent`
-into `BuildingType.attributedTo` (which drives the producer-logo marker and the "Data
+into `Building.attributedTo` (which drives the producer-logo marker and the "Data
 source" row); a legacy `prov:hadRole` on an older Pod is read and ignored. There is no
-`BuildingType.provenance`, no `gran:dataSourceRole` fallback, and no "company kind"
+`Building.provenance`, no `gran:dataSourceRole` fallback, and no "company kind"
 (`org:classification`) — a user declares no organisation role, and adding a building is
 never gated on one. The attribution travels with the data, so a sharing recipient reads
 the producing agent straight from the shared file.
@@ -83,7 +83,7 @@ The building schema therefore lives across four artifacts that must agree:
 
 - **RDF vocabulary** — predicate IRIs in
   [`vocabularies.ts`](../src/services/rdf/vocabularies.ts).
-- **App object type** — `BuildingType` (and `EnergyType`, the aggregation types) in
+- **App object type** — `Building` (and `Energy`, the aggregation types) in
   `src/types.ts`; the agent shape is now `ResolvedAgent`/`ResolvedOrg`
   (`services/agents/agentResolver.ts`), resolved on demand. The whole object layer
   is inventoried in [`object-model.md`](./object-model.md).
@@ -108,7 +108,7 @@ One descriptor table single-sources it all:
 - **The serializer keeps no copy** — it inverts the three maps at runtime
   (`fieldToPredicate` / `fieldToObjectPredicate` / `fieldToIriPredicate =
   Object.fromEntries(...)`).
-- **Field names are type-checked.** `field` is `keyof BuildingType` (compile-checked),
+- **Field names are type-checked.** `field` is `keyof Building` (compile-checked),
   so a value that isn't a real key (or a rename) is a compile error — the type and the
   maps can't drift on names.
 - **Coordinates are the one structured exception to the flat map.** `lat` / `long`
@@ -120,22 +120,22 @@ One descriptor table single-sources it all:
   field loop and emits this point instead (editing a legacy building migrates it);
   `buildingParser.ts` reads the point and **prefers it over** any flat fallback.
   `bldg:geocodePrecision` records *how exact the geocode was* (street address vs. postcode
-  vs. just the city), surfaced as `BuildingType.geocodePrecision` (`"address" | "postcode"
+  vs. just the city), surfaced as `Building.geocodePrecision` (`"address" | "postcode"
   | "city"`); a coarser pin can still be mapped, just less precisely placed.
 
 Consequences:
 
-- Adding a displayed/persisted field touches **two** spots: a `BuildingType` key and
+- Adding a displayed/persisted field touches **two** spots: a `Building` key and
   one `BUILDING_FIELDS` row — the maps, coercions, and datatype sets all fall out of
   its `range`.
 - **Unmapped predicates are invisible** — the parser only copies predicates present
   in the maps; anything else in the Turtle is dropped on read and never written
   back. The RDF may legitimately carry more than the object model knows about.
-- The one agreement nothing in the code enforces is `BuildingType`/`BUILDING_FIELDS`
+- The one agreement nothing in the code enforces is `Building`/`BUILDING_FIELDS`
   ⇄ the published `vocab/` ontology (a field with no vocab term, or vice-versa) —
   guarded instead by `vocab.test.ts`.
 
-Heavier consolidations (generate `BuildingType` from SHACL/ShEx, or an RDF-object
+Heavier consolidations (generate `Building` from SHACL/ShEx, or an RDF-object
 mapper like LDO/LDkit) stay out of scope.
 
 ## Rejected: shape detection as the discriminator
@@ -157,7 +157,7 @@ A spreadsheet *layout*, not a role — purely a serialization concern, independe
 and of data-shape dispatch. `SpreadsheetFormat` is `"investor" | "benchmark" |
 "generic"`: a **row-label** layout (field labels down one column, a building per column —
 the "investor" shape), a **table** column-header layout (German headers — the "benchmark"
-shape), and a **generic** one keyed by `BuildingType` field names (which also carries the
+shape), and a **generic** one keyed by `Building` field names (which also carries the
 **15-minute load-profile** series). There are no downloadable templates — an exported
 building re-imports through the same path, so an export doubles as the template.
 

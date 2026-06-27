@@ -2,7 +2,7 @@
  * `FindBuildings` — the first **query** read core (`plan-intent-core.md` §8): load
  * the visible building set, then narrow it with the attribute {@link Selector}
  * (`plan-attribute-facets.md`). A pure read — no writes — returning the matching
- * `BuildingType[]`.
+ * `Building[]`.
  *
  * Loads over the existing headless loader (`fetchAndParseData`) for now; it
  * re-points to the IRI-keyed resource store when that lands ([[project_ldp_query_layer]])
@@ -10,12 +10,12 @@
  * Tier-1-testable without a Pod (the selector itself is the tested unit).
  */
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 import { fetchAndParseData } from "../../../services/turtleParsing.ts";
 import { filter, type Selector } from "../../selector.ts";
 
 /** Load the viewer's visible buildings (own ∪ shared-not-hidden) headlessly. */
-export type LoadVisibleBuildings = (gateway: PodGateway) => Promise<BuildingType[]>;
+export type LoadVisibleBuildings = (gateway: PodGateway) => Promise<Building[]>;
 
 const defaultLoad: LoadVisibleBuildings = async (gateway) =>
   (await fetchAndParseData(gateway)).buildings;
@@ -29,7 +29,7 @@ export async function findBuildingsCore(
   gateway: PodGateway,
   params: FindBuildingsParams,
   load: LoadVisibleBuildings = defaultLoad,
-): Promise<BuildingType[]> {
+): Promise<Building[]> {
   const buildings = await load(gateway);
   return params.selector ? filter(buildings, params.selector) : buildings;
 }

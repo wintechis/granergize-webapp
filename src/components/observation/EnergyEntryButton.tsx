@@ -1,6 +1,6 @@
 import { Button } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { msg } from "../../lib/messages.ts";
 
 /**
@@ -11,7 +11,7 @@ import { msg } from "../../lib/messages.ts";
  * access to the owner's Pod resources).
  */
 export default function EnergyEntryButton(
-  { building, onEdit }: { building: BuildingType; onEdit: () => void },
+  { building, onEdit }: { building: Building; onEdit: () => void },
 ) {
   if (building.isShared) return null;
   return (

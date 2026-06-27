@@ -47,7 +47,7 @@ directly on the race-safe `readModifyWrite` (`podWrite.ts`):
 - `fetchAttachmentBlob` — authed `gateway.fetch` → `Blob` (works for recipients too).
 
 Parsing (`buildingParser.ts`) reads `bldg:hasAttachment` + metadata into
-`BuildingType.attachments` (`AttachmentRef[]`), flags the certificate, and
+`Building.attachments` (`AttachmentRef[]`), flags the certificate, and
 synthesizes an entry for a legacy cert that has only `bldg:hasEnergyCertificate`.
 `updateBuilding` already preserves untouched triples, so building edits leave files
 intact — no change there.

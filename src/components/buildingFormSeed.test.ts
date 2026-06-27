@@ -3,7 +3,7 @@
 // master-data set — including customer/naceCode (now editable) — and that the
 // structural rdf:type plus the identity/derived keys stay out of the form.
 import { strict as assert } from "node:assert";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { buildingToFields } from "./buildingFormSeed.ts";
 
 const base = {
@@ -11,7 +11,7 @@ const base = {
   id: "b1",
   type: "https://w3id.org/rec#Building",
   isShared: false,
-} as unknown as BuildingType;
+} as unknown as Building;
 
 Deno.test("buildingToFields: seeds customer and naceCode (now editable master data)", () => {
   const f = buildingToFields({ ...base, customer: "Acme GmbH", naceCode: "52.10" });
@@ -34,7 +34,7 @@ Deno.test("buildingToFields: scalars by key; nested costs/certs flattened", () =
     hasHeatPump: true,
     operatingCosts: { security: "1200", operationInspectionAndMaintenance: true },
     certifications: [{ type: "DGNB", certificationLevel: "Gold", certificationScope: "Shell" }],
-  } as unknown as BuildingType);
+  } as unknown as Building);
   assert.equal(f.companyName, "Co");
   assert.equal(f.hallArea, "5000");
   assert.equal(f.hasHeatPump, "true");

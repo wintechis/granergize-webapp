@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import * as XLSX from "xlsx";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { buildingsToXlsx, buildingToXlsx } from "./buildingWorkbook.ts";
 
 /** Read the first (buildings) sheet back out of exported `.xlsx` bytes. */
@@ -20,7 +20,7 @@ Deno.test("buildingToXlsx (investor) emits a row-label sheet with per-year energ
     ],
     operatingCosts: { insurance: "500" },
     certifications: [{ type: "DGNB", level: "Gold" }],
-  } as unknown as BuildingType;
+  } as unknown as Building;
 
   // The investor sheet is a label-in-col-B / value-in-col-D layout (aoa rows of
   // ["", label, "", value]); read it as arrays and index by the label cell.
@@ -46,7 +46,7 @@ Deno.test("buildingToXlsx (benchmark) emits BSP energy headers in a single recor
     annualData: [
       { year: 2099, electricityConsumption: 4444, waterConsumption: 55 },
     ],
-  } as unknown as BuildingType;
+  } as unknown as Building;
 
   const record = XLSX.utils.sheet_to_json<Record<string, unknown>>(
     readSheet(await buildingToXlsx(b, "benchmark")),
@@ -68,13 +68,13 @@ Deno.test("buildingsToXlsx emits one flat row per building keyed by field/interm
       id: "b2",
       streetAddress: "Nebenstr 2",
     },
-  ] as unknown as BuildingType[];
+  ] as unknown as Building[];
 
   const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(
     readSheet(await buildingsToXlsx(buildings)),
   );
   assert.equal(records.length, 2);
-  // Master data uses the BuildingType field names; energy uses the `_inv_*` keys.
+  // Master data uses the Building field names; energy uses the `_inv_*` keys.
   assert.equal(records[0].id, "b1");
   assert.equal(records[0].streetAddress, "Hauptstr 1");
   assert.equal(records[0]["_inv_elec_2099"], 22222);
@@ -97,7 +97,7 @@ Deno.test("buildingsToXlsx adds an Observations sheet: one row per (building, ye
     },
     { id: "b2", annualData: [{ year: 2099, electricityGeneration: 4000 }] },
     { id: "b3", streetAddress: "Leer 3" }, // no annualData → no observation rows
-  ] as unknown as BuildingType[];
+  ] as unknown as Building[];
 
   const wb = XLSX.read(new Uint8Array(await buildingsToXlsx(buildings)), {
     type: "array",
@@ -128,7 +128,7 @@ Deno.test("buildingsToXlsx adds an Observations sheet: one row per (building, ye
 Deno.test("buildingsToXlsx omits the Observations sheet when no building has annual data", async () => {
   const buildings = [
     { id: "b1", streetAddress: "Hauptstr 1" },
-  ] as unknown as BuildingType[];
+  ] as unknown as Building[];
   const wb = XLSX.read(new Uint8Array(await buildingsToXlsx(buildings)), {
     type: "array",
   });

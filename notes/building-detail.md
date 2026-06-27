@@ -153,7 +153,7 @@ here — they live on the building's observation page (`/observation`, the `Ener
 palette-routed `?action=edit|share` opens the matching section's editor/dialog on
 mount.
 
-## 2. Master-data card (BuildingType → `MasterDataSection`)
+## 2. Master-data card (Building → `MasterDataSection`)
 
 `MasterDataSection`, using `detail/DetailView.tsx` primitives. Order:
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { msg } from "../lib/messages.ts";
-import { BuildingType } from "../types.ts";
+import { Building } from "../types.ts";
 import { Box, Divider, Stack, Typography } from "@mui/material";
 import { useSolidData } from "../hooks/queries.ts";
 import { ACTION_PARAM } from "../routes.ts";
@@ -27,10 +27,10 @@ import NeighbourhoodEnergyMap from "../components/observation/NeighbourhoodEnerg
 import RegionalStatistics from "../components/observation/RegionalStatistics.tsx";
 
 type EnergyProps = {
-  building: BuildingType;
+  building: Building;
 };
 
-export default function Energy({ building }: EnergyProps) {
+export default function EnergyDetail({ building }: EnergyProps) {
   // Only the global error/loading flags are read here now — the annual and
   // series surfaces own their own data (AnnualEnergy via useAnnualEnergy from
   // building.energyDatasets; SeriesEnergy lazy-loads the time series).

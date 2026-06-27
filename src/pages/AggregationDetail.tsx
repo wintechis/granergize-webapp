@@ -42,7 +42,7 @@ interface AggregationProps {
  * revoke, and a Share dialog) — mirroring the building page's master-detail
  * composition.
  */
-export default function Aggregation({ session }: AggregationProps) {
+export default function AggregationDetail({ session }: AggregationProps) {
   // The aggregation reference is a query param now (`?ref=` relative / `?uri=`
   // absolute), not a path segment — matching the building/observation routes.
   const [searchParams] = useSearchParams();

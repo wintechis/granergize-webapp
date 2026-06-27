@@ -7,7 +7,7 @@
  * by-year energy hook uses, headlessly.
  */
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 import { resolve } from "../../entityQuery.ts";
 import {
   type AnnualMetrics,
@@ -47,7 +47,7 @@ export async function getObservationYearCore(
 ): Promise<ObservationYear | null> {
   const obj = await resolve("building", params.building, gateway);
   if (!obj || !("energyDatasets" in obj)) return null;
-  const b = obj as BuildingType;
+  const b = obj as Building;
   const year = Number(params.year);
 
   // Actual, non-series (annual) datasets — the same filter the by-year hook applies.

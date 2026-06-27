@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { getStoredViewport, setStoredViewport } from "../../lib/mapViewport.ts";
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 
 /**
  * Non-rendering Leaflet helper layers for {@link BuildingsMap} — each is a
@@ -34,7 +34,7 @@ export function InvalidateOnActive({ active }: { active: boolean }) {
  * coordinates, leaving the current view untouched.
  */
 export function FitToBuildings(
-  { active, buildings }: { active: boolean; buildings: BuildingType[] },
+  { active, buildings }: { active: boolean; buildings: Building[] },
 ) {
   const map = useMap();
   const done = useRef(false);

@@ -1,4 +1,4 @@
-import { type BuildingType } from "../../types.ts";
+import { type Building } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { type EnergyMetricKey } from "../energy/energyDataset.ts";
 import { type EnergyByBuildingYear } from "./energyTimeCut.ts";
@@ -23,7 +23,7 @@ export interface OverYearsChart {
  * React/MUI-free → Tier-1 testable; colours + the chart element live in the component.
  */
 export function buildOverYears(
-  buildings: BuildingType[],
+  buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
   metric: EnergyMetricKey,
 ): OverYearsChart {

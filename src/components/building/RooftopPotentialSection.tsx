@@ -1,5 +1,5 @@
 import { Stack } from "@mui/material";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { useLod2Rooftop } from "../../hooks/lod2Rooftop.ts";
 import { RooftopBuildingCardView } from "./StandortEnergieprofil.tsx";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
@@ -13,7 +13,7 @@ import { SOURCES } from "../../constants/dataSources.ts";
  * the observation page ({@link StandortEnergieprofil}). Renders nothing off-pilot (no LoD2).
  */
 export default function RooftopPotentialSection(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const rooftop = useLod2Rooftop(building).data ?? null;
   if (!rooftop) return null;

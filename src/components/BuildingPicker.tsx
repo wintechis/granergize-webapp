@@ -8,24 +8,24 @@ import {
   TextField,
 } from "@mui/material";
 import { msg } from "../lib/messages.ts";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 
 /** Secondary line under a building's name — its street, or locality as fallback. */
-const secondaryText = (b: BuildingType): string =>
+const secondaryText = (b: Building): string =>
   b.streetAddress !== buildingDisplayName(b)
     ? b.streetAddress || b.locality || ""
     : b.locality || "";
 
 /** Search matches the name AND the street/locality, not just the display name. */
-const filterBuildings = createFilterOptions<BuildingType>({
+const filterBuildings = createFilterOptions<Building>({
   stringify: (b) =>
     `${buildingDisplayName(b)} ${b.streetAddress ?? ""} ${b.locality ?? ""}`,
 });
 
 interface BaseProps {
   /** The buildings to choose from. */
-  buildings: BuildingType[];
+  buildings: Building[];
   /** Field caption. */
   label: string;
   /** Disable the field (e.g. while a write is in flight). */
@@ -50,7 +50,7 @@ export type BuildingPickerProps = MultiProps | SingleProps;
 
 /**
  * The shared building picker — a searchable MUI `Autocomplete` over
- * {@link BuildingType}s keyed by `building.uri`, labelled via
+ * {@link Building}s keyed by `building.uri`, labelled via
  * {@link buildingDisplayName} and filterable by name / street / locality. Supports
  * both a **multi**-select (chips + checklist + Select-all, the aggregation roster)
  * and a **single** select (one building — the palette param form, the
@@ -69,7 +69,7 @@ export default function BuildingPicker(props: BuildingPickerProps) {
     const toggleAll = () => onChange(allSelected ? [] : buildings.map((b) => b.uri));
     return (
       <Box sx={{ mb: 2 }}>
-        <Autocomplete<BuildingType, true, false, false>
+        <Autocomplete<Building, true, false, false>
           multiple
           disableCloseOnSelect
           disabled={disabled}
@@ -119,7 +119,7 @@ export default function BuildingPicker(props: BuildingPickerProps) {
   const selected = buildings.find((b) => b.uri === value) ?? null;
   return (
     <Box sx={{ mb: 2 }}>
-      <Autocomplete<BuildingType, false, false, false>
+      <Autocomplete<Building, false, false, false>
         disabled={disabled}
         options={buildings}
         value={selected}

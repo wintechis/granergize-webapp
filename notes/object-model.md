@@ -22,14 +22,14 @@ types beside the domain, composites one layer up.
 
 1. **Central domain types** (`src/types.ts`, the leaf — imports nothing, imported
    by everything). The entities a screen renders, plus their nested sub-shapes:
-   - `BuildingType` — the building, a flat bag of optional master-data fields
+   - `Building` — the building, a flat bag of optional master-data fields
      (the deep dive is [`data-schema.md`](./data-schema.md)). Nests `AnnualData`,
      `InvestorOperatingCosts`, `InvestorCertification`, `TechnicalSystem[]`
      (PV / battery / CHP energy systems), `AttachmentRef[]`
      ([`attachments.md`](./attachments.md)), and `EnergyDatasetRef[]` (the
      self-describing links to its energy resources); plus derived tier flags
      `isShared` / `isOpen` (owned vs shared-in vs open — [`data-architecture.md`](./data-architecture.md)).
-   - `EnergyType` — the dashboard's energy object: per-building figures bucketed
+   - `Energy` — the dashboard's energy object: per-building figures bucketed
      into the seven `EnergyCategoryKey` groups (`energyNeed`, `energyGeneration`, …).
      Within a group the figures are keyed by the **canonical** `EnergyMetricKey`
      (`electricityConsumption`, … — the same key space as the `cons:*` IRIs and the
@@ -74,7 +74,7 @@ which tracks the storage-model taxonomy of
 [`queries-mutations.md`](./queries-mutations.md) one-to-one:
 
 - **Resource objects** — a typed mirror of one *in-place* resource (GET → object →
-  PUT). `BuildingType` ⇄ a building file, `EnergyDataset` ⇄ a dataset file,
+  PUT). `Building` ⇄ a building file, `EnergyDataset` ⇄ a dataset file,
   `Organization` ⇄ the org node, `Preferences` ⇄ `prefs.ttl`, `SavedAgent` (entries)
   ⇄ `agents.ttl`, `AggregationDefinition`/`AggregationSnapshot` ⇄ the aggregation
   definition/snapshot files. One writer owns it; the object is the state.
@@ -115,7 +115,7 @@ resource: the noun is this note, the verbs are the query/mutation layer.
 
 ## A worked example — the Building object
 
-One entity (`BuildingType`) threaded through both axes — the object you read and the
+One entity (`Building`) threaded through both axes — the object you read and the
 verbs you invoke — described by its parts, not its code.
 
 **Reading it — the access interface.** Every object is reached through one uniform
@@ -130,11 +130,11 @@ bespoke fetch. The shape has four parts:
 - *gate* — the read stays disabled until its inputs resolve (for buildings: the
   shared-in fold + prefs, whose results also fingerprint the key).
 - *result* — the typed object(s) **and** the load state together: the list as
-  `BuildingType[]` plus `isLoading`/`isFetching`/`error`. The component sees the
+  `Building[]` plus `isLoading`/`isFetching`/`error`. The component sees the
   object, never RDF.
 
 So "give me the buildings" (`useBuildings`) is a WebID-keyed, gated read returning
-`BuildingType[]`; "give me the dashboard" (`useSolidData`) composes several such
+`Building[]`; "give me the dashboard" (`useSolidData`) composes several such
 reads into one selector object.
 
 **Acting on it — the intent shape.** Each verb on the object is one named unit
@@ -177,5 +177,5 @@ or on demand at the edge.
   dropped on read ([`data-schema.md`](./data-schema.md) §Two schemas). There is no
   shape/validator layer between RDF and object.
 - **Not where rendering decisions belong.** A resource object should carry values,
-  not how to show them; `EnergyType`'s category bucketing is the residual exception
+  not how to show them; `Energy`'s category bucketing is the residual exception
   (its metric keys are canonical now, and labels are applied at render).

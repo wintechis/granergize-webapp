@@ -18,7 +18,7 @@ import type { RegionLevel } from "../services/aggregation/regionRollup.ts";
 import type {
   AggregationDefinition,
   AttachmentRef,
-  BuildingType,
+  Building,
   TechnicalSystem,
   UserRole,
 } from "../types.ts";
@@ -67,7 +67,7 @@ function invalidateBuildingData(qc: QueryClient): void {
 export function useDeleteBuilding() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (building: BuildingType) =>
+    mutationFn: (building: Building) =>
       invoke("DeleteBuilding", { building }, getGateway()),
     // Drop the building from the list cache authoritatively on success, so the
     // Manage/Explore lists converge the instant the delete is confirmed instead of
@@ -85,7 +85,7 @@ export function useDeleteBuilding() {
       // Prefix-match (setQueriesData): the buildings key carries the shared-
       // source fingerprint as a third element, so the exact key isn't knowable
       // here — patch every cached buildings query for this WebID.
-      qc.setQueriesData<{ buildings: BuildingType[] }>(
+      qc.setQueriesData<{ buildings: Building[] }>(
         { queryKey: [...queryKeys.buildings, webId] },
         (old) =>
           old
@@ -708,7 +708,7 @@ export function useFindBuildings() {
   return useMutation({
     // A read (no meta.action, no invalidation): thin adapter over the React-free
     // FindBuildings core via the registry's query() entry — returns the matching
-    // BuildingType[] for an attribute selector (plan-attribute-facets).
+    // Building[] for an attribute selector (plan-attribute-facets).
     mutationFn: (selector?: Selector) =>
       query("FindBuildings", { selector }, getGateway()),
   });

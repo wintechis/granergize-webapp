@@ -2,7 +2,7 @@
 import { type PodGateway, sessionGateway } from "./pod/podGateway.ts";
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { buildBuildingDeletionPreview } from "./buildingActions.ts";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 
@@ -16,7 +16,7 @@ const building = {
   id: "b1",
   uri: `${FILE}#b1`,
   streetAddress: "Hauptstr 1",
-} as unknown as BuildingType;
+} as unknown as Building;
 
 /** Fake session; serves the energy-subtree container listing (or 404 if `empty`). */
 function session(opts: { empty?: boolean } = {}): PodGateway {
@@ -68,6 +68,6 @@ Deno.test("buildBuildingDeletionPreview falls back to an id label without a stre
   const { message } = await buildBuildingDeletionPreview(session({ empty: true }), {
     id: "b9",
     uri: `${FILE}#b9`,
-  } as unknown as BuildingType);
+  } as unknown as Building);
   assert.match(message, /Delete "Building b9"\?/);
 });

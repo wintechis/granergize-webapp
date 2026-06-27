@@ -15,7 +15,7 @@ import AppearsInSection from "../components/agent/AppearsInSection.tsx";
  * full-page route it carries its own plain "Loading…" text (the header activity
  * indicator isn't mounted here — see the loading-spinner policy).
  */
-export default function Agent({ webId }: { webId: string }) {
+export default function AgentDetail({ webId }: { webId: string }) {
   return (
     <Stack spacing={3} divider={<Divider />}>
       <AgentHeader webId={webId} />

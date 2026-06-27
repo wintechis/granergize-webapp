@@ -12,7 +12,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { detailBaseLayer } from "../../lib/orthophoto.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import type {
   InstallationKind,
   NearbyInstallation,
@@ -59,7 +59,7 @@ function FitBounds({ points }: { points: [number, number][] }) {
  */
 export default function NearbyInstallationsMap(
   { building, installations, height = 320 }: {
-    building: BuildingType;
+    building: Building;
     installations: NearbyInstallation[];
     height?: number;
   },

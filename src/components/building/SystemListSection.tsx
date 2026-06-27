@@ -12,7 +12,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import type { BuildingType, SystemKind, TechnicalSystem } from "../../types.ts";
+import type { Building, SystemKind, TechnicalSystem } from "../../types.ts";
 import { isHeatKind } from "../../types.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { DetailRow } from "../detail/DetailView.tsx";
@@ -161,7 +161,7 @@ function CapacityFields(
  */
 function EditView(
   { building, group, onDone }: {
-    building: BuildingType;
+    building: Building;
     group: Group;
     onDone: () => void;
   },
@@ -298,7 +298,7 @@ function EditView(
  * owned building can add/edit; a shared one is read-only.
  */
 export default function SystemListSection(
-  { building, group }: { building: BuildingType; group: Group },
+  { building, group }: { building: Building; group: Group },
 ) {
   const cfg = GROUPS[group];
   const canEdit = !building.isShared;

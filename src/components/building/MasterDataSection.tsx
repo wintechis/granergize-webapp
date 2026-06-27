@@ -7,7 +7,7 @@ import {
   Clear as ClearIcon,
 } from "@mui/icons-material";
 import type {
-  BuildingType,
+  Building,
   InvestorOperatingCosts,
 } from "../../types.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
@@ -45,7 +45,7 @@ const boolIcon = (v: boolean) =>
 
 
 /** The read-first master-data view: every populated master-data field as a row. */
-function ReadView({ building }: { building: BuildingType }) {
+function ReadView({ building }: { building: Building }) {
   const operatingCostEntries = Object.entries(
     (building.operatingCosts ?? {}) as InvestorOperatingCosts,
   ).filter(([, value]) => hasValue(value));
@@ -184,7 +184,7 @@ function ReadView({ building }: { building: BuildingType }) {
 
 /** The inline editor — the same fields the Edit dialog offers, but on the page. */
 function EditView(
-  { building, onDone }: { building: BuildingType; onDone: () => void },
+  { building, onDone }: { building: Building; onDone: () => void },
 ) {
   const { showNotification } = useNotification();
   const initialFields = useMemo(() => buildingToFields(building), [building]);
@@ -310,7 +310,7 @@ function EditView(
  */
 export default function MasterDataSection(
   { building, autoOpenEdit }: {
-    building: BuildingType;
+    building: Building;
     /** Open the inline editor on mount (the palette routed here `?action=edit`). */
     autoOpenEdit?: boolean;
   },

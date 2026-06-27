@@ -15,7 +15,7 @@ translating to its neighbour in **both directions** —
 
 ```
   RDF on the Pod   ⇄   typed app objects    ⇄   rendered UI
-  (read / write)       BuildingType, … —        (display / edit)
+  (read / write)       Building, … —        (display / edit)
                        nouns + their verbs
                        (intents / actions)
 ```

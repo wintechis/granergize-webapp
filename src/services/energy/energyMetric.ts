@@ -1,4 +1,4 @@
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 import {
   type AnnualMetrics,
   type EnergyMetricKey,
@@ -102,7 +102,7 @@ export function metricLabelKey(key: EnergyMetricKey): MessageId {
  *   ranks by raw output, not per floor area. `null` when there is no positive figure.
  */
 export function metricValueAtYear(
-  building: BuildingType,
+  building: Building,
   metrics: AnnualMetrics | undefined,
   key: EnergyMetricKey,
 ): number | null {

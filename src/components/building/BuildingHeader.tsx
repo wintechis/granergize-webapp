@@ -3,7 +3,7 @@ import { Box, Stack, Typography } from "@mui/material";
 import TierBadge from "../TierBadge.tsx";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import DownloadIcon from "@mui/icons-material/Download";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import {
   buildingAddressLine,
   buildingDisplayName,
@@ -33,7 +33,7 @@ import { formatError } from "../../lib/formatError.ts";
  * owned/shared badge, and a small locator map thumbnail (the main map's basemap
  * + an ownership-coloured pin).
  */
-export default function BuildingHeader({ building }: { building: BuildingType }) {
+export default function BuildingHeader({ building }: { building: Building }) {
   const name = buildingDisplayName(building);
   const address = buildingAddressLine(building);
   const shared = building.isShared ?? false;

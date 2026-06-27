@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
@@ -64,7 +64,7 @@ const TREND_META: Record<EnergyTrend, { color: string; label: MessageId }> = {
 };
 
 interface ObservationsMatrixProps {
-  buildings: BuildingType[];
+  buildings: Building[];
   /** The per-building annual cube (from `useAnnualEnergyByYear`). */
   energyByYear: EnergyByBuildingYear | undefined;
   /** Ids the lens frames its per-year peer set against (the visible set). */

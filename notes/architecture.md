@@ -103,7 +103,7 @@ Pod I/O, RDF, or neither — and a unit that owns a Pod resource belongs in its 
 folder, not in any of the three.
 
 **Constants & types** (`src/constants/`, `src/types.ts`). The leaf: role/colour maps and
-the `BuildingType`/`EnergyType` domain types. Imported by every layer, importing none.
+the `Building`/`Energy` domain types. Imported by every layer, importing none.
 
 ## The render cycle
 
@@ -152,14 +152,14 @@ directions**:
 
 ```
   RDF on the Pod   ⇄   typed app objects   ⇄   rendered UI
-  (read / write)       (BuildingType, …)       (display / edit)
+  (read / write)       (Building, …)       (display / edit)
 ```
 
 - **RDF / storage.** Turtle documents in the `granergize/` tree — the ground
   truth, modelled in the shared vocabulary ([`storage-layout.md`](./storage-layout.md));
   read on load, written back on save.
 - **Typed objects.** The parsers in `src/services/rdf/` project the merged graph
-  into plain typed structures (`BuildingType`, `EnergyType`, …) via the
+  into plain typed structures (`Building`, `Energy`, …) via the
   predicate→field maps in `buildingConfig.ts` — **after which components see no RDF**.
   The read translation is one-way and load-time (RDF → object → props); the reverse
   (serialize → PUT) runs only on a write ([`data-deref.md`](./data-deref.md) §Parsing;

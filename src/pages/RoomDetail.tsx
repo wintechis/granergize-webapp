@@ -39,7 +39,7 @@ function roomHost(roomUri: string): string {
  * this room and its members/roles fold loads. The page never redirects; it
  * renders detail in place.
  */
-export default function Room(
+export default function RoomDetail(
   { roomUri, session }: { roomUri: string; session: Session },
 ) {
   const { showNotification } = useNotification();

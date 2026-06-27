@@ -17,7 +17,7 @@ import EnergyYearEditor from "../components/EnergyYearEditor.tsx";
 import Modal from "../components/Modal.tsx";
 import BuildingPicker from "../components/BuildingPicker.tsx";
 import { useLocation, useSearchParams } from "react-router-dom";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import type { BuildinglessObservation } from "../services/energy/energyDataset.ts";
 import { observationRoute } from "../routes.ts";
 import {
@@ -75,7 +75,7 @@ import { metricLabel } from "../constants/annualMetrics.ts";
 const BuildingsMap = lazy(() => import("../components/building/BuildingsMap.tsx"));
 
 /** A short read-out of the years (and resolution) a building has observations for. */
-function datasetSummary(b: BuildingType): string {
+function datasetSummary(b: Building): string {
   const refs = b.energyDatasets ?? [];
   const years = [...new Set(refs.map((d) => d.year))].sort((a, c) => a - c);
   if (years.length === 0) return "";
@@ -184,7 +184,7 @@ export default function ObservationsFinder() {
   };
   const { confirm } = useConfirm();
   const { showNotification } = useNotification();
-  const handleClearObservations = async (b: BuildingType) => {
+  const handleClearObservations = async (b: Building) => {
     const refs = b.energyDatasets ?? [];
     const years = new Set(refs.map((r) => r.year)).size;
     if (

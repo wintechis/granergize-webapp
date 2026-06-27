@@ -1,4 +1,4 @@
-import { type BuildingType } from "../../types.ts";
+import { type Building } from "../../types.ts";
 import { type RegionGrain } from "../../services/sources/regionGeometry.ts";
 
 /** AGS prefix length per grain — Land = 2, Kreis = 5, Gemeinde = 8 digits. */
@@ -6,7 +6,7 @@ const AGS_LEN: Record<RegionGrain, number> = { land: 2, kreis: 5, gemeinde: 8 };
 
 export interface RegionGrouping {
   /** Region AGS (sliced to the grain) → the buildings that fall in it. */
-  byAgs: Map<string, BuildingType[]>;
+  byAgs: Map<string, Building[]>;
   /** Buildings with no usable `regionAgs` — can't be placed on the choropleth. */
   unplaced: number;
 }
@@ -18,11 +18,11 @@ export interface RegionGrouping {
  * without a usable AGS are counted as `unplaced` (surfaced, never silently dropped). Pure.
  */
 export function buildingsByRegion(
-  buildings: readonly BuildingType[],
+  buildings: readonly Building[],
   grain: RegionGrain,
 ): RegionGrouping {
   const len = AGS_LEN[grain];
-  const byAgs = new Map<string, BuildingType[]>();
+  const byAgs = new Map<string, Building[]>();
   let unplaced = 0;
   for (const b of buildings) {
     const full = b.regionAgs;

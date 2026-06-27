@@ -8,7 +8,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { type PodGateway, sessionGateway } from "../../../services/pod/podGateway.ts";
 import { _setStorageRootForTesting } from "../../../services/pod/solidUtils.ts";
 import { REC_BUILDING, VCARD_NS } from "../../../services/rdf/vocabularies.ts";
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 import { findRegionalStatisticsCore } from "./FindRegionalStatistics.ts";
 
 const WEBID = "https://a.example/profile/card#me";
@@ -31,7 +31,7 @@ function fakePod(): PodGateway {
     { info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session,
   );
 }
-const noLoad = () => Promise.resolve([] as BuildingType[]);
+const noLoad = () => Promise.resolve([] as Building[]);
 
 Deno.test("findRegionalStatisticsCore: an explicit Bundesland name lists only that region's datasets", async () => {
   const items = await findRegionalStatisticsCore(fakePod(), { region: "Bayern" }, noLoad);
@@ -46,7 +46,7 @@ Deno.test("findRegionalStatisticsCore: a Bundesland AGS works as well as its nam
 });
 
 Deno.test("findRegionalStatisticsCore: no scope → the visible portfolio's regions (injected load)", async () => {
-  const buildings = [{ region: "Bayern" }, { region: "Hessen" }] as BuildingType[];
+  const buildings = [{ region: "Bayern" }, { region: "Hessen" }] as Building[];
   const items = await findRegionalStatisticsCore(
     fakePod(),
     {},

@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import {
   appearancesOf,
   referencedAgentTiers,
@@ -10,8 +10,8 @@ import {
 const ALICE = "https://alice.example/profile/card#me";
 const BOB = "https://bob.example/profile/card#me";
 
-function building(id: string, fields: Partial<BuildingType>): BuildingType {
-  return { id, uri: `urn:b:${id}`, type: "x", ...fields } as BuildingType;
+function building(id: string, fields: Partial<Building>): Building {
+  return { id, uri: `urn:b:${id}`, type: "x", ...fields } as Building;
 }
 
 Deno.test("appearancesOf finds buildings by each agent role and tags the roles", () => {

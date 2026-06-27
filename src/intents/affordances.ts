@@ -7,7 +7,7 @@
  * nature* (name/effect/entity/hook/exposure). This module adds the two further
  * object-layer facts an affordance surface (the per-object {@link ObjectActions}
  * menu, the ⌘K palette) needs to decide WHICH verbs an object offers a viewer,
- * **without** coupling the canonical catalog to the app's `BuildingType` /
+ * **without** coupling the canonical catalog to the app's `Building` /
  * `AggregationDefinition` types:
  *
  * - **`applies(object, viewer)`** — the state-filter: does the object's current
@@ -32,7 +32,7 @@
  * keys — is the *presentation* layer (the palette / `ObjectActions` / `routes.ts`),
  * NOT here: this module records only the action's own nature.
  */
-import type { AggregationDefinition, BuildingType } from "../types.ts";
+import type { AggregationDefinition, Building } from "../types.ts";
 
 /**
  * The viewer's relationship to an object plus the developer-mode flag — the
@@ -49,7 +49,7 @@ export interface ViewerContext {
  * ignore it. Kept structural so callers can pass the typed instance they hold.
  */
 export type IntentObject =
-  | BuildingType
+  | Building
   | AggregationDefinition
   | { kind: "Account" }
   | undefined;
@@ -72,18 +72,18 @@ export interface IntentAffordance {
 // ── Guard helpers ────────────────────────────────────────────────────────────
 // The applicability predicates, made explicit from the per-surface conditionals.
 
-function isBuilding(o: IntentObject): o is BuildingType {
+function isBuilding(o: IntentObject): o is Building {
   return !!o && typeof o === "object" && "uri" in o && "id" in o &&
     "type" in o;
 }
 
 /** Is the candidate an own (not shared-with-me) building? Mirrors `!b.isShared`. */
-function isOwnBuilding(o: IntentObject): o is BuildingType {
+function isOwnBuilding(o: IntentObject): o is Building {
   return isBuilding(o) && !o.isShared;
 }
 
 /** Is the candidate a shared-with-me building? */
-function isSharedBuilding(o: IntentObject): o is BuildingType {
+function isSharedBuilding(o: IntentObject): o is Building {
   return isBuilding(o) && o.isShared === true;
 }
 

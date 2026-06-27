@@ -1,4 +1,4 @@
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 import { type EnergyMetricKey } from "../energy/energyDataset.ts";
 import { DEFAULT_METRIC, type MetricFraming, metricFraming } from "./energyMetric.ts";
 import {
@@ -38,7 +38,7 @@ export interface MatrixCell {
 
 /** One building's row: the building plus a cell per ordered year column. */
 export interface MatrixRow {
-  building: BuildingType;
+  building: Building;
   cells: MatrixCell[];
 }
 
@@ -69,7 +69,7 @@ export interface EnergyMatrix {
  * `cells` empty) when no building carries any annual energy.
  */
 export function buildEnergyMatrix(
-  buildings: BuildingType[],
+  buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
   visibleIds: ReadonlySet<string> = new Set(buildings.map((b) => b.id)),
   metric: EnergyMetricKey = DEFAULT_METRIC,

@@ -2,9 +2,9 @@ import type { PodGateway } from "./pod/podGateway.ts";
 import { parseBuildings } from "./rdf/building/buildingParser.ts";
 import { buildingFileUri } from "./rdf/building/buildingId.ts";
 import type {
-  BuildingType,
+  Building,
   EnergyDatasetRef,
-  EnergyType,
+  Energy,
 } from "../types.ts";
 import { DataFactory, Parser, Store } from "n3";
 import type { Quad } from "@rdfjs/types";
@@ -238,7 +238,7 @@ export async function loadBuildings(
   sharedSources: string[],
   hiddenBuildingUris: Set<string>,
 ): Promise<{
-  buildings: BuildingType[];
+  buildings: Building[];
   prunedSources: string[];
   /** Building files that failed transiently (slow/throttled Pod) — kept for a
    * later refresh, but reported so the missing buildings aren't a silent gap. */
@@ -272,7 +272,7 @@ export async function loadBuildings(
   const buildings = parseBuildings(buildingsResult.quads, storageRoot);
 
   // Filter out hidden buildings and mark shared buildings.
-  const visibleBuildings = new Map<string, BuildingType>();
+  const visibleBuildings = new Map<string, Building>();
   for (const [buildingId, building] of buildings) {
     if (!hiddenBuildingUris.has(buildingFileUri(building.uri))) {
       // Ownership = whether the source file lives under the user's storage root.
@@ -322,13 +322,13 @@ function meanByMetric(
 
 export async function loadEnergy(
   gateway: PodGateway,
-  buildings: BuildingType[],
+  buildings: Building[],
 ): Promise<{
-  energyNeed: EnergyType[];
+  energyNeed: Energy[];
   portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
 }> {
-  const energyData = new Map<string, EnergyType>();
+  const energyData = new Map<string, Energy>();
   const operatorAggregatedValues: Record<string, Record<string, number[]>> = {};
   // The user's OWN buildings only (excludes shared-in) — feeds the honest
   // "portfolio average" the energy view shows.
@@ -339,7 +339,7 @@ export async function loadEnergy(
   // skipped here and loaded lazily on click — dispatch is purely on the declared
   // granularity. The annual datasets are separate resources, fetched with bounded
   // concurrency (one Pod round-trip per building in series made the map slow).
-  const annualTasks: Array<{ building: BuildingType; refs: EnergyDatasetRef[] }> =
+  const annualTasks: Array<{ building: Building; refs: EnergyDatasetRef[] }> =
     [];
   for (const building of buildings) {
     const annual = (building.energyDatasets ?? [])
@@ -624,7 +624,7 @@ export async function listSharedBuildingSources(
  */
 export async function fetchAndParseData(
   gateway: PodGateway,
-  onBuildings?: (partial: { buildings: BuildingType[] }) => void,
+  onBuildings?: (partial: { buildings: Building[] }) => void,
 ) {
   const webId = gateway.webId;
   if (!webId) throw new Error("No WebID found.");

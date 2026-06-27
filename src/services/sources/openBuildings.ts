@@ -1,4 +1,4 @@
-import { type BuildingType } from "../../types.ts";
+import { type Building } from "../../types.ts";
 import { type NearbyRooftop } from "./lod2Rooftop.ts";
 
 /** A map viewport centre — the point the open-building bbox is grown around. */
@@ -98,7 +98,7 @@ export function viewportAnchor(
 
 /**
  * Adapt a LoD2 `NearbyRooftop` (the `linked-lod2-by` open-data rooftop summary) into
- * the finder's `BuildingType`, flagged `isOpen` so it lands in the **open** source
+ * the finder's `Building`, flagged `isOpen` so it lands in the **open** source
  * tier — public, off-Pod, read-only. The wrapper gives an IRI + coordinates + the
  * installable rooftop-PV capacity, but **no name/address**, so no `label` is set: the
  * display layer renders an open-specific label (it must NOT parse meaning from the IRI
@@ -106,7 +106,7 @@ export function viewportAnchor(
  * the "open the source" navigation; `id` is the IRI (a stable React/list key, never
  * routed to the Pod-backed `/building/:id`). Pure → Tier-1 testable.
  */
-export function openRooftopToBuilding(r: NearbyRooftop): BuildingType {
+export function openRooftopToBuilding(r: NearbyRooftop): Building {
   return {
     id: r.iri,
     uri: r.iri,

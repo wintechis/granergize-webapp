@@ -8,7 +8,7 @@ import AddIcon from "@mui/icons-material/Add";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.ts";
 import { filterByText } from "../lib/textSearch.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
@@ -133,7 +133,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
   // The building whose Share dialog is open (a finder-row action, next to delete).
-  const [shareBuilding, setShareBuilding] = useState<BuildingType | null>(null);
+  const [shareBuilding, setShareBuilding] = useState<Building | null>(null);
 
   // Honour a palette-routed `?action=add` by DERIVING the dialog-open state from
   // the URL (no setState-in-effect): the palette routes the rich create verb to
@@ -162,7 +162,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const deleteBuilding = useDeleteBuilding();
   const revoke = useRevokeBuildingAccess();
 
-  const handleDelete = async (building: BuildingType) => {
+  const handleDelete = async (building: Building) => {
     // Build the "what will be removed" preview, confirm, then delete (the
     // confirm lives here, not in the service — same pattern as handleRevoke).
     const { message } = await buildBuildingDeletionPreview(sessionGateway(session), building);

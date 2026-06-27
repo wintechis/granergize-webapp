@@ -3,9 +3,9 @@ import type {
   AggregationDefinition,
   AggregationSnapshot,
   AggregationKind,
-  BuildingType,
+  Building,
   EnergyCategoryKey,
-  EnergyType,
+  Energy,
   SpatialExtent,
 } from "../../types.ts";
 import { getAggregationDefinition, storeComputedSnapshot } from "./aggregation.ts";
@@ -35,12 +35,12 @@ import { mapPooled } from "../../lib/pool.ts";
  * flake that left fresh snapshots empty — so prefer the cache and only fall back to
  * a file read. Identity is the subject IRI (`building.uri`).
  */
-function cachedBuilding(buildingUri: string): BuildingType | null {
+function cachedBuilding(buildingUri: string): Building | null {
   const qc = getAppQueryClient();
   if (!qc) return null;
   // Prefix-match the "buildings" query root (the WebID/fingerprint tail varies),
   // matching `queryKeys.buildings[0]` without importing the hooks layer.
-  const entries = qc.getQueriesData<{ buildings: BuildingType[] }>({
+  const entries = qc.getQueriesData<{ buildings: Building[] }>({
     predicate: (q) => q.queryKey[0] === "buildings",
   });
   for (const [, data] of entries) {
@@ -119,7 +119,7 @@ async function resolveBuildingRefs(
 async function loadBuildingEnergyData(
   buildingUri: string,
   gateway: PodGateway,
-): Promise<{ energy: EnergyType; year: number } | null> {
+): Promise<{ energy: Energy; year: number } | null> {
   // The aggregation definition records the SUBJECT IRI; the document is its
   // fragment-free form. Carry the subject through verbatim — identity is the
   // IRI, never reconstructed from the file name.
@@ -152,7 +152,7 @@ async function loadBuildingEnergyData(
         energyTransfer: {},
         energyUsage: {},
         environmentalFactor: {},
-      } as EnergyType,
+      } as Energy,
       year: latest.year,
     };
   } catch (error) {
@@ -199,7 +199,7 @@ function aggregateValues(values: number[], type: AggregationKind): number {
  * Extract metric values from energy data
  */
 function extractMetricValue(
-  energyData: EnergyType,
+  energyData: Energy,
   metric: string,
 ): number | null {
   const categories: EnergyCategoryKey[] = [
@@ -353,7 +353,7 @@ export async function computeAggregation(
     buildingUris,
     4,
     (buildingUri) => loadBuildingEnergyData(buildingUri, gateway),
-  )).filter((l): l is { energy: EnergyType; year: number } => l !== null);
+  )).filter((l): l is { energy: Energy; year: number } => l !== null);
   const energyDataResults = loadedAll.map((l) => l.energy);
   const latestYear = loadedAll.length > 0
     ? Math.max(...loadedAll.map((l) => l.year))

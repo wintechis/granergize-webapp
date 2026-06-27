@@ -12,7 +12,7 @@
  * `null` outside Bavaria; the nearby units are nationwide.
  */
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { useNearbyInstallations } from "./mastrNearby.ts";
 import {
   gemeindeFromInstallations,
@@ -33,7 +33,7 @@ export interface StandortEnergieprofil {
 }
 
 export function useStandortEnergieprofil(
-  building: BuildingType,
+  building: Building,
 ): StandortEnergieprofil {
   const nearby = useNearbyInstallations(building);
   const installations = nearby.data?.installations ?? [];

@@ -1,7 +1,7 @@
 import { msg } from "../../lib/messages.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 import { Marker, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import Box from "@mui/material/Box";
@@ -55,7 +55,7 @@ function createCategoryIcon(band: LensBand, framing: MetricFraming): L.DivIcon {
  */
 export function BuildingMarker(
   { building, position, onClick, lens, band, framing }: {
-    building: BuildingType;
+    building: Building;
     position: [number, number];
     onClick: () => void;
     lens: MapLens;

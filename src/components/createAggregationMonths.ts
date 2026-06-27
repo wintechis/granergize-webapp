@@ -1,4 +1,4 @@
-import type { BuildingType, EnergyDatasetRef } from "../types.ts";
+import type { Building, EnergyDatasetRef } from "../types.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 
 /**
@@ -9,7 +9,7 @@ import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
  * heike-4's data-bearing-months dropdown was introduced to prevent).
  */
 export function selectedSeriesRefs(
-  available: BuildingType[],
+  available: Building[],
   selectedUris: string[],
 ): EnergyDatasetRef[] {
   return available

@@ -24,7 +24,7 @@ import {
 } from "@mui/material";
 import type {
   AggregationKind,
-  BuildingType,
+  Building,
 } from "../types.ts";
 import type { RegionLevel } from "../services/aggregation/regionRollup.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
@@ -45,7 +45,7 @@ import Modal from "./Modal.tsx";
 
 interface CreateAggregationDialogProps {
   open: boolean;
-  buildings: BuildingType[];
+  buildings: Building[];
   onClose: () => void;
 }
 

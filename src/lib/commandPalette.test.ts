@@ -17,7 +17,7 @@ import { buildingRoute, observationRoute, withAction } from "../routes.ts";
 import { findIntent, type IntentObject } from "../intents/applicable.ts";
 import { INTENTS } from "../intents/catalog.ts";
 import type { TFn } from "../context/I18nProvider.tsx";
-import type { AggregationDefinition, BuildingType } from "../types.ts";
+import type { AggregationDefinition, Building } from "../types.ts";
 
 // Echoes the id so a test can see which label key resolved a command's label.
 const echoT = ((id: string) => `t:${id}`) as unknown as TFn;
@@ -27,13 +27,13 @@ const NAV: NavTarget[] = [
   { path: "/aggregations", labelKey: "navAggregations" },
 ];
 
-function building(over: Partial<BuildingType> = {}): BuildingType {
+function building(over: Partial<Building> = {}): Building {
   return {
     id: "granergize/buildings/b1.ttl#it",
     uri: "https://alice.example/granergize/buildings/b1.ttl",
     type: "building",
     ...over,
-  } as BuildingType;
+  } as Building;
 }
 
 function aggregation(over: Partial<AggregationDefinition> = {}): AggregationDefinition {

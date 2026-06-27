@@ -1,4 +1,4 @@
-import { BuildingType, EnergyType } from "../../types.ts";
+import { Building, Energy } from "../../types.ts";
 
 /**
  * Energy-map categorisation — the pure core behind the map's "energy lens"
@@ -28,7 +28,7 @@ function sumValues(section: Record<string, number | undefined>): number {
  * sums a section. Latest-year data is what the parser surfaces, matching the
  * `/observation/:id` latest-year view; sub-hourly series are out of scope here.
  */
-export function annualEnergyKwh(energy: EnergyType): number {
+export function annualEnergyKwh(energy: Energy): number {
   return sumValues(energy.energyNeed);
 }
 
@@ -37,7 +37,7 @@ export function annualEnergyKwh(energy: EnergyType): number {
  * dominated by hall floor space), then the gross building area, then office
  * area. `null` when none is known.
  */
-export function referenceArea(building: BuildingType): number | null {
+export function referenceArea(building: Building): number | null {
   return building.hallArea ?? building.buildingArea ?? building.officeArea ??
     null;
 }
@@ -48,8 +48,8 @@ export function referenceArea(building: BuildingType): number | null {
  * categorised as `"none"` (neutral marker).
  */
 export function energyIntensity(
-  building: BuildingType,
-  energy: EnergyType | undefined,
+  building: Building,
+  energy: Energy | undefined,
 ): number | null {
   if (!energy) return null;
   const area = referenceArea(building);

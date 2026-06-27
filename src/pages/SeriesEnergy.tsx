@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, Typography } from "@mui/material";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import { msg } from "../lib/messages.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { splitEnergyDatasets } from "../lib/energyResolution.ts";
 import UserEnergyChart from "./UserEnergyChart.tsx";
@@ -12,7 +12,7 @@ import UserEnergyChart from "./UserEnergyChart.tsx";
  * day/month charts (`UserEnergyChart`), which lazy-load the daily reading
  * files on demand. Render only for a building that carries series datasets.
  */
-export default function SeriesEnergy({ building }: { building: BuildingType }) {
+export default function SeriesEnergy({ building }: { building: Building }) {
   const { series } = splitEnergyDatasets(building.energyDatasets);
   return (
     <Card>

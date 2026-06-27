@@ -21,7 +21,7 @@ import {
   uploadBuilding,
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
-import type { BuildingType } from "../../../src/types.ts";
+import type { Building } from "../../../src/types.ts";
 
 import {
   buildingFileUri,
@@ -56,7 +56,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     check("baseline: B sees the shared building", await bSeesIt());
 
     // A deletes the building through the real app path (revokes recipients first).
-    await deleteBuildingResource(a.session, { uri } as unknown as BuildingType);
+    await deleteBuildingResource(a.session, { uri } as unknown as Building);
 
     // Owner side: shared-out/ no longer asserts an active grant (revocation logged).
     const ownerShared = await getSharedBuildings(a.session);

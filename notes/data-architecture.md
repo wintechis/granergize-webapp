@@ -188,7 +188,7 @@ fetches by IRI:
 ### Where open data surfaces
 
 - **Buildings finder** — the `open` tier (when ticked) unions nearby LoD2 rooftop buildings
-  (`useOpenBuildings` → `fetchNearbyRooftops`, converted to `BuildingType` with `isOpen`
+  (`useOpenBuildings` → `fetchNearbyRooftops`, converted to `Building` with `isOpen`
   and the IRI as id) into the list + map; a drill opens the read-only building detail.
 - **Observations finder** — the `open` tier lists nearby MaStR renewable plants with their
   settled generation (`useOpenObservations`, capped) as a **separate list section**, not

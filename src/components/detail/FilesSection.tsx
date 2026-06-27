@@ -1,6 +1,6 @@
 import { msg } from "../../lib/messages.ts";
 import { Button } from "@mui/material";
-import type { AttachmentRef, BuildingType } from "../../types.ts";
+import type { AttachmentRef, Building } from "../../types.ts";
 import { RdfSourceLink, SectionTitle } from "./DetailView.tsx";
 import { listStyle, rowStyle } from "../../constants/listStyles.ts";
 import { filesContainerFor } from "../../services/attachment.ts";
@@ -14,7 +14,7 @@ import AttachmentInfo from "../AttachmentInfo.tsx";
  * owner and a share recipient) and saved via a blob download. Renders nothing
  * when the building has no files.
  */
-export default function FilesSection({ building }: { building: BuildingType }) {
+export default function FilesSection({ building }: { building: Building }) {
   const attachments = (building.attachments as AttachmentRef[] | undefined) ?? [];
   const { download, downloadingUrl } = useAttachmentDownload(getGateway());
 

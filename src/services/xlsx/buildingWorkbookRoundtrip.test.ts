@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { serializeBuildingToTurtle } from "../rdf/building/buildingSerializer.ts";
 import {
   detectSpreadsheetFormat,
@@ -21,7 +21,7 @@ const building = {
   tenancyType: "Single Tenant",
   shiftRegime: "1-Shift",
   indoorTemperatureClass: "≤18 °C",
-} as unknown as BuildingType;
+} as unknown as Building;
 
 Deno.test("generic XLSX round-trip normalizes object-property labels back to local names", async () => {
   // Export via the "Download all" flat-record path, then re-import generically.
@@ -58,7 +58,7 @@ const styledBuilding = {
   annualData: [
     { year: 2099, electricityConsumption: 12345, waterConsumption: 67 },
   ],
-} as unknown as BuildingType;
+} as unknown as Building;
 
 Deno.test("styled investor export auto-detects and re-imports despite the title band", async () => {
   const bytes = await buildingToXlsx(styledBuilding, "investor");

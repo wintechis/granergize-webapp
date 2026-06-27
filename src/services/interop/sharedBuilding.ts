@@ -4,7 +4,7 @@ import { fetchFresh } from "../pod/podFetch.ts";
 import { parseBuildings } from "../rdf/building/buildingParser.ts";
 import { buildingFileUri } from "../rdf/building/buildingId.ts";
 import { getStorageRoot } from "../pod/solidUtils.ts";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 
 /** A shared-building entry as folded from the `shared-in/` log. */
 export interface SharedBuildingEntry {
@@ -12,7 +12,7 @@ export interface SharedBuildingEntry {
 }
 
 /**
- * Load a building that was shared *with* the user as a typed {@link BuildingType}.
+ * Load a building that was shared *with* the user as a typed {@link Building}.
  *
  * Unlike the owner's own buildings (held in memory via `useSolidData`), shared
  * buildings aren't all resident — hidden ones are pruned — so the source document
@@ -28,7 +28,7 @@ export interface SharedBuildingEntry {
 export async function loadSharedBuilding(
   entry: SharedBuildingEntry,
   gateway: PodGateway,
-): Promise<BuildingType | null> {
+): Promise<Building | null> {
   const res = await fetchFresh(entry.buildingUri, gateway);
   // 404/410 = deleted, 403 = the owner revoked your access — both mean "gone",
   // a normal lifecycle event for a building shared WITH you (not a failure).

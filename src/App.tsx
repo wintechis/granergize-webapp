@@ -15,15 +15,15 @@ import AggregationsFinder from "./pages/AggregationsFinder.tsx";
 import RoomsFinder from "./pages/RoomsFinder.tsx";
 import AgentsFinder from "./pages/AgentsFinder.tsx";
 import SharingFinder from "./pages/SharingFinder.tsx";
-import Building from "./pages/Building.tsx";
+import BuildingDetail from "./pages/BuildingDetail.tsx";
 import OpenBuildingDetail from "./components/building/OpenBuildingDetail.tsx";
 import OpenObservationDetail from "./components/building/OpenObservationDetail.tsx";
 import { isOpenBuildingIri } from "./services/sources/lod2Rooftop.ts";
 import { isOpenObservationIri } from "./services/sources/openObservations.ts";
-import Energy from "./pages/Energy.tsx";
-import Agent from "./pages/Agent.tsx";
-import Room from "./pages/Room.tsx";
-import Aggregation from "./pages/Aggregation.tsx";
+import EnergyDetail from "./pages/EnergyDetail.tsx";
+import AgentDetail from "./pages/AgentDetail.tsx";
+import RoomDetail from "./pages/RoomDetail.tsx";
+import AggregationDetail from "./pages/AggregationDetail.tsx";
 import RegionalDataset from "./pages/RegionalDataset.tsx";
 import DataSources from "./pages/DataSources.tsx";
 import Organisation from "./pages/Organisation.tsx";
@@ -37,7 +37,7 @@ import Typography from "@mui/material/Typography";
 
 // Create wrapper components to handle URL params
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "./types.ts";
+import type { Building } from "./types.ts";
 import { useSolidData } from "./hooks/queries.ts";
 import { logError } from "./lib/logError.ts";
 
@@ -56,7 +56,7 @@ function appBasename(): string {
 }
 
 function useBuildingParam(): {
-  building: BuildingType | null;
+  building: Building | null;
   selectedBuilding: string;
   isLoading: boolean;
   error: string | null;
@@ -95,7 +95,7 @@ function FullPageSpinner() {
  */
 function BuildingRouteGuard(
   { children }: {
-    children: (building: BuildingType, selectedBuilding: string) => ReactNode;
+    children: (building: Building, selectedBuilding: string) => ReactNode;
   },
 ) {
   const { building, selectedBuilding, isLoading, error } = useBuildingParam();
@@ -131,7 +131,7 @@ function BuildingWrapper() {
     <BuildingRouteGuard>
       {(building) => (
         <Container maxWidth="lg" sx={{ py: 3 }}>
-          <Building
+          <BuildingDetail
             building={building}
             onHide={() => navigate(-1)}
           />
@@ -160,7 +160,7 @@ function EnergyWrapper() {
         // room wrappers, and Aggregation's own) so the observation page doesn't
         // sprawl full-width.
         <Container maxWidth="lg" sx={{ py: 3 }}>
-          <Energy building={building} />
+          <EnergyDetail building={building} />
         </Container>
       )}
     </BuildingRouteGuard>
@@ -168,7 +168,7 @@ function EnergyWrapper() {
 }
 
 function AggregationWrapper({ session }: { session: Session }) {
-  return <Aggregation session={session} />;
+  return <AggregationDetail session={session} />;
 }
 
 /** Render the standalone public regional-dataset page (the `open` tier of the
@@ -200,7 +200,7 @@ function AgentWrapper() {
   }
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Agent webId={webId} />
+      <AgentDetail webId={webId} />
     </Container>
   );
 }
@@ -224,7 +224,7 @@ function RoomWrapper({ session }: { session: Session }) {
   }
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Room roomUri={roomUri} session={session} />
+      <RoomDetail roomUri={roomUri} session={session} />
     </Container>
   );
 }

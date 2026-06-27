@@ -36,8 +36,8 @@ export interface EnergyDatasetRef extends EnergyDatasetFields {
   featureOfInterest?: string;
 }
 
-export type EnergyType = {
-  /** The owning building's id (see {@link BuildingType.id}). */
+export type Energy = {
+  /** The owning building's id (see {@link Building.id}). */
   id: string;
   uri: string;
   /** The annual year the figures cover (the latest accessible actual year). */

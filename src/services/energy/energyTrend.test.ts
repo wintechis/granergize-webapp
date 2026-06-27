@@ -10,7 +10,7 @@ import {
 } from "./energyTrend.ts";
 import { type EnergyByBuildingYear } from "./energyTimeCut.ts";
 import { type AnnualMetrics } from "../energy/energyDataset.ts";
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 
 /** One year's annual metrics (the cube cell). `year` is unused but kept for
  * call-site readability. */
@@ -18,8 +18,8 @@ function energy(_year: number, metrics: AnnualMetrics): AnnualMetrics {
   return metrics;
 }
 
-function building(fields: Partial<BuildingType>): BuildingType {
-  return { id: "b", uri: "urn:b", ...fields } as BuildingType;
+function building(fields: Partial<Building>): Building {
+  return { id: "b", uri: "urn:b", ...fields } as Building;
 }
 
 // --- trendForDelta: delta → trend category --------------------------------

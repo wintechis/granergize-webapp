@@ -21,7 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BuildingType } from "../types.ts";
+import { Building } from "../types.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { useAnnualEnergyByYear } from "../hooks/queries.ts";
 import { type EnergyMetricKey } from "../services/energy/energyDataset.ts";
@@ -58,7 +58,7 @@ const TEMP_COLOR = "#d95f02"; // warm orange — the weather axis, distinct from
  * `WeatherData.useWeatherStations` but takes only the closest, since the overlay
  * needs a single reference series. Opts into the activity store (the adapter fetch
  * isn't auto-instrumented like the Solid session). */
-function useNearestStation(building: BuildingType) {
+function useNearestStation(building: Building) {
   const lat = building?.lat;
   const long = building?.long;
   return useQuery({
@@ -90,7 +90,7 @@ function useStationTemperatures(stationId: string | null) {
 }
 
 interface EnergyWeatherOverlayProps {
-  building: BuildingType;
+  building: Building;
   /** The observed property to overlay (the cube's measure axis); defaults to
    * electricity consumption — the basis the map's energy lens defaults to. */
   metric?: EnergyMetricKey;

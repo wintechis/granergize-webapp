@@ -284,7 +284,7 @@ Deno.test("loadEnergy yields no operator average when buildings have no operator
   assert.equal(Object.keys(result.operatorAverages).length, 0);
 });
 
-Deno.test("loadEnergy records the year the figures cover on each EnergyType", async () => {
+Deno.test("loadEnergy records the year the figures cover on each Energy", async () => {
   // The energy heading renders this ("Energy Need … in <year>") — it must be
   // the year actually loaded, never a hardcoded one.
   const result = await fetchAndParseData(makeSession({ log: newLog() }));

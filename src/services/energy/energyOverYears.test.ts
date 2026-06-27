@@ -1,11 +1,11 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { buildOverYears } from "./energyOverYears.ts";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import type { EnergyByBuildingYear } from "./energyTimeCut.ts";
 
-const bld = (id: string): BuildingType =>
-  ({ id, uri: id } as unknown as BuildingType);
+const bld = (id: string): Building =>
+  ({ id, uri: id } as unknown as Building);
 
 Deno.test("buildOverYears: sorted year union, per-building lines, missing → null", () => {
   const energy: EnergyByBuildingYear = new Map([

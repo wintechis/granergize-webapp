@@ -143,7 +143,7 @@ export const READ_CORES = {
     return checkObservationLinksCore(s);
   },
   // The first collection query — narrows the visible buildings by an attribute
-  // selector (plan-attribute-facets); returns the matching BuildingType[].
+  // selector (plan-attribute-facets); returns the matching Building[].
   FindBuildings: findBuildingsCore,
   // Open tier: federated read of MaStR generation units near a building (off-Pod).
   FindNearbyInstallations: findNearbyInstallationsCore,

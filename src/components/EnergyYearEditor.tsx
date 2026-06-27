@@ -21,7 +21,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
-  BuildingType,
+  Building,
   Scenario,
   SystemKind,
   TechnicalSystem,
@@ -78,12 +78,12 @@ interface EnergyYearEditorProps {
   session: Session;
   onClose: () => void;
   /** Observation-page (inline) mode: the fixed building these observations are about. */
-  building?: BuildingType;
+  building?: Building;
   /** Finder create mode: owned buildings you MAY optionally bind the new observation
    *  series to (a building, then optionally a subsystem of it). Binding is OPTIONAL —
    *  the picker defaults to UNBOUND, so a building-less series is the baseline, to be
    *  linked to a building later. */
-  createFrom?: BuildingType[];
+  createFrom?: Building[];
   /** Render inline on the page (observation page) instead of in a Modal (the finder's
    *  create flow). Inline only mounts when shown, so its datasets query stays enabled. */
   inline?: boolean;
@@ -119,7 +119,7 @@ export default function EnergyYearEditor(
   // picker defaults to UNBOUND ("") so a building-less series is the baseline, and
   // binding to a building (then a subsystem) is opt-in.
   const [pickedUri, setPickedUri] = useState("");
-  const selectedBuilding: BuildingType | null = building ??
+  const selectedBuilding: Building | null = building ??
     createFrom?.find((b) => (b.uri as string) === pickedUri) ?? null;
 
   const [year, setYear] = useState("");

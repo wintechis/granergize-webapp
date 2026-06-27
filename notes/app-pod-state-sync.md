@@ -208,7 +208,7 @@ tool, a Tier-2 runner. The two are not stacked; they are parallel callers of the
 primitives, and they overlap almost entirely — diverging only in the assembly on top.
 
 The shared core is identical on both paths: the deref + parse primitives `fetchFresh`
-(conditional GET over the gateway) and `parseBuildings` (quads → `BuildingType`), and
+(conditional GET over the gateway) and `parseBuildings` (quads → `Building`), and
 the collection loader `loadBuildings` / `loadEnergy`. The intent collection read
 (`FindBuildings` → `fetchAndParseData`) calls the *same* `loadBuildings` the hooks do
 ([`data-deref.md`](./data-deref.md)). They diverge on three axes, all *above*

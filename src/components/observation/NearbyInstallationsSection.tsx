@@ -7,7 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import NearbyInstallationsMap from "./NearbyInstallationsMap.tsx";
 import { useNearbyInstallations } from "../../hooks/mastrNearby.ts";
 import {
@@ -42,7 +42,7 @@ const KIND_ORDER: InstallationKind[] = ["solar", "wind", "hydro", "biomass"];
  * a Developer-mode source link (`RdfSourceLink` self-hides).
  */
 export default function NearbyInstallationsSection(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const t = useT();
   const { data } = useNearbyInstallations(building);

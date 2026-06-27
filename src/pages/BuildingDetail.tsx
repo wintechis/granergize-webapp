@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Divider, Stack } from "@mui/material";
 import { useSearchParams } from "react-router-dom";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { getSession } from "../hooks/session.ts";
 import { ACTION_PARAM } from "../routes.ts";
 import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
@@ -16,7 +16,7 @@ import BuildingFilesSection from "../components/building/BuildingFilesSection.ts
 import SharingSection from "../components/building/SharingSection.tsx";
 
 interface BuildingProps {
-  building: BuildingType;
+  building: Building;
   /** Retained for the route wrapper's call signature; the building page navigates back
    * via its own breadcrumb, so this is unused. */
   onHide?: () => void;
@@ -38,7 +38,7 @@ interface BuildingProps {
  * Every action is inline on the page; modals survive only for Share and for
  * destructive confirmations (revoke / file delete).
  */
-export default function Building({ building }: BuildingProps) {
+export default function BuildingDetail({ building }: BuildingProps) {
   // The page is reached through the authed app shell; the singleton session
   // drives the file download/upload and the share dialog.
   const session = getSession();

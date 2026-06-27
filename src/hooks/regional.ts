@@ -15,7 +15,7 @@
  * The request still shows in the global activity indicator (via `trackedFetch`).
  */
 import { useQuery } from "@tanstack/react-query";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { bundeslandName, bundeslandToAgs } from "../services/sources/region.ts";
 import {
   fetchKreisName,
@@ -52,7 +52,7 @@ export interface RegionalContext {
  * region nor a resolvable Kreis, or when every table fetch failed/was empty.
  * Hour-long `staleTime` — regional statistics change at most yearly.
  */
-export function useRegionalContext(building: BuildingType) {
+export function useRegionalContext(building: Building) {
   // Prefer the region resolved at geocode time (`regionAgs` — reliable, no reverse-geocode):
   // Land = first 2 digits, Kreis = first 5. Fall back to the vcard Bundesland + the nearby-MaStR
   // Kreis for buildings stored before the region was captured.
