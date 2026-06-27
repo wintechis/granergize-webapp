@@ -344,7 +344,8 @@ test.describe("handbuch screenshots", () => {
 
     // Add Building dialog — capture the one generic form, then close (the demo
     // buildings are the data; nothing is added manually).
-    await page.getByRole("button", { name: /^add building$/i }).click();
+    await page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
+      .first().click();
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.waitForTimeout(500);
     await shot(page, "add-building.png");
@@ -385,12 +386,13 @@ test.describe("handbuch screenshots", () => {
     await expect(page.getByRole("tab", { name: en("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
 
-    // --- Energy-year dialog: the per-year consumption form plus the "Stored
+    // --- Energy-year editor: the per-year consumption form plus the "Stored
     //     years" read-back table, opened on the Nordostpark demo — its table is
     //     populated out of the box (actual 2022–2024 AND the planned 2024, so
     //     the figure shows the Soll-Ist pair and the building-name header). The
     //     redesign moved energy entry off the finder row onto the building's
-    //     OBSERVATION page (`/observation/:id`); resolve the Nordostpark id from
+    //     OBSERVATION page (`/observation/:id`) AND replaced the modal with an
+    //     INLINE editor that swaps out the charts; resolve the Nordostpark id from
     //     the list, route there, click "Edit energy years". ---
     await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByRole("button", { name: en("btnList") }).click();
@@ -399,16 +401,19 @@ test.describe("handbuch screenshots", () => {
     await expect(nordostparkRow).toBeVisible({ timeout: 30_000 });
     const nordId = await nordostparkRow.getAttribute("data-building-id");
     await page.goto(buildingRoute("observation", nordId));
-    await page.getByRole("button", { name: "Edit energy years" }).click();
-    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: en("btnEditEnergyYears") }).click();
+    // The editor is INLINE now (it replaces the charts view while open), not a
+    // modal — wait for the year input (mirrors manage.ts addEnergyYear/closeEnergyEditor).
+    const yearInput = page.getByRole("spinbutton", { name: en("lblYear"), exact: true });
+    await expect(yearInput).toBeVisible({ timeout: 10_000 });
     // The stored-years table loads the datasets — wait for the planned 2024 row.
     await expect(
-      page.getByRole("dialog").getByRole("row", { name: /Planned/ }).first(),
+      page.getByRole("row", { name: /Planned/ }).first(),
     ).toBeVisible({ timeout: 60_000 });
     await page.waitForTimeout(500);
     await shot(page, "energy-year.png");
-    await page.getByRole("button", { name: "Close" }).click();
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 10_000 });
+    await page.getByRole("button", { name: en("btnClose"), exact: true }).click();
+    await expect(yearInput).toBeHidden({ timeout: 10_000 });
     // /observation/:id is a standalone route (no app-shell tabs) — return to the shell.
     await page.goto("/");
     await expect(page.getByRole("tab", { name: en("navBuildings") }))
@@ -425,11 +430,9 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "create-view.png");
 
     // --- Aggregated-view result page (aggregated-view.png): finish creating the
-    //     view over the three annual-carrying demo buildings (the two investors
-    //     plus Lange Gasse, which carries annual data next to its series;
-    //     idempotent: skip if a prior run created it), then open it — the summary
-    //     auto-computes its snapshot on first open, so the figure shows the
-    //     chart + table without a manual refresh. ---
+    //     view over the two investor demo buildings (both carry annual data;
+    //     idempotent: skip if a prior run created it), then open it — the summary's
+    //     snapshot is computed at create, so the figure shows the chart + table. ---
     const VIEW_NAME = "Portfolio Nürnberg";
     const aggregationRow = page.locator("li").filter({ hasText: VIEW_NAME }).first();
     if (await aggregationRow.count()) {
@@ -437,14 +440,17 @@ test.describe("handbuch screenshots", () => {
     } else {
       await dialog.getByLabel(en("aggNameLabel")).fill(VIEW_NAME);
       await dialog.getByLabel(en("aggSelectBuildings")).click();
-      for (const street of ["Nordostpark", "Hafenstraße", "Lange Gasse"]) {
+      for (const street of ["Nordostpark", "Hafenstraße"]) {
         await page.getByRole("option").filter({ hasText: street }).first()
           .click({ timeout: 10_000 }).catch(() => {});
       }
       await page.keyboard.press("Escape"); // close the building multi-select
       await dialog.getByRole("button", { name: /create aggregation/i }).click();
-      await expect(page.getByText(/aggregation created successfully/i))
-        .toBeVisible({ timeout: 60_000 });
+      // Create computes the snapshot synchronously — the dialog shows "Creating
+      // aggregation and computing snapshot…" and stays open until done. Wait for it
+      // to CLOSE (the durable signal), NOT the success toast (the FIFO snackbar
+      // buries that). Then the view row is present in the finder.
+      await expect(dialog).toBeHidden({ timeout: 120_000 });
       await dismissToasts(page);
     }
     await expect(aggregationRow).toBeVisible({ timeout: 30_000 });
@@ -621,18 +627,16 @@ test.describe("handbuch screenshots", () => {
         b.page.getByRole("list", { name: /buildings shared with you/i })
           .getByText(/^Building /),
       ).toBeVisible({ timeout: 120_000 });
-      // Local tier: B also contributed to the seeded benchmark, so the snapshot
-      // Charlie shared back must show under "Aggregations shared with you" — and the
-      // figure shows the received PEER NUMBERS: expand it and wait for the
-      // snapshot's averages (count line, value table, chart) to render.
+      // Local tier: B also contributed to the seeded benchmark. The redesign moved
+      // shared aggregations OFF the Sharing page onto the Aggregations finder (its
+      // "shared" tier — like buildings have mine/shared/open), so verify B received
+      // Charlie's benchmark snapshot THERE (mirrors palette-benchmark-share), then
+      // return to the Sharing page for the shared-with-you figure.
       if (E2E_LOCAL) {
+        await b.page.getByRole("tab", { name: en("navAggregations") }).click();
         await expect(b.page.getByText(BENCHMARK_NAME).first())
           .toBeVisible({ timeout: 120_000 });
-        await b.page.getByRole("button", { name: en("shareShowValues") }).click();
-        await expect(b.page.getByText(/across \d+ building/))
-          .toBeVisible({ timeout: 60_000 });
-        await b.page.locator("svg.recharts-surface .recharts-bar-rectangle")
-          .first().waitFor({ timeout: 60_000 });
+        await b.page.getByRole("tab", { name: en("navSharing") }).click();
       }
       // Dismiss B's fresh-Pod "No buildings yet" banner if present (B owns
       // nothing on the remote tier; bounded no-op when absent) and let the
@@ -652,6 +656,13 @@ test.describe("handbuch screenshots", () => {
       //     keeps the committed figure). ---
       if (E2E_LOCAL) {
         await b.page.getByRole("tab", { name: en("navBuildings") }).click();
+        // Establish the List finder first and wait for B's rows (own + A's shared)
+        // to load BEFORE toggling to the map — mirrors map-tabs.png; otherwise the
+        // map can render before the shared building is in the finder and its pin
+        // never appears.
+        await b.page.getByRole("button", { name: en("btnList") }).click();
+        await expect(b.page.locator("li[data-building-id]").first())
+          .toBeVisible({ timeout: 60_000 });
         await b.page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
         const sharedMarker = b.page
           .locator(".leaflet-marker-icon.pin-shared").first();

@@ -85,10 +85,10 @@ async function enterEnergyYear(
   heat: string,
   scenario?: string,
 ) {
-  // "Edit energy years" is hardcoded (not localized), so it reads the same in de.
-  await demo.click(stage.getByRole("button", { name: "Edit energy years" }));
-  const dialog = stage.getByRole("dialog");
-  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  // The energy-year editor is INLINE now (the redesign replaced the modal).
+  await demo.click(stage.getByRole("button", { name: vt("btnEditEnergyYears") }));
+  const yearInput = stage.getByRole("spinbutton", { name: vt("lblYear"), exact: true });
+  await expect(yearInput).toBeVisible({ timeout: 10_000 });
   await demo.type(
     stage.getByRole("spinbutton", { name: vt("lblYear"), exact: true }),
     year,
@@ -102,7 +102,7 @@ async function enterEnergyYear(
   await expect(stage.getByText(vt("energySaved")).first())
     .toBeVisible({ timeout: 60_000 });
   await demo.click(stage.getByRole("button", { name: vt("btnClose"), exact: true }));
-  await expect(dialog).toBeHidden({ timeout: 10_000 });
+  await expect(yearInput).toBeHidden({ timeout: 10_000 });
 }
 
 test.describe("handbuch video: Prolog", () => {
@@ -279,7 +279,7 @@ test.describe("handbuch video: Prolog", () => {
       "Schritt 3: Alice erfasst zwei Jahre Verbrauch – und einen Soll-Wert (Plan)",
     );
     await stageA.goto(buildingRoute("observation", buildingId));
-    await expect(stageA.getByRole("button", { name: "Edit energy years" }))
+    await expect(stageA.getByRole("button", { name: vt("btnEditEnergyYears") }))
       .toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
     await demoA.pause(1_000);
@@ -293,7 +293,7 @@ test.describe("handbuch video: Prolog", () => {
     // chart renders below it. (The annual "(planned)" marker is English-only and
     // the chart legend is SVG, so neither is a reliable de text target.)
     await stageA.goto(buildingRoute("observation", buildingId));
-    const editBtn = stageA.getByRole("button", { name: "Edit energy years" });
+    const editBtn = stageA.getByRole("button", { name: vt("btnEditEnergyYears") });
     await expect(editBtn).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
     await demoA.pause(1_500);

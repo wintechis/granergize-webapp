@@ -113,16 +113,16 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
       "Zuerst das Ist: A trägt die tatsächlichen Jahresverbräuche ihres Gebäudes ein",
     );
     // Energy entry lives on the building's observation (energy) page — land there,
-    // then open the year dialog via its "Edit energy years" button (hardcoded,
-    // not localized, so it reads the same in de).
+    // then open the now-INLINE year editor via its "Edit energy years" button (the
+    // redesign replaced the modal with an in-page editor that swaps the charts).
     await stage.goto(buildingRoute("observation", buildingId));
-    const editYears = stage.getByRole("button", { name: "Edit energy years" });
+    const editYears = stage.getByRole("button", { name: vt("btnEditEnergyYears") });
     await expect(editYears).toBeVisible({ timeout: 60_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});
     await demo.pause(1_200);
     await demo.click(editYears);
-    const dialog = stage.getByRole("dialog");
-    await expect(dialog).toBeVisible({ timeout: 10_000 });
+    const yearInput = stage.getByRole("spinbutton", { name: vt("lblYear"), exact: true });
+    await expect(yearInput).toBeVisible({ timeout: 10_000 });
     await demo.type(
       stage.getByRole("spinbutton", { name: vt("lblYear"), exact: true }),
       YEAR,
@@ -133,7 +133,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await expect(stage.getByText(vt("energySaved")).first())
       .toBeVisible({ timeout: 60_000 });
     await demo.click(stage.getByRole("button", { name: vt("btnClose"), exact: true }));
-    await expect(dialog).toBeHidden({ timeout: 10_000 });
+    await expect(yearInput).toBeHidden({ timeout: 10_000 });
 
     // --- Scene 2: the planned (Soll) entry for the same year. ---
     await demo.scene(
@@ -141,7 +141,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
       `Dann das Soll: für dasselbe Jahr ein Plan-Wert – das Szenario „${vt("scenarioPlanned")}“ hält ihn getrennt vom Ist`,
     );
     await demo.click(editYears);
-    await expect(dialog).toBeVisible({ timeout: 10_000 });
+    await expect(yearInput).toBeVisible({ timeout: 10_000 });
     await demo.type(
       stage.getByRole("spinbutton", { name: vt("lblYear"), exact: true }),
       YEAR,
@@ -153,7 +153,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await expect(stage.getByText(vt("energySaved")).first())
       .toBeVisible({ timeout: 60_000 });
     await demo.click(stage.getByRole("button", { name: vt("btnClose"), exact: true }));
-    await expect(dialog).toBeHidden({ timeout: 10_000 });
+    await expect(yearInput).toBeHidden({ timeout: 10_000 });
 
     // --- Scene 3: the payoff — plan next to actual in the annual overview. The
     //     "(planned)" marker is hardcoded English even in the de UI, so it stays
