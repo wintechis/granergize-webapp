@@ -1,4 +1,4 @@
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 import {
   BUILDING_NS,
   RDFS_LABEL,
@@ -10,7 +10,7 @@ import {
 import { type TermSchema, VOCAB_SCHEMA } from "../vocabSchema.generated.ts";
 
 /**
- * The building field BRIDGE: each app field's `keyof BuildingType` key ⇄ its
+ * The building field BRIDGE: each app field's `keyof Building` key ⇄ its
  * predicate IRI. This is the ONE thing the vocab can't supply (the app's camelCase
  * key isn't derivable from the IRI local name), so it stays here; everything else —
  * the property's `rdfs:range`, datatype, and literal/agent/enum classification — is
@@ -18,11 +18,11 @@ import { type TermSchema, VOCAB_SCHEMA } from "../vocabSchema.generated.ts";
  * IRI the vocab doesn't declare (reused external string predicates: `schema:customer`,
  * `vcard:*`, `rdfs:label`) defaults to an `xsd:string` literal, as before.
  *
- * `field` is `keyof BuildingType`, so the table and the TS type can't drift on names
+ * `field` is `keyof Building`, so the table and the TS type can't drift on names
  * (a rename is a compile error). See notes/data-schema.md → "Two schemas".
  */
 interface FieldDesc {
-  field: keyof BuildingType;
+  field: keyof Building;
   iri: string;
 }
 
@@ -101,16 +101,16 @@ const literals = BUILDING_FIELDS.filter((f) => schemaFor(f.iri).kind === "litera
 const objects = BUILDING_FIELDS.filter((f) => schemaFor(f.iri).kind === "enum");
 const iris = BUILDING_FIELDS.filter((f) => schemaFor(f.iri).kind === "agent");
 
-/** Literal predicate IRI → BuildingType field. */
-export const predicateMap: { [iri: string]: keyof BuildingType } = Object
+/** Literal predicate IRI → Building field. */
+export const predicateMap: { [iri: string]: keyof Building } = Object
   .fromEntries(literals.map((f) => [f.iri, f.field]));
 
 /** Investor object-property IRI → field (IRI objects mapped to local-name strings). */
-export const objectPropertyMap: { [iri: string]: keyof BuildingType } = Object
+export const objectPropertyMap: { [iri: string]: keyof Building } = Object
   .fromEntries(objects.map((f) => [f.iri, f.field]));
 
 /** Agent/IRI-reference predicate IRI → field (object is a WebID NamedNode, stored verbatim). */
-export const iriPropertyMap: { [iri: string]: keyof BuildingType } = Object
+export const iriPropertyMap: { [iri: string]: keyof Building } = Object
   .fromEntries(iris.map((f) => [f.iri, f.field]));
 
 // Keyed by the XSD datatype LOCAL NAME (the generated schema's `datatype`).

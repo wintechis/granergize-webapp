@@ -44,7 +44,7 @@ export const OPCOST_FIELDS = [
 // Upper bound on certifications scanned per building (`_cert_<i>_*` keys).
 export const MAX_CERTS = 10;
 
-/** BSP CSV column header (German) → BuildingType field name */
+/** BSP CSV column header (German) → Building field name */
 export const BSP_COL_MAP: Record<string, string> = {
   "Unternehmen": "companyName",
   "Gebäude-Name": "label",
@@ -75,7 +75,7 @@ export const BSP_COL_MAP: Record<string, string> = {
 };
 
 /**
- * Investor XLSX row label (column B) → BuildingType field name.
+ * Investor XLSX row label (column B) → Building field name.
  * Row labels mirror investor-to-ttl.ts exactly, including spacing.
  */
 export const INVESTOR_ROW_MAP: Record<string, string> = {
@@ -278,7 +278,7 @@ function invertMap(m: Record<string, string>): Record<string, string> {
 export const INV_FIELD_TO_LABEL = invertMap(INVESTOR_ROW_MAP);
 export const BSP_FIELD_TO_HEADER = invertMap(BSP_COL_MAP);
 export const OPCOST_FIELD_TO_LABEL = invertMap(INVESTOR_OPCOST_ROW_MAP);
-// All scalar BuildingType fields, for the generic (user/dummy) sheet.
+// All scalar Building fields, for the generic (user/dummy) sheet.
 export const SCALAR_FIELDS: string[] = [
   ...new Set(
     [

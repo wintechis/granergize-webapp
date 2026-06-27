@@ -49,7 +49,7 @@ Resolved once per session, then cached:
    `<root>granergize/…` (layout owned by [`storage-layout.md`](./storage-layout.md)). One
    tree; no per-call base munging.
 3. **Discover source URIs.** Own and shared buildings are discovered separately
-   (`loadBuildings` / `fetchAndParseData`, `src/services/TurtleParsingService.ts`):
+   (`loadBuildings` / `fetchAndParseData`, `src/services/turtleParsingService.ts`):
    - *Own buildings* — `discoverOwnBuildings` **LISTS** the `buildings/` container
      and keeps the top-level `*.ttl` files (no registry: adding a building is a
      single PUT, so the listing can't desync). `listDirectChildren` returning `null`
@@ -80,7 +80,7 @@ For every fetched Turtle file (`loadTtlFromMultipleSources`):
   different files can't collide once merged.
 - Merge everything into one n3 `Store`.
 
-The merged graph is then **projected into typed JS objects** (`BuildingType` etc.)
+The merged graph is then **projected into typed JS objects** (`Building` etc.)
 via the predicate→field maps in `buildingConfig.ts` — a one-way, load-time
 translation after which components see no RDF. That mapping is documented in
 [`data-schema.md` → "Two schemas: RDF graph ⇄ app objects"](./data-schema.md).
@@ -91,7 +91,7 @@ Once parsed, references between resources are resolved **in memory against the
 merged graph — the app does not re-dereference each IRI it encounters**:
 
 - `parseBuildings` (`src/services/rdf/building/buildingParser.ts`) walks the quads into a
-  `Map<id, BuildingType>`. The **building id** comes from the subject IRI via
+  `Map<id, Building>`. The **building id** comes from the subject IRI via
   `buildingIdFor` (`buildingId.ts` — the `#fragment`, or the `…/buildings/<id>` path
   segment). Blank-node sub-structures (energy datasets, operating costs,
   certifications, SOSA observations) are stitched back to their building through

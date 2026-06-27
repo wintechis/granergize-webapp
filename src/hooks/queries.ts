@@ -7,7 +7,7 @@ import {
   loadBuildings,
   loadEnergy,
   sharedBuildingSourcesFromGrants,
-} from "../services/TurtleParsingService.ts";
+} from "../services/turtleParsing.ts";
 import { podResources, resolveStorageRoot } from "../services/pod/solidUtils.ts";
 import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
@@ -20,7 +20,7 @@ import {
   sharedBuildingsFromGrants,
   sharedAggregationsFromGrants,
   sharedWithMeFromGrants,
-} from "../services/interop/sharingManager.ts";
+} from "../services/interop/sharing.ts";
 import { readPrefs } from "../services/prefs.ts";
 import {
   getComputedSnapshotByAggregationId,
@@ -28,7 +28,7 @@ import {
   getAggregationDefinition,
   getAggregationDefinitions,
   loadComputedSnapshot,
-} from "../services/aggregation/aggregationManager.ts";
+} from "../services/aggregation/aggregation.ts";
 import {
   loadSharedBuilding,
   type SharedBuildingEntry,
@@ -62,8 +62,8 @@ import type {
   AggregationDefinition,
   AggregationSnapshot,
   AnnualData,
-  BuildingType,
-  EnergyType,
+  Building,
+  Energy,
 } from "../types.ts";
 
 /**
@@ -261,7 +261,7 @@ export function useBuildings() {
  * whenever a dataset link is added/removed — not only when the building set does.
  * Exported (and pure) so the coverage is unit-testable.
  */
-export function energyKeyFor(buildings: BuildingType[] | undefined): string {
+export function energyKeyFor(buildings: Building[] | undefined): string {
   return (buildings ?? [])
     .map((b) => {
       const datasets = (b.energyDatasets ?? [])
@@ -274,7 +274,7 @@ export function energyKeyFor(buildings: BuildingType[] | undefined): string {
     .join(";");
 }
 
-export function useEnergy(buildings: BuildingType[] | undefined) {
+export function useEnergy(buildings: Building[] | undefined) {
   return useWebIdQuery(
     queryKeys.energy,
     (session) => loadEnergy(session, buildings ?? []),
@@ -510,7 +510,7 @@ function freshFetchFn(): (uri: string) => Promise<Response> {
  * content-only edits (same links) are covered by the energy mutations' explicit
  * `invalidateBuildingData` invalidation.
  */
-export function useAnnualEnergy(building: BuildingType) {
+export function useAnnualEnergy(building: Building) {
   return useWebIdQuery(
     queryKeys.annualEnergy,
     async () => {
@@ -551,7 +551,7 @@ export function useAnnualEnergy(building: BuildingType) {
  * `enabled` gates it to the open dialog.
  */
 export function useAnnualDatasets(
-  building: BuildingType | null,
+  building: Building | null,
   enabled = true,
 ) {
   return useWebIdQuery(
@@ -577,7 +577,7 @@ export function useAnnualDatasets(
  * only; gated on the buildings being loaded (needed to compute the bound set).
  */
 export function useBuildinglessObservations(
-  buildings: BuildingType[] | undefined,
+  buildings: Building[] | undefined,
   enabled = true,
 ) {
   return useWebIdQuery(
@@ -610,7 +610,7 @@ export function useBuildinglessObservations(
  * same way `loadEnergy` builds the latest one.
  */
 export function useAnnualEnergyByYear(
-  buildings: BuildingType[] | undefined,
+  buildings: Building[] | undefined,
   enabled = true,
 ) {
   return useWebIdQuery(
@@ -821,8 +821,8 @@ export const queryKeys = {
  * one can call the granular hooks above directly.
  */
 export interface SolidData {
-  buildings: BuildingType[];
-  energyNeed: EnergyType[];
+  buildings: Building[];
+  energyNeed: Energy[];
   portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
   isLoading: boolean;

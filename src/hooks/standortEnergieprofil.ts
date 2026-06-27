@@ -12,16 +12,16 @@
  * `null` outside Bavaria; the nearby units are nationwide.
  */
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { useNearbyInstallations } from "./mastrNearby.ts";
 import {
   gemeindeFromInstallations,
   type NearbyInstallation,
-} from "../services/mastrNearby.ts";
+} from "../services/sources/mastrNearby.ts";
 import {
   type AreaProfile,
   fetchAreaProfile,
-} from "../services/standortEnergieprofil.ts";
+} from "../services/sources/standortEnergieprofil.ts";
 
 export interface StandortEnergieprofil {
   /** The Energie-Atlas query (`data` is the per-Gemeinde profile, or `null`). */
@@ -33,7 +33,7 @@ export interface StandortEnergieprofil {
 }
 
 export function useStandortEnergieprofil(
-  building: BuildingType,
+  building: Building,
 ): StandortEnergieprofil {
   const nearby = useNearbyInstallations(building);
   const installations = nearby.data?.installations ?? [];

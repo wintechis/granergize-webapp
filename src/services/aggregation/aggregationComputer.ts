@@ -2,15 +2,15 @@ import type { PodGateway } from "../pod/podGateway.ts";
 import type {
   AggregationDefinition,
   AggregationSnapshot,
-  AggregationType,
-  BuildingType,
+  AggregationKind,
+  Building,
   EnergyCategoryKey,
-  EnergyType,
+  Energy,
   SpatialExtent,
 } from "../../types.ts";
-import { getAggregationDefinition, storeComputedSnapshot } from "./aggregationManager.ts";
+import { getAggregationDefinition, storeComputedSnapshot } from "./aggregation.ts";
 import { commonRegion, type RegionLevel } from "./regionRollup.ts";
-import { fetchContainingGemeindeAgs } from "../regionGeometry.ts";
+import { fetchContainingGemeindeAgs } from "../sources/regionGeometry.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import {
   type EnergyDatasetRef,
@@ -35,12 +35,12 @@ import { mapPooled } from "../../lib/pool.ts";
  * flake that left fresh snapshots empty — so prefer the cache and only fall back to
  * a file read. Identity is the subject IRI (`building.uri`).
  */
-function cachedBuilding(buildingUri: string): BuildingType | null {
+function cachedBuilding(buildingUri: string): Building | null {
   const qc = getAppQueryClient();
   if (!qc) return null;
   // Prefix-match the "buildings" query root (the WebID/fingerprint tail varies),
   // matching `queryKeys.buildings[0]` without importing the hooks layer.
-  const entries = qc.getQueriesData<{ buildings: BuildingType[] }>({
+  const entries = qc.getQueriesData<{ buildings: Building[] }>({
     predicate: (q) => q.queryKey[0] === "buildings",
   });
   for (const [, data] of entries) {
@@ -119,7 +119,7 @@ async function resolveBuildingRefs(
 async function loadBuildingEnergyData(
   buildingUri: string,
   gateway: PodGateway,
-): Promise<{ energy: EnergyType; year: number } | null> {
+): Promise<{ energy: Energy; year: number } | null> {
   // The aggregation definition records the SUBJECT IRI; the document is its
   // fragment-free form. Carry the subject through verbatim — identity is the
   // IRI, never reconstructed from the file name.
@@ -152,7 +152,7 @@ async function loadBuildingEnergyData(
         energyTransfer: {},
         energyUsage: {},
         environmentalFactor: {},
-      } as EnergyType,
+      } as Energy,
       year: latest.year,
     };
   } catch (error) {
@@ -180,7 +180,7 @@ function ownStorageRootOrUndefined(gateway: PodGateway): string | undefined {
 /**
  * Aggregate values based on aggregation type
  */
-function aggregateValues(values: number[], type: AggregationType): number {
+function aggregateValues(values: number[], type: AggregationKind): number {
   if (values.length === 0) return 0;
 
   switch (type) {
@@ -199,7 +199,7 @@ function aggregateValues(values: number[], type: AggregationType): number {
  * Extract metric values from energy data
  */
 function extractMetricValue(
-  energyData: EnergyType,
+  energyData: Energy,
   metric: string,
 ): number | null {
   const categories: EnergyCategoryKey[] = [
@@ -320,7 +320,7 @@ export async function computeAggregation(
 
   // Monthly path (data shape: a sub-hourly series): aggregate the period's
   // electricity totals per building. Bounded concurrency (mapPooled, the
-  // Cloudflare-safe pattern aggregationManager uses) instead of strictly serial
+  // Cloudflare-safe pattern aggregation uses) instead of strictly serial
   // round-trips — a 20-building aggregation was 40+ sequential fetches.
   if (period) {
     const monthlyTotals = (await mapPooled(
@@ -353,7 +353,7 @@ export async function computeAggregation(
     buildingUris,
     4,
     (buildingUri) => loadBuildingEnergyData(buildingUri, gateway),
-  )).filter((l): l is { energy: EnergyType; year: number } => l !== null);
+  )).filter((l): l is { energy: Energy; year: number } => l !== null);
   const energyDataResults = loadedAll.map((l) => l.energy);
   const latestYear = loadedAll.length > 0
     ? Math.max(...loadedAll.map((l) => l.year))

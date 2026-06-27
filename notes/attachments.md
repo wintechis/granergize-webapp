@@ -30,7 +30,7 @@ share that carries the files) and [`storage-layout.md`](./storage-layout.md) (wh
 ```
 
 The file IRI is the metadata subject (not a blank node), so the metadata isn't
-affected by `TurtleParsingService`'s per-source blank-node scoping, and a file is
+affected by `turtleParsingService`'s per-source blank-node scoping, and a file is
 removed by dropping all triples with that subject. Constants in `vocabularies.ts`
 (`GRAN_HAS_ATTACHMENT`, `SCHEMA_*`, `DCTERMS_CREATED`).
 
@@ -47,7 +47,7 @@ directly on the race-safe `readModifyWrite` (`podWrite.ts`):
 - `fetchAttachmentBlob` — authed `gateway.fetch` → `Blob` (works for recipients too).
 
 Parsing (`buildingParser.ts`) reads `bldg:hasAttachment` + metadata into
-`BuildingType.attachments` (`AttachmentRef[]`), flags the certificate, and
+`Building.attachments` (`AttachmentRef[]`), flags the certificate, and
 synthesizes an entry for a legacy cert that has only `bldg:hasEnergyCertificate`.
 `updateBuilding` already preserves untouched triples, so building edits leave files
 intact — no change there.

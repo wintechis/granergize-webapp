@@ -1,4 +1,4 @@
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 import { type AnnualMetrics, type EnergyMetricKey } from "../energy/energyDataset.ts";
 import { categoriserFor, type EnergyCategory } from "./energyCategory.ts";
 import {
@@ -79,7 +79,7 @@ export function clampYear(years: number[], requested: number | null): number | n
  * honestly shows which buildings carry the chosen metric in the chosen year.
  */
 export function valuesAtYear(
-  buildings: BuildingType[],
+  buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
   year: number | null,
   metric: EnergyMetricKey = DEFAULT_METRIC,
@@ -116,7 +116,7 @@ export interface YearLens {
  * not duplicated.
  */
 export function yearLens(
-  buildings: BuildingType[],
+  buildings: Building[],
   visibleIds: ReadonlySet<string>,
   energyByBuilding: EnergyByBuildingYear,
   year: number | null,

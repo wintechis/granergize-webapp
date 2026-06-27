@@ -11,8 +11,8 @@ import { DETAIL_PATTERNS, FINDERS, HOME } from "./routes.ts";
 import AppShell from "./pages/AppShell.tsx";
 import OpenBuildingDetail from "./components/building/OpenBuildingDetail.tsx";
 import OpenObservationDetail from "./components/building/OpenObservationDetail.tsx";
-import { isOpenBuildingIri } from "./services/lod2Rooftop.ts";
-import { isOpenObservationIri } from "./services/openObservations.ts";
+import { isOpenBuildingIri } from "./services/sources/lod2Rooftop.ts";
+import { isOpenObservationIri } from "./services/sources/openObservations.ts";
 
 // Route targets are code-split: each page is its own chunk fetched on first
 // navigation, not carried in the initial bundle. `AppShell` (the shared finder
@@ -27,11 +27,11 @@ const AggregationsFinder = lazy(() => import("./pages/AggregationsFinder.tsx"));
 const RoomsFinder = lazy(() => import("./pages/RoomsFinder.tsx"));
 const AgentsFinder = lazy(() => import("./pages/AgentsFinder.tsx"));
 const SharingFinder = lazy(() => import("./pages/SharingFinder.tsx"));
-const Building = lazy(() => import("./pages/Building.tsx"));
-const Energy = lazy(() => import("./pages/Energy.tsx"));
-const Agent = lazy(() => import("./pages/Agent.tsx"));
-const Room = lazy(() => import("./pages/Room.tsx"));
-const Aggregation = lazy(() => import("./pages/Aggregation.tsx"));
+const BuildingDetail = lazy(() => import("./pages/BuildingDetail.tsx"));
+const EnergyDetail = lazy(() => import("./pages/EnergyDetail.tsx"));
+const AgentDetail = lazy(() => import("./pages/AgentDetail.tsx"));
+const RoomDetail = lazy(() => import("./pages/RoomDetail.tsx"));
+const AggregationDetail = lazy(() => import("./pages/AggregationDetail.tsx"));
 const RegionalDataset = lazy(() => import("./pages/RegionalDataset.tsx"));
 const DataSources = lazy(() => import("./pages/DataSources.tsx"));
 const Organisation = lazy(() => import("./pages/Organisation.tsx"));
@@ -45,7 +45,7 @@ import Typography from "@mui/material/Typography";
 
 // Create wrapper components to handle URL params
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "./types.ts";
+import type { Building } from "./types.ts";
 import { useSolidData } from "./hooks/queries.ts";
 import { logError } from "./lib/logError.ts";
 
@@ -64,7 +64,7 @@ function appBasename(): string {
 }
 
 function useBuildingParam(): {
-  building: BuildingType | null;
+  building: Building | null;
   selectedBuilding: string;
   isLoading: boolean;
   error: string | null;
@@ -121,7 +121,7 @@ function ContentFallback() {
  */
 function BuildingRouteGuard(
   { children }: {
-    children: (building: BuildingType, selectedBuilding: string) => ReactNode;
+    children: (building: Building, selectedBuilding: string) => ReactNode;
   },
 ) {
   const { building, selectedBuilding, isLoading, error } = useBuildingParam();
@@ -157,7 +157,7 @@ function BuildingWrapper() {
     <BuildingRouteGuard>
       {(building) => (
         <Container maxWidth="lg" sx={{ py: 3 }}>
-          <Building
+          <BuildingDetail
             building={building}
             onHide={() => navigate(-1)}
           />
@@ -186,7 +186,7 @@ function EnergyWrapper() {
         // room wrappers, and Aggregation's own) so the observation page doesn't
         // sprawl full-width.
         <Container maxWidth="lg" sx={{ py: 3 }}>
-          <Energy building={building} />
+          <EnergyDetail building={building} />
         </Container>
       )}
     </BuildingRouteGuard>
@@ -194,7 +194,7 @@ function EnergyWrapper() {
 }
 
 function AggregationWrapper({ session }: { session: Session }) {
-  return <Aggregation session={session} />;
+  return <AggregationDetail session={session} />;
 }
 
 /** Render the standalone public regional-dataset page (the `open` tier of the
@@ -226,7 +226,7 @@ function AgentWrapper() {
   }
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Agent webId={webId} />
+      <AgentDetail webId={webId} />
     </Container>
   );
 }
@@ -250,7 +250,7 @@ function RoomWrapper({ session }: { session: Session }) {
   }
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Room roomUri={roomUri} session={session} />
+      <RoomDetail roomUri={roomUri} session={session} />
     </Container>
   );
 }

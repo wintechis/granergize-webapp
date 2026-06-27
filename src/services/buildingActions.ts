@@ -1,9 +1,9 @@
 import type { PodGateway } from "./pod/podGateway.ts";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { deleteBuilding } from "./rdf/building/buildingSerializer.ts";
 import { formatResourceList, listContainedResources } from "./pod/podDelete.ts";
 import { getStorageRoot } from "./pod/solidUtils.ts";
-import { revokeAllBuildingRecipients } from "./interop/sharingManager.ts";
+import { revokeAllBuildingRecipients } from "./interop/sharing.ts";
 import {
   buildingFileUri,
   buildingIdStem,
@@ -11,7 +11,7 @@ import {
 import { logError } from "../lib/logError.ts";
 
 /** The building file URI (fragment stripped) for an owned building. */
-function buildingFileUriOf(building: BuildingType): string {
+function buildingFileUriOf(building: Building): string {
   return buildingFileUri((building.sourceUri ?? building.uri) as string);
 }
 
@@ -27,7 +27,7 @@ function buildingFileUriOf(building: BuildingType): string {
  */
 export async function buildBuildingDeletionPreview(
   gateway: PodGateway,
-  building: BuildingType,
+  building: Building,
 ): Promise<{ fileUri: string; message: string }> {
   const fileUri = buildingFileUriOf(building);
 
@@ -75,7 +75,7 @@ export async function buildBuildingDeletionPreview(
  */
 export async function deleteBuildingResource(
   gateway: PodGateway,
-  building: BuildingType,
+  building: Building,
 ): Promise<void> {
   const fileUri = buildingFileUriOf(building);
   await revokeAllBuildingRecipients(fileUri, gateway).catch((err) =>

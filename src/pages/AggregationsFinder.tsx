@@ -11,7 +11,7 @@ import { useSearchParams } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { AggregationDefinition } from "../types.ts";
 import { aggregationRoute, regionalRoute } from "../routes.ts";
-import { regionalTableDataUrl } from "../services/regionalCube.ts";
+import { regionalTableDataUrl } from "../services/sources/regionalCube.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
@@ -25,7 +25,7 @@ import {
   useRefreshAggregation,
   useRevokeAggregationAccess,
 } from "../hooks/mutations.ts";
-import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
+import { getSnapshotUri } from "../services/aggregation/aggregation.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatDate } from "../lib/formatDate.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
@@ -49,9 +49,9 @@ import { filterByText } from "../lib/textSearch.ts";
 import {
   type OpenRegionalItem,
   openRegionalItemsFromBuildings,
-} from "../services/openRegional.ts";
+} from "../services/sources/openRegional.ts";
 import ReceivedAggregationRow from "../components/aggregation/ReceivedAggregationRow.tsx";
-import type { ReceivedAggregation } from "../services/interop/sharingManager.ts";
+import type { ReceivedAggregation } from "../services/interop/sharing.ts";
 import ShareAggregationDialog from "../components/ShareAggregationDialog.tsx";
 import CreateAggregationDialog from "../components/CreateAggregationDialog.tsx";
 import AggregationsMap from "../components/aggregation/AggregationsMap.tsx";

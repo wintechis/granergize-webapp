@@ -16,15 +16,15 @@ import "leaflet/dist/leaflet.css";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Box, Stack, Typography } from "@mui/material";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import {
   fetchRegionGeometry,
   type RegionFeatureProps,
-} from "../../services/regionGeometry.ts";
+} from "../../services/sources/regionGeometry.ts";
 import {
   type AreaProfile,
   fetchAreaProfile,
-} from "../../services/standortEnergieprofil.ts";
+} from "../../services/sources/standortEnergieprofil.ts";
 import { magnitudeCategoriserFor } from "../../services/energy/energyMetric.ts";
 import { BASEMAP_DE } from "../../lib/orthophoto.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
@@ -47,7 +47,7 @@ function bboxAround(lat: number, long: number): string {
 }
 
 export default function NeighbourhoodEnergyMap(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const t = useT();
   const { lat, long } = building;

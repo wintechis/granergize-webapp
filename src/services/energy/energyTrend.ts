@@ -1,4 +1,4 @@
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 import { type EnergyMetricKey } from "../energy/energyDataset.ts";
 import { DEFAULT_METRIC, metricFraming } from "./energyMetric.ts";
 import {
@@ -117,7 +117,7 @@ export function trendDelta(byYear: Map<number, number | null>): number | null {
  * against its own prior year, not its neighbours).
  */
 export function trendForBuildings(
-  buildings: BuildingType[],
+  buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
   metric: EnergyMetricKey = DEFAULT_METRIC,
 ): Map<string, EnergyTrend> {

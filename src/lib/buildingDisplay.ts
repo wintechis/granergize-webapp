@@ -1,4 +1,4 @@
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { buildingIdStem } from "../services/rdf/building/buildingId.ts";
 
 /**
@@ -7,13 +7,13 @@ import { buildingIdStem } from "../services/rdf/building/buildingId.ts";
  * (file stem or fragment), so a label never names an id that differs from the
  * building's IRI (heike-5 #1) — display only, never an identifier.
  */
-export function buildingDisplayName(b: BuildingType): string {
+export function buildingDisplayName(b: Building): string {
   return b.label || b.buildingCode || b.streetAddress ||
     `Building ${buildingIdStem(b.id)}`;
 }
 
 /** One-line address ("Street, 12345 City"), omitting the parts that are unset. */
-export function buildingAddressLine(b: BuildingType): string {
+export function buildingAddressLine(b: Building): string {
   const cityLine = [b.postalCode, b.locality].filter(Boolean).join(" ");
   return [b.streetAddress, cityLine].filter(Boolean).join(", ");
 }
@@ -23,7 +23,7 @@ export function buildingAddressLine(b: BuildingType): string {
  * Observations finders): its display name plus the address, region, customer,
  * company and code — i.e. everything a user might scan/type to find it.
  */
-export function buildingSearchText(b: BuildingType): string {
+export function buildingSearchText(b: Building): string {
   return [
     buildingDisplayName(b),
     buildingAddressLine(b),

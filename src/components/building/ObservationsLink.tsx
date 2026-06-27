@@ -1,6 +1,6 @@
 import { Box, Typography } from "@mui/material";
 import { msg } from "../../lib/messages.ts";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { RefLink } from "../detail/DetailView.tsx";
 import { observationRoute } from "../../routes.ts";
 
@@ -10,7 +10,7 @@ import { observationRoute } from "../../routes.ts";
  * observation page; the two only link, never mix. The figures live at the observation
  * route ({@link observationRoute}); the back link there returns here.
  */
-export default function ObservationsLink({ building }: { building: BuildingType }) {
+export default function ObservationsLink({ building }: { building: Building }) {
   return (
     <Box>
       <Typography variant="h6" sx={{ mb: 1 }}>{msg("secEnergy")}</Typography>

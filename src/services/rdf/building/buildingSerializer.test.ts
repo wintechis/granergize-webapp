@@ -1,8 +1,9 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
+import { geocodeWithRegion } from "../../sources/geocode.ts";
 import { DataFactory, Parser, Store } from "n3";
 import * as XLSX from "xlsx";
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 import {
   annualDatasetsFromFields,
   deleteBuilding,
@@ -21,7 +22,7 @@ import {
   datasetFileUri,
   observationsRootForBuilding,
 } from "../../energy/energyDataset.ts";
-import { toggleBuildingVisibility } from "../../interop/sharingManager.ts";
+import { toggleBuildingVisibility } from "../../interop/sharing.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { _setStorageRootForTesting, podResources } from "../../pod/solidUtils.ts";
 import { makeFakeSession } from "../../testing/fakeSession.ts";
@@ -403,7 +404,7 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
     GEOCODE_PRECISION_IRI.Postcode,
   );
 
-  // Round-trips through the parser back to flat BuildingType fields.
+  // Round-trips through the parser back to flat Building fields.
   const b = parseBuildings(quads).get(`${uri}#it`);
   assert.ok(b, "building parsed back");
   assert.equal(b!.lat, 48.46);
@@ -681,7 +682,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
       operationInspectionAndMaintenance: "Hoch",
     },
     certifications: [{ type: "BREEAM", certificationLevel: "Very Good", certificationScope: "WholeBuilding" }],
-  } as unknown as BuildingType;
+  } as unknown as Building;
 
   // Export → bytes → re-import via the investor (row-label) path.
   const file = new File([await buildingToXlsx(building, "investor")], "b-1.xlsx");
@@ -733,7 +734,7 @@ Deno.test("buildingsToXlsx: a buildings sheet (one row per building) + an Observ
         wastewaterConsumption: 50,
       }],
     },
-  ] as unknown as BuildingType[];
+  ] as unknown as Building[];
 
   // The buildings sheet has two data rows (one per building); the annual energy also
   // lands on an export-only Observations sheet (both buildings carry annualData).
@@ -944,7 +945,7 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   let tally: { seeded: number; total: number };
   try {
     // The demo set spans both energy shapes (annual P1Y + 15-minute series).
-    tally = await seedDemoBuildings(session, WEBID);
+    tally = await seedDemoBuildings(session, WEBID, geocodeWithRegion);
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -1126,7 +1127,7 @@ Deno.test("seedDemoBuildings counts a failed building instead of throwing — an
 
   let tally: { seeded: number; total: number };
   try {
-    tally = await seedDemoBuildings(session, WEBID);
+    tally = await seedDemoBuildings(session, WEBID, geocodeWithRegion);
   } finally {
     globalThis.fetch = realFetch;
   }

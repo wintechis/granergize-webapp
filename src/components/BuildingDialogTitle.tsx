@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import {
   buildingAddressLine,
   buildingDisplayName,
@@ -12,7 +12,7 @@ import {
  * track of which building they're entering energy for (heike-3 #4).
  */
 export function BuildingDialogTitle(
-  { building, action }: { building: BuildingType; action: string },
+  { building, action }: { building: Building; action: string },
 ) {
   const name = buildingDisplayName(building);
   const addr = buildingAddressLine(building);

@@ -10,7 +10,7 @@ import { useSaveOrganisation } from "../hooks/mutations.ts";
 import {
   getOrganisation,
   type Organisation,
-} from "../services/organisation/organisationManager.ts";
+} from "../services/organisation/organisation.ts";
 import { BackLink, DetailCard } from "../components/detail/DetailView.tsx";
 import { FINDERS } from "../routes.ts";
 import { OrgEditor, OrgReadView } from "../components/agent/OrgDetail.tsx";
@@ -86,7 +86,7 @@ function ReadView({ org }: { org: Organisation }) {
 /**
  * The Organisation page — the org the user works for (W3C Org `org:memberOf` → a
  * `<#org>` node in the WebID profile: name, homepage, the org's own WebID, and a logo;
- * see organisationManager.ts). Read-first with an inline `[Edit]` (mirrors the building
+ * see organisation.ts). Read-first with an inline `[Edit]` (mirrors the building
  * page; replaces the old OrganisationDialog), reached from the profile menu. A standalone
  * full-page route, so it carries its own "Loading…" text (the header indicator isn't
  * mounted here — see the loading-spinner policy).

@@ -6,7 +6,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
@@ -104,7 +104,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
     if (sharedWithMe.length === 0) return;
     setBundling(true);
     try {
-      const built: BuildingType[] = [];
+      const built: Building[] = [];
       for (const entry of sharedWithMe) {
         try {
           const b = await loadSharedBuilding(entry, sessionGateway(session));

@@ -32,7 +32,7 @@ import {
   observationRoute,
   withAction,
 } from "../routes.ts";
-import type { AggregationDefinition, BuildingType } from "../types.ts";
+import type { AggregationDefinition, Building } from "../types.ts";
 import IntentParamForm from "./IntentParamForm.tsx";
 import { useInvokeIntent } from "../hooks/invokeIntent.ts";
 import { getGateway } from "../hooks/session.ts";
@@ -83,7 +83,7 @@ const NAV_TARGETS: NavTarget[] = (
   ] as const
 ).map(([name, labelKey]) => ({ path: goTo(name), labelKey }));
 
-function isBuilding(o: IntentObject): o is BuildingType {
+function isBuilding(o: IntentObject): o is Building {
   return !!o && typeof o === "object" && "uri" in o && "id" in o && "type" in o;
 }
 function isAggregation(o: IntentObject): o is AggregationDefinition {

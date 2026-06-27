@@ -11,9 +11,9 @@ import { shareBuildingData } from "../../../src/services/interop/share.ts";
 import {
   getSharedWithMe,
   revokeAccess,
-} from "../../../src/services/interop/sharingManager.ts";
+} from "../../../src/services/interop/sharing.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
-import { uploadAttachment } from "../../../src/services/attachmentManager.ts";
+import { uploadAttachment } from "../../../src/services/attachment.ts";
 import { parseBuildings } from "../../../src/services/rdf/building/buildingParser.ts";
 import {
   deleteBuilding,

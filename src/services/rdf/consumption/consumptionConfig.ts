@@ -3,7 +3,7 @@ import { CONSUMPTION_NS } from "../vocabularies.ts";
 /**
  * Single source of truth for the consumption family's predicate IRIs + the
  * field↔IRI bridges that drive interface generation (see `genVocabInterface.ts`)
- * and the parse/serialize code in `aggregationManager.ts` / `energyDataset.ts`.
+ * and the parse/serialize code in `aggregation.ts` / `energyDataset.ts`.
  *
  * Mirrors `buildingConfig.BUILDING_FIELDS`: the app's camelCase key isn't derivable
  * from the IRI local name, so the bridge stays here. Each entry also carries the
@@ -70,7 +70,7 @@ export const ENERGY_DATASET_FIELDS: ConsumptionField[] = [
  *  (`id`, `buildingUris`, `metrics`, `spatialExtent`) stays hand-written. */
 export const AGGREGATION_DEFINITION_FIELDS: ConsumptionField[] = [
   { field: "name", iri: CONS.aggregationName, required: true },
-  { field: "aggregationType", iri: CONS.aggregationType, required: true, tsType: "AggregationType" },
+  { field: "aggregationType", iri: CONS.aggregationType, required: true, tsType: "AggregationKind" },
   { field: "period", iri: CONS.aggregationPeriod },
   { field: "benchmark", iri: CONS.benchmark },
   { field: "createdAt", iri: CONS.createdAt, required: true },
@@ -82,7 +82,7 @@ export const AGGREGATION_DEFINITION_FIELDS: ConsumptionField[] = [
  *  are the `:BenchmarkResult` extras. */
 export const AGGREGATION_SNAPSHOT_FIELDS: ConsumptionField[] = [
   { field: "name", iri: CONS.aggregationName, required: true },
-  { field: "aggregationType", iri: CONS.aggregationType, required: true, tsType: "AggregationType" },
+  { field: "aggregationType", iri: CONS.aggregationType, required: true, tsType: "AggregationKind" },
   { field: "computedAt", iri: CONS.computedAt, required: true },
   { field: "buildingCount", iri: CONS.buildingCount, required: true },
   { field: "computedBy", iri: CONS.computedBy },

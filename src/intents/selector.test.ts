@@ -4,7 +4,7 @@
 // (matches/filter), the field-kind derivation, and the gold-vs-produced comparator
 // the eval uses (selectorEquals). No Pod.
 import { strict as assert } from "node:assert";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import {
   fieldsByKind,
   filter,
@@ -14,7 +14,7 @@ import {
 } from "./selector.ts";
 
 // Minimal building fixtures (only the fields under test; cast through unknown).
-const b = (o: Record<string, unknown>) => o as unknown as BuildingType;
+const b = (o: Record<string, unknown>) => o as unknown as Building;
 const warm = b({ id: "1", hallArea: 6000, hasHeatPump: true, locality: "Nürnberg", yearOfConstruction: 2015 });
 const cold = b({ id: "2", hallArea: 2000, hasHeatPump: false, locality: "Fürth", yearOfConstruction: 1998 });
 const sel = (...and: Selector["and"][number][]): Selector => ({ and });

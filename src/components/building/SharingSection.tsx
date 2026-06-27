@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import ShareIcon from "@mui/icons-material/Share";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { useConfirm } from "../../context/ConfirmContext.tsx";
 import { useSharedBuildings } from "../../hooks/queries.ts";
@@ -20,7 +20,7 @@ import { ShareBuildingDialog } from "../BuildingDialogs.tsx";
  */
 export default function SharingSection(
   { building, session, autoOpenShare }: {
-    building: BuildingType;
+    building: Building;
     session: Session;
     /** Open the Share dialog on mount (the palette routed here `?action=share`). */
     autoOpenShare?: boolean;

@@ -6,11 +6,11 @@ import {
   energyIntensity,
   referenceArea,
 } from "./energyCategory.ts";
-import { BuildingType, EnergyType } from "../../types.ts";
+import { Building, Energy } from "../../types.ts";
 
-// A minimal EnergyType carrying only the energyNeed section the metric reads;
+// A minimal Energy carrying only the energyNeed section the metric reads;
 // the other sections are irrelevant to the categorisation and left empty.
-function energy(need: Record<string, number>): EnergyType {
+function energy(need: Record<string, number>): Energy {
   return {
     id: "e1",
     uri: "urn:e",
@@ -21,11 +21,11 @@ function energy(need: Record<string, number>): EnergyType {
     energyTransfer: {},
     energyUsage: {},
     environmentalFactor: {},
-  } as EnergyType;
+  } as Energy;
 }
 
-function building(fields: Partial<BuildingType>): BuildingType {
-  return { id: "b1", uri: "urn:b", ...fields } as BuildingType;
+function building(fields: Partial<Building>): Building {
+  return { id: "b1", uri: "urn:b", ...fields } as Building;
 }
 
 Deno.test("annualEnergyKwh: sums the energyNeed carriers, ignores non-numbers", () => {

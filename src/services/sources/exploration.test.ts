@@ -7,8 +7,8 @@
 import { strict as assert } from "node:assert";
 import { _setSourceGatewayForTesting } from "./sourceGateway.ts";
 import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
-import { searchRegions } from "../regionGeometry.ts";
-import { fetchInstallationsByAgs } from "../mastrNearby.ts";
+import { searchRegions } from "./regionGeometry.ts";
+import { fetchInstallationsByAgs } from "./mastrNearby.ts";
 
 // linked-lau /search?q=erlangen — the city LAU plus a same-name neighbour.
 const LAU_SEARCH = `

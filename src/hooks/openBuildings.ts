@@ -1,7 +1,7 @@
 /**
  * The Buildings finder's **open** source tier: public open-data buildings from LoD2
  * (`linked-lod2-by`), fetched by map viewport (a centre + radius), adapted to
- * `BuildingType` (read-only, off-Pod). A **queried, off-Pod** layer — no Solid session,
+ * `Building` (read-only, off-Pod). A **queried, off-Pod** layer — no Solid session,
  * a plain `useQuery` — the finder-wide sibling of {@link useNearbyRooftops}.
  *
  * Coverage is the LoD2 pilot dump (Bavaria); outside it the wrapper returns nothing, so
@@ -11,12 +11,12 @@
  * yields `[]`, never a toast.
  */
 import { useQuery } from "@tanstack/react-query";
-import type { BuildingType } from "../types.ts";
-import { fetchNearbyRooftops } from "../services/lod2Rooftop.ts";
+import type { Building } from "../types.ts";
+import { fetchNearbyRooftops } from "../services/sources/lod2Rooftop.ts";
 import {
   type MapCentre,
   openRooftopToBuilding,
-} from "../services/openBuildings.ts";
+} from "../services/sources/openBuildings.ts";
 import { logError } from "../lib/logError.ts";
 
 export function useOpenBuildings(
@@ -27,7 +27,7 @@ export function useOpenBuildings(
   // Primitives in the key (not the `centre` object) → a stable, exhaustive queryKey.
   const lat = centre?.lat ?? null;
   const long = centre?.long ?? null;
-  return useQuery<BuildingType[]>({
+  return useQuery<Building[]>({
     queryKey: ["openBuildings", lat, long, radiusM],
     enabled: enabled && lat != null && long != null,
     staleTime: 1000 * 60 * 60,

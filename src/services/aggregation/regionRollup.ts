@@ -1,6 +1,6 @@
 import type { SpatialExtent } from "../../types.ts";
-import { agsConceptUrl } from "../regionalCube.ts";
-import { nationalRegionUrl } from "../regionGeometry.ts";
+import { agsConceptUrl } from "../../constants/dataSources.ts";
+import { nationalRegionUrl } from "../sources/regionGeometry.ts";
 
 /**
  * Roll a set of buildings up to the finest region they ALL share — the spatial coordinate of an

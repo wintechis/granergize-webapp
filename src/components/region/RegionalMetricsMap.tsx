@@ -23,12 +23,12 @@ import {
   fetchRegionGeometry,
   type RegionFeatureProps,
   type RegionGrain,
-} from "../../services/regionGeometry.ts";
+} from "../../services/sources/regionGeometry.ts";
 import {
   fetchRegionalChoropleth,
   REGIONAL_TABLES,
   type RegionalObservation,
-} from "../../services/regionalCube.ts";
+} from "../../services/sources/regionalCube.ts";
 import { magnitudeCategoriserFor } from "../../services/energy/energyMetric.ts";
 import { BASEMAP_DE } from "../../lib/orthophoto.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";

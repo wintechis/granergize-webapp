@@ -17,7 +17,7 @@ import { queryKeys } from "./queries.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { resetActiveRoom } from "../services/interop/dataRoom.ts";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 
 /**
  * The room-registry mutations don't invalidate the `["rooms", webId]` query —
@@ -152,12 +152,12 @@ Deno.test("useDeleteBuilding drops the deleted building from the list cache on s
   pod.resources.set(B1, "<#it> a <urn:Building> .");
   pod.resources.set(B2, "<#it> a <urn:Building> .");
   _setSessionForTesting(sessionFor(pod));
-  const b1 = { id: "1", uri: B1 } as unknown as BuildingType;
-  const b2 = { id: "2", uri: B2 } as unknown as BuildingType;
+  const b1 = { id: "1", uri: B1 } as unknown as Building;
+  const b2 = { id: "2", uri: B2 } as unknown as Building;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  client.setQueryData<{ buildings: BuildingType[] }>(
+  client.setQueryData<{ buildings: Building[] }>(
     [...queryKeys.buildings, WEBID],
     { buildings: [b1, b2] },
   );
@@ -167,7 +167,7 @@ Deno.test("useDeleteBuilding drops the deleted building from the list cache on s
     const { result } = renderHook(() => useDeleteBuilding(), { wrapper });
     await result.current.mutateAsync(b1);
     await waitFor(() => {
-      const data = client.getQueryData<{ buildings: BuildingType[] }>(
+      const data = client.getQueryData<{ buildings: Building[] }>(
         [...queryKeys.buildings, WEBID],
       )!;
       assert.deepEqual(

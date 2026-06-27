@@ -1,12 +1,12 @@
 /**
- * Seed the building Add/Edit dialogs' flat `fields` map from a {@link BuildingType}
+ * Seed the building Add/Edit dialogs' flat `fields` map from a {@link Building}
  * — the inverse of the serializer's field convention, so the form round-trips
  * through `updateBuilding`. A pure module (no React/MUI), split out from the
  * MUI-bound field helpers in `buildingFields.tsx` so the seed is unit-testable under
  * Deno (the MUI barrel can't be imported there).
  */
 import type {
-  BuildingType,
+  Building,
   InvestorCertification,
   InvestorOperatingCosts,
 } from "../types.ts";
@@ -36,7 +36,7 @@ const SKIP_FIELDS = new Set([
  * helpers expect. Shared by the EditBuildingDialog AND the building page's inline
  * editor (the single source).
  */
-export function buildingToFields(b: BuildingType): Record<string, string> {
+export function buildingToFields(b: Building): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const [key, val] of Object.entries(b)) {
     if (SKIP_FIELDS.has(key) || val == null) continue;

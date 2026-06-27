@@ -40,7 +40,7 @@ import { type MessageId } from "./messages.ts";
 import { type DialogAction, withAction } from "../routes.ts";
 import { goTo } from "../intents/navigate.ts";
 import { buildingDisplayName, buildingSearchText } from "./buildingDisplay.ts";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import type { TFn } from "../context/I18nProvider.tsx";
 
 export type { IntentObject, ViewerContext } from "../intents/applicable.ts";
@@ -206,7 +206,7 @@ export function intentRoutesToDialog(entry: IntentEntry): boolean {
  * so they never flood the default command view. Pure → Tier-1 testable.
  */
 export function buildingNavCommands(
-  buildings: readonly BuildingType[],
+  buildings: readonly Building[],
 ): PaletteCommand[] {
   return buildings.map((b) => {
     // Route through the catalog navigate core (ShowBuilding) — same string as
@@ -231,7 +231,7 @@ export function buildingNavCommands(
  * {name}" string (kept out of this pure module). Pure → Tier-1 testable.
  */
 export function buildingObservationCommands(
-  buildings: readonly BuildingType[],
+  buildings: readonly Building[],
   label: (name: string) => string,
 ): PaletteCommand[] {
   return buildings
@@ -263,9 +263,9 @@ export function buildingObservationCommands(
  * Pure → Tier-1 testable.
  */
 export function resolveBuildingByQuery(
-  buildings: readonly BuildingType[],
+  buildings: readonly Building[],
   query: string,
-): BuildingType | undefined {
+): Building | undefined {
   const q = query.trim().toLowerCase();
   if (!q) return undefined;
   const byId = buildings.find((b) => b.id === query);

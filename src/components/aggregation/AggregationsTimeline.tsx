@@ -15,14 +15,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Box, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { AggregationDefinition } from "../../types.ts";
-import type { ReceivedAggregation } from "../../services/interop/sharingManager.ts";
-import type { OpenRegionalItem } from "../../services/openRegional.ts";
+import type { ReceivedAggregation } from "../../services/interop/sharing.ts";
+import type { OpenRegionalItem } from "../../services/sources/openRegional.ts";
 import { computeAggregationSeries } from "../../services/aggregation/aggregationComputer.ts";
-import { loadComputedSnapshot } from "../../services/aggregation/aggregationManager.ts";
+import { loadComputedSnapshot } from "../../services/aggregation/aggregation.ts";
 import {
   fetchRegionalObservations,
   REGIONAL_TABLES,
-} from "../../services/regionalCube.ts";
+} from "../../services/sources/regionalCube.ts";
 import { annualMetricLabel } from "../../constants/annualMetrics.ts";
 import { CHART_COLOR_PALETTE } from "../../constants/chartColors.ts";
 import { mapPooled } from "../../lib/pool.ts";

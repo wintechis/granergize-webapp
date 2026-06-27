@@ -1,7 +1,7 @@
 // Intent core (React-free) for CreateAggregation. See ./README.md for the
 // core/adapter split and the write→outcome convention.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import { createAggregationDefinition } from "../../../services/aggregation/aggregationManager.ts";
+import { createAggregationDefinition } from "../../../services/aggregation/aggregation.ts";
 import {
   computeAndStoreSnapshot,
   resolveSpatialExtent,

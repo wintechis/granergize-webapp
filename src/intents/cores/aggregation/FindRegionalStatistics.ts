@@ -8,14 +8,14 @@
  * separate GET on the detail surface, not this verb.
  */
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 import { resolve } from "../../entityQuery.ts";
-import { fetchAndParseData } from "../../../services/TurtleParsingService.ts";
-import { bundeslandToAgs } from "../../../services/region.ts";
+import { fetchAndParseData } from "../../../services/turtleParsing.ts";
+import { bundeslandToAgs } from "../../../services/sources/region.ts";
 import {
   openRegionalItemsFromBuildings,
   type OpenRegionalItem,
-} from "../../../services/openRegional.ts";
+} from "../../../services/sources/openRegional.ts";
 
 export interface FindRegionalStatisticsParams {
   /** Restrict to one Bundesland — a name ("Bayern") or its 2-digit AGS ("09"). */
@@ -25,7 +25,7 @@ export interface FindRegionalStatisticsParams {
 }
 
 /** Load the viewer's visible buildings (own ∪ shared-not-hidden) headlessly. */
-export type LoadVisibleBuildings = (gateway: PodGateway) => Promise<BuildingType[]>;
+export type LoadVisibleBuildings = (gateway: PodGateway) => Promise<Building[]>;
 const defaultLoad: LoadVisibleBuildings = async (gateway) =>
   (await fetchAndParseData(gateway)).buildings;
 
@@ -36,12 +36,12 @@ export async function findRegionalStatisticsCore(
 ): Promise<OpenRegionalItem[]> {
   // Source regions: an explicit Bundesland uses the full 16-Land catalogue (then
   // filters); a building uses its own region; otherwise the whole visible portfolio.
-  let buildings: BuildingType[];
+  let buildings: Building[];
   if (params.region) {
     buildings = [];
   } else if (params.building) {
     const obj = await resolve("building", params.building, gateway);
-    buildings = obj ? [obj as BuildingType] : [];
+    buildings = obj ? [obj as Building] : [];
   } else {
     buildings = await load(gateway);
   }

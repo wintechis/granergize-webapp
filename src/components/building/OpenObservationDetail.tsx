@@ -4,7 +4,7 @@ import Typography from "@mui/material/Typography";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
 import { useT } from "../../context/I18nProvider.tsx";
 import { useOpenObservationDetail } from "../../hooks/openObservations.ts";
-import { plantUrl } from "../../services/netztransparenz.ts";
+import { plantUrl } from "../../services/sources/netztransparenz.ts";
 import { metricLabel } from "../../constants/annualMetrics.ts";
 import MetricBarChart from "../detail/MetricBarChart.tsx";
 import { CHART_COLOR_PALETTE } from "../../constants/chartColors.ts";

@@ -12,10 +12,10 @@
  */
 import { Box, Stack, Typography } from "@mui/material";
 import GridOnIcon from "@mui/icons-material/GridOn";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { msg } from "../../lib/messages.ts";
 import { useLod2Rooftop } from "../../hooks/lod2Rooftop.ts";
-import { evaluateRoofs, type RoofEval } from "../../services/rooftopPv.ts";
+import { evaluateRoofs, type RoofEval } from "../../services/sources/rooftopPv.ts";
 import {
   magnitudeCategoriserFor,
   type MetricFraming,
@@ -30,7 +30,7 @@ const W = 640;
 const H = 440;
 const PAD = 6;
 
-export default function RoofPlan({ building }: { building: BuildingType }) {
+export default function RoofPlan({ building }: { building: Building }) {
   const data = useLod2Rooftop(building).data ?? null;
 
   // Only the surfaces the wrapper served a footprint for (outside coverage → none → omitted).

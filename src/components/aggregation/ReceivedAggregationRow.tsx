@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Box, Button, Table, TableBody, TableCell, TableRow, Typography } from "@mui/material";
-import type { ReceivedAggregation } from "../../services/interop/sharingManager.ts";
+import type { ReceivedAggregation } from "../../services/interop/sharing.ts";
 import { useComputedSnapshot } from "../../hooks/queries.ts";
 import { useT } from "../../context/I18nProvider.tsx";
 import { CHART_COLOR_PALETTE } from "../../constants/chartColors.ts";

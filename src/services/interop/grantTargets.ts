@@ -6,7 +6,7 @@ import {
   seriesContainerUri,
 } from "../energy/energyDataset.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
-import { filesContainerFor } from "../attachmentManager.ts";
+import { filesContainerFor } from "../attachment.ts";
 
 /** One resource a building grant covers. */
 export interface GrantTarget {

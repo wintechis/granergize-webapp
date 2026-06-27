@@ -8,14 +8,14 @@
  */
 import { useState } from "react";
 import { Box, Stack, ToggleButton, ToggleButtonGroup } from "@mui/material";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { useRegionalContext } from "../../hooks/regional.ts";
 import RegionalContextSection from "./RegionalContextSection.tsx";
 import RegionalMetricsSection from "./RegionalMetricsSection.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 
 export default function RegionalStatistics(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const t = useT();
   // Table-first: the figures are the primary content, and the region now resolves reliably at

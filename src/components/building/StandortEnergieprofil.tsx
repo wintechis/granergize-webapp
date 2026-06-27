@@ -1,16 +1,16 @@
 import { Link, Stack, Typography } from "@mui/material";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { msg, type MessageId } from "../../lib/messages.ts";
 import { useStandortEnergieprofil } from "../../hooks/standortEnergieprofil.ts";
-import type { RooftopPotential } from "../../services/lod2Rooftop.ts";
+import type { RooftopPotential } from "../../services/sources/lod2Rooftop.ts";
 import {
   areaUrl,
   type BiomassCard as BiomassCardData,
   type GreenCard as GreenCardData,
   type MixEntry,
   type PotentialCard as PotentialCardData,
-} from "../../services/standortEnergieprofil.ts";
+} from "../../services/sources/standortEnergieprofil.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import SourceNote from "../SourceNote.tsx";
 import { SOURCES } from "../../constants/dataSources.ts";
@@ -144,7 +144,7 @@ function BiomassCardView({ data }: { data: BiomassCardData }) {
  * Renders nothing where no Energie-Atlas profile resolves (off-pilot).
  */
 export default function StandortEnergieprofil(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const { query, ags } = useStandortEnergieprofil(building);
   const p = query.data ?? null;

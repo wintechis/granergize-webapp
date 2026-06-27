@@ -3,7 +3,7 @@ import { msg } from "../../lib/messages.ts";
 import { useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { AttachmentRef, BuildingType } from "../../types.ts";
+import type { AttachmentRef, Building } from "../../types.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { useConfirm } from "../../context/ConfirmContext.tsx";
 import {
@@ -29,7 +29,7 @@ const MAX_FILES = 20;
  * building is read-only (download only); the recipient can't write the owner's container.
  */
 export default function BuildingFilesSection(
-  { building, session }: { building: BuildingType; session: Session },
+  { building, session }: { building: Building; session: Session },
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();

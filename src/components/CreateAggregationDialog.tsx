@@ -23,8 +23,8 @@ import {
   Typography,
 } from "@mui/material";
 import type {
-  AggregationType,
-  BuildingType,
+  AggregationKind,
+  Building,
 } from "../types.ts";
 import type { RegionLevel } from "../services/aggregation/regionRollup.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
@@ -45,7 +45,7 @@ import Modal from "./Modal.tsx";
 
 interface CreateAggregationDialogProps {
   open: boolean;
-  buildings: BuildingType[];
+  buildings: Building[];
   onClose: () => void;
 }
 
@@ -152,7 +152,7 @@ export default function CreateAggregationDialog({
   // at the finest shared region; a chosen level coarsens to that grain (or records none if the
   // buildings don't share it).
   const [extentLevel, setExtentLevel] = useState<RegionLevel | "auto">("auto");
-  const [aggregationType, setAggregationType] = useState<AggregationType>(
+  const [aggregationType, setAggregationType] = useState<AggregationKind>(
     "average",
   );
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
@@ -336,7 +336,7 @@ export default function CreateAggregationDialog({
       <RadioGroup
         row
         value={aggregationType}
-        onChange={(e) => setAggregationType(e.target.value as AggregationType)}
+        onChange={(e) => setAggregationType(e.target.value as AggregationKind)}
       >
         <FormControlLabel value="average" control={<Radio />} label={msg("aggFnAverage")} />
         <FormControlLabel value="sum" control={<Radio />} label={msg("aggFnSum")} />

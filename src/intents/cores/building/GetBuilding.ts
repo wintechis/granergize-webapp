@@ -6,7 +6,7 @@
  * fetch + parser rather than re-loading the collection.
  */
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 import { resolve } from "../../entityQuery.ts";
 
 export interface GetBuildingParams {
@@ -17,9 +17,9 @@ export interface GetBuildingParams {
 export async function getBuildingCore(
   gateway: PodGateway,
   params: GetBuildingParams,
-): Promise<BuildingType | undefined> {
+): Promise<Building | undefined> {
   const obj = await resolve("building", params.id, gateway);
   // resolve() returns the building shape for entity "building"; null/aggregation
   // shapes can't occur here, but guard the type defensively.
-  return obj && "energyDatasets" in obj ? (obj as BuildingType) : undefined;
+  return obj && "energyDatasets" in obj ? (obj as Building) : undefined;
 }

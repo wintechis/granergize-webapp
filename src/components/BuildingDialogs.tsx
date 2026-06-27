@@ -25,7 +25,7 @@ import { webIdsError } from "../lib/webId.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
 import { useShareBuilding } from "../hooks/mutations.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
-import type { AttachmentRef, BuildingType, UserRole } from "../types.ts";
+import type { AttachmentRef, Building, UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { AgentChip } from "./AgentLabel.tsx";
 import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
@@ -46,7 +46,7 @@ interface ShareBuildingDialogProps {
   open: boolean;
   buildingUri: string;
   /** The building being shared — its energy datasets drive the per-year picker. */
-  building: BuildingType;
+  building: Building;
   session: Session;
   onClose: () => void;
 }

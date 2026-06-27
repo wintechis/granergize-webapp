@@ -76,7 +76,7 @@ function xlSerialToComponents(serial: number): { year: number; month: number; da
   };
 }
 
-/** Lastgang header label → BuildingType field name. */
+/** Lastgang header label → Building field name. */
 const LASTGANG_FIELD_MAP: Record<string, string> = {
   "Marktlokation Name": "label",
 };

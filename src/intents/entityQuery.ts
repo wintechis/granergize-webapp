@@ -28,7 +28,7 @@
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { Parser } from "n3";
 import type { Quad } from "@rdfjs/types";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import type { IntentEntity } from "./catalog.ts";
 import {
   applicableIntents,
@@ -40,11 +40,11 @@ import { parseBuildings } from "../services/rdf/building/buildingParser.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { fetchFresh } from "../services/pod/podFetch.ts";
 import { getStorageRoot } from "../services/pod/solidUtils.ts";
-import { getAggregationDefinition } from "../services/aggregation/aggregationManager.ts";
+import { getAggregationDefinition } from "../services/aggregation/aggregation.ts";
 
 /**
  * Resolve a building IRI (its subject IRI `…/b.ttl#it`, or the bare document IRI)
- * to a {@link BuildingType}, reusing {@link parseBuildings} on the single fetched
+ * to a {@link Building}, reusing {@link parseBuildings} on the single fetched
  * document. `isShared` is set the way {@link loadBuildings} does it: the building
  * is shared-with-the-viewer iff its source document does not live under the
  * viewer's own storage root. A single source needs no blank-node scoping (that
@@ -76,7 +76,7 @@ async function resolveBuilding(
   const buildings = parseBuildings(quads, storageRoot);
   // Pick the building whose subject IRI matches the requested IRI; fall back to
   // the sole building when the caller passed the document IRI (no fragment).
-  let match: BuildingType | undefined;
+  let match: Building | undefined;
   for (const building of buildings.values()) {
     if (building.uri === iri) {
       match = building;

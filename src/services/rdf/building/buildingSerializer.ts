@@ -2,7 +2,7 @@ import type { PodGateway } from "../../pod/podGateway.ts";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type {
   AnnualData,
-  BuildingType,
+  Building,
   Scenario,
   SystemKind,
   TechnicalSystem,
@@ -71,8 +71,7 @@ import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
 import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
 import { listDirectChildren } from "../../pod/podDelete.ts";
-import { geocodeWithRegion } from "../../geocode.ts";
-import { agsConceptUrl } from "../../regionalCube.ts";
+import { agsConceptUrl } from "../../../constants/dataSources.ts";
 import { mintLocalIri } from "../rdfHelpers.ts";
 import { buildingFileUri, mintBuildingSubject } from "./buildingId.ts";
 import {
@@ -91,7 +90,7 @@ import {
 
 const { namedNode, literal, blankNode } = DataFactory;
 
-// Inverse maps: BuildingType field name → predicate IRI
+// Inverse maps: Building field name → predicate IRI
 const fieldToPredicate: Record<string, string> = Object.fromEntries(
   Object.entries(predicateMap).map(([iri, field]) => [field as string, iri]),
 );
@@ -916,9 +915,9 @@ export async function deleteEnergyYear(
  * before `buildingToXlsx` / `buildingsToXlsx` (buildingWorkbook.ts).
  */
 export function attachAnnualData(
-  buildings: BuildingType[],
+  buildings: Building[],
   gateway: PodGateway,
-): Promise<BuildingType[]> {
+): Promise<Building[]> {
   return Promise.all(buildings.map(async (b) => {
     const refs = (b.energyDatasets ?? []).filter(
       (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
@@ -1238,7 +1237,7 @@ export async function deleteBuilding(
   // before the resource would briefly fall it back to the container's (possibly
   // more permissive) inherited ACL — a TOCTOU exposure window. The owner-lockout
   // that motivated such a "recovery" is prevented at the source now (a revoke
-  // never strips the owner's Control; see sharingManager.removeFromACL), so a
+  // never strips the owner's Control; see sharing.removeFromACL), so a
   // normal delete keeps the owner's authorization and just works.
   const res = await gateway.fetch(fileUri, { method: "DELETE" });
   if (!res.ok && res.status !== 404) {
@@ -1510,16 +1509,24 @@ const DEMO_BUILDINGS: DemoSpec[] = [
  * report a partial seed ("Added 3 of 4") instead of a blanket success. Within one
  * building the writes are ordered commit-last (datasets first, the discoverable
  * building file last), so a failed building leaves only inert orphan files.
+ * The geocoder is **injected** (the caller passes `geocodeWithRegion`) so this
+ * RDF/serialization module does no network I/O of its own — that keeps it free of
+ * any `services/sources/` import (rdf↔sources stays acyclic).
  * @operation mutation
  */
 export async function seedDemoBuildings(
   gateway: PodGateway,
   webId: string,
+  geocode: (
+    fields: Record<string, string>,
+  ) => Promise<
+    { lat: string; long: string; precision: GeocodePrecision; regionAgs?: string } | null
+  >,
 ): Promise<{ seeded: number; total: number }> {
   let seeded = 0;
   for (const demo of DEMO_BUILDINGS) {
     try {
-      const coords = await geocodeWithRegion(demo.fields);
+      const coords = await geocode(demo.fields);
       let fields: Record<string, string> = coords
         ? {
           ...demo.fields,

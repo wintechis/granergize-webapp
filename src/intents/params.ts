@@ -69,7 +69,7 @@ export const INTENT_PARAMS = {
     systems: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
   },
   DeleteBuilding: {
-    // Opaque BuildingType instance; not an IRI to resolve.
+    // Opaque Building instance; not an IRI to resolve.
     building: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
   },
   ToggleVisibility: {

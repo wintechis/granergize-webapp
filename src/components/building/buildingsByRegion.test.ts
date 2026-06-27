@@ -1,9 +1,9 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { buildingsByRegion } from "./buildingsByRegion.ts";
-import { type BuildingType } from "../../types.ts";
+import { type Building } from "../../types.ts";
 
-const b = (id: string, regionAgs?: string): BuildingType => ({
+const b = (id: string, regionAgs?: string): Building => ({
   id,
   uri: id,
   type: "",

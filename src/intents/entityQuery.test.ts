@@ -5,7 +5,7 @@ import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 // instance the intent layer's `applies()` guards consume — HEADLESS: driven with
 // a fake offline-fixture Session (no React, no component tree, no collection
 // fold), exactly the binding seam a deep link / palette / LLM tool needs. A
-// building IRI → a `BuildingType` (with the own-vs-shared guard fact set), an
+// building IRI → a `Building` (with the own-vs-shared guard fact set), an
 // aggregation IRI → an `AggregationDefinition`, an unknown IRI / unsupported
 // entity → `undefined`; `applicableForIri` then yields the state-filtered verbs.
 import { strict as assert } from "node:assert";
@@ -13,7 +13,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { applicableForIri, resolve } from "./entityQuery.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { CONSUMPTION_NS, REC_BUILDING } from "../services/rdf/vocabularies.ts";
-import type { AggregationDefinition, BuildingType } from "../types.ts";
+import type { AggregationDefinition, Building } from "../types.ts";
 
 const WEBID = "https://a.example/profile/card#me";
 const ROOT = "https://a.example/";
@@ -75,12 +75,12 @@ function fakeSession(store: Record<string, string>): PodGateway {
   } as unknown as Session);
 }
 
-Deno.test("resolve(building): own building IRI → BuildingType, isShared=false, has energy", async () => {
+Deno.test("resolve(building): own building IRI → Building, isShared=false, has energy", async () => {
   const session = fakeSession({ [OWN_BUILDING]: OWN_BUILDING_TTL });
 
   const obj = await resolve("building", `${OWN_BUILDING}#it`, session);
   assert.ok(obj, "resolved an object");
-  const b = obj as BuildingType;
+  const b = obj as Building;
 
   // Identity + type came through the real parser.
   assert.equal(b.uri, `${OWN_BUILDING}#it`);
@@ -91,12 +91,12 @@ Deno.test("resolve(building): own building IRI → BuildingType, isShared=false,
   assert.equal((b.energyDatasets?.length ?? 0) > 0, true);
 });
 
-Deno.test("resolve(building): foreign building IRI → BuildingType, isShared=true", async () => {
+Deno.test("resolve(building): foreign building IRI → Building, isShared=true", async () => {
   const session = fakeSession({ [FOREIGN_BUILDING]: FOREIGN_BUILDING_TTL });
 
   const obj = await resolve("building", `${FOREIGN_BUILDING}#it`, session);
   assert.ok(obj);
-  const b = obj as BuildingType;
+  const b = obj as Building;
   // Source off the viewer's storage root → shared-with-me.
   assert.equal(b.isShared, true);
 });

@@ -1,7 +1,7 @@
 import type { Quad } from "@rdfjs/types";
 import type {
   AttachmentRef,
-  BuildingType,
+  Building,
   EnergyDatasetRef,
   InvestorCertification,
   InvestorOperatingCosts,
@@ -73,8 +73,8 @@ function localName(iri: string): string {
 export function parseBuildings(
   quads: Quad[],
   ownStorageRoot?: string,
-): Map<string, BuildingType> {
-  const buildings = new Map<string, BuildingType>();
+): Map<string, Building> {
+  const buildings = new Map<string, Building>();
   // ── Pass 0: the building roster — subjects typed rec:Building ─────────────
   const buildingSubjects = new Set<string>();
   for (const quad of quads) {
@@ -249,7 +249,7 @@ export function parseBuildings(
   >();
   const geoData = new Map<
     string,
-    { lat?: number; long?: number; precision?: BuildingType["geocodePrecision"] }
+    { lat?: number; long?: number; precision?: Building["geocodePrecision"] }
   >();
 
   quads.forEach((quad: Quad) => {
@@ -424,7 +424,7 @@ export function parseBuildings(
   // Attachments (bldg:hasAttachment → file IRI + schema.org metadata). The energy
   // certificate (a real attachment also pointed at by bldg:hasEnergyCertificate) is
   // flagged.
-  const certUriOf = (b: BuildingType): string | undefined =>
+  const certUriOf = (b: Building): string | undefined =>
     typeof b.energyCertificate === "string" && b.energyCertificate
       ? b.energyCertificate
       : undefined;

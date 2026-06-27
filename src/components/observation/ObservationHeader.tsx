@@ -1,6 +1,6 @@
 import { Box, Stack, Typography } from "@mui/material";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { buildingRoute, FINDERS } from "../../routes.ts";
 import { BackLink, RefLink } from "../detail/DetailView.tsx";
@@ -16,7 +16,7 @@ import EnergyEntryButton from "./EnergyEntryButton.tsx";
  */
 export default function ObservationHeader(
   { building, year, onEdit }: {
-    building: BuildingType;
+    building: Building;
     year?: number;
     /** Open the inline energy-year editor (which lives on the page — `Energy.tsx`). */
     onEdit: () => void;

@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import TravelExploreIcon from "@mui/icons-material/TravelExplore";
-import { geocodeFields } from "../services/geocode.ts";
+import { geocodeFields } from "../services/sources/geocode.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
 

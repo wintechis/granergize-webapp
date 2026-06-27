@@ -1,10 +1,10 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { buildingAddressLine, buildingDisplayName } from "./buildingDisplay.ts";
 
-function building(fields: Partial<BuildingType>): BuildingType {
-  return { id: "b1", uri: "urn:b:b1", type: "x", ...fields } as BuildingType;
+function building(fields: Partial<Building>): Building {
+  return { id: "b1", uri: "urn:b:b1", type: "x", ...fields } as Building;
 }
 
 Deno.test("buildingDisplayName prefers label, then code, then address, then the verbatim id", () => {

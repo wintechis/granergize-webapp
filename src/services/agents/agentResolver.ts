@@ -336,7 +336,7 @@ export interface ResolvedOrg {
  * its `owl:sameAs` links — for the first that resolves to a Wikidata entity, use
  * that entity's logo (P154/P18) rendered through Commons. Serves *arbitrary*
  * producers (e.g. a building's `attributedTo`), unlike the self-only
- * `organisationManager`. Returns `null` when the profile is unreachable/private
+ * `organisation`. Returns `null` when the profile is unreachable/private
  * or states no org — never throws, so the map can fall back to a default marker
  * unconditionally. The Wikidata fetch is a public (non-Pod) request, so it goes
  * through the tracked external fetch; tests inject a fake `fetchFn`.

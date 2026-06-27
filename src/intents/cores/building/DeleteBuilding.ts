@@ -2,12 +2,12 @@
 // core/adapter split.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import { deleteBuildingResource } from "../../../services/buildingActions.ts";
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 
 /** Parameters of the DeleteBuilding intent. */
 export interface DeleteBuildingParams {
   /** The building to permanently delete (caller confirms first). */
-  building: BuildingType;
+  building: Building;
 }
 
 /**

@@ -9,7 +9,7 @@
  * best-effort — a down/partial wrapper yields `[]`, never a toast.
  */
 import { useQuery } from "@tanstack/react-query";
-import type { MapCentre } from "../services/openBuildings.ts";
+import type { MapCentre } from "../services/sources/openBuildings.ts";
 import {
   fetchNearbyGenerationTotal,
   fetchNearbyOpenObservations,
@@ -17,7 +17,7 @@ import {
   OPEN_OBSERVATIONS_LIMIT,
   type OpenObservation,
   type OpenObservationDetail,
-} from "../services/openObservations.ts";
+} from "../services/sources/openObservations.ts";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { logError } from "../lib/logError.ts";
 

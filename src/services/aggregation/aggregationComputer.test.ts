@@ -3,7 +3,7 @@ import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import type {
-  AggregationType,
+  AggregationKind,
   AggregationDefinition,
 } from "../../types.ts";
 import { QueryClient } from "@tanstack/react-query";
@@ -89,7 +89,7 @@ function pod(
 
 function def(
   buildingUris: string[],
-  aggregationType: AggregationType,
+  aggregationType: AggregationKind,
   metrics: string[] = [METRIC],
   benchmark?: boolean,
 ): AggregationDefinition {
@@ -139,7 +139,7 @@ Deno.test("computeAggregation: sum / min / max over the same data", async () => 
     [B2]: [{ year: 2024, value: 200 }],
     [B3]: [{ year: 2024, value: 300 }],
   };
-  const cases: [AggregationType, number][] = [
+  const cases: [AggregationKind, number][] = [
     ["sum", 600],
     ["min", 100],
     ["max", 300],

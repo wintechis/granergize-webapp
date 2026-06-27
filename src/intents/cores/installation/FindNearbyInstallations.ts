@@ -8,14 +8,14 @@
  * is Tier-1-testable without the live service.
  */
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import type { BuildingType } from "../../../types.ts";
+import type { Building } from "../../../types.ts";
 import { resolve } from "../../entityQuery.ts";
 import {
   fetchNearbyInstallations,
   type InstallationKind,
   type NearbyInstallation,
   type NearbyOptions,
-} from "../../../services/mastrNearby.ts";
+} from "../../../services/sources/mastrNearby.ts";
 
 export interface FindNearbyInstallationsParams {
   /** The building whose surroundings to scan — resolved to its coordinates. */
@@ -40,7 +40,7 @@ export async function findNearbyInstallationsCore(
 ): Promise<NearbyInstallation[]> {
   const obj = await resolve("building", params.building, gateway);
   if (!obj || !("lat" in obj)) return [];
-  const b = obj as BuildingType;
+  const b = obj as Building;
   if (b.lat == null || b.long == null) return [];
   const all = await fetch(b.lat, b.long, { radiusKm: params.radiusKm });
   return params.kind ? all.filter((i) => i.kind === params.kind) : all;

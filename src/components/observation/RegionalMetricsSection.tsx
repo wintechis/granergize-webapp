@@ -6,11 +6,11 @@
  * Bundesland, in for the Kreis, and pick the metric from the dropdown.
  */
 import { Box } from "@mui/material";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import RegionalMetricsMap from "../region/RegionalMetricsMap.tsx";
 
 export default function RegionalMetricsSection(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const { lat, long } = building;
   if (lat == null || long == null) return null;

@@ -13,7 +13,7 @@ import {
   serializeBuildingToTurtle,
   uploadBuilding,
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
-import { fetchAndParseData } from "../../../src/services/TurtleParsingService.ts";
+import { fetchAndParseData } from "../../../src/services/turtleParsing.ts";
 
 import {
   mintBuildingSubject,

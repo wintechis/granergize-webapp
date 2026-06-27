@@ -20,8 +20,8 @@ import NotificationLogIndicator from "../components/NotificationLogIndicator.tsx
 import CommandPalette, { OPEN_PALETTE_EVENT } from "../components/CommandPalette.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
-import { getAvatarObjectUrl } from "../services/organisation/logoManager.ts";
-import { getOrgLogoObjectUrl } from "../services/organisation/organisationManager.ts";
+import { getAvatarObjectUrl } from "../services/organisation/logo.ts";
+import { getOrgLogoObjectUrl } from "../services/organisation/organisation.ts";
 import { useAvatarRefresh } from "../lib/avatarRefresh.ts";
 import { useDemoOffer, useSharedWithMe } from "../hooks/queries.ts";
 import { setDemoSeedDeclined } from "../services/prefs.ts";

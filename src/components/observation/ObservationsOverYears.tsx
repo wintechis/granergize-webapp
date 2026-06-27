@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import Typography from "@mui/material/Typography";
-import { type BuildingType } from "../../types.ts";
+import { type Building } from "../../types.ts";
 import { type EnergyMetricKey } from "../../services/energy/energyDataset.ts";
 import { DEFAULT_METRIC } from "../../services/energy/energyMetric.ts";
 import { type EnergyByBuildingYear } from "../../services/energy/energyTimeCut.ts";
@@ -20,7 +20,7 @@ import { useT } from "../../context/I18nProvider.tsx";
  */
 export default function ObservationsOverYears(
   { buildings, energyByYear, metric = DEFAULT_METRIC }: {
-    buildings: BuildingType[];
+    buildings: Building[];
     energyByYear: EnergyByBuildingYear | undefined;
     metric?: EnergyMetricKey;
   },

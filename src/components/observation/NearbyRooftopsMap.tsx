@@ -13,8 +13,8 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { detailBaseLayer } from "../../lib/orthophoto.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
-import type { BuildingType } from "../../types.ts";
-import type { NearbyRooftopGeometry } from "../../services/lod2Rooftop.ts";
+import type { Building } from "../../types.ts";
+import type { NearbyRooftopGeometry } from "../../services/sources/lod2Rooftop.ts";
 import {
   magnitudeCategoriserFor,
   type MetricFraming,
@@ -47,7 +47,7 @@ function FitBounds({ points }: { points: [number, number][] }) {
  */
 export default function NearbyRooftopsMap(
   { building, rooftops, height = 420 }: {
-    building: BuildingType;
+    building: Building;
     rooftops: NearbyRooftopGeometry[];
     height?: number;
   },

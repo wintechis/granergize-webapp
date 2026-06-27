@@ -5,6 +5,8 @@ import noOnlyTests from "eslint-plugin-no-only-tests";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+// Local custom rule (content-aware filename casing) — see eslint-rules/filenameExportCase.js.
+import filenameExportCase from "./eslint-rules/filenameExportCase.js";
 
 export default tseslint.config(
   // e2e/ and the Playwright config run under Node (Playwright), not the browser
@@ -17,6 +19,15 @@ export default tseslint.config(
   // queryFn closes over → stale reads), stable QueryClient, no rest-destructuring
   // of query results. The data layer is entirely React Query, so this is on-domain.
   ...pluginQuery.configs["flat/recommended"],
+  // Filename-case discipline: a file's name must reflect WHAT it exports (see the
+  // `filenameExportCase` rule above). Advisory (warn); src only — test files have
+  // their own naming (*.test/*.spec), and generated/type-decl files are exempt.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/*.generated.ts", "**/*.d.ts"],
+    plugins: { local: { rules: { "filename-export-case": filenameExportCase } } },
+    rules: { "local/filename-export-case": "warn" },
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -55,8 +66,8 @@ export default tseslint.config(
       "src/components/Modal.tsx", // the dialog wrapper
       "src/components/NetworkActivityIndicator.tsx", // the one allowed spinner + debug popup
       "src/App.tsx", // full-page route spinners (header not mounted)
-      "src/pages/Agent.tsx",
-      "src/pages/Aggregation.tsx",
+      "src/pages/AgentDetail.tsx",
+      "src/pages/AggregationDetail.tsx",
       "src/pages/BuildingsFinder.tsx", // lazy-chunk (BuildingsMap) Suspense fallback
       "src/pages/ObservationsFinder.tsx", // lazy-chunk (BuildingsMap) Suspense fallback
     ],

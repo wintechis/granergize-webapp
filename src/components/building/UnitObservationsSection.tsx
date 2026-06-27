@@ -11,7 +11,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import type { BuildingType, SystemKind, TechnicalSystem } from "../../types.ts";
+import type { Building, SystemKind, TechnicalSystem } from "../../types.ts";
 import { useAnnualDatasets } from "../../hooks/queries.ts";
 import { ANNUAL_METRICS, annualMetricLabel } from "../../constants/annualMetrics.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
@@ -47,7 +47,7 @@ const fmt = (v: number, decimals: number): string =>
  * annual dataset, building- and unit-level, with metrics).
  */
 export default function UnitObservationsSection(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const all = useAnnualDatasets(building).data ?? [];
   const file = buildingFileUri(building.uri as string);

@@ -40,7 +40,7 @@ import {
 import {
   saveOrganisation,
   uploadOrgLogo,
-} from "../../src/services/organisation/organisationManager.ts";
+} from "../../src/services/organisation/organisation.ts";
 import type { UserRole } from "../../src/types.ts";
 
 /** Bounded write concurrency — same small pool the app uses for daily files. */

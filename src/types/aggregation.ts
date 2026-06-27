@@ -6,7 +6,7 @@ import type {
   AggregationSnapshotFields,
 } from "../services/rdf/consumptionShape.generated.ts";
 
-export type AggregationType = "average" | "sum" | "min" | "max";
+export type AggregationKind = "average" | "sum" | "min" | "max";
 
 /**
  * The SPATIAL coordinate of an aggregation — the region its members roll up to, distinct from

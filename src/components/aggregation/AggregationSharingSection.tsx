@@ -8,7 +8,7 @@ import { useNotification } from "../../context/NotificationContext.tsx";
 import { useConfirm } from "../../context/ConfirmContext.tsx";
 import { useSharedAggregations } from "../../hooks/queries.ts";
 import { useRevokeAggregationAccess } from "../../hooks/mutations.ts";
-import { getSnapshotUri } from "../../services/aggregation/aggregationManager.ts";
+import { getSnapshotUri } from "../../services/aggregation/aggregation.ts";
 import NestedAgentList from "../NestedAgentList.tsx";
 import ShareAggregationDialog from "../ShareAggregationDialog.tsx";
 

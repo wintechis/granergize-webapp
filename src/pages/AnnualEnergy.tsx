@@ -14,7 +14,7 @@ import {
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
-import { AnnualData, BuildingType } from "../types.ts";
+import { AnnualData, Building } from "../types.ts";
 import {
   ChartBox,
   DetailCard,
@@ -50,7 +50,7 @@ import {
 } from "../constants/chartColors.ts";
 
 interface AnnualEnergyProps {
-  building: BuildingType;
+  building: Building;
 }
 
 const METRIC_COLORS: Record<EnergyMetricKey, string> = {

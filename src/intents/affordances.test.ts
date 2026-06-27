@@ -2,17 +2,17 @@
 import { strict as assert } from "node:assert";
 import { affordanceFor, INTENT_AFFORDANCES } from "./affordances.ts";
 import { findIntent } from "./applicable.ts";
-import type { AggregationDefinition, BuildingType } from "../types.ts";
+import type { AggregationDefinition, Building } from "../types.ts";
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
-function building(over: Partial<BuildingType> = {}): BuildingType {
+function building(over: Partial<Building> = {}): Building {
   return {
     id: "granergize/buildings/b1.ttl#it",
     uri: "https://alice.example/granergize/buildings/b1.ttl",
     type: "building",
     ...over,
-  } as BuildingType;
+  } as Building;
 }
 
 function aggregation(

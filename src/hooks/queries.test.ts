@@ -20,7 +20,7 @@ import {
   useSolidData,
   useAggregationDetail,
 } from "./queries.ts";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import { useCheckInbox, useToggleVisibility } from "./mutations.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
@@ -206,8 +206,8 @@ Deno.test("useSolidData stays isLoading until buildings resolve — no empty-sta
 });
 
 Deno.test("energyKeyFor changes when a building's dataset links change (not only its id set)", () => {
-  const mk = (id: string, datasets: BuildingType["energyDatasets"]): BuildingType =>
-    ({ id, uri: `urn:b${id}`, type: "x", energyDatasets: datasets } as BuildingType);
+  const mk = (id: string, datasets: Building["energyDatasets"]): Building =>
+    ({ id, uri: `urn:b${id}`, type: "x", energyDatasets: datasets } as Building);
 
   // Same building set, but one building gains an energy-dataset link: the key
   // MUST change, else the bulk energy read stays stale after an energy write.
@@ -377,7 +377,7 @@ Deno.test("useAnnualEnergy splits actual vs planned, sorted by year", async () =
       // A 15-min series ref must be ignored (annual aggregation only).
       { uri: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
     ],
-  } as unknown as BuildingType;
+  } as unknown as Building;
   try {
     const { result } = renderHook(() => useAnnualEnergy(building), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
@@ -418,7 +418,7 @@ Deno.test("useAnnualDatasets returns the raw annual datasets, ignoring series re
       // A 15-min series ref must be ignored (annual datasets only).
       { uri: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
     ],
-  } as unknown as BuildingType;
+  } as unknown as Building;
   try {
     const { result } = renderHook(() => useAnnualDatasets(building), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
@@ -436,7 +436,7 @@ Deno.test("useAnnualDatasets is disabled while the dialog is closed", () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
   const { wrapper } = makeWrapper();
-  const building = { id: "b1", uri: `${B1}#b1`, energyDatasets: [] } as unknown as BuildingType;
+  const building = { id: "b1", uri: `${B1}#b1`, energyDatasets: [] } as unknown as Building;
   try {
     const { result } = renderHook(() => useAnnualDatasets(building, false), {
       wrapper,

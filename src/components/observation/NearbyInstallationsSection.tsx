@@ -7,14 +7,14 @@ import {
   Typography,
 } from "@mui/material";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import NearbyInstallationsMap from "./NearbyInstallationsMap.tsx";
 import { useNearbyInstallations } from "../../hooks/mastrNearby.ts";
 import {
   DEFAULT_RADIUS_KM,
   type InstallationKind,
   nearbyInstallationsUrl,
-} from "../../services/mastrNearby.ts";
+} from "../../services/sources/mastrNearby.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import Pager from "../Pager.tsx";
 import { usePaging } from "../../hooks/usePaging.ts";
@@ -42,7 +42,7 @@ const KIND_ORDER: InstallationKind[] = ["solar", "wind", "hydro", "biomass"];
  * a Developer-mode source link (`RdfSourceLink` self-hides).
  */
 export default function NearbyInstallationsSection(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const t = useT();
   const { data } = useNearbyInstallations(building);

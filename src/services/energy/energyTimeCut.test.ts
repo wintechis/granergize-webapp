@@ -9,10 +9,10 @@ import {
   yearLens,
 } from "./energyTimeCut.ts";
 import { type AnnualMetrics } from "../energy/energyDataset.ts";
-import { BuildingType } from "../../types.ts";
+import { Building } from "../../types.ts";
 
-function building(fields: Partial<BuildingType>): BuildingType {
-  return { id: "b", uri: "urn:b", ...fields } as BuildingType;
+function building(fields: Partial<Building>): Building {
+  return { id: "b", uri: "urn:b", ...fields } as Building;
 }
 
 /** A per-building cube: { buildingId: { year: { metricKey: value } } }. */

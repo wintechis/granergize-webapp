@@ -11,7 +11,7 @@
 import { type Lang, VOCAB_COMMENTS, VOCAB_LABELS } from "./vocabLabels.generated.ts";
 import { getLanguage } from "../../lib/language.ts";
 import { BUILDING_FIELDS } from "./building/buildingConfig.ts";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 
 /** The local-name fragment of an IRI: after the last `#` or `/`. */
 function localName(iri: string): string {
@@ -42,7 +42,7 @@ export function comment(iri: string, lang: Lang = getLanguage()): string | undef
 }
 
 /** Building field key → its predicate IRI, derived from `buildingConfig`'s schema table. */
-const FIELD_IRI: Partial<Record<keyof BuildingType, string>> = Object.fromEntries(
+const FIELD_IRI: Partial<Record<keyof Building, string>> = Object.fromEntries(
   BUILDING_FIELDS.map((f) => [f.field, f.iri]),
 );
 
@@ -52,7 +52,7 @@ const FIELD_IRI: Partial<Record<keyof BuildingType, string>> = Object.fromEntrie
  * {@link label}; a field with no schema IRI falls back to the bare field name.
  */
 export function fieldLabel(
-  field: keyof BuildingType,
+  field: keyof Building,
   lang: Lang = getLanguage(),
 ): string {
   const iri = FIELD_IRI[field];

@@ -7,7 +7,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { type PodGateway, sessionGateway } from "../../../services/pod/podGateway.ts";
 import { _setStorageRootForTesting } from "../../../services/pod/solidUtils.ts";
 import { GEO_NS, REC_BUILDING } from "../../../services/rdf/vocabularies.ts";
-import type { NearbyInstallation } from "../../../services/mastrNearby.ts";
+import type { NearbyInstallation } from "../../../services/sources/mastrNearby.ts";
 import { findNearbyInstallationsCore } from "./FindNearbyInstallations.ts";
 
 const WEBID = "https://a.example/profile/card#me";

@@ -5,7 +5,7 @@ import { useListSearch } from "../../hooks/useListSearch.ts";
 import { useListFacet } from "../../hooks/useListFacet.ts";
 import { useOpenBuildings } from "../../hooks/openBuildings.ts";
 import { useOpenObservations } from "../../hooks/openObservations.ts";
-import { ownDataAnchor, viewportAnchor } from "../../services/openBuildings.ts";
+import { ownDataAnchor, viewportAnchor } from "../../services/sources/openBuildings.ts";
 import { getStoredViewport } from "../../lib/mapViewport.ts";
 import { TIER_VALUES } from "../../constants/tiers.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
@@ -50,7 +50,7 @@ import {
   fetchRegionGeometry,
   type RegionFeatureProps,
   type RegionGrain,
-} from "../../services/regionGeometry.ts";
+} from "../../services/sources/regionGeometry.ts";
 import { buildingsByRegion } from "./buildingsByRegion.ts";
 import { dominantBand } from "./markerClusterTint.ts";
 import { BuildingMarker, type MapLens } from "./BuildingMarker.tsx";

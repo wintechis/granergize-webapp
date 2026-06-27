@@ -11,12 +11,12 @@ import {
   Typography,
 } from "@mui/material";
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
-import type { BuildingType } from "../../types.ts";
+import type { Building } from "../../types.ts";
 import { useRegionalContext } from "../../hooks/regional.ts";
 import {
   REGIONAL_UNIT_DISPLAY as UNIT_DISPLAY,
   regionalTableDataUrl,
-} from "../../services/regionalCube.ts";
+} from "../../services/sources/regionalCube.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 
@@ -33,7 +33,7 @@ import { useT } from "../../context/I18nProvider.tsx";
  * + source link stay Developer-mode-only (`RdfSourceLink` self-hides).
  */
 export default function RegionalContextSection(
-  { building }: { building: BuildingType },
+  { building }: { building: Building },
 ) {
   const t = useT();
   const { data } = useRegionalContext(building);

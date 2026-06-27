@@ -1,7 +1,7 @@
 // Intent core (React-free) for SetEnergyCertificate. See ./README.md for the
 // core/adapter split and the write→outcome convention.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import { setEnergyCertificate } from "../../../services/attachmentManager.ts";
+import { setEnergyCertificate } from "../../../services/attachment.ts";
 import type { Settled } from "../../outcomes.ts";
 
 /** Parameters of the SetEnergyCertificate intent. */

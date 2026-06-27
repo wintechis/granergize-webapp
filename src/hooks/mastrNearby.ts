@@ -15,12 +15,12 @@
  * Kreis-grain tables — there is no point-in-polygon endpoint to ask instead.
  */
 import { useQuery } from "@tanstack/react-query";
-import type { BuildingType } from "../types.ts";
+import type { Building } from "../types.ts";
 import {
   fetchNearbyInstallations,
   kreisFromInstallations,
   type NearbyInstallation,
-} from "../services/mastrNearby.ts";
+} from "../services/sources/mastrNearby.ts";
 import { logError } from "../lib/logError.ts";
 
 export interface NearbyContext {
@@ -34,7 +34,7 @@ export interface NearbyContext {
  * `null` when the building has no coordinates (the query stays disabled) or the
  * fetch failed. Hour-long `staleTime` — the register changes slowly.
  */
-export function useNearbyInstallations(building: BuildingType) {
+export function useNearbyInstallations(building: Building) {
   const { lat, long } = building;
   const located = lat != null && long != null;
   return useQuery<NearbyContext | null>({
