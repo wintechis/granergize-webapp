@@ -1,4 +1,4 @@
-// Intent core (React-free) for AddRoom. See ./README.md and ./CreateRoom.ts. The
+// Intent core (React-free) for AddBookmark. See ./README.md and ./CreateRoom.ts. The
 // existence (`roomExists`) throw stays IN the core.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import {
@@ -9,8 +9,8 @@ import {
 } from "../../../services/interop/dataRoom.ts";
 import type { RoomOutcome } from "./CreateRoom.ts";
 
-/** Parameters of the AddRoom intent. */
-export interface AddRoomParams {
+/** Parameters of the AddBookmark intent. */
+export interface AddBookmarkParams {
   /** A raw room URI or invite link to bookmark (NOT necessarily an IRI). */
   input: string;
 }
@@ -21,9 +21,9 @@ export interface AddRoomParams {
  * the room does not exist; otherwise returns the normalized URI the adapter's
  * `patchRooms` adds to `known`.
  */
-export async function addRoomCore(
+export async function addBookmarkCore(
   gateway: PodGateway,
-  params: AddRoomParams,
+  params: AddBookmarkParams,
 ): Promise<RoomOutcome> {
   const room = extractRoomUri(params.input);
   if (!(await roomExists(room, gateway))) {

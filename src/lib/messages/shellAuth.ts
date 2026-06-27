@@ -253,8 +253,8 @@ export const shellAuth = {
     fr: "Télécharger le Praxishandbuch",
   },
   menuRemoveAll: {
-    en: "Remove all app data…",
-    de: "Alle App-Daten entfernen…",
+    en: "Delete all app data…",
+    de: "Alle App-Daten löschen…",
     fr: "Supprimer toutes les données…",
   },
   menuChangeAccount: {
@@ -264,8 +264,8 @@ export const shellAuth = {
   },
   menuLogout: { en: "Logout", de: "Abmelden", fr: "Déconnexion" },
   removingAllData: {
-    en: "Removing all app data…",
-    de: "Alle App-Daten werden entfernt…",
+    en: "Deleting all app data…",
+    de: "Alle App-Daten werden gelöscht…",
     fr: "Suppression de toutes les données…",
   },
   onboardAddExamples: { en: "Add examples", de: "Beispiele hinzufügen", fr: "Ajouter des exemples" },

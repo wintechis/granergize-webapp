@@ -1,14 +1,14 @@
 /// <reference lib="deno.ns" />
 import { type PodGateway, sessionGateway } from "../../../services/pod/podGateway.ts";
 //
-// Tier-1 proof that the RemoveAppData core is callable HEADLESS and that a CANCEL
+// Tier-1 proof that the DeleteAppData core is callable HEADLESS and that a CANCEL
 // is an OUTCOME, not a throw: with an already-aborted signal the recursive delete
 // rejects (`throwIfAborted`) and the core resolves `{aborted: true}` rather than
 // propagating. A clean run resolves `{aborted: false}`. Driven with a fake
 // offline-fixture Session — no React, no component tree.
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { removeAppDataCore } from "./RemoveAppData.ts";
+import { deleteAppDataCore } from "./DeleteAppData.ts";
 import { _setStorageRootForTesting } from "../../../services/pod/solidUtils.ts";
 
 const WEBID = "https://a.example/profile/card#me";
@@ -32,18 +32,18 @@ function pod(): PodGateway {
   return sessionGateway({ info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session);
 }
 
-Deno.test("removeAppDataCore (headless): cancelled run resolves {aborted: true}, not a throw", async () => {
+Deno.test("deleteAppDataCore (headless): cancelled run resolves {aborted: true}, not a throw", async () => {
   const session = pod();
   const controller = new AbortController();
   controller.abort(); // already aborted before the wipe starts
 
   // The whole point: a user cancel must NOT reject — it returns the outcome.
-  const outcome = await removeAppDataCore(session, { signal: controller.signal });
+  const outcome = await deleteAppDataCore(session, { signal: controller.signal });
 
   assert.deepEqual(outcome, { aborted: true });
 });
 
-Deno.test("removeAppDataCore (headless): clean run resolves {aborted: false}", async () => {
-  const outcome = await removeAppDataCore(pod(), {});
+Deno.test("deleteAppDataCore (headless): clean run resolves {aborted: false}", async () => {
+  const outcome = await deleteAppDataCore(pod(), {});
   assert.deepEqual(outcome, { aborted: false });
 });

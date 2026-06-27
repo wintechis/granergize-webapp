@@ -124,7 +124,7 @@ Deno.test("DeleteAggregation applies to any aggregation definition, not a buildi
 // ── Guards: developer-mode exposure ──────────────────────────────────────────
 
 Deno.test("developer-gated verbs apply only with devMode on (affordance guard)", () => {
-  for (const v of ["RemoveAppData", "ExportArchive", "CheckInbox"]) {
+  for (const v of ["DeleteAppData", "ExportArchive", "DrainInbox"]) {
     assert.ok(!applies(v, { kind: "Account" }, false), `${v} hidden without dev`);
     assert.ok(applies(v, { kind: "Account" }, true), `${v} shown with dev`);
   }
@@ -139,15 +139,15 @@ Deno.test("applicableIntents on an own building offers owner verbs, hides shared
   assert.ok(verbs.includes("UpdateBuilding"));
   assert.ok(verbs.includes("DeleteBuilding"));
   assert.ok(!verbs.includes("ToggleVisibility")); // shared-only
-  assert.ok(!verbs.includes("RemoveAppData")); // dev-only
+  assert.ok(!verbs.includes("DeleteAppData")); // dev-only
 });
 
 Deno.test("applicableIntents respects the developer-mode gate", () => {
   const acct: IntentObject = { kind: "Account" };
   const off = applicableIntents(acct, { devMode: false }).map((e) => e.name);
   const on = applicableIntents(acct, { devMode: true }).map((e) => e.name);
-  assert.ok(!off.includes("RemoveAppData"));
-  assert.ok(on.includes("RemoveAppData"));
+  assert.ok(!off.includes("DeleteAppData"));
+  assert.ok(on.includes("DeleteAppData"));
 });
 
 Deno.test("applicableIntents follows the catalog source order (aggregation snapshot set)", () => {

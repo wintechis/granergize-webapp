@@ -84,7 +84,7 @@ Deno.test("ShareAggregation applies only with a computed snapshot", () => {
 // ── applies(): developer-mode gate ───────────────────────────────────────────
 
 Deno.test("dev-only verbs apply only with devMode on", () => {
-  for (const v of ["ExportArchive", "RemoveAppData", "CheckInbox"]) {
+  for (const v of ["ExportArchive", "DeleteAppData", "DrainInbox"]) {
     assert.ok(!affordanceFor(v).applies({ kind: "Account" }, { devMode: false }));
     assert.ok(affordanceFor(v).applies({ kind: "Account" }, { devMode: true }));
   }

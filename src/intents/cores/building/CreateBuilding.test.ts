@@ -1,12 +1,12 @@
 /// <reference lib="deno.ns" />
 import { type PodGateway, sessionGateway } from "../../../services/pod/podGateway.ts";
 //
-// Tier-1 proof that the AddBuilding core is callable HEADLESS, driven with a fake
+// Tier-1 proof that the CreateBuilding core is callable HEADLESS, driven with a fake
 // offline-fixture Session. Asserts the boundary case the plan pins: a user abort
 // is an OUTCOME (`aborted: true` + the buildings already written), not an error.
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { addBuildingCore } from "./AddBuilding.ts";
+import { createBuildingCore } from "./CreateBuilding.ts";
 import { _setStorageRootForTesting } from "../../../services/pod/solidUtils.ts";
 
 const OWNER = "https://a.example/profile/card#me";
@@ -52,10 +52,10 @@ function ownerPod(
   };
 }
 
-Deno.test("addBuildingCore (headless): two buildings → both added, not aborted", async () => {
+Deno.test("createBuildingCore (headless): two buildings → both added, not aborted", async () => {
   const { session } = ownerPod();
 
-  const outcome = await addBuildingCore(session, {
+  const outcome = await createBuildingCore(session, {
     buildings: [{ label: "Lager A" }, { label: "Lager B" }],
   });
 
@@ -66,12 +66,12 @@ Deno.test("addBuildingCore (headless): two buildings → both added, not aborted
   }
 });
 
-Deno.test("addBuildingCore (headless): a pre-aborted signal → aborted outcome, nothing written", async () => {
+Deno.test("createBuildingCore (headless): a pre-aborted signal → aborted outcome, nothing written", async () => {
   const { session } = ownerPod();
   const controller = new AbortController();
   controller.abort();
 
-  const outcome = await addBuildingCore(session, {
+  const outcome = await createBuildingCore(session, {
     buildings: [{ label: "Lager A" }],
     signal: controller.signal,
   });
@@ -80,7 +80,7 @@ Deno.test("addBuildingCore (headless): a pre-aborted signal → aborted outcome,
   assert.deepEqual(outcome, { added: [], aborted: true });
 });
 
-Deno.test("addBuildingCore (headless): abort partway → tallies the buildings already written", async () => {
+Deno.test("createBuildingCore (headless): abort partway → tallies the buildings already written", async () => {
   const controller = new AbortController();
   // Abort once the FIRST building's file (the commit-point PUT under buildings/)
   // lands, so the loop throws on the SECOND building's top-of-loop
@@ -93,7 +93,7 @@ Deno.test("addBuildingCore (headless): abort partway → tallies the buildings a
     }
   });
 
-  const outcome = await addBuildingCore(session, {
+  const outcome = await createBuildingCore(session, {
     buildings: [{ label: "Lager A" }, { label: "Lager B" }],
     signal: controller.signal,
   });

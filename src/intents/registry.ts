@@ -19,7 +19,7 @@ import { sharedWithMeCore } from "./cores/sharing/SharedWithMe.ts";
 import { auditGrantsCore } from "./cores/sharing/AuditGrants.ts";
 import { checkObservationLinksCore } from "./cores/observation/CheckObservationLinks.ts";
 import { exportArchiveCore } from "./cores/appData/ExportArchive.ts";
-import { addBuildingCore } from "./cores/building/AddBuilding.ts";
+import { createBuildingCore } from "./cores/building/CreateBuilding.ts";
 import { updateBuildingCore } from "./cores/building/UpdateBuilding.ts";
 import { deleteBuildingCore } from "./cores/building/DeleteBuilding.ts";
 import { toggleVisibilityCore } from "./cores/building/ToggleVisibility.ts";
@@ -35,13 +35,13 @@ import { refreshAggregationCore } from "./cores/aggregation/RefreshAggregation.t
 import { revokeAggregationAccessCore } from "./cores/sharing/RevokeAggregationAccess.ts";
 import { shareAggregationCore } from "./cores/aggregation/ShareAggregation.ts";
 import { revokeBuildingAccessCore } from "./cores/sharing/RevokeBuildingAccess.ts";
-import { checkInboxCore } from "./cores/sharing/CheckInbox.ts";
+import { drainInboxCore } from "./cores/sharing/DrainInbox.ts";
 import { reissueGrantsCore } from "./cores/sharing/ReissueGrants.ts";
 import { createRoomCore } from "./cores/room/CreateRoom.ts";
 import { enterRoomCore } from "./cores/room/EnterRoom.ts";
 import { exitRoomCore } from "./cores/room/ExitRoom.ts";
 import { deleteRoomCore } from "./cores/room/DeleteRoom.ts";
-import { addRoomCore } from "./cores/room/AddRoom.ts";
+import { addBookmarkCore } from "./cores/room/AddBookmark.ts";
 import { removeBookmarkCore } from "./cores/room/RemoveBookmark.ts";
 import { saveRolesCore } from "./cores/room/SaveRoles.ts";
 import { seedDemoRoomsCore } from "./cores/room/SeedDemoRooms.ts";
@@ -50,7 +50,7 @@ import { removeAgentCore } from "./cores/agent/RemoveAgent.ts";
 import { seedDemoAgentsCore } from "./cores/agent/SeedDemoAgents.ts";
 import { saveOrganisationCore } from "./cores/organisation/SaveOrganisation.ts";
 import { seedDemoBuildingsCore } from "./cores/building/SeedDemoBuildings.ts";
-import { removeAppDataCore } from "./cores/appData/RemoveAppData.ts";
+import { deleteAppDataCore } from "./cores/appData/DeleteAppData.ts";
 import { restoreArchiveCore } from "./cores/appData/RestoreArchive.ts";
 
 /**
@@ -59,7 +59,7 @@ import { restoreArchiveCore } from "./cores/appData/RestoreArchive.ts";
  * returns an OUTCOME (settled / a small tally), never a value.
  */
 export const WRITE_CORES = {
-  AddBuilding: addBuildingCore,
+  CreateBuilding: createBuildingCore,
   UpdateBuilding: updateBuildingCore,
   DeleteBuilding: deleteBuildingCore,
   ToggleVisibility: toggleVisibilityCore,
@@ -78,9 +78,9 @@ export const WRITE_CORES = {
   RevokeBuildingAccess: revokeBuildingAccessCore,
   // Paramless: the inbox drain / ACL rebuild are collection-wide. The `(s, _p)`
   // wrapper keeps every core's `(gateway, params)` arity uniform (see AuditGrants).
-  CheckInbox: (s: PodGateway, p: Record<never, never>) => {
+  DrainInbox: (s: PodGateway, p: Record<never, never>) => {
     void p;
-    return checkInboxCore(s);
+    return drainInboxCore(s);
   },
   ReissueGrants: (s: PodGateway, p: Record<never, never>) => {
     void p;
@@ -95,7 +95,7 @@ export const WRITE_CORES = {
   EnterRoom: enterRoomCore,
   ExitRoom: exitRoomCore,
   DeleteRoom: deleteRoomCore,
-  AddRoom: addRoomCore,
+  AddBookmark: addBookmarkCore,
   RemoveBookmark: removeBookmarkCore,
   SaveRoles: saveRolesCore,
   SeedDemoRooms: (s: PodGateway, p: Record<never, never>) => {
@@ -116,7 +116,7 @@ export const WRITE_CORES = {
     void p;
     return seedDemoBuildingsCore(s);
   },
-  RemoveAppData: removeAppDataCore,
+  DeleteAppData: deleteAppDataCore,
   RestoreArchive: restoreArchiveCore,
 } as const;
 

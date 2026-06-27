@@ -14,7 +14,7 @@ import { T } from "../helpers/timeouts.ts";
  * bespoke "Add Building" button. Two palette-native steps:
  *
  *   1. In the shell, ⌘K → "Add building" → the palette routes to
- *      `/buildings?action=add`, which auto-opens the AddBuilding dialog; fill +
+ *      `/buildings?action=add`, which auto-opens the CreateBuilding dialog; fill +
  *      submit the generic building form.
  *   2. On the new building's observation page, the palette's "Enter energy…" rich
  *      verb routes to `/observation?...&action=enter-energy`, which auto-opens the

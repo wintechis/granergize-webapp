@@ -4,7 +4,7 @@
  * React-free `invoke()` callable layer (`src/intents/registry.ts`) — NOT the raw
  * share service — and assert that **B actually sees the share** on the Pod (drain
  * B's inbox, then read B's shared-in fold), plus the WAC truth (B can fetch the
- * resource). Setup goes through `invoke("AddBuilding")` so the whole path — create
+ * resource). Setup goes through `invoke("CreateBuilding")` so the whole path — create
  * AND share — runs without React. This is the Step-5 merge gate for the sharing
  * cores. The adapters' React-Query cache patch is browser-only and out of scope.
  */
@@ -33,7 +33,7 @@ export async function run(ctx: TaskContext): Promise<void> {
   try {
     // ── Setup: A adds a building via the intent layer (create runs headless) ──
     const addOutcome = await invoke(
-      "AddBuilding",
+      "CreateBuilding",
       {
         buildings: [
           {
@@ -46,7 +46,7 @@ export async function run(ctx: TaskContext): Promise<void> {
       },
       a.session,
     );
-    check("invoke(AddBuilding) wrote one building", addOutcome.added.length === 1);
+    check("invoke(CreateBuilding) wrote one building", addOutcome.added.length === 1);
     buildingUri = addOutcome.added[0];
 
     // ── ShareBuilding A→B via the intent layer ───────────────────────────────

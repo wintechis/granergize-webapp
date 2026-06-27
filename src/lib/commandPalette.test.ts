@@ -66,7 +66,7 @@ Deno.test("intentRoutesToDialog: rich (surface + params) routes; param-less / no
 // ── intentDialogAction: rich verbs map to an auto-open token, others to null ──
 
 Deno.test("intentDialogAction maps each wired rich verb to its surface token", () => {
-  assert.equal(intentDialogAction(findIntent("AddBuilding")!), "add");
+  assert.equal(intentDialogAction(findIntent("CreateBuilding")!), "add");
   assert.equal(intentDialogAction(findIntent("UpdateBuilding")!), "edit");
   assert.equal(intentDialogAction(findIntent("ShareBuilding")!), "share");
   assert.equal(
@@ -240,8 +240,8 @@ Deno.test("form-eligible verbs surface globally (no focus) and are marked routes
       "RemoveAgent",
       "EnterRoom",
       "DeleteAggregation",
-      // AddRoom's `input` is a genuine XSD_STRING text field → form-eligible.
-      "AddRoom",
+      // AddBookmark's `input` is a genuine XSD_STRING text field → form-eligible.
+      "AddBookmark",
     ]
   ) {
     const c = byName.get(name);
@@ -284,15 +284,15 @@ Deno.test("developer-only form-eligible verbs stay hidden outside dev mode", () 
 
 // ── direct-invoke: param-less write verbs fire straight from the palette ─────
 
-Deno.test("isDirectInvokeEligible: param-less writes qualify; reads / RemoveAppData / param-ful do not", () => {
+Deno.test("isDirectInvokeEligible: param-less writes qualify; reads / DeleteAppData / param-ful do not", () => {
   // The dev seeders + inbox-drain + ACL rebuild are param-less writes → qualify
   // (exposure-gating is applied separately by buildCommandList).
-  for (const n of ["SeedDemoBuildings", "SeedDemoAgents", "SeedDemoRooms", "CheckInbox", "ReissueGrants"]) {
+  for (const n of ["SeedDemoBuildings", "SeedDemoAgents", "SeedDemoRooms", "DrainInbox", "ReissueGrants"]) {
     assert.equal(isDirectInvokeEligible(findIntent(n)!), true, `${n} qualifies`);
   }
-  // RemoveAppData is a param-less write but explicitly excluded (destructive).
-  assert.ok(DIRECT_INVOKE_EXCLUDED.has("RemoveAppData"));
-  assert.equal(isDirectInvokeEligible(findIntent("RemoveAppData")!), false);
+  // DeleteAppData is a param-less write but explicitly excluded (destructive).
+  assert.ok(DIRECT_INVOKE_EXCLUDED.has("DeleteAppData"));
+  assert.equal(isDirectInvokeEligible(findIntent("DeleteAppData")!), false);
   // Param-less READS return a value needing handling → out of scope.
   assert.equal(isDirectInvokeEligible(findIntent("ExportArchive")!), false);
   assert.equal(isDirectInvokeEligible(findIntent("AuditGrants")!), false);
@@ -320,8 +320,8 @@ Deno.test("CreateRoom surfaces as a form command (standard exposure, no focus)",
   assert.equal(room!.label, "t:roomHostBtn");
 });
 
-Deno.test("dev direct-invoke verbs surface only in dev mode; RemoveAppData / reads never", () => {
-  const dev = ["SeedDemoBuildings", "SeedDemoAgents", "SeedDemoRooms", "CheckInbox", "ReissueGrants"];
+Deno.test("dev direct-invoke verbs surface only in dev mode; DeleteAppData / reads never", () => {
+  const dev = ["SeedDemoBuildings", "SeedDemoAgents", "SeedDemoRooms", "DrainInbox", "ReissueGrants"];
 
   const off = buildCommandList({
     object: undefined,
@@ -350,7 +350,7 @@ Deno.test("dev direct-invoke verbs surface only in dev mode; RemoveAppData / rea
   // Excluded / out-of-scope verbs never surface, in either mode.
   for (const cmds of [off, on]) {
     const names = new Set(cmds.map((c) => c.entry?.name));
-    assert.ok(!names.has("RemoveAppData"), "RemoveAppData never one-click");
+    assert.ok(!names.has("DeleteAppData"), "DeleteAppData never one-click");
     assert.ok(!names.has("ExportArchive"), "ExportArchive (read) not surfaced");
     assert.ok(!names.has("AuditGrants"), "AuditGrants (read) not surfaced");
   }

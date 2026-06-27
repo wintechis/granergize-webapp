@@ -96,7 +96,7 @@ export interface PaletteCommand {
    * Intent only: is this a **param-less write verb** the palette fires straight
    * away ({@link isDirectInvokeEligible}) — no form, no dialog, no focused object?
    * `true` for the global collection-wide verbs (`CreateRoom`, the dev seeders,
-   * `CheckInbox`, `ReissueGrants`); the component `invoke`s it with `{}` on select.
+   * `DrainInbox`, `ReissueGrants`); the component `invoke`s it with `{}` on select.
    */
   routesToDirect?: boolean;
 }
@@ -115,7 +115,7 @@ export interface PaletteCommand {
  */
 export function intentDialogAction(entry: IntentEntry): DialogAction | null {
   switch (entry.name) {
-    case "AddBuilding":
+    case "CreateBuilding":
       return "add";
     case "UpdateBuilding":
       return "edit";
@@ -140,7 +140,7 @@ export function intentDialogAction(entry: IntentEntry): DialogAction | null {
  * Delete confirms, reached on the destination page).
  */
 const DIALOG_SURFACE = new Set<string>([
-  "AddBuilding",
+  "CreateBuilding",
   "UpdateBuilding",
   "ShareBuilding",
   "SaveObservation",
@@ -155,7 +155,7 @@ const DIALOG_SURFACE = new Set<string>([
  * for the dialog-routing decision: it counts only the params the user supplies,
  * NOT the runtime-only handles (`signal`/`onProgress`/`onUploaded`) the schema
  * deliberately omits — so a verb whose sole "param" is such a handle (e.g.
- * `RemoveAppData`'s `signal`) is correctly param-less and is fired directly.
+ * `DeleteAppData`'s `signal`) is correctly param-less and is fired directly.
  */
 function hasModelledParams(name: string): boolean {
   const schema = (INTENT_PARAMS as Record<string, object>)[name];
@@ -164,11 +164,11 @@ function hasModelledParams(name: string): boolean {
 
 /**
  * Param-less write verbs the palette must NOT fire as a one-click direct invoke,
- * even though they qualify by shape. {@link RemoveAppData} is destructive and
+ * even though they qualify by shape. {@link DeleteAppData} is destructive and
  * owns a bespoke confirm — it is not a ⌘K one-shot.
  */
 export const DIRECT_INVOKE_EXCLUDED: ReadonlySet<string> = new Set<string>([
-  "RemoveAppData",
+  "DeleteAppData",
 ]);
 
 /**
@@ -179,7 +179,7 @@ export const DIRECT_INVOKE_EXCLUDED: ReadonlySet<string> = new Set<string>([
  * by the `write`-effect requirement. A pure predicate over the catalog entry.
  *
  * The set this yields: `CreateRoom` (standard), and — developer-gated —
- * `SeedDemoBuildings`, `SeedDemoAgents`, `SeedDemoRooms`, `CheckInbox`,
+ * `SeedDemoBuildings`, `SeedDemoAgents`, `SeedDemoRooms`, `DrainInbox`,
  * `ReissueGrants`.
  */
 export function isDirectInvokeEligible(entry: IntentEntry): boolean {

@@ -1,4 +1,4 @@
-// Intent core (React-free) for AddBuilding (the hook is `useUploadBuildings`).
+// Intent core (React-free) for CreateBuilding (the hook is `useUploadBuildings`).
 // See ./README.md for the core/adapter split and the write→outcome convention.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import {
@@ -22,8 +22,8 @@ const AGENT_FIELDS = [
   "consultedBy",
 ] as const;
 
-/** Parameters of the AddBuilding intent. */
-export interface AddBuildingParams {
+/** Parameters of the CreateBuilding intent. */
+export interface CreateBuildingParams {
   /** One field map per building to create. */
   buildings: Array<Record<string, string>>;
   /** Optional 15-min Lastgang readings, grouped into a per-day series dataset. */
@@ -34,8 +34,8 @@ export interface AddBuildingParams {
   onProgress?: (done: number, total: number) => void;
 }
 
-/** AddBuilding outcome: the subject IRIs added, plus whether the user aborted. */
-export interface AddBuildingOutcome extends Aborted {
+/** CreateBuilding outcome: the subject IRIs added, plus whether the user aborted. */
+export interface CreateBuildingOutcome extends Aborted {
   /** The subject IRIs of the buildings written before completion/abort. */
   added: string[];
 }
@@ -49,10 +49,10 @@ export interface AddBuildingOutcome extends Aborted {
  * already written; a real failure throws. The adapter owns the building-data
  * invalidation + the saved-agents cache priming.
  */
-export async function addBuildingCore(
+export async function createBuildingCore(
   gateway: PodGateway,
-  params: AddBuildingParams,
-): Promise<AddBuildingOutcome> {
+  params: CreateBuildingParams,
+): Promise<CreateBuildingOutcome> {
   const webId = gateway.webId;
   if (!webId) throw new Error("Not authenticated");
   // Provenance records only WHO produced the building (the logged-in agent).

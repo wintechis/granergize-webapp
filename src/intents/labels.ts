@@ -13,7 +13,7 @@
  * label reads is an affordance concern, not part of the action's identity.
  */
 export const INTENT_LABEL_KEY = {
-  AddBuilding: "intentAddBuilding",
+  CreateBuilding: "intentCreateBuilding",
   UpdateBuilding: "intentUpdateBuilding",
   CreateAggregation: "intentCreateAggregation",
   DeleteBuilding: "intentDeleteBuilding",
@@ -32,7 +32,7 @@ export const INTENT_LABEL_KEY = {
   EnterRoom: "intentEnterRoom",
   ExitRoom: "intentExitRoom",
   DeleteRoom: "intentDeleteRoom",
-  AddRoom: "intentAddRoom",
+  AddBookmark: "intentAddBookmark",
   RemoveBookmark: "intentRemoveBookmark",
   // Paramless write verbs the palette fires directly (no form, no dialog). Each
   // reuses the verb's existing user-facing wording: CreateRoom → the Rooms-finder
@@ -42,7 +42,7 @@ export const INTENT_LABEL_KEY = {
   SeedDemoBuildings: "menuAddBuildings",
   SeedDemoAgents: "intentSeedDemoAgents",
   SeedDemoRooms: "intentSeedDemoRooms",
-  CheckInbox: "shareCheckForNew",
+  DrainInbox: "shareCheckForNew",
   ReissueGrants: "menuRebuildSharing",
 } as const satisfies Record<string, string>;
 

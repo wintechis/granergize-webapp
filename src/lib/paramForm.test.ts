@@ -23,7 +23,7 @@ const V1_FORM_ELIGIBLE = [
   "ExitRoom",
   "DeleteRoom",
   "RemoveBookmark",
-  "AddRoom",
+  "AddBookmark",
 ].sort();
 
 Deno.test("isFormEligible yields exactly the v1 form-eligible verb set", () => {
@@ -41,7 +41,7 @@ Deno.test("each v1 verb is individually form-eligible", () => {
 Deno.test("opaque / rich-dialog verbs are excluded", () => {
   for (
     const name of [
-      "AddBuilding",
+      "CreateBuilding",
       "UpdateBuilding",
       "SaveObservation",
       "CreateAggregation",
@@ -66,21 +66,21 @@ Deno.test("SaveRoles is excluded (roles is a controlled vocab → needs a select
   assert.equal(isFormEligible("SaveRoles"), false);
 });
 
-Deno.test("AddRoom is form-eligible (its XSD_STRING input is a genuine text field)", () => {
-  assert.ok(isFormEligible("AddRoom"));
+Deno.test("AddBookmark is form-eligible (its XSD_STRING input is a genuine text field)", () => {
+  assert.ok(isFormEligible("AddBookmark"));
 });
 
 Deno.test("CreateRoom is form-eligible (its optional name is a genuine text field)", () => {
   assert.ok(isFormEligible("CreateRoom"));
 });
 
-Deno.test("fieldKindFor resolves AddRoom.input (XSD_STRING) to a text field", () => {
-  const d = fieldKindFor("AddRoom", "input", INTENT_PARAMS.AddRoom.input);
+Deno.test("fieldKindFor resolves AddBookmark.input (XSD_STRING) to a text field", () => {
+  const d = fieldKindFor("AddBookmark", "input", INTENT_PARAMS.AddBookmark.input);
   assert.deepEqual(d, { kind: "text", multi: false, required: true });
 });
 
 Deno.test("param-less verbs are not form-eligible (nothing to capture)", () => {
-  for (const name of ["CheckInbox", "ReissueGrants", "ExportArchive"]) {
+  for (const name of ["DrainInbox", "ReissueGrants", "ExportArchive"]) {
     assert.equal(isFormEligible(name), false, `${name} has no params`);
   }
 });

@@ -1,13 +1,13 @@
 /// <reference lib="deno.ns" />
 import { type PodGateway, sessionGateway } from "../../../services/pod/podGateway.ts";
 //
-// Tier-1 proof that the AddRoom core is callable HEADLESS, and — the rooms
+// Tier-1 proof that the AddBookmark core is callable HEADLESS, and — the rooms
 // silent-break-mode guard — that it returns EXACTLY `{ room }` (the normalized
 // container URI) the adapter's `patchRooms(qc, reg => …)` `onSuccess({ room })`
 // patch consumes. The `roomExists` existence throw stays IN the core.
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { addRoomCore } from "./AddRoom.ts";
+import { addBookmarkCore } from "./AddBookmark.ts";
 import { resetActiveRoom } from "../../../services/interop/dataRoom.ts";
 import { _setStorageRootForTesting } from "../../../services/pod/solidUtils.ts";
 
@@ -52,10 +52,10 @@ function roomPod(opts: { exists: boolean }): {
   return { session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session), calls };
 }
 
-Deno.test("addRoomCore (headless): existing room → returns { room } = the normalized container URI", async () => {
+Deno.test("addBookmarkCore (headless): existing room → returns { room } = the normalized container URI", async () => {
   const { session, calls } = roomPod({ exists: true });
 
-  const outcome = await addRoomCore(session, { input: ROOM });
+  const outcome = await addBookmarkCore(session, { input: ROOM });
 
   // EXACT shape the adapter's onSuccess({ room }) patch consumes.
   assert.deepEqual(outcome, { room: ROOM });
@@ -63,11 +63,11 @@ Deno.test("addRoomCore (headless): existing room → returns { room } = the norm
   assert.ok(calls.some((c) => c.method === "PUT"), "bookmarks.ttl written");
 });
 
-Deno.test("addRoomCore (headless): roomExists false → the core throws (no patch reaches the adapter)", async () => {
+Deno.test("addBookmarkCore (headless): roomExists false → the core throws (no patch reaches the adapter)", async () => {
   const { session, calls } = roomPod({ exists: false });
 
   await assert.rejects(
-    () => addRoomCore(session, { input: MISSING }),
+    () => addBookmarkCore(session, { input: MISSING }),
     /not reachable/i,
   );
   // No bookmark write happened — the throw precedes addKnownRoom.

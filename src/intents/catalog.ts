@@ -56,6 +56,29 @@ export interface IntentEntry {
 }
 
 /**
+ * The intent **verb lexicon** — `name` is `Verb` + `Object`, and each verb has a
+ * fixed meaning, so a reader infers an intent's effect from its name alone:
+ *
+ * - **Create** — mint a brand-new resource (`CreateBuilding`, `CreateAggregation`,
+ *   `CreateRoom`).
+ * - **Add** — bring an *existing* thing into a collection, minting no resource
+ *   (`AddBookmark` = bookmark an existing room).
+ * - **Delete** — destroy an owned resource (`DeleteBuilding`, `DeleteAppData`).
+ * - **Remove** — unlink a *reference*; the referent survives (`RemoveAgent` drops
+ *   an address-book entry, `RemoveBookmark` drops a room bookmark).
+ * - **Save** — upsert a whole resource (`SaveObservation`, `SaveAgent`); **Update**
+ *   — partial edit of an existing one (`UpdateBuilding`); **Set** — one attribute
+ *   (`SetEnergyCertificate`).
+ * - **Get** — read one resource; **Find** — read a collection.
+ * - **Share** / **Revoke** — grant / withdraw access. **Seed** — demo fixtures.
+ * - A read verb never mutates (e.g. `DrainInbox` is a *write* — `Check`/`Audit`
+ *   reads like `CheckObservationLinks`/`AuditGrants` only ever read).
+ *
+ * The UI label (`labels.ts`) may be a friendlier *synonym* (e.g. "Check for new
+ * shares" for `DrainInbox`, "Edit" for `UpdateBuilding`) as long as it doesn't
+ * imply a *different* operation. The `hook` field names a React hook, a separate
+ * layer whose name need not match the intent (`useUploadBuildings` ↔ `CreateBuilding`).
+ *
  * The exhaustive catalog — one entry per user-intent hook exported from
  * `src/hooks/mutations.ts`. The {@link catalog.drift.test.ts} drift guard keeps
  * this in lockstep with `mutations.ts`: every `hook` must exist there, and where
@@ -70,8 +93,8 @@ export interface IntentEntry {
 export const INTENTS: readonly IntentEntry[] = [
   // ── Buildings ──────────────────────────────────────────────────────────────
   {
-    name: "AddBuilding",
-    action: "actionAddBuilding",
+    name: "CreateBuilding",
+    action: "actionCreateBuilding",
     effect: "write",
     entity: "building",
     hook: "useUploadBuildings",
@@ -245,7 +268,7 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useRevokeBuildingAccess",
   },
   {
-    name: "CheckInbox",
+    name: "DrainInbox",
     action: "", // hook declares no meta.action
     effect: "write",
     entity: "sharing",
@@ -337,7 +360,7 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useDeleteRoom",
   },
   {
-    name: "AddRoom",
+    name: "AddBookmark",
     action: "", // hook declares no meta.action
     effect: "write",
     entity: "room",
@@ -375,8 +398,8 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useSeedDemoBuildings",
   },
   {
-    name: "RemoveAppData",
-    action: "actionRemoveAppData",
+    name: "DeleteAppData",
+    action: "actionDeleteAppData",
     effect: "write",
     entity: "appData",
     exposure: "developer",

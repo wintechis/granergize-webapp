@@ -74,8 +74,8 @@ export const buildingForms = {
     fr: "Restaurer l'archive",
   },
   dlgRemoveAppData: {
-    en: "Remove all app data",
-    de: "Alle App-Daten entfernen",
+    en: "Delete all app data",
+    de: "Alle App-Daten löschen",
     fr: "Supprimer toutes les données de l'application",
   },
   // Building Add/Edit form field labels (the hardcoded ones; vocab-derived field

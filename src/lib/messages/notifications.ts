@@ -218,8 +218,8 @@ export const notifications = {
     fr: "Bâtiments et données énergétiques de démonstration ajoutés",
   },
   allDataRemoved: {
-    en: "All app data removed",
-    de: "Alle App-Daten entfernt",
+    en: "All app data deleted",
+    de: "Alle App-Daten gelöscht",
     fr: "Toutes les données de l'application supprimées",
   },
   inboxSetUp: {
@@ -284,10 +284,10 @@ export const notifications = {
     de: "Fehler beim {action}: {detail}",
     fr: "Échec de {action} : {detail}",
   },
-  actionAddBuilding: {
-    en: "add the building",
-    de: "Hinzufügen des Gebäudes",
-    fr: "l'ajout du bâtiment",
+  actionCreateBuilding: {
+    en: "create the building",
+    de: "Erstellen des Gebäudes",
+    fr: "la création du bâtiment",
   },
   actionUpdateBuilding: {
     en: "update the building",
@@ -359,9 +359,9 @@ export const notifications = {
     de: "Hinzufügen der Beispielgebäude und Energiedaten",
     fr: "l'ajout des bâtiments et données énergétiques de démonstration",
   },
-  actionRemoveAppData: {
-    en: "remove app data",
-    de: "Entfernen der App-Daten",
+  actionDeleteAppData: {
+    en: "delete app data",
+    de: "Löschen der App-Daten",
     fr: "la suppression des données de l'application",
   },
   actionRestoreArchive: {
@@ -450,10 +450,10 @@ export const notifications = {
   // Per-object action-menu verb labels (the intent-registry-driven row/section
   // actions — plan-palette §3). One id per registry descriptor whose verb is
   // surfaced as an action control; the registry maps `descriptor.name` → these.
-  intentAddBuilding: {
-    en: "Add building…",
-    de: "Gebäude hinzufügen…",
-    fr: "Ajouter un bâtiment…",
+  intentCreateBuilding: {
+    en: "Create building…",
+    de: "Gebäude erstellen…",
+    fr: "Créer un bâtiment…",
   },
   intentUpdateBuilding: {
     en: "Edit building…",
@@ -543,10 +543,10 @@ export const notifications = {
     de: "Datenzimmer-Lesezeichen entfernen…",
     fr: "Retirer le marque-page de la salle de données…",
   },
-  intentAddRoom: {
-    en: "Add a data room…",
-    de: "Datenzimmer hinzufügen…",
-    fr: "Ajouter une salle de données…",
+  intentAddBookmark: {
+    en: "Bookmark data room…",
+    de: "Datenzimmer-Lesezeichen hinzufügen…",
+    fr: "Ajouter un marque-page de salle de données…",
   },
   // Palette labels for the dev demo seeders surfaced as direct-invoke verbs (the
   // account-menu groups agents+rooms under one item; the palette surfaces each

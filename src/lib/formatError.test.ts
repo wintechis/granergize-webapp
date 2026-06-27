@@ -9,8 +9,8 @@ import { formatError } from "./formatError.ts";
 
 Deno.test("formatError: en template with the action phrase + Error message", () => {
   assert.equal(
-    formatError("actionAddBuilding", new Error("boom")),
-    "Failed to add the building: boom",
+    formatError("actionCreateBuilding", new Error("boom")),
+    "Failed to create the building: boom",
   );
 });
 

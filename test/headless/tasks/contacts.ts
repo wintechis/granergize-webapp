@@ -11,7 +11,7 @@
  *      a race. The agent WebID is an unresolvable `.example` IRI, so the label stays
  *      the WebID fragment (the background profile upgrade can't refine it) — exactly
  *      the e2e's fallback path.
- *   2. The `AddBuilding` intent WIRING — a building saved with an `operatedBy` WebID
+ *   2. The `CreateBuilding` intent WIRING — a building saved with an `operatedBy` WebID
  *      fires `rememberAgent` (un-awaited, `void`), so we poll the book briefly. No
  *      browser, no Cloudflare, local Pod → the immediate write lands in ms.
  *
@@ -56,9 +56,9 @@ export async function run(ctx: TaskContext): Promise<void> {
       `name=${direct?.name} expected=${webIdFragment(OP_DIRECT)}`,
     );
 
-    // ── 2. AddBuilding intent wiring — saving operatedBy auto-remembers it ────
+    // ── 2. CreateBuilding intent wiring — saving operatedBy auto-remembers it ────
     const addOutcome = await invoke(
-      "AddBuilding",
+      "CreateBuilding",
       {
         buildings: [
           {
@@ -73,7 +73,7 @@ export async function run(ctx: TaskContext): Promise<void> {
       a.session,
     );
     buildingUri = addOutcome.added[0] ?? "";
-    check("invoke(AddBuilding) wrote one building", addOutcome.added.length === 1);
+    check("invoke(CreateBuilding) wrote one building", addOutcome.added.length === 1);
 
     // The intent fires `void rememberAgent` — poll the book until it lands (ms on a
     // local Pod; a bounded loop keeps it deterministic without assuming ordering).

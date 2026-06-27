@@ -19,7 +19,7 @@
  * schema {@link INTENT_PARAMS} (`params.ts`), bound to the core signature by the
  * compile-time `_paramKeysMatch` witness. The palette's dialog-routing keys off
  * those modelled params (`hasModelledParams` in `commandPalette.ts`), so a verb
- * whose only "param" is a runtime handle (e.g. `RemoveAppData`'s `signal`) is
+ * whose only "param" is a runtime handle (e.g. `DeleteAppData`'s `signal`) is
  * correctly param-less from the user's view.
  *
  * Keyed by the intent's stable `name` (the `IntentEntry.name`); a verb with no
@@ -123,7 +123,7 @@ const never: AppliesGuard = () => false;
  */
 export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   // ── Buildings ──────────────────────────────────────────────────────────────
-  AddBuilding: { applies: always },
+  CreateBuilding: { applies: always },
   UpdateBuilding: {
     // Editing master data is owner-only (`!building.isShared`, MasterDataSection).
     applies: isOwnBuilding,
@@ -174,7 +174,7 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
     // Revoking is owner-only (you can only revoke a grant you made).
     applies: isOwnBuilding,
   },
-  CheckInbox: { applies: devOnly },
+  DrainInbox: { applies: devOnly },
   ReissueGrants: { applies: devOnly },
   AuditGrants: { applies: devOnly },
   // ── Rooms ────────────────────────────────────────────────────────────────────
@@ -184,7 +184,7 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   EnterRoom: { applies: never },
   ExitRoom: { applies: never },
   DeleteRoom: { applies: never },
-  AddRoom: { applies: never },
+  AddBookmark: { applies: never },
   RemoveBookmark: { applies: never },
   SaveRoles: { applies: never },
   SeedDemoRooms: { applies: devOnly },
@@ -196,7 +196,7 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   SeedDemoAgents: { applies: devOnly },
   // ── Account-scope ────────────────────────────────────────────────────────────
   SeedDemoBuildings: { applies: always },
-  RemoveAppData: { applies: devOnly },
+  DeleteAppData: { applies: devOnly },
   RestoreArchive: { applies: devOnly },
   ExportArchive: { applies: devOnly },
 };

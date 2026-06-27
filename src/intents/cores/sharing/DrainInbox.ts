@@ -1,4 +1,4 @@
-// Intent core (React-free) for CheckInbox (the hook is `useCheckInbox`). See
+// Intent core (React-free) for DrainInbox (the hook is `useCheckInbox`). See
 // ./README.md for the core/adapter split and the write→outcome convention.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import { drainInbox } from "../../../services/interop/inbox.ts";
@@ -11,7 +11,7 @@ import type { Settled } from "../../outcomes.ts";
  * reports no counts, so the outcome is a plain {@link Settled}. The adapter owns
  * the shared-in / received-benchmarks / buildings invalidations.
  */
-export async function checkInboxCore(gateway: PodGateway): Promise<Settled> {
+export async function drainInboxCore(gateway: PodGateway): Promise<Settled> {
   await drainInbox(gateway);
   return { ok: true };
 }

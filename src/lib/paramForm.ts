@@ -75,7 +75,7 @@ export interface FieldDescriptor {
 export const FORM_EXCLUDED: ReadonlySet<string> = new Set<string>([
   // Opaque / rich-dialog verbs (their lone XSD_STRING is a File/Record/object
   // stand-in, or the verb owns a bespoke dialog).
-  "AddBuilding",
+  "CreateBuilding",
   "UpdateBuilding",
   "DeleteBuilding",
   "SaveObservation",
@@ -117,7 +117,7 @@ const PICKER_IRI_RANGES: ReadonlySet<string> = new Set<string>([
  * `XSD_STRING` is a genuine free-text field: within a non-{@link FORM_EXCLUDED}
  * verb the truly-opaque `File`/`Record`/object stand-ins (and the controlled-vocab
  * text verbs) are already removed, so any remaining `XSD_STRING` param is a real
- * text value (e.g. `AddRoom.input`, an invite link or room URI). `resolveKind`
+ * text value (e.g. `AddBookmark.input`, an invite link or room URI). `resolveKind`
  * maps it to a `"text"` field.
  */
 const VALUE_LITERAL_RANGES: ReadonlySet<string> = new Set<string>([
@@ -152,7 +152,7 @@ function isRenderableParam(paramName: string, spec: ParamSpec): boolean {
  * `RevokeBuildingAccess`, `RevokeAggregationAccess`, `ToggleVisibility`,
  * `RemoveAgent`, `DeleteAggregation`, `RefreshAggregation`, `CreateRoom` (its
  * optional `name`), `EnterRoom`, `ExitRoom`, `DeleteRoom`, `RemoveBookmark`, and
- * `AddRoom` (its `input` is a genuine free-text invite-link / room-URI field).
+ * `AddBookmark` (its `input` is a genuine free-text invite-link / room-URI field).
  */
 export function isFormEligible(name: string): boolean {
   if (FORM_EXCLUDED.has(name)) return false;

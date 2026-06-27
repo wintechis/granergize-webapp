@@ -113,7 +113,7 @@ export function useDeleteBuilding() {
 export function useCheckInbox() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => invoke("CheckInbox", {}, getGateway()),
+    mutationFn: () => invoke("DrainInbox", {}, getGateway()),
     onSettled: () => {
       // One log query feeds every "shared with me" reader (the lists derive
       // in memory), so the drain refolds shared-in/ once. receivedBenchmarks
@@ -209,14 +209,14 @@ export function useRevokeAggregationAccess() {
 export function useUploadBuildings() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "actionAddBuilding" },
+    meta: { action: "actionCreateBuilding" },
     mutationFn: (vars: {
       buildings: Array<Record<string, string>>;
       lastgangReadings: LastgangReading[] | null;
       signal: AbortSignal;
       onProgress: (done: number, total: number) => void;
     }) =>
-      invoke("AddBuilding", {
+      invoke("CreateBuilding", {
         buildings: vars.buildings,
         lastgangReadings: vars.lastgangReadings,
         signal: vars.signal,
@@ -570,7 +570,7 @@ export function useDeleteRoom() {
 export function useAddRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: string) => invoke("AddRoom", { input }, getGateway()),
+    mutationFn: (input: string) => invoke("AddBookmark", { input }, getGateway()),
     onSuccess: ({ room }) =>
       patchRooms(qc, (reg) => ({ ...reg, known: withRoom(reg.known, room) })),
   });
@@ -629,7 +629,7 @@ export function useSeedDemoBuildings() {
 }
 
 /**
- * Remove the entire app collection from the Pod (see the RemoveAppData core).
+ * Remove the entire app collection from the Pod (see the DeleteAppData core).
  * Long-running and cancellable: the abort signal travels in the variables and
  * a cancel resolves as an OUTCOME (`{aborted: true}`), never an error — the
  * `useUploadBuildings` pattern. The caller owns the confirmation (with its
@@ -640,9 +640,9 @@ export function useSeedDemoBuildings() {
 export function useRemoveAppData() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "actionRemoveAppData" },
+    meta: { action: "actionDeleteAppData" },
     mutationFn: (vars: { signal: AbortSignal }) =>
-      invoke("RemoveAppData", vars, getGateway()),
+      invoke("DeleteAppData", vars, getGateway()),
     // The "entire-cache" invalidation: success leaves an empty Pod, an abort
     // or failure an unknown partially-deleted subset — in every case nothing
     // cached can be trusted, so reset rather than enumerate key families.

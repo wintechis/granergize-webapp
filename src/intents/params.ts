@@ -55,7 +55,7 @@ export type ParamSchema = Readonly<Record<string, ParamSpec>>;
  */
 export const INTENT_PARAMS = {
   // ── Buildings ──────────────────────────────────────────────────────────────
-  AddBuilding: {
+  CreateBuilding: {
     // Opaque field-map array + readings: not IRIs to resolve, placeholder-modelled.
     buildings: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
     lastgangReadings: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
@@ -124,7 +124,7 @@ export const INTENT_PARAMS = {
     webId: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "one" },
   },
   // Paramless (collection-wide): the inbox drain / ACL rebuild take no params.
-  CheckInbox: {},
+  DrainInbox: {},
   ReissueGrants: {},
   // ── Observations ─────────────────────────────────────────────────────────────
   SaveObservation: {
@@ -177,7 +177,7 @@ export const INTENT_PARAMS = {
     webId: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "one" },
   },
   // ── Rooms ──────────────────────────────────────────────────────────────────
-  // `roomUri`/`room` are room-container IRIs (resolvable). `input` (AddRoom) is a
+  // `roomUri`/`room` are room-container IRIs (resolvable). `input` (AddBookmark) is a
   // raw URI OR an invite link (not necessarily an IRI) → literal placeholder.
   // `roles` are membership-role labels (a `UserRole` string, not the IRI it maps
   // to) → literal placeholder. SeedDemoRooms is paramless.
@@ -194,7 +194,7 @@ export const INTENT_PARAMS = {
   DeleteRoom: {
     roomUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
   },
-  AddRoom: {
+  AddBookmark: {
     input: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
   },
   RemoveBookmark: {
@@ -226,10 +226,10 @@ export const INTENT_PARAMS = {
   },
   // ── Account ──────────────────────────────────────────────────────────────────
   // SeedDemoBuildings is paramless (collection-wide; the core reads the WebID off
-  // the gateway). RemoveAppData's only param is the runtime-only `signal` → empty.
+  // the gateway). DeleteAppData's only param is the runtime-only `signal` → empty.
   // RestoreArchive's `bytes` is an opaque Uint8Array → placeholder.
   SeedDemoBuildings: {},
-  RemoveAppData: {},
+  DeleteAppData: {},
   RestoreArchive: {
     bytes: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
   },
@@ -275,7 +275,7 @@ export type ParamKeysMatch<N extends ParamIntentName> =
 const _paramKeysMatch: {
   [N in ParamIntentName]: ParamKeysMatch<N>;
 } = {
-  AddBuilding: true,
+  CreateBuilding: true,
   UpdateBuilding: true,
   DeleteBuilding: true,
   ToggleVisibility: true,
@@ -289,7 +289,7 @@ const _paramKeysMatch: {
   ShareBuilding: true,
   ShareAggregation: true,
   RevokeBuildingAccess: true,
-  CheckInbox: true,
+  DrainInbox: true,
   ReissueGrants: true,
   SaveObservation: true,
   DeleteObservation: true,
@@ -304,7 +304,7 @@ const _paramKeysMatch: {
   EnterRoom: true,
   ExitRoom: true,
   DeleteRoom: true,
-  AddRoom: true,
+  AddBookmark: true,
   RemoveBookmark: true,
   SaveRoles: true,
   SeedDemoRooms: true,
@@ -313,7 +313,7 @@ const _paramKeysMatch: {
   SeedDemoAgents: true,
   SaveOrganisation: true,
   SeedDemoBuildings: true,
-  RemoveAppData: true,
+  DeleteAppData: true,
   RestoreArchive: true,
   ExportArchive: true,
   AuditGrants: true,

@@ -58,7 +58,7 @@ export const dialogsShare = {
     fr: "Le code du bâtiment existe déjà",
   },
   // Add-building dialog.
-  addBuildingBtn: { en: "Add Building", de: "Gebäude hinzufügen", fr: "Ajouter un bâtiment" },
+  addBuildingBtn: { en: "Create Building", de: "Gebäude erstellen", fr: "Créer un bâtiment" },
   addBuildingsCount: {
     en: { one: "Add {count} Building", other: "Add {count} Buildings" },
     de: { one: "{count} Gebäude hinzufügen", other: "{count} Gebäude hinzufügen" },
