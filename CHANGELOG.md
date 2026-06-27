@@ -3,6 +3,20 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **External-source clients consolidated under `services/sources/`, acyclically (architecture review #6).**
+  The 16 external-source modules that sat loose at the `services/` root — the `linked-*` wrappers
+  (mastr/lod2/netztransparenz/regionalCube/regionGeometry/region), Nominatim (`geocode`), PVGIS
+  (`pvgisGrid`/`pvgisGridData`), `linkedWeather`/`weatherParams`, and the open-tier readers
+  (`openBuildings`/`openObservations`/`openRegional`/`rooftopPv`/`standortEnergieprofil`) — move into
+  `services/sources/` (alongside the existing `SourceGateway`), separating the external-contract-driven
+  cluster from the Pod-data core (Common-Closure). The extraction exposed a pre-existing `rdf↔sources`
+  cycle (`buildingSerializer` reached into `geocode` + `regionalCube`); untangled it: `agsConceptUrl`
+  (a pure regionalstatistik cube-dimension IRI builder) moved to `constants/dataSources.ts`, and
+  `geocodeWithRegion` is now **injected** into `seedDemoBuildings`, so the RDF serializer does no
+  network I/O and imports nothing from `sources/`. Net: `rdf/`, `energy/`, `pod/` have zero edges back
+  into `sources/`. Pure module moves + import-path fixes + the injection — behaviour unchanged.
+  check/lint/unit (1056) green. (Follows review #1: the three package import cycles broken; #2: the
+  `organisation` spelling unified with external RDF IRIs preserved.)
 - **Object model split into `src/types/` per family + first-class agents + generated docs.** The
   342-line `src/types.ts` (mixing building/consumption/aggregation + a 89-line energy model) is now
   a **barrel** re-exporting `src/types/{building,consumption,aggregation,agent,core}.ts` — every

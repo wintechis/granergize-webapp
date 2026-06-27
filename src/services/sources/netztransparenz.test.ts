@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import { parseRdfText } from "../rdf/rdfHelpers.ts";
 const store = (ttl: string, base: string) => parseRdfText(ttl, base);
 import { parsePlantSettlements } from "./netztransparenz.ts";
 

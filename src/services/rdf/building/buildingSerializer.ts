@@ -71,8 +71,7 @@ import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
 import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
 import { listDirectChildren } from "../../pod/podDelete.ts";
-import { geocodeWithRegion } from "../../geocode.ts";
-import { agsConceptUrl } from "../../regionalCube.ts";
+import { agsConceptUrl } from "../../../constants/dataSources.ts";
 import { mintLocalIri } from "../rdfHelpers.ts";
 import { buildingFileUri, mintBuildingSubject } from "./buildingId.ts";
 import {
@@ -1510,16 +1509,24 @@ const DEMO_BUILDINGS: DemoSpec[] = [
  * report a partial seed ("Added 3 of 4") instead of a blanket success. Within one
  * building the writes are ordered commit-last (datasets first, the discoverable
  * building file last), so a failed building leaves only inert orphan files.
+ * The geocoder is **injected** (the caller passes `geocodeWithRegion`) so this
+ * RDF/serialization module does no network I/O of its own — that keeps it free of
+ * any `services/sources/` import (rdf↔sources stays acyclic).
  * @operation mutation
  */
 export async function seedDemoBuildings(
   gateway: PodGateway,
   webId: string,
+  geocode: (
+    fields: Record<string, string>,
+  ) => Promise<
+    { lat: string; long: string; precision: GeocodePrecision; regionAgs?: string } | null
+  >,
 ): Promise<{ seeded: number; total: number }> {
   let seeded = 0;
   for (const demo of DEMO_BUILDINGS) {
     try {
-      const coords = await geocodeWithRegion(demo.fields);
+      const coords = await geocode(demo.fields);
       let fields: Record<string, string> = coords
         ? {
           ...demo.fields,

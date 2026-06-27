@@ -11,7 +11,7 @@ import { useSearchParams } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { AggregationDefinition } from "../types.ts";
 import { aggregationRoute, regionalRoute } from "../routes.ts";
-import { regionalTableDataUrl } from "../services/regionalCube.ts";
+import { regionalTableDataUrl } from "../services/sources/regionalCube.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
@@ -49,7 +49,7 @@ import { filterByText } from "../lib/textSearch.ts";
 import {
   type OpenRegionalItem,
   openRegionalItemsFromBuildings,
-} from "../services/openRegional.ts";
+} from "../services/sources/openRegional.ts";
 import ReceivedAggregationRow from "../components/aggregation/ReceivedAggregationRow.tsx";
 import type { ReceivedAggregation } from "../services/interop/sharingManager.ts";
 import ShareAggregationDialog from "../components/ShareAggregationDialog.tsx";

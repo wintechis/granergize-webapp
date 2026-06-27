@@ -16,10 +16,10 @@
  * is split out pure for offline unit-testing.
  */
 import type { Store } from "n3";
-import { sourceBase } from "../constants/dataSources.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
-import { contains, search } from "./sources/capabilities.ts";
-import { SKOS_NS } from "./rdf/vocabularies.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
+import { contains, search } from "./capabilities.ts";
+import { SKOS_NS } from "../rdf/vocabularies.ts";
 
 /**
  * Region grain — Bundesland (NUTS-1, 2-digit AGS) and Kreis (NUTS-3, 5-digit AGS)

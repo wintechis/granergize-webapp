@@ -11,9 +11,9 @@
  * across its disposal forms. The parse is split out pure for offline unit-testing.
  */
 import type { Store } from "n3";
-import { sourceBase } from "../constants/dataSources.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
-import { deref } from "./sources/capabilities.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
+import { deref } from "./capabilities.ts";
 
 /** Matched by suffix so they're independent of the (configurable) wrapper base. */
 const STROMMENGE_SUFFIX = "#strommengeKWh";

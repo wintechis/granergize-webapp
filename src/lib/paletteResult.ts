@@ -10,8 +10,8 @@
  * regional dataset metric) are localised through `t`.
  */
 import type { TFn } from "../context/I18nProvider.tsx";
-import type { NearbyInstallation } from "../services/mastrNearby.ts";
-import type { OpenRegionalItem } from "../services/openRegional.ts";
+import type { NearbyInstallation } from "../services/sources/mastrNearby.ts";
+import type { OpenRegionalItem } from "../services/sources/openRegional.ts";
 
 /** One result line — a primary label and an optional context line. */
 export interface ReadResultRow {

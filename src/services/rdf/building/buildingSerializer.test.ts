@@ -1,5 +1,6 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
+import { geocodeWithRegion } from "../../sources/geocode.ts";
 import { DataFactory, Parser, Store } from "n3";
 import * as XLSX from "xlsx";
 import type { BuildingType } from "../../../types.ts";
@@ -944,7 +945,7 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   let tally: { seeded: number; total: number };
   try {
     // The demo set spans both energy shapes (annual P1Y + 15-minute series).
-    tally = await seedDemoBuildings(session, WEBID);
+    tally = await seedDemoBuildings(session, WEBID, geocodeWithRegion);
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -1126,7 +1127,7 @@ Deno.test("seedDemoBuildings counts a failed building instead of throwing — an
 
   let tally: { seeded: number; total: number };
   try {
-    tally = await seedDemoBuildings(session, WEBID);
+    tally = await seedDemoBuildings(session, WEBID, geocodeWithRegion);
   } finally {
     globalThis.fetch = realFetch;
   }

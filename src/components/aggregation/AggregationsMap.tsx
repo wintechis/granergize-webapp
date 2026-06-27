@@ -20,12 +20,12 @@ import { MapContainer, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { AggregationDefinition } from "../../types.ts";
 import type { ReceivedAggregation } from "../../services/interop/sharingManager.ts";
-import type { OpenRegionalItem } from "../../services/openRegional.ts";
+import type { OpenRegionalItem } from "../../services/sources/openRegional.ts";
 import {
   fetchRegionGeometry,
   type RegionFeatureProps,
   type RegionGrain,
-} from "../../services/regionGeometry.ts";
+} from "../../services/sources/regionGeometry.ts";
 import {
   getComputedSnapshotByAggregationId,
   loadComputedSnapshot,
@@ -34,7 +34,7 @@ import {
   fetchRegionalChoropleth,
   REGIONAL_TABLES,
   type RegionalObservation,
-} from "../../services/regionalCube.ts";
+} from "../../services/sources/regionalCube.ts";
 import { kreisAgsOf } from "../../services/aggregation/regionRollup.ts";
 import { magnitudeCategoriserFor } from "../../services/energy/energyMetric.ts";
 import { annualMetricLabel } from "../../constants/annualMetrics.ts";

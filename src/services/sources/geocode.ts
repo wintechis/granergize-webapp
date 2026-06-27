@@ -1,8 +1,8 @@
-import { type GeocodePrecision } from "./rdf/vocabularies.ts";
-import { sourceBase } from "../constants/dataSources.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
+import { type GeocodePrecision } from "../rdf/vocabularies.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
 import { fetchContainingGemeindeAgs } from "./regionGeometry.ts";
-import { logError } from "../lib/logError.ts";
+import { logError } from "../../lib/logError.ts";
 
 /**
  * Resolve building address fields to coordinates via Nominatim, returning the

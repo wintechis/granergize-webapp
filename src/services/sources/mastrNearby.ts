@@ -23,11 +23,11 @@
  * renewables (solar/wind/hydro/biomass). Per-unit Bruttoleistung and authoritative
  * `vocab:#…Unit` typing would need a follow-up deref of each `…/see/{id}` record.
  */
-import { DCTERMS_NS, GEO_LAT, GEO_LONG, RDFS_NS } from "./rdf/vocabularies.ts";
+import { DCTERMS_NS, GEO_LAT, GEO_LONG, RDFS_NS } from "../rdf/vocabularies.ts";
 import type { Store } from "n3";
-import { sourceBase } from "../constants/dataSources.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
-import { bbox, type Box, deref, filter } from "./sources/capabilities.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
+import { bbox, type Box, deref, filter } from "./capabilities.ts";
 
 const RDFS_LABEL = `${RDFS_NS}label`;
 const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;

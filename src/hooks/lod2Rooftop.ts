@@ -19,7 +19,7 @@ import {
   type NearbyRooftop,
   type NearbyRooftopGeometry,
   type RooftopPotential,
-} from "../services/lod2Rooftop.ts";
+} from "../services/sources/lod2Rooftop.ts";
 import { logError } from "../lib/logError.ts";
 
 /**

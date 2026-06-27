@@ -15,12 +15,12 @@
  * a location the dump doesn't cover yields no match and degrades to `null`, so the card
  * simply does not appear. The parse halves are split out pure for offline testing.
  */
-import { GEO_LAT, GEO_LONG } from "./rdf/vocabularies.ts";
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
-import { sourceBase } from "../constants/dataSources.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
+import { GEO_LAT, GEO_LONG } from "../rdf/vocabularies.ts";
+import { parseRdfText } from "../rdf/rdfHelpers.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
 import { computePotential, type RoofSurface } from "./rooftopPv.ts";
-import { parseWktPolygon } from "./rdf/wkt.ts";
+import { parseWktPolygon } from "../rdf/wkt.ts";
 
 const LOD2_NS = "https://w3id.org/linked-lod2-by/vocab#";
 const HAS_ROOF_SURFACE = `${LOD2_NS}hasRoofSurface`;

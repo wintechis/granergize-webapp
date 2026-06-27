@@ -15,10 +15,10 @@
  * {@link trackedFetch}. The parse is split out pure for offline unit-testing.
  */
 import type { Store } from "n3";
-import { RDF_TYPE } from "./rdf/vocabularies.ts";
-import { sourceBase } from "../constants/dataSources.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
-import { deref } from "./sources/capabilities.ts";
+import { RDF_TYPE } from "../rdf/vocabularies.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
+import { deref } from "./capabilities.ts";
 
 /** A potential-vs-installed card (rooftop or ground-mounted PV). */
 export interface PotentialCard {

@@ -17,11 +17,11 @@ import { useNearbyInstallations } from "./mastrNearby.ts";
 import {
   gemeindeFromInstallations,
   type NearbyInstallation,
-} from "../services/mastrNearby.ts";
+} from "../services/sources/mastrNearby.ts";
 import {
   type AreaProfile,
   fetchAreaProfile,
-} from "../services/standortEnergieprofil.ts";
+} from "../services/sources/standortEnergieprofil.ts";
 
 export interface StandortEnergieprofil {
   /** The Energie-Atlas query (`data` is the per-Gemeinde profile, or `null`). */

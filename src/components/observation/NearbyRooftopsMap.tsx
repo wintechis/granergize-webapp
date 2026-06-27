@@ -14,7 +14,7 @@ import L from "leaflet";
 import { detailBaseLayer } from "../../lib/orthophoto.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
 import type { BuildingType } from "../../types.ts";
-import type { NearbyRooftopGeometry } from "../../services/lod2Rooftop.ts";
+import type { NearbyRooftopGeometry } from "../../services/sources/lod2Rooftop.ts";
 import {
   magnitudeCategoriserFor,
   type MetricFraming,

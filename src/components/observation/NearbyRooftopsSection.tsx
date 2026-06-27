@@ -14,7 +14,7 @@ import { useNearbyRooftopGeometry, useNearbyRooftops } from "../../hooks/lod2Roo
 import {
   NEARBY_ROOFTOP_RADIUS_M,
   rooftopPointUrl,
-} from "../../services/lod2Rooftop.ts";
+} from "../../services/sources/lod2Rooftop.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import Pager from "../Pager.tsx";
 import { usePaging } from "../../hooks/usePaging.ts";

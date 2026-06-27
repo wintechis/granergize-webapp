@@ -11,11 +11,11 @@ import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import type { BuildingType } from "../../../types.ts";
 import { resolve } from "../../entityQuery.ts";
 import { fetchAndParseData } from "../../../services/TurtleParsingService.ts";
-import { bundeslandToAgs } from "../../../services/region.ts";
+import { bundeslandToAgs } from "../../../services/sources/region.ts";
 import {
   openRegionalItemsFromBuildings,
   type OpenRegionalItem,
-} from "../../../services/openRegional.ts";
+} from "../../../services/sources/openRegional.ts";
 
 export interface FindRegionalStatisticsParams {
   /** Restrict to one Bundesland — a name ("Bayern") or its 2-digit AGS ("09"). */

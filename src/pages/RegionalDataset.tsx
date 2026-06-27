@@ -21,8 +21,8 @@ import {
   REGIONAL_TABLES,
   REGIONAL_UNIT_DISPLAY as UNIT_DISPLAY,
   regionalGeoUrl,
-} from "../services/regionalCube.ts";
-import { bundeslandName } from "../services/region.ts";
+} from "../services/sources/regionalCube.ts";
+import { bundeslandName } from "../services/sources/region.ts";
 import { FINDERS } from "../routes.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import RegionalMetricsMap from "../components/region/RegionalMetricsMap.tsx";

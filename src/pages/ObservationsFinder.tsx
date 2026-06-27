@@ -52,7 +52,7 @@ import TierFilter from "../components/TierFilter.tsx";
 import TierDot from "../components/TierDot.tsx";
 import { OBSERVATION_TIERS } from "../constants/tiers.ts";
 import { useOpenObservations } from "../hooks/openObservations.ts";
-import { ownDataAnchor, viewportAnchor } from "../services/openBuildings.ts";
+import { ownDataAnchor, viewportAnchor } from "../services/sources/openBuildings.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";

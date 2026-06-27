@@ -5,7 +5,7 @@ import {
   openRegionalItemsFromBuildings,
 } from "./openRegional.ts";
 import { REGIONAL_TABLES } from "./regionalCube.ts";
-import type { BuildingType } from "../types.ts";
+import type { BuildingType } from "../../types.ts";
 
 const LAND_TABLES = REGIONAL_TABLES.filter((t) => t.grain === "land");
 

@@ -1,4 +1,4 @@
-import { type BuildingType } from "../types.ts";
+import { type BuildingType } from "../../types.ts";
 import { type NearbyRooftop } from "./lod2Rooftop.ts";
 
 /** A map viewport centre — the point the open-building bbox is grown around. */

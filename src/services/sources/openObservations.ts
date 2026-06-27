@@ -17,10 +17,10 @@ import {
   parseUnitDetail,
 } from "./mastrNearby.ts";
 import { fetchPlantGenerationByYear } from "./netztransparenz.ts";
-import { mapPooled } from "../lib/pool.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
-import { deref } from "./sources/capabilities.ts";
-import { logError } from "../lib/logError.ts";
+import { mapPooled } from "../../lib/pool.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
+import { deref } from "./capabilities.ts";
+import { logError } from "../../lib/logError.ts";
 
 /** A nearby renewable installation's open settled generation (fetched, never stored). */
 export interface OpenObservation {

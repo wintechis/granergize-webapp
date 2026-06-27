@@ -16,7 +16,7 @@ import { useRegionalContext } from "../../hooks/regional.ts";
 import {
   REGIONAL_UNIT_DISPLAY as UNIT_DISPLAY,
   regionalTableDataUrl,
-} from "../../services/regionalCube.ts";
+} from "../../services/sources/regionalCube.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 

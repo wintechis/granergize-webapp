@@ -18,7 +18,7 @@ import { bandColor } from "../../constants/lensBand.ts";
 import type {
   RegionFeatureCollection,
   RegionFeatureProps,
-} from "../../services/regionGeometry.ts";
+} from "../../services/sources/regionGeometry.ts";
 
 // The only feature shape this layer touches — its joinable properties. The GeoJSON
 // types come from leaflet via react-leaflet's prop types (`geojson` is a phantom dep

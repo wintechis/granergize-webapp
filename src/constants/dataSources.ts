@@ -252,6 +252,23 @@ export function sourceBase(source: SourceId): string {
   return override || entry.base || "";
 }
 
+/**
+ * The regionalstatistik data-cube **geo-dimension IRI** for a German AGS
+ * (`<regionalstatistik-base>ags/<ags>`). Written as a building's `dcterms:spatial`
+ * and the aggregation spatial coordinate so they JOIN the regionalstatistik cube
+ * (regional benchmarks + the AGS-keyed choropleth). NB: this is a *source-cube*
+ * dimension value, not the authoritative place concept — the AGS itself is resolved
+ * via **linked-lau** (`regionGeometry`), and the canonical region is the LAU/NUTS
+ * `skos:Concept`; coupling `dcterms:spatial` to this scheme rather than the LAU
+ * concept is a known modelling shortcut (see notes). Lives here next to
+ * {@link sourceBase} (not in the `regionalCube` source client) so the RDF serializer
+ * and aggregation can build it without importing `services/sources/`, keeping the
+ * rdf↔sources dependency acyclic.
+ */
+export function agsConceptUrl(ags: string): string {
+  return `${sourceBase("regionalstatistik")}ags/${ags}`;
+}
+
 /** The capability verbs a source declares (empty if none / non-RDF). */
 export function sourceCapabilities(source: SourceId): readonly SourceCapability[] {
   return SOURCES[source].capabilities ?? [];

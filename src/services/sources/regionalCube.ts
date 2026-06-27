@@ -17,11 +17,11 @@
  * pure for offline unit-testing.
  */
 import type { Store } from "n3";
-import { QB_NS, RDF_TYPE, SKOS_NS } from "./rdf/vocabularies.ts";
-import { sourceBase } from "../constants/dataSources.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
-import { deref } from "./sources/capabilities.ts";
-import type { MessageId } from "../lib/messages.ts";
+import { QB_NS, RDF_TYPE, SKOS_NS } from "../rdf/vocabularies.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
+import { deref } from "./capabilities.ts";
+import type { MessageId } from "../../lib/messages.ts";
 
 /** One (year, value) point of a regional measure, with its source unit (e.g. "Prozent"). */
 export interface RegionalObservation {
@@ -313,15 +313,10 @@ export function regionalGeoUrl(table: RegionalTable, ags: string): string {
   return `${base}ags/${ags}`;
 }
 
-/**
- * The canonical `…/ags/{code}` region-concept IRI for a German AGS at ANY grain (2-digit Land /
- * 5-digit Kreis / 8-digit Gemeinde) — the same geo-dimension value the cube indexes by (the
- * `"ags"` branch of {@link regionalGeoUrl}, table-independent), used as the spatial coordinate of
- * an aggregation and the AGS-keyed join into the choropleth.
- */
-export function agsConceptUrl(ags: string): string {
-  return `${regionalstatistikBase()}ags/${ags}`;
-}
+// `agsConceptUrl` (the canonical `…/ags/{code}` region-concept IRI, used as a
+// building's `dcterms:spatial` and the choropleth AGS join key) moved to
+// `constants/dataSources.ts` so non-source layers (the RDF serializer, aggregation)
+// can build it without importing this source client — keeps rdf↔sources acyclic.
 
 const SKOS_NOTATION = `${SKOS_NS}notation`;
 const SKOS_PREF_LABEL = `${SKOS_NS}prefLabel`;

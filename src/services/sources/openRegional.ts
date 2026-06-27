@@ -10,8 +10,8 @@
  * reverse-geocode (the nearby-MaStR Kreis), so they stay on the per-building
  * Regional-context section and are intentionally not listed here.
  */
-import type { BuildingType } from "../types.ts";
-import type { MessageId } from "../lib/messages.ts";
+import type { BuildingType } from "../../types.ts";
+import type { MessageId } from "../../lib/messages.ts";
 import { BUNDESLAND_AGS_ALL, bundeslandName, bundeslandToAgs } from "./region.ts";
 import { REGIONAL_TABLES } from "./regionalCube.ts";
 

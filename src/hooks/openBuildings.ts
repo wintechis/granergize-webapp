@@ -12,11 +12,11 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import type { BuildingType } from "../types.ts";
-import { fetchNearbyRooftops } from "../services/lod2Rooftop.ts";
+import { fetchNearbyRooftops } from "../services/sources/lod2Rooftop.ts";
 import {
   type MapCentre,
   openRooftopToBuilding,
-} from "../services/openBuildings.ts";
+} from "../services/sources/openBuildings.ts";
 import { logError } from "../lib/logError.ts";
 
 export function useOpenBuildings(

@@ -1,6 +1,6 @@
 import { msg } from "../lib/messages.ts";
 import { useState } from "react";
-import { geocodeWithRegion } from "../services/geocode.ts";
+import { geocodeWithRegion } from "../services/sources/geocode.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 
 /**

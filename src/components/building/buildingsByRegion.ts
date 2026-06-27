@@ -1,5 +1,5 @@
 import { type BuildingType } from "../../types.ts";
-import { type RegionGrain } from "../../services/regionGeometry.ts";
+import { type RegionGrain } from "../../services/sources/regionGeometry.ts";
 
 /** AGS prefix length per grain — Land = 2, Kreis = 5, Gemeinde = 8 digits. */
 const AGS_LEN: Record<RegionGrain, number> = { land: 2, kreis: 5, gemeinde: 8 };

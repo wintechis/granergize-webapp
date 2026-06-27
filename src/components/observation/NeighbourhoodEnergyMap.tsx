@@ -20,11 +20,11 @@ import type { BuildingType } from "../../types.ts";
 import {
   fetchRegionGeometry,
   type RegionFeatureProps,
-} from "../../services/regionGeometry.ts";
+} from "../../services/sources/regionGeometry.ts";
 import {
   type AreaProfile,
   fetchAreaProfile,
-} from "../../services/standortEnergieprofil.ts";
+} from "../../services/sources/standortEnergieprofil.ts";
 import { magnitudeCategoriserFor } from "../../services/energy/energyMetric.ts";
 import { BASEMAP_DE } from "../../lib/orthophoto.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";

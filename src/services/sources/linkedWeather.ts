@@ -27,11 +27,11 @@ import {
   RDFS_NS,
   SCHEMA_NS,
   SOSA_NS,
-} from "./rdf/vocabularies.ts";
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
-import { sourceBase } from "../constants/dataSources.ts";
-import { getSourceGateway } from "./sources/sourceGateway.ts";
-import type { WeatherAnnualValue } from "./energy/energyWeather.ts";
+} from "../rdf/vocabularies.ts";
+import { parseRdfText } from "../rdf/rdfHelpers.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "./sourceGateway.ts";
+import type { WeatherAnnualValue } from "../energy/energyWeather.ts";
 
 const { namedNode } = DataFactory;
 

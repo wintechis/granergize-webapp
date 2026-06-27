@@ -29,7 +29,7 @@ import {
   detectSpreadsheetFormat,
   parseCsvToFields,
 } from "../services/rdf/building/buildingImport.ts";
-import { geocodeWithRegion } from "../services/geocode.ts";
+import { geocodeWithRegion } from "../services/sources/geocode.ts";
 import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import {

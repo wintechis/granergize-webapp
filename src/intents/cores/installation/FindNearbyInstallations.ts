@@ -15,7 +15,7 @@ import {
   type InstallationKind,
   type NearbyInstallation,
   type NearbyOptions,
-} from "../../../services/mastrNearby.ts";
+} from "../../../services/sources/mastrNearby.ts";
 
 export interface FindNearbyInstallationsParams {
   /** The building whose surroundings to scan — resolved to its coordinates. */

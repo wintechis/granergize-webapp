@@ -16,7 +16,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import type { BuildingType } from "../types.ts";
-import { bundeslandName, bundeslandToAgs } from "../services/region.ts";
+import { bundeslandName, bundeslandToAgs } from "../services/sources/region.ts";
 import {
   fetchKreisName,
   fetchRegionalObservations,
@@ -24,7 +24,7 @@ import {
   REGIONAL_TABLES,
   type RegionalObservation,
   type RegionalTable,
-} from "../services/regionalCube.ts";
+} from "../services/sources/regionalCube.ts";
 import { useNearbyInstallations } from "./mastrNearby.ts";
 import { logError } from "../lib/logError.ts";
 

@@ -16,7 +16,7 @@ import type { BuildingType } from "../../types.ts";
 import type {
   InstallationKind,
   NearbyInstallation,
-} from "../../services/mastrNearby.ts";
+} from "../../services/sources/mastrNearby.ts";
 import { useT } from "../../context/I18nProvider.tsx";
 import type { MessageId } from "../../lib/messages.ts";
 

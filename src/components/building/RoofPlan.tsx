@@ -15,7 +15,7 @@ import GridOnIcon from "@mui/icons-material/GridOn";
 import type { BuildingType } from "../../types.ts";
 import { msg } from "../../lib/messages.ts";
 import { useLod2Rooftop } from "../../hooks/lod2Rooftop.ts";
-import { evaluateRoofs, type RoofEval } from "../../services/rooftopPv.ts";
+import { evaluateRoofs, type RoofEval } from "../../services/sources/rooftopPv.ts";
 import {
   magnitudeCategoriserFor,
   type MetricFraming,

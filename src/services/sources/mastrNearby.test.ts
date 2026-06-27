@@ -1,10 +1,10 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import { parseRdfText } from "../rdf/rdfHelpers.ts";
 import {
   _setSourceGatewayForTesting,
-} from "./sources/sourceGateway.ts";
-import { makeFakeSourceGateway } from "./testing/fakeSourceGateway.ts";
+} from "./sourceGateway.ts";
+import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
 import {
   eegNumberFromIri,
   fetchInstallationsByAgs,

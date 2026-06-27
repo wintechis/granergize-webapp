@@ -12,7 +12,7 @@
  * open-data fetch no longer keys on them — it anchors to the user's own buildings
  * (`ownDataAnchor`, the concentric ring; see notes/data-architecture.md).
  */
-import type { MapCentre } from "../services/openBuildings.ts";
+import type { MapCentre } from "../services/sources/openBuildings.ts";
 
 let stored: { centre: MapCentre; zoom: number } | null = null;
 

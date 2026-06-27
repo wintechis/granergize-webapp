@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { DataFactory, Parser, Store } from "n3";
-import { parseNearbyInstallations } from "../mastrNearby.ts";
+import { parseNearbyInstallations } from "../sources/mastrNearby.ts";
 import { parseRdfText } from "./rdfHelpers.ts";
 import { serializeBuildingToTurtle } from "./building/buildingSerializer.ts";
 import { parseBuildings } from "./building/buildingParser.ts";

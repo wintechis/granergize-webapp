@@ -4,7 +4,7 @@ import {
   fetchNearestStations,
   fetchStationValues,
   WEATHER_PARAMETERS,
-} from "../services/linkedWeather.ts";
+} from "../services/sources/linkedWeather.ts";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Stack from "@mui/material/Stack";

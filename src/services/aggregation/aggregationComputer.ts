@@ -10,7 +10,7 @@ import type {
 } from "../../types.ts";
 import { getAggregationDefinition, storeComputedSnapshot } from "./aggregationManager.ts";
 import { commonRegion, type RegionLevel } from "./regionRollup.ts";
-import { fetchContainingGemeindeAgs } from "../regionGeometry.ts";
+import { fetchContainingGemeindeAgs } from "../sources/regionGeometry.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import {
   type EnergyDatasetRef,

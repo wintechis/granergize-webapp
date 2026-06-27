@@ -16,7 +16,7 @@ import {
   fetchRegionGeometry,
   type RegionFeatureProps,
   type RegionGrain,
-} from "../../services/regionGeometry.ts";
+} from "../../services/sources/regionGeometry.ts";
 import { BASEMAP_DE } from "../../lib/orthophoto.ts";
 import MagnitudeChoroplethLayer from "../region/MagnitudeChoroplethLayer.tsx";
 import { useT } from "../../context/I18nProvider.tsx";

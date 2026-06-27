@@ -15,7 +15,7 @@ import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
 import { rememberedValue, rememberValue } from "../lib/facetMemory.ts";
 import { useOpenBuildings } from "../hooks/openBuildings.ts";
-import { ownDataAnchor, viewportAnchor } from "../services/openBuildings.ts";
+import { ownDataAnchor, viewportAnchor } from "../services/sources/openBuildings.ts";
 import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
 import { BUILDING_TIERS } from "../constants/tiers.ts";

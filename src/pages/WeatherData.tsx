@@ -7,13 +7,13 @@ import {
   WEATHER_PARAMETERS,
   weatherStationsUrl,
   weatherValuesUrl,
-} from "../services/linkedWeather.ts";
+} from "../services/sources/linkedWeather.ts";
 import {
   resolveWeatherParameter,
   resolveWeatherStation,
   weatherParameterToParams,
   weatherStationToParams,
-} from "../services/weatherParams.ts";
+} from "../services/sources/weatherParams.ts";
 import {
   Alert,
   Box,
