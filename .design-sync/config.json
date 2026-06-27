@@ -1,0 +1,23 @@
+{
+  "projectId": "18c6c97d-30c0-481e-a266-e5a7a956c9fa",
+  "shape": "package",
+  "pkg": "webapp",
+  "globalName": "Granergize",
+  "entry": ".design-sync/entry.tsx",
+  "buildCmd": "deno run -A --node-modules-dir=auto .design-sync/gen-tokens.ts",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": ".design-sync/theme-tokens.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "provider": { "component": "GranergizeThemeProvider" },
+  "overrides": {
+    "MetricBarChart": { "cardMode": "column" },
+    "MetricLineChart": { "cardMode": "column" }
+  },
+  "componentSrcMap": {
+    "GranergizeThemeProvider": null,
+    "TierDot": "src/components/TierDot.tsx",
+    "Pager": "src/components/Pager.tsx",
+    "MetricBarChart": "src/components/detail/MetricBarChart.tsx",
+    "MetricLineChart": "src/components/detail/MetricLineChart.tsx"
+  }
+}
