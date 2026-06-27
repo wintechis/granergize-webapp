@@ -51,7 +51,7 @@ owns it:
   (`toggleHiddenBuilding`, `setCurrentRoom`, `addBookmark`, `saveAgent`, …).
 - aggregation definitions and computed snapshots (`createAggregationDefinition`,
   `storeComputedSnapshot`, `deleteAggregation`).
-- the WebID profile / org node (`saveOrganization`, `uploadOrgLogo`) — these GET-mutate-PUT
+- the WebID profile / org node (`saveOrganisation`, `uploadOrgLogo`) — these GET-mutate-PUT
   the whole document rather than going through `readModifyWrite`, a minor variant of the
   same model.
 
@@ -268,7 +268,7 @@ violates Command–Query Separation. Each embeds a reconciliation mutation (see 
 axis above), kept in the query path so the app self-heals without an explicit cleanup
 step:
 
-- `loadBuildings` (`turtleParsingService.ts`) detects inaccessible shared sources
+- `loadBuildings` (`turtleParsing.ts`) detects inaccessible shared sources
   (403/404) and **appends revocation events to `shared-in/`** to prune them
   (`removeInaccessibleBuildingSources`). A query mutates an event log. The prune is
   exceptional, not per-call: on the happy path (every source accessible) it performs no

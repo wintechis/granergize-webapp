@@ -50,7 +50,7 @@ stored role. The app reads them all without ever asking "what role produced this
   `Building.tsx`): core always, `bldg:*` when the subject carries them. No role gate.
 - **Energy load + render** — keyed on the dataset's declared `cons:granularity`
   (`isSeriesGranularity()`, `durationUtils.ts`) and the presence of `annualData`,
-  never on a role: the prefetch-skip in `turtleParsingService.ts` keys purely on the
+  never on a role: the prefetch-skip in `turtleParsing.ts` keys purely on the
   declared period (series ⇒ lazy), and `Energy.tsx` / `ObservationsFinder.tsx` pick the
   time-series vs. annual chart the same way (`isSeriesGranularity`,
   `EnergyResolutionSwitch`).

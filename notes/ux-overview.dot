@@ -75,7 +75,7 @@ digraph ux {
   subgraph cluster_dialogs {
     label="Dialogs (modal · return to caller)"; style="dashed"; color="#9e9e9e"; fontsize=10;
     node [fillcolor="#ede7f6"];
-    AddBuilding   [label="Add building"];
+    CreateBuilding   [label="Create building"];
     EditBuilding  [label="Edit building"];
     ShareBuilding [label="Share"];
     EnergySystems [label="Energy systems\n(units: add/edit)"];
@@ -103,7 +103,7 @@ digraph ux {
   BuildingPage -> ObservationPage [label="energy", dir=both, color="#555555"];
 
   // detail / finder → dialogs
-  B_list          -> AddBuilding   [label="add"];
+  B_list          -> CreateBuilding   [label="add"];
   BuildingPage    -> EditBuilding  [label="edit"];
   BuildingPage    -> ShareBuilding [label="share"];
   BuildingPage    -> EnergySystems [label="systems"];

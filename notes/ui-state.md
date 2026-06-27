@@ -246,7 +246,7 @@ targets carry no back affordance, so they are never stamped (`isDetailRoute`).
 - Children: `WeatherData` (a section on the observation page) encodes its selected
   parameter and station in the URI (`wp`/`ws`, `weatherParams.ts`); `UserEnergyChart`
   encodes its view, day and month (`tab`/`day`/`month`, `seriesChartParams.ts`);
-  `Building`, `Energy` and `AnnualEnergy` hold only fetched and derived data.
+  `BuildingDetail`, `EnergyDetail` and `AnnualEnergy` hold only fetched and derived data.
 
 ### Aggregations finder — `src/pages/AggregationsFinder.tsx`
 

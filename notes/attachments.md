@@ -10,7 +10,7 @@ share that carries the files) and [`storage-layout.md`](./storage-layout.md) (wh
 - Per-building container: `<storageRoot>granergize/buildings/<id>/files/<filename>`
   (next to the per-building energy subfolder; building discovery skips
   `buildings/<id>/` subcontainers). Path helper: `filesContainerFor()` in
-  `attachmentManager.ts`, shared by the uploader and the share flow.
+  `attachment.ts`, shared by the uploader and the share flow.
 - Per-building (not a shared folder) is deliberate: one `acl:default` grant on the
   container covers every file in it — including future uploads — and can't leak
   other buildings' files.
@@ -30,11 +30,11 @@ share that carries the files) and [`storage-layout.md`](./storage-layout.md) (wh
 ```
 
 The file IRI is the metadata subject (not a blank node), so the metadata isn't
-affected by `turtleParsingService`'s per-source blank-node scoping, and a file is
+affected by `turtleParsing`'s per-source blank-node scoping, and a file is
 removed by dropping all triples with that subject. Constants in `vocabularies.ts`
 (`GRAN_HAS_ATTACHMENT`, `SCHEMA_*`, `DCTERMS_CREATED`).
 
-## Write path — `services/attachmentManager.ts`
+## Write path — `services/attachment.ts`
 
 Binaries can't go through the string-field building serializer, so this PUTs them
 directly on the race-safe `readModifyWrite` (`podWrite.ts`):
@@ -57,7 +57,7 @@ intact — no change there.
 - `share.ts shareBuildingData` provisions + grants the `files/` container with
   `acl:default`; a legacy cert outside `files/` gets a file-IRI grant. This also
   fixes the long-standing gap where a shared building's certificate 403'd.
-- `sharingManager.ts revokeAccess` withdraws the container (+ legacy cert) via
+- `sharing.ts revokeAccess` withdraws the container (+ legacy cert) via
   `removeFromACL` (idempotent), alongside the building TTL and energy datasets.
 - Recipients fetch binaries on demand with their own session; no recipient-side
   change was needed.

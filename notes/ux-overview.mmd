@@ -61,7 +61,7 @@ stateDiagram-v2
   BuildingPage --> ObservationPage: energy
 
   state "Dialogs (modal · return to caller)" as Dialogs {
-    AddBuilding: Add building
+    CreateBuilding: Create building
     EditBuilding: Edit building
     ShareBuilding: Share
     EnergySystems: Energy systems (units)
@@ -69,7 +69,7 @@ stateDiagram-v2
     CreateAgg: Create aggregation
   }
 
-  B_list --> AddBuilding: add
+  B_list --> CreateBuilding: add
   BuildingPage --> EditBuilding: edit
   BuildingPage --> ShareBuilding: share
   BuildingPage --> EnergySystems: systems

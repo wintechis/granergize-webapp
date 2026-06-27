@@ -45,20 +45,20 @@ types beside the domain, composites one layer up.
 
 2. **Per-domain types** — each service folder owns the object form of the resource
    it parses:
-   - energy (`rdf/energyDataset.ts`) — `EnergyDataset`, `AnnualMetrics`,
+   - energy (`energy/energyDataset.ts`) — `EnergyDataset`, `AnnualMetrics`,
      `EnergyMetricKey` (the canonical metric key space).
    - agents (`services/agents/`) — `ResolvedAgent`, `ResolvedOrg`, `Appearance`.
    - interop/sharing (`services/interop/`) — `SharingEvent`, `ActiveGrant`,
      `SharingKind`, `SharedBuildingEntry`, `ReceivedAggregation`, `GrantTarget`,
      `DataRoomMember`.
-   - weather (`services/linkedWeather.ts`, `services/energy/energyWeather.ts`) —
+   - weather (`services/sources/linkedWeather.ts`, `services/energy/energyWeather.ts`) —
      `WeatherStation`, `WeatherObservation`, `WeatherAnnualValue`.
-   - open data (`services/lod2Rooftop.ts`, `mastrNearby.ts`, `regionalCube.ts`,
+   - open data (`services/sources/lod2Rooftop.ts`, `mastrNearby.ts`, `regionalCube.ts`,
      `standortEnergieprofil.ts`, `openObservations.ts`, `openRegional.ts`) —
      `RooftopPotential`, `NearbyInstallation`, `RegionalObservation` / `RegionalTable`,
      `AreaProfile`, `OpenObservationDetail`, `OpenRegionalItem` (the `open` tier —
      [`data-architecture.md`](./data-architecture.md)).
-   - organization — `Organization`; agents — `SavedAgent`; prefs — `Preferences`.
+   - organisation — `Organisation`; agents — `SavedAgent`; prefs — `Preferences`.
    - aggregation — `PickedBenchmark`, `Contributors`.
 
 3. **Composite / selector shapes** — assembled one layer up in the data-access
@@ -75,7 +75,7 @@ which tracks the storage-model taxonomy of
 
 - **Resource objects** — a typed mirror of one *in-place* resource (GET → object →
   PUT). `Building` ⇄ a building file, `EnergyDataset` ⇄ a dataset file,
-  `Organization` ⇄ the org node, `Preferences` ⇄ `prefs.ttl`, `SavedAgent` (entries)
+  `Organisation` ⇄ the org node, `Preferences` ⇄ `prefs.ttl`, `SavedAgent` (entries)
   ⇄ `agents.ttl`, `AggregationDefinition`/`AggregationSnapshot` ⇄ the aggregation
   definition/snapshot files. One writer owns it; the object is the state.
 
