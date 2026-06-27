@@ -613,16 +613,24 @@ von Wetterdaten ist Gegenstand der Weiterentwicklung.
 > Die Granergize-Ontologie kombiniert etablierte Vokabulare mit
 > domänenspezifischen Erweiterungen:
 >
-> - **rec** (`https://w3id.org/rec#`) – Gebäudeklassifikationen, Agenten
+> - **rec** (`https://w3id.org/rec#`) – Gebäude-Stammdaten (Eigentümer/Betreiber)
 > - **sosa** (`http://www.w3.org/ns/sosa/`) – Messwerte
-> - **ssn** (`http://www.w3.org/ns/ssn/`) – Messwert-Metadaten, Einheiten
-> - **schema** (`http://schema.org/`) – Organisationen, Kunden
-> - **vcard** (`http://www.w3.org/2006/vcard/ns#`) – Postadressen
+> - **ssn** (`http://www.w3.org/ns/ssn/`) – Messwert-Metadaten (u. a. Einheitenbezug)
+> - **unit** (`https://qudt.org/vocab/unit#`) – Einheiten (kWh, m³, %)
+> - **foaf** (`http://xmlns.com/foaf/0.1/`) – Organisationen und Agenten (Name, Logo,
+>   Profil)
+> - **org** (`http://www.w3.org/ns/org#`) – Mitgliedschaft Person ↔ Organisation
+> - **vcard** (`http://www.w3.org/2006/vcard/ns#`) – Postadressen und Kontaktdaten
+> - **prov** (`http://www.w3.org/ns/prov#`) – Datenherkunft/Provenienz („Data source")
+> - **schema** (`http://schema.org/`) – Datei-Metadaten von Anhängen (`MediaObject`)
 > - **geo** (`http://www.w3.org/2003/01/geo/wgs84_pos#`) – GPS-Koordinaten (WGS84)
 > - **xsd** (`http://www.w3.org/2001/XMLSchema#`) – Datentypen (integer, decimal,
 >   dateTime …)
-> - **gran** (`https://solid.ti.rw.fau.de/gra/vocab.ttl#`) – Granergize-spezifische
->   Erweiterungen
+> - **gran** (`https://solid.ti.rw.fau.de/gra/vocab.ttl#`) – Granergize-Kern (Sharing,
+>   Präferenzen, Bookmarks)
+> - **bldg** (`https://solid.ti.rw.fau.de/gra/building.ttl#`) – Gebäude-Erweiterungen
+> - **cons** (`https://solid.ti.rw.fau.de/gra/consumption.ttl#`) – Verbrauch,
+>   Aggregationen, Benchmarks
 
 ## Gebäude hinzufügen
 
