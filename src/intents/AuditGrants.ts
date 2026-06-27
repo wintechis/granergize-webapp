@@ -1,6 +1,6 @@
-// Intent core (React-free) for CheckSharingConsistency — an imperative
-// READ-intent. See ./README.md: a read core returns its VALUE (here the drift
-// report), never an outcome.
+// Intent core (React-free) for AuditGrants — an imperative READ-intent. See
+// ./README.md: a read core returns its VALUE (here the drift report), never an
+// outcome.
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { auditGrants, type GrantAuditResult } from "../services/interop/share.ts";
 
@@ -21,7 +21,7 @@ export type { GrantAuditResult };
  * invalidation: CQS forbids a read declaring one). Takes `gateway` as an
  * argument — no `getSession()`, no React — so it is callable headless.
  */
-export function checkSharingConsistencyCore(
+export function auditGrantsCore(
   gateway: PodGateway,
 ): Promise<GrantAuditResult> {
   return auditGrants(gateway);

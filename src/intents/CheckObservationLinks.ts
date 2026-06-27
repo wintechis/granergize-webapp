@@ -1,6 +1,6 @@
 // Intent core (React-free) for CheckObservationLinks — an imperative READ-intent.
 // See ./README.md: a read core returns its VALUE (here the drift report), never an
-// outcome. The diffing twin of checkSharingConsistency, for observation↔building links.
+// outcome. The diffing twin of auditGrantsCore, for observation↔building links.
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import {
   auditObservationLinks,

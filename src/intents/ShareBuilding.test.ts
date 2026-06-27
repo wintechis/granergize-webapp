@@ -7,7 +7,7 @@ import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 // and return the tally.
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { shareBuildingCore } from "./shareBuilding.ts";
+import { shareBuildingCore } from "./ShareBuilding.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 
 const OWNER = "https://a.example/profile/card#me";

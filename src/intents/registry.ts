@@ -8,7 +8,7 @@
 // UI does. A `Session` satisfies `PodGateway`, so the React hooks pass
 // `getSession()` straight through.
 import type { PodGateway } from "../services/pod/podGateway.ts";
-import { shareBuildingCore } from "./shareBuilding.ts";
+import { shareBuildingCore } from "./ShareBuilding.ts";
 import { findBuildingsCore } from "./FindBuildings.ts";
 import { findNearbyInstallationsCore } from "./FindNearbyInstallations.ts";
 import { findRegionalStatisticsCore } from "./FindRegionalStatistics.ts";
@@ -16,9 +16,9 @@ import { getBuildingCore } from "./GetBuilding.ts";
 import { getObservationYearCore } from "./GetObservationYear.ts";
 import { whoHasAccessCore } from "./WhoHasAccess.ts";
 import { sharedWithMeCore } from "./SharedWithMe.ts";
-import { checkSharingConsistencyCore } from "./checkSharingConsistency.ts";
-import { checkObservationLinksCore } from "./checkObservationLinks.ts";
-import { exportArchiveCore } from "./exportArchive.ts";
+import { auditGrantsCore } from "./AuditGrants.ts";
+import { checkObservationLinksCore } from "./CheckObservationLinks.ts";
+import { exportArchiveCore } from "./ExportArchive.ts";
 import { addBuildingCore } from "./AddBuilding.ts";
 import { updateBuildingCore } from "./UpdateBuilding.ts";
 import { deleteBuildingCore } from "./DeleteBuilding.ts";
@@ -132,7 +132,7 @@ export const READ_CORES = {
   // arg is read once into `void` so the dispatch maps stay homogeneous.
   AuditGrants: (s: PodGateway, p: Record<never, never>) => {
     void p;
-    return checkSharingConsistencyCore(s);
+    return auditGrantsCore(s);
   },
   ExportArchive: exportArchiveCore,
   // Dev-mode: dry-run diff of observation `ofBuilding` ↔ building `hasEnergyDataset`

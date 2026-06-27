@@ -6,7 +6,7 @@ import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 // renderHook — and asserted to RETURN its value (the log↔ACL drift report).
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { checkSharingConsistencyCore } from "./checkSharingConsistency.ts";
+import { auditGrantsCore } from "./AuditGrants.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { CONSUMPTION_NS, GRAN_NS, REC_BUILDING } from "../services/rdf/vocabularies.ts";
 
@@ -85,10 +85,10 @@ function makePod(opts: { withAcl: boolean }): { session: PodGateway } {
   return { session: sessionGateway({ info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session) };
 }
 
-Deno.test("checkSharingConsistencyCore (headless): a logged grant with no .acl → missing-grant drift", async () => {
+Deno.test("auditGrantsCore (headless): a logged grant with no .acl → missing-grant drift", async () => {
   const { session } = makePod({ withAcl: false });
 
-  const report = await checkSharingConsistencyCore(session);
+  const report = await auditGrantsCore(session);
 
   // The read RETURNS its value (the drift report) — proven without any React.
   // A bare building grants two targets (the file + its files/ container); with
@@ -104,10 +104,10 @@ Deno.test("checkSharingConsistencyCore (headless): a logged grant with no .acl �
   );
 });
 
-Deno.test("checkSharingConsistencyCore (headless): a logged grant with a matching .acl → no drift", async () => {
+Deno.test("auditGrantsCore (headless): a logged grant with a matching .acl → no drift", async () => {
   const { session } = makePod({ withAcl: true });
 
-  const report = await checkSharingConsistencyCore(session);
+  const report = await auditGrantsCore(session);
 
   assert.ok(report.checked >= 1, "the grant's targets were checked");
   assert.equal(report.drift.length, 0, "ACL matches the folded log — clean");

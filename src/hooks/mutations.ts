@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { getGateway } from "./session.ts";
 import { queryKeys } from "./queries.ts";
-import type { ShareBuildingParams } from "../intents/shareBuilding.ts";
+import type { ShareBuildingParams } from "../intents/ShareBuilding.ts";
 import type { FindNearbyInstallationsParams } from "../intents/FindNearbyInstallations.ts";
 import type { FindRegionalStatisticsParams } from "../intents/FindRegionalStatistics.ts";
 import type { Selector } from "../intents/selector.ts";
@@ -377,7 +377,7 @@ export function useShareBuilding() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionShareBuilding", silent: true },
-    // Thin adapter over the React-free core (src/intents/shareBuilding.ts),
+    // Thin adapter over the React-free core (src/intents/ShareBuilding.ts),
     // routed through the registry's invoke() entry point (one path for UI +
     // headless): the core owns the Pod-request composition; the hook keeps only
     // busy state, the central toast, and the sharedOutLog invalidation.
@@ -692,14 +692,14 @@ export function useExportArchive() {
   return useMutation({
     meta: { action: "actionDownloadArchive" },
     // Routed through the registry's read entry point (query()); the core
-    // (src/intents/exportArchive.ts) packs the archive and returns the blob.
+    // (src/intents/ExportArchive.ts) packs the archive and returns the blob.
     mutationFn: () => query("ExportArchive", {}, getGateway()),
   });
 }
 
 /**
  * Dev-mode: dry-run diff of the `.acl` projection against the shared-out log
- * (see {@link checkSharingConsistencyCore}).
+ * (see {@link auditGrantsCore}).
  * @operation query — an imperative READ-intent like {@link useExportArchive}.
  * Deliberately not a `useQuery`: every click must re-read the Pod — a cached
  * audit would report stale consistency. The caller renders the verdict.
@@ -764,7 +764,7 @@ export function useAuditGrants() {
   return useMutation({
     meta: { action: "actionCheckSharing" },
     // Thin adapter over the React-free read core
-    // (src/intents/checkSharingConsistency.ts), routed through the registry's
+    // (src/intents/AuditGrants.ts), routed through the registry's
     // query() entry point: the core returns the drift report value; the hook
     // keeps only busy state + the central toast (a read declares no invalidation).
     mutationFn: () => query("AuditGrants", {}, getGateway()),
@@ -773,7 +773,7 @@ export function useAuditGrants() {
 
 /** Dev-mode read: dry-run diff of observation `ofBuilding` ↔ building
  *  `hasEnergyDataset` links (own-Pod). Same thin-adapter shape as useAuditGrants —
- *  the core (src/intents/checkObservationLinks.ts) returns the drift report. */
+ *  the core (src/intents/CheckObservationLinks.ts) returns the drift report. */
 export function useCheckObservationLinks() {
   return useMutation({
     meta: { action: "actionCheckObsLinks" },
