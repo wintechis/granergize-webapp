@@ -7,30 +7,30 @@ import type { Settled } from "./outcomes.ts";
 
 /** Parameters of the SaveAgent intent. */
 export interface SaveAgentParams {
-  /** The contact to add or update in the address book (opaque, not an IRI to resolve). */
-  contact: SavedAgent;
-  /** An organisation contact's logo image to upload to the user's Pod before the
-   *  write; its public URI becomes the contact's `vcard:logo`. */
+  /** The agent to add or update in the address book (opaque, not an IRI to resolve). */
+  agent: SavedAgent;
+  /** An organisation agent's logo image to upload to the user's Pod before the
+   *  write; its public URI becomes the agent's `vcard:logo`. */
   logo?: File | null;
 }
 
 /**
  * React-free core of {@link import("../hooks/mutations.ts").useSaveAgent}:
- * add (or update) a contact in the address book. A plain write — the hook is a
- * thin adapter owning only the `contacts` invalidation. Takes a {@link PodGateway}
+ * add (or update) an agent in the address book. A plain write — the hook is a
+ * thin adapter owning only the `agents` invalidation. Takes a {@link PodGateway}
  * (the authed transport + identity) — no `getSession()`, no React — so it is
  * callable headless; a `Session` satisfies the gateway, so the hook passes
  * `getSession()` unchanged.
  */
-export async function saveContactCore(
+export async function saveAgentCore(
   gateway: PodGateway,
   params: SaveAgentParams,
 ): Promise<Settled> {
   // A picked logo is uploaded first (to the user's own Pod, public-read); its URI
-  // becomes the contact's vcard:logo. The agent's own profile is never touched.
+  // becomes the agent's vcard:logo. The agent's own profile is never touched.
   const logoUrl = params.logo
-    ? await uploadAgentLogo(params.logo, params.contact.webId, gateway)
-    : params.contact.logoUrl;
-  await saveAgent(gateway, { ...params.contact, logoUrl });
+    ? await uploadAgentLogo(params.logo, params.agent.webId, gateway)
+    : params.agent.logoUrl;
+  await saveAgent(gateway, { ...params.agent, logoUrl });
   return { ok: true };
 }

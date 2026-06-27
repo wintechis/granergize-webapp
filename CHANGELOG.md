@@ -3,6 +3,21 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **e2e specs partition by FOLDER, not a hand-maintained list.** The `SOLO_SPECS` /
+  `DUO_SPECS` / `TRIO_SPECS` arrays in `playwright.config.ts` are gone; specs now live in
+  `test/e2e/{solo,duo,trio}/` (and `stress/`) and each project's `testMatch` is its folder
+  glob, so a new/renamed spec auto-registers by location instead of silently dropping out
+  of an un-updated list. The move surfaced exactly that bug: `rooms-finder.spec.ts` was
+  orphaned (in `tasks/`, in no list → run by nothing); it's a solo spec and now runs.
+  Relative `../helpers` imports are unchanged (same depth); `--list` confirms 48 solo + 7
+  duo + 1 trio. README + `.env.e2e.example` paths updated.
+- **Finish the Contacts→Agents rename in the SaveAgent intent internals.** The leftover
+  `contact` naming is gone: the core `saveContactCore` → `saveAgentCore`, its
+  `SaveAgentParams.contact` → `agent` (and the `SaveAgent` param schema + the `useSaveAgent`
+  `{ contact }` contract), and `AgentHeader`'s `contact`/`contacts`/`saveContact` locals →
+  `savedAgent`/`agents`/`saveAgent`. The `SavedAgent` type and the vCard "contact facts"
+  terminology are unchanged. Pure rename — typecheck/lint/unit green; no e2e/eval fixture
+  touched the param name.
 - **Centralize the remaining inlined namespace IRIs in the Turtle serializers.** The
   sibling serializers that still hardcoded `@prefix` namespace strings now use the
   `vocabularies.ts` constants like the rest of the RDF layer: `sharingLog.ts`,

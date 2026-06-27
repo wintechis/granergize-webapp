@@ -50,7 +50,7 @@ export interface SavedAgent {
   name?: string;
   avatarUrl?: string;
   kind?: "person" | "organisation";
-  /** An organisation contact's logo image (`vcard:logo`), uploaded to the user's own
+  /** An organisation agent's logo image (`vcard:logo`), uploaded to the user's own
    *  Pod — the local-record counterpart of the own-org `foaf:logo`. */
   logoUrl?: string;
   /** An organisation's website (`vcard:hasURL`). */
@@ -59,7 +59,7 @@ export interface SavedAgent {
   sameAs?: string[];
   /**
    * A locally-asserted "works for" edge (`org:memberOf`) to the WebID of an
-   * organisation the user also keeps as a contact. Independent of the agent's own
+   * organisation the user also keeps as an agent. Independent of the agent's own
    * profile — the user records the affiliation they know of; this local edge wins
    * over any `org:memberOf` the agent's own profile publishes (see resolveAgentOrg).
    */
@@ -71,7 +71,7 @@ export function savedAgentsUri(webId: string): string {
   return podResources(webId).savedAgents;
 }
 
-/** The `vcard:AddressBook` subject node within the contacts document. */
+/** The `vcard:AddressBook` subject node within the agents document. */
 const bookNode = (uri: string) => namedNode(`${uri}#book`);
 
 /**
@@ -116,7 +116,7 @@ export async function readAgents(gateway: PodGateway): Promise<SavedAgent[]> {
 
 /**
  * Atomic read-modify-write of `agents.ttl`. `mutate` touches only the address
- * book + the one member it concerns, leaving other contacts intact.
+ * book + the one member it concerns, leaving other agents intact.
  */
 function mutateSavedAgents(
   gateway: PodGateway,
@@ -203,7 +203,7 @@ export function saveAgents(
 }
 
 /**
- * Remove a contact: drops its membership and cached vCard fields.
+ * Remove an agent: drops its membership and cached vCard fields.
  * @operation mutation
  */
 export function removeAgent(
@@ -218,13 +218,13 @@ export function removeAgent(
 }
 
 /**
- * Auto-remember a referenced agent: write the contact NOW with the WebID's fragment
+ * Auto-remember a referenced agent: write the agent NOW with the WebID's fragment
  * name, then upgrade it with the resolved `foaf:name`/avatar in the BACKGROUND.
  *
  * The split matters: resolving reads the agent's own profile, and an unreachable or
  * slow host makes that fetch retry (transient-error backoff) for many seconds —
- * blocking the contact's appearance if we awaited it. Writing the cache entry first
- * (no network) makes the contact show immediately and resilient to a dead operator
+ * blocking the agent's appearance if we awaited it. Writing the cache entry first
+ * (no network) makes the agent show immediately and resilient to a dead operator
  * WebID; the resolve then refines the name when (if) the profile answers.
  *
  * Best-effort (the book is only a cache) — failures are swallowed — and idempotent

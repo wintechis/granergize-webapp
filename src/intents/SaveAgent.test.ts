@@ -6,16 +6,16 @@
 // caller (a Tier-2 runner, the bench seeder, an LLM tool) would supply. No
 // React, no component tree. Asserts the address-book write landed.
 import { strict as assert } from "node:assert";
-import { saveContactCore } from "./SaveAgent.ts";
+import { saveAgentCore } from "./SaveAgent.ts";
 import { podGateway } from "../services/pod/podGateway.ts";
 import { makeFakeSession } from "../services/testing/fakeSession.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 
 const OWNER = "https://a.example/profile/card#me";
-const CONTACTS = "https://a.example/granergize/agents.ttl";
+const AGENTS = "https://a.example/granergize/agents.ttl";
 const FRIEND = "https://friend.example/profile/card#me";
 
-Deno.test("saveContactCore writes a contact via a bare PodGateway (no Session)", async () => {
+Deno.test("saveAgentCore writes an agent via a bare PodGateway (no Session)", async () => {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const { session, store, calls } = makeFakeSession({ webId: OWNER });
 
@@ -23,35 +23,35 @@ Deno.test("saveContactCore writes a contact via a bare PodGateway (no Session)",
   // NOT a Session. (We borrow the fake's fetch as the authed transport.)
   const gateway = podGateway(session.fetch, OWNER);
 
-  const outcome = await saveContactCore(gateway, {
-    contact: { webId: FRIEND, name: "Fran Friend" },
+  const outcome = await saveAgentCore(gateway, {
+    agent: { webId: FRIEND, name: "Fran Friend" },
   });
 
   assert.deepEqual(outcome, { ok: true });
 
-  // The address book was created at the resolved contacts URI and names the friend.
-  const written = store[CONTACTS];
+  // The address book was created at the resolved agents URI and names the friend.
+  const written = store[AGENTS];
   assert.ok(written, "agents.ttl should have been written");
   assert.match(written, new RegExp(FRIEND));
   assert.match(written, /Fran Friend/);
 
   // The write went through read-modify-write: a GET (read) then a PUT (write).
-  const methods = calls.filter((c) => c.url === CONTACTS).map((c) => c.method);
+  const methods = calls.filter((c) => c.url === AGENTS).map((c) => c.method);
   assert.ok(methods.includes("PUT"), "expected a PUT to agents.ttl");
 });
 
-Deno.test("saveContactCore uploads an org logo, sets a public ACL, links vcard:logo", async () => {
+Deno.test("saveAgentCore uploads an org logo, sets a public ACL, links vcard:logo", async () => {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const { session, store } = makeFakeSession({ webId: OWNER });
   const gateway = podGateway(session.fetch, OWNER);
 
   const logo = new File([new Uint8Array([1, 2, 3])], "logo.png", { type: "image/png" });
-  await saveContactCore(gateway, {
-    contact: { webId: FRIEND, name: "ACME GmbH", kind: "organisation" },
+  await saveAgentCore(gateway, {
+    agent: { webId: FRIEND, name: "ACME GmbH", kind: "organisation" },
     logo,
   });
 
-  // The image landed under the user's own app tree, keyed by the contact's WebID.
+  // The image landed under the user's own app tree, keyed by the agent's WebID.
   const logoUri =
     "https://a.example/granergize/agents/logos/friend-example-profile-card-me.png";
   assert.ok(store[logoUri] !== undefined, "logo image should have been uploaded");
@@ -60,20 +60,20 @@ Deno.test("saveContactCore uploads an org logo, sets a public ACL, links vcard:l
   assert.ok(acl, "logo .acl should have been written");
   assert.match(acl, /acl:agentClass\s+foaf:Agent/);
   assert.match(acl, /acl:Read/);
-  // The contact links the uploaded logo via vcard:logo.
-  assert.match(store[CONTACTS], new RegExp(logoUri.replace(/[.]/g, "\\.")));
-  assert.match(store[CONTACTS], /logo/);
+  // The agent links the uploaded logo via vcard:logo.
+  assert.match(store[AGENTS], new RegExp(logoUri.replace(/[.]/g, "\\.")));
+  assert.match(store[AGENTS], /logo/);
 });
 
-Deno.test("saveContactCore is idempotent: re-adding the same WebID updates in place", async () => {
+Deno.test("saveAgentCore is idempotent: re-adding the same WebID updates in place", async () => {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const { session, store } = makeFakeSession({ webId: OWNER, etags: true });
   const gateway = podGateway(session.fetch, OWNER);
 
-  await saveContactCore(gateway, { contact: { webId: FRIEND, name: "First" } });
-  await saveContactCore(gateway, { contact: { webId: FRIEND, name: "Second" } });
+  await saveAgentCore(gateway, { agent: { webId: FRIEND, name: "First" } });
+  await saveAgentCore(gateway, { agent: { webId: FRIEND, name: "Second" } });
 
-  const written = store[CONTACTS];
+  const written = store[AGENTS];
   // The name was replaced, not duplicated.
   assert.match(written, /Second/);
   assert.doesNotMatch(written, /First/);
