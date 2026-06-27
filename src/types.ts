@@ -5,6 +5,11 @@ import type {
   OperatingCostsFields,
   TechnicalSystemFields,
 } from "./services/rdf/buildingShape.generated.ts";
+import type {
+  AggregationDefinitionFields,
+  AggregationSnapshotFields,
+  EnergyDatasetFields,
+} from "./services/rdf/consumptionShape.generated.ts";
 
 // Re-export the vocab-derived enums so the rest of the app reaches them via `types.ts`.
 export type {
@@ -187,12 +192,11 @@ export type Scenario = "actual" | "planned";
  * dispatched (series lazy, annual prefetched) without fetching the dataset. See
  * `services/rdf/energyDataset.ts`.
  */
-export interface EnergyDatasetRef {
+export interface EnergyDatasetRef extends EnergyDatasetFields {
   /** The dataset node IRI (the linked `observations/{year}/{id}.ttl#ds`). */
   uri: string;
   year: number;
-  granularity: string;
-  scenario: Scenario;
+  // granularity / scenario ← EnergyDatasetFields (vocab-derived)
   /** The `sosa:hasFeatureOfInterest` the dataset observes, when a specific unit
    * (a `bldg:hasSystem` node, e.g. `<#pv>`) rather than the building as a whole.
    * Part of a dataset's identity, so a per-unit series doesn't collide with the
@@ -304,38 +308,28 @@ export interface SpatialExtent {
   level: string; // hierarchy level / which hierarchy
 }
 
-export interface AggregationDefinition {
+// name / aggregationType / period / benchmark / createdAt / lastComputedAt are GENERATED
+// (AggregationDefinitionFields, from vocab/consumption.ttl via consumptionConfig). The
+// `benchmark` flag is persisted so every (re)compute derives the snapshot's
+// :BenchmarkResult typing from it (a refresh can't strip it; the covered year is derived
+// at compute time, not stored). Envelope fields below stay hand-written.
+export interface AggregationDefinition extends AggregationDefinitionFields {
   id: string;
-  name: string;
-  buildingUris: string[]; // Private - not included in shared snapshots
-  aggregationType: AggregationType;
+  buildingUris: string[]; // private — not included in shared snapshots
   metrics: string[]; // e.g., ["gas", "electricity", "solar"]
-  createdAt: string; // ISO timestamp
-  lastComputedAt?: string; // ISO timestamp of last snapshot computation
-  period?: string; // "YYYY-MM" — set for user-role electricity aggregations
-  /** Marks the aggregation as a benchmark: every (re)compute derives the snapshot's
-   * bench:BenchmarkResult typing from this persisted flag, so a refresh can't
-   * strip it. The covered year (metricPeriod) is derived from the data at
-   * compute time, not stored. */
-  benchmark?: boolean;
   /** The region this aggregation covers, when its members roll up to one. */
   spatialExtent?: SpatialExtent;
 }
 
-export interface AggregationSnapshot {
+// name / aggregationType / computedAt / buildingCount and the benchmark-result extras
+// computedBy / metricPeriod are GENERATED (AggregationSnapshotFields). Envelope below.
+export interface AggregationSnapshot extends AggregationSnapshotFields {
   id: string;
-  name: string;
-  aggregationType: AggregationType;
   metrics: string[];
-  computedAt: string;
-  buildingCount: number; // How many buildings were aggregated (privacy-preserving)
-  values: Record<string, number>; // metric name -> computed value
-  // Benchmark-result fields (set when a benchmark service provider computes this
-  // snapshot over the buildings shared to it): the snapshot is additionally typed
-  // bench:BenchmarkResult and carries who computed it and which year it covers.
+  values: Record<string, number>; // metric name → computed value
+  /** Additionally typed `:BenchmarkResult` when a benchmark service provider computes
+   * this snapshot over the buildings shared to it (then `computedBy`/`metricPeriod` are set). */
   isBenchmark?: boolean;
-  computedBy?: string; // WebID of the computing agent (bench:computedBy)
-  metricPeriod?: string; // year the metrics cover (bench:metricPeriod), e.g. "2024"
   /** The region this snapshot covers, when its members roll up to one — recorded IN the
    * snapshot Turtle so a shared snapshot stays self-sufficient (replayable by the recipient). */
   spatialExtent?: SpatialExtent;

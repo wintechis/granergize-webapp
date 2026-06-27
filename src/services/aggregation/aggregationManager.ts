@@ -23,6 +23,7 @@ import {
   XSD_NS,
 } from "../rdf/vocabularies.ts";
 import { ENERGY_METRICS } from "../rdf/energyDataset.ts";
+import { CONS } from "../rdf/consumption/consumptionConfig.ts";
 import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
 import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
@@ -172,24 +173,24 @@ export async function createAggregationDefinition(
   store.addQuad(quad(
     aggregationNode,
     namedNode(RDF_TYPE),
-    namedNode(`${VOCAB_PREFIX}AggregationDefinition`),
+    namedNode(CONS.aggregationDefinitionClass),
   ));
-  store.addQuad(quad(aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationId`), literal(aggregationId)));
-  store.addQuad(quad(aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationName`), literal(name)));
+  store.addQuad(quad(aggregationNode, namedNode(CONS.aggregationId), literal(aggregationId)));
+  store.addQuad(quad(aggregationNode, namedNode(CONS.aggregationName), literal(name)));
   store.addQuad(quad(
     aggregationNode,
-    namedNode(`${VOCAB_PREFIX}aggregationType`),
+    namedNode(CONS.aggregationType),
     literal(aggregationType),
   ));
   store.addQuad(quad(
     aggregationNode,
-    namedNode(`${VOCAB_PREFIX}createdAt`),
+    namedNode(CONS.createdAt),
     literal(now, namedNode(XSD_DATETIME)),
   ));
   if (period) {
     store.addQuad(quad(
       aggregationNode,
-      namedNode(`${VOCAB_PREFIX}aggregationPeriod`),
+      namedNode(CONS.aggregationPeriod),
       literal(period),
     ));
   }
@@ -200,7 +201,7 @@ export async function createAggregationDefinition(
   if (benchmark) {
     store.addQuad(quad(
       aggregationNode,
-      namedNode(`${VOCAB_PREFIX}benchmark`),
+      namedNode(CONS.benchmark),
       literal("true", namedNode(XSD_BOOLEAN)),
     ));
   }
@@ -208,14 +209,14 @@ export async function createAggregationDefinition(
   for (const buildingUri of buildingUris) {
     store.addQuad(quad(
       aggregationNode,
-      namedNode(`${VOCAB_PREFIX}includesBuilding`),
+      namedNode(CONS.includesBuilding),
       namedNode(buildingUri),
     ));
   }
   for (const metric of metrics) {
     store.addQuad(quad(
       aggregationNode,
-      namedNode(`${VOCAB_PREFIX}includesMetric`),
+      namedNode(CONS.includesMetric),
       literal(metric),
     ));
   }
@@ -237,38 +238,38 @@ export async function createAggregationDefinition(
 
 /** Extract an {@link AggregationDefinition} from a parsed definition store. */
 function parseAggregationDefinition(store: Store): AggregationDefinition | null {
-  const aggregationType_ = namedNode(`${VOCAB_PREFIX}AggregationDefinition`);
+  const aggregationType_ = namedNode(CONS.aggregationDefinitionClass);
   const aggregationNode = store.getQuads(null, namedNode(RDF_TYPE), aggregationType_, null)[0]
     ?.subject;
   if (!aggregationNode) return null;
   return {
-    id: getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationId`)) ?? "",
-    name: getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationName`)) ??
+    id: getQuadValue(store, aggregationNode, namedNode(CONS.aggregationId)) ?? "",
+    name: getQuadValue(store, aggregationNode, namedNode(CONS.aggregationName)) ??
       "",
     aggregationType: (getQuadValue(
       store,
       aggregationNode,
-      namedNode(`${VOCAB_PREFIX}aggregationType`),
+      namedNode(CONS.aggregationType),
     ) ?? "average") as AggregationDefinition["aggregationType"],
     createdAt:
-      getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}createdAt`)) ?? "",
+      getQuadValue(store, aggregationNode, namedNode(CONS.createdAt)) ?? "",
     lastComputedAt: getQuadValue(
       store,
       aggregationNode,
-      namedNode(`${VOCAB_PREFIX}lastComputedAt`),
+      namedNode(CONS.lastComputedAt),
     ),
     buildingUris: getQuadValues(
       store,
       aggregationNode,
-      namedNode(`${VOCAB_PREFIX}includesBuilding`),
+      namedNode(CONS.includesBuilding),
     ),
     metrics: getQuadValues(
       store,
       aggregationNode,
-      namedNode(`${VOCAB_PREFIX}includesMetric`),
+      namedNode(CONS.includesMetric),
     ),
-    period: getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationPeriod`)),
-    ...(getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}benchmark`)) ===
+    period: getQuadValue(store, aggregationNode, namedNode(CONS.aggregationPeriod)),
+    ...(getQuadValue(store, aggregationNode, namedNode(CONS.benchmark)) ===
         "true"
       ? { benchmark: true }
       : {}),
@@ -364,36 +365,36 @@ export async function storeComputedSnapshot(
   store.addQuad(quad(
     snapshotNode,
     namedNode(RDF_TYPE),
-    namedNode(`${VOCAB_PREFIX}AggregationSnapshot`),
+    namedNode(CONS.aggregationSnapshotClass),
   ));
 
   store.addQuad(quad(
     snapshotNode,
-    namedNode(`${VOCAB_PREFIX}aggregationId`),
+    namedNode(CONS.aggregationId),
     literal(snapshot.id),
   ));
 
   store.addQuad(quad(
     snapshotNode,
-    namedNode(`${VOCAB_PREFIX}aggregationName`),
+    namedNode(CONS.aggregationName),
     literal(snapshot.name),
   ));
 
   store.addQuad(quad(
     snapshotNode,
-    namedNode(`${VOCAB_PREFIX}aggregationType`),
+    namedNode(CONS.aggregationType),
     literal(snapshot.aggregationType),
   ));
 
   store.addQuad(quad(
     snapshotNode,
-    namedNode(`${VOCAB_PREFIX}computedAt`),
+    namedNode(CONS.computedAt),
     literal(snapshot.computedAt, namedNode(XSD_DATETIME)),
   ));
 
   store.addQuad(quad(
     snapshotNode,
-    namedNode(`${VOCAB_PREFIX}buildingCount`),
+    namedNode(CONS.buildingCount),
     literal(snapshot.buildingCount.toString(), namedNode(XSD_INTEGER)),
   ));
 
@@ -430,7 +431,7 @@ export async function storeComputedSnapshot(
   for (const metric of snapshot.metrics) {
     store.addQuad(quad(
       snapshotNode,
-      namedNode(`${VOCAB_PREFIX}includesMetric`),
+      namedNode(CONS.includesMetric),
       literal(metric),
     ));
   }
@@ -503,7 +504,7 @@ async function updateAggregationLastComputed(
 
   const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
   const aggregationNode = aggregationNodeFor(webId, aggregationId);
-  const lastComputedPred = namedNode(`${VOCAB_PREFIX}lastComputedAt`);
+  const lastComputedPred = namedNode(CONS.lastComputedAt);
 
   await readModifyWrite(definitionUri, gateway, (store, { created }) => {
     if (created) return false; // no definition file → nothing to update
@@ -553,7 +554,7 @@ export async function loadComputedSnapshot(
   const quads = parser.parse(text);
   const store = new Store(quads);
 
-  const snapshotType = namedNode(`${VOCAB_PREFIX}AggregationSnapshot`);
+  const snapshotType = namedNode(CONS.aggregationSnapshotClass);
   const snapshotQuads = store.getQuads(
     null,
     namedNode(RDF_TYPE),
@@ -587,7 +588,7 @@ export async function loadComputedSnapshot(
   const metrics = getQuadValues(
     store,
     snapshotNode,
-    namedNode(`${VOCAB_PREFIX}includesMetric`),
+    namedNode(CONS.includesMetric),
   );
   // Values are now sosa:ObservationCollection members (collapsed shape). Read each
   // member observation's value keyed by its observedProperty IRI, then map back to
@@ -633,28 +634,28 @@ export async function loadComputedSnapshot(
   }
 
   return {
-    id: getQuadValue(store, snapshotNode, namedNode(`${VOCAB_PREFIX}aggregationId`)) ??
+    id: getQuadValue(store, snapshotNode, namedNode(CONS.aggregationId)) ??
       "",
     name: getQuadValue(
       store,
       snapshotNode,
-      namedNode(`${VOCAB_PREFIX}aggregationName`),
+      namedNode(CONS.aggregationName),
     ) ?? "",
     aggregationType: (getQuadValue(
       store,
       snapshotNode,
-      namedNode(`${VOCAB_PREFIX}aggregationType`),
+      namedNode(CONS.aggregationType),
     ) ?? "average") as AggregationSnapshot["aggregationType"],
     computedAt: getQuadValue(
       store,
       snapshotNode,
-      namedNode(`${VOCAB_PREFIX}computedAt`),
+      namedNode(CONS.computedAt),
     ) ?? "",
     buildingCount: parseInt(
       getQuadValue(
         store,
         snapshotNode,
-        namedNode(`${VOCAB_PREFIX}buildingCount`),
+        namedNode(CONS.buildingCount),
       ) ?? "0",
       10,
     ),
