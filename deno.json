@@ -15,6 +15,7 @@
     "doc:intents": "deno run -A npm:typedoc",
     "doc:gateways": "deno run -A npm:typedoc --options typedoc.gateways.json",
     "doc:data": "deno run -A npm:typedoc --options typedoc.data.json",
+    "doc:objects": "deno run -A npm:typedoc --options typedoc.objects.json",
     "loc": "deno run --allow-read --allow-run=git test/loc.ts",
     "lint": "deno run -A npm:eslint .",
     "check": "deno run -A npm:typescript/tsc --noEmit -p tsconfig.check.json",

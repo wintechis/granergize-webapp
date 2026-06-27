@@ -1,4 +1,5 @@
 import type { PodGateway } from "./pod/podGateway.ts";
+import type { SavedAgent } from "../types/agent.ts";
 import { DataFactory, Store } from "n3";
 import {
   ORG_MEMBER_OF,
@@ -33,38 +34,11 @@ const LOGO = namedNode(VCARD_LOGO);
 const SAME_AS = namedNode(OWL_SAME_AS);
 const MEMBER_OF = namedNode(ORG_MEMBER_OF);
 
-/**
- * A locally-remembered agent. The address book is a *cache*, not the source of
- * truth — `name`/`avatarUrl` are the agent's own profile values snapshotted at
- * remember-time (re-resolved live by {@link resolveAgent} where freshness matters).
- *
- * `kind` distinguishes a person (`vcard:Individual`) from an organisation
- * (`vcard:Organization`). For an organisation the user may *override* the
- * canonical profile locally — the agent's own profile isn't ours to edit — so the
- * book also caches the org's editable `homepage` (`vcard:hasURL`) and `sameAs`
- * (`owl:sameAs`, e.g. a Wikidata entity the logo derives from). The local record
- * wins over the resolved profile (see {@link resolveAgent}).
- */
-export interface SavedAgent {
-  webId: string;
-  name?: string;
-  avatarUrl?: string;
-  kind?: "person" | "organisation";
-  /** An organisation agent's logo image (`vcard:logo`), uploaded to the user's own
-   *  Pod — the local-record counterpart of the own-org `foaf:logo`. */
-  logoUrl?: string;
-  /** An organisation's website (`vcard:hasURL`). */
-  homepage?: string;
-  /** Cross-references (`owl:sameAs`), e.g. a Wikidata entity for logo derivation. */
-  sameAs?: string[];
-  /**
-   * A locally-asserted "works for" edge (`org:memberOf`) to the WebID of an
-   * organisation the user also keeps as an agent. Independent of the agent's own
-   * profile — the user records the affiliation they know of; this local edge wins
-   * over any `org:memberOf` the agent's own profile publishes (see resolveAgentOrg).
-   */
-  memberOf?: string;
-}
+// `SavedAgent` now lives in the central object model (src/types/agent.ts); re-exported
+// here for this module's existing importers. The address book is a *cache*, not the
+// source of truth — `name`/`avatarUrl` are snapshotted at remember-time, re-resolved
+// live by `resolveAgent`; the local record wins over the resolved profile.
+export type { SavedAgent };
 
 /** `<storageRoot><APP_DIR>/agents.ttl` — the personal vCard address book. */
 export function savedAgentsUri(webId: string): string {

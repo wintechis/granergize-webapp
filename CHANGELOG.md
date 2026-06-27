@@ -3,6 +3,16 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **Object model split into `src/types/` per family + first-class agents + generated docs.** The
+  342-line `src/types.ts` (mixing building/consumption/aggregation + a 89-line energy model) is now
+  a **barrel** re-exporting `src/types/{building,consumption,aggregation,agent,core}.ts` — every
+  `from "…/types.ts"` import (and the generated `*Fields` files) is unchanged. `SavedAgent` and
+  `Organization` — persisted first-class records — moved from beside their service into
+  `src/types/agent.ts` (re-exported from `savedAgents.ts`/`organizationManager.ts` so their importers
+  are unaffected), next to `BuildingType`. Event-logs (sharing/rooms) + external-source results stay
+  co-located by design. New `typedoc.objects.json` + `deno task doc:objects` generate the object-model
+  API docs (`docs/api/objects`, per-family), mirroring `doc:intents`/`doc:gateways`. Pure type
+  relocation — check/lint/unit (1056) green; docs build clean. (plans/plan-object-model-inventory.md.)
 - **The consumption family is vocab-derived too.** A new consumption bridge
   (`src/services/rdf/consumption/consumptionConfig.ts`) centralizes the family's predicate IRIs
   (`CONS`) + field↔IRI tables; `genVocabInterface` now also emits `consumptionShape.generated.ts`
