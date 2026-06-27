@@ -71,7 +71,7 @@ import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
 import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
 import { listDirectChildren } from "../../pod/podDelete.ts";
-import { agsConceptUrl } from "../../../constants/dataSources.ts";
+import { lauConceptUrl } from "../../../constants/dataSources.ts";
 import { mintLocalIri } from "../rdfHelpers.ts";
 import { buildingFileUri, mintBuildingSubject } from "./buildingId.ts";
 import {
@@ -203,9 +203,15 @@ function addRegion(
   subject: ReturnType<typeof namedNode>,
   fields: Record<string, string>,
 ): void {
+  // dcterms:spatial → the authoritative LAU/NUTS `skos:Concept` IRI. A loaded building
+  // carries the concept IRI verbatim (`regionConceptIri`); a freshly geocoded one
+  // carries only the AGS, from which we build the LAU concept IRI. The bare AGS join
+  // key is NOT stored here — it is the concept's own `dcterms:identifier`, served by
+  // the wrapper and read by dereferencing the concept.
   const ags = fields.regionAgs?.trim();
-  if (!ags) return;
-  store.addQuad(subject, namedNode(DCTERMS_SPATIAL), namedNode(agsConceptUrl(ags)));
+  const region = fields.regionConceptIri?.trim() || (ags ? lauConceptUrl(ags) : "");
+  if (!region) return;
+  store.addQuad(subject, namedNode(DCTERMS_SPATIAL), namedNode(region));
 }
 
 /**

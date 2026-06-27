@@ -14,7 +14,21 @@ export default tseslint.config(
   // `dist-*` are alternate build outputs (dist-jss / dist-handbuch / dist-videos);
   // `.claude` holds sibling worktrees + session state — both local-only artifacts CI
   // never sees, but `eslint .` would otherwise walk (and choke on) them.
-  { ignores: ["dist", "dist-*", ".claude", "e2e", "playwright.config.ts"] },
+  // `.design-sync` / `.ds-sync` / `ds-bundle` are design-sync tooling + build output
+  // (vendored bundle, generated tokens, authored preview snippets with their own
+  // conventions) — tooling, not app source.
+  {
+    ignores: [
+      "dist",
+      "dist-*",
+      ".claude",
+      "e2e",
+      "playwright.config.ts",
+      ".design-sync",
+      ".ds-sync",
+      "ds-bundle",
+    ],
+  },
   // React Query discipline: query-key exhaustiveness (a key omitting a value the
   // queryFn closes over → stale reads), stable QueryClient, no rest-destructuring
   // of query results. The data layer is entirely React Query, so this is on-domain.

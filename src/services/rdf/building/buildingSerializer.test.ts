@@ -97,6 +97,32 @@ Deno.test("serializeBuildingToTurtle round-trips core fields through the parser"
   assert.equal(b!.long, 11.1);
 });
 
+Deno.test("serializeBuildingToTurtle: a geocoded building's AGS → the LAU skos:Concept on dcterms:spatial; round-trips to regionConceptIri", () => {
+  const uri = newBuildingUri(WEBID, "b-region");
+  const ttl = serializeBuildingToTurtle({ regionAgs: "09564000" }, uri);
+  // dcterms:spatial points at the authoritative LAU concept (GISCO_ID DE_<ags>), NOT
+  // the old regionalstatistik `…/ags/<code>` cube-dimension scheme.
+  assert.match(ttl, /lau\/DE_09564000#it/, "dcterms:spatial → LAU concept IRI");
+  assert.ok(!ttl.includes("/ags/09564000"), "no regionalstatistik cube-dimension IRI on the building");
+  // The app does NOT assert the bare AGS — that's the wrapper concept's dcterms:identifier.
+  assert.ok(!/dc\/terms\/identifier/.test(ttl), "no app-asserted dcterms:identifier");
+  // It round-trips as the concept IRI; the bare AGS is resolved later by dereferencing it.
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  assert.ok(b, "building parsed back");
+  assert.match(b!.regionConceptIri ?? "", /lau\/DE_09564000#it$/);
+  assert.equal(b!.regionAgs, undefined, "AGS is not stored on the building (deref-resolved)");
+});
+
+Deno.test("serializeBuildingToTurtle: an edited building keeps its region — dcterms:spatial written verbatim from regionConceptIri", () => {
+  const uri = newBuildingUri(WEBID, "b-region-edit");
+  const concept = "https://wunderfacts.com/lau/lau/DE_09564000#it";
+  // The edit form seeds regionConceptIri from the loaded building (no fresh geocode),
+  // so the serializer must preserve it rather than drop the region.
+  const ttl = serializeBuildingToTurtle({ regionConceptIri: concept }, uri);
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  assert.equal(b!.regionConceptIri, concept);
+});
+
 Deno.test("serializeBuildingToTurtle writes operatedBy as a rec:operatedBy IRI reference (NamedNode, not a literal)", () => {
   const uri = newBuildingUri(WEBID, "b-op");
   const operator = "https://operator.example/profile/card#me";

@@ -26,6 +26,7 @@ import {
   type RegionalTable,
 } from "../services/sources/regionalCube.ts";
 import { useNearbyInstallations } from "./mastrNearby.ts";
+import { fetchRegionAgs } from "../services/sources/regionGeometry.ts";
 import { logError } from "../lib/logError.ts";
 
 export interface RegionalMetric {
@@ -53,10 +54,17 @@ export interface RegionalContext {
  * Hour-long `staleTime` — regional statistics change at most yearly.
  */
 export function useRegionalContext(building: Building) {
-  // Prefer the region resolved at geocode time (`regionAgs` — reliable, no reverse-geocode):
-  // Land = first 2 digits, Kreis = first 5. Fall back to the vcard Bundesland + the nearby-MaStR
-  // Kreis for buildings stored before the region was captured.
-  const storedAgs = building.regionAgs;
+  // The region's bare AGS: the geocode-time field if present, else resolved by
+  // dereferencing the building's `dcterms:spatial` concept (its authoritative
+  // `dcterms:identifier`). Land = first 2 digits, Kreis = first 5. Falls back to the
+  // vcard Bundesland + the nearby-MaStR Kreis when no region concept is recorded.
+  const { data: resolvedAgs } = useQuery({
+    queryKey: ["regionAgs", building.regionConceptIri],
+    queryFn: () => fetchRegionAgs(building.regionConceptIri!),
+    enabled: !!building.regionConceptIri,
+    staleTime: Infinity, // region codes are immutable
+  });
+  const storedAgs = building.regionAgs ?? resolvedAgs ?? undefined;
   const region = building.region ?? "";
   const landAgs = storedAgs ? storedAgs.slice(0, 2) : bundeslandToAgs(region);
   // Shares the cached ["mastrNearby", lat, long] query with the nearby-installations

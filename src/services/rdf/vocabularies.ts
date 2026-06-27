@@ -205,9 +205,14 @@ export const SCHEMA_CONTENT_SIZE = `${SCHEMA_NS}contentSize`;
 export const SCHEMA_CUSTOMER = `${SCHEMA_NS}customer`;
 
 /** Dublin Core Terms — `dcterms:created` for an attachment's upload timestamp;
- *  `dcterms:spatial` links a building to the region (a `…/ags/{code}` place) it sits in. */
+ *  `dcterms:spatial` links a building to the **LAU/NUTS `skos:Concept`** for the region
+ *  it sits in (the authority, dereferenceable to its `sameAs`/geometry). The bare AGS
+ *  join key is that concept's `dcterms:identifier`, **served by the wrapper** and read
+ *  by dereferencing the concept (`regionGeometry.fetchRegionAgs`) — the app does not
+ *  assert it. */
 export const DCTERMS_NS = "http://purl.org/dc/terms/";
 export const DCTERMS_CREATED = `${DCTERMS_NS}created`;
 export const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
+export const DCTERMS_IDENTIFIER = `${DCTERMS_NS}identifier`;
 export const DCTERMS_SOURCE = `${DCTERMS_NS}source`;
 export const DCTERMS_LICENSE = `${DCTERMS_NS}license`;

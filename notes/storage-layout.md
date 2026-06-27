@@ -134,9 +134,9 @@ so the banner doesn't nag on every login. Nothing is seeded silently.
 
 Origins (all via `podResources(webId)` unless noted): prefs `prefs.ts`; bookmarks
 `bookmarks.ts`; buildings/energy `buildingSerializer.ts`; own-building discovery +
-shared-fold `turtleParsingService.ts`; aggregations `aggregationManager.ts`; rooms `dataRoom.ts`;
-sharing logs `sharingLog.ts` / `sharingManager.ts` / `inbox.ts`; org node + logo
-(`profile/`) `organizationManager.ts`.
+shared-fold `turtleParsing.ts`; aggregations `aggregation.ts`; rooms `dataRoom.ts`;
+sharing logs `sharingLog.ts` / `sharing.ts` / `inbox.ts`; org node + logo
+(`profile/`) `organisation.ts`.
 
 **Removal.** Two levels, both on the building page / account menu:
 - *Hide* (`toggleHiddenBuilding`) — adds/removes a `gran:hiddenBuilding` entry in
@@ -164,14 +164,14 @@ doc.
 
 Person (`#me`, `foaf:Person`):
 
-- `org:memberOf` → `#org` (written by `organizationManager.ts`).
+- `org:memberOf` → `#org` (written by `organisation.ts`).
 - `foaf:img` → personal avatar, if another tool set one (read-only here).
-- `vcard:hasPhoto` → IdP profile photo. Avatar reader (`logoManager.ts`) checks
+- `vcard:hasPhoto` → IdP profile photo. Avatar reader (`logo.ts`) checks
   `foaf:img` then this.
 - `ldp:inbox` → sharing-notification inbox (`share.ts`).
 - `foaf:name` / `vcard:fn`.
 
-Organisation (`#org`, written by `organizationManager.ts`):
+Organisation (`#org`, written by `organisation.ts`):
 
 - `a org:Organization, foaf:Organization`.
 - `foaf:name` → company name.

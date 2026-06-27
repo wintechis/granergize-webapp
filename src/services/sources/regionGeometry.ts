@@ -18,8 +18,8 @@
 import type { Store } from "n3";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
-import { contains, search } from "./capabilities.ts";
-import { SKOS_NS } from "../rdf/vocabularies.ts";
+import { contains, deref, search } from "./capabilities.ts";
+import { DCTERMS_IDENTIFIER, SKOS_NS } from "../rdf/vocabularies.ts";
 
 /**
  * Region grain — Bundesland (NUTS-1, 2-digit AGS) and Kreis (NUTS-3, 5-digit AGS)
@@ -194,6 +194,47 @@ export async function fetchContainingGemeindeAgs(
   } catch {
     return null; // best-effort: outside coverage / unreachable → no region
   }
+}
+
+/**
+ * The bare AGS from a region concept's `dcterms:identifier` in `store`. Defensively
+ * strips a `<CC>_` GISCO country prefix (so it reads the bare AGS whether the wrapper
+ * serves `"09564000"` or the legacy `"DE_09564000"` form). Subject-agnostic: takes the
+ * first `dcterms:identifier` literal, which on a dereferenced concept is the concept's.
+ * Pure.
+ */
+export function regionAgsFromConcept(store: Store): string | null {
+  for (const q of store.getQuads(null, DCTERMS_IDENTIFIER, null, null)) {
+    const v = q.object.value.replace(/^[A-Z]{2}_/, "").trim();
+    if (v) return v;
+  }
+  return null;
+}
+
+/** Per-IRI memo (region codes are immutable) so repeated resolves — across the service
+ *  callers and the React-Query hook — dereference each concept at most once. */
+const regionAgsCache = new Map<string, Promise<string | null>>();
+
+/**
+ * Resolve a region concept IRI (a building's `dcterms:spatial` object) to its bare AGS
+ * by **dereferencing the concept and reading its `dcterms:identifier`** — the
+ * authoritative literal the wrapper serves. Generalises to NUTS (whose IRI is a NUTS
+ * code, not an AGS). Best-effort: `null` when unreachable or the concept has no
+ * identifier. Memoised per IRI.
+ */
+export function fetchRegionAgs(conceptIri: string): Promise<string | null> {
+  const hit = regionAgsCache.get(conceptIri);
+  if (hit) return hit;
+  const p = (async () => {
+    try {
+      const store = await deref(getSourceGateway(), conceptIri, "region-identifier");
+      return regionAgsFromConcept(store);
+    } catch {
+      return null; // best-effort: concept unreachable → no region
+    }
+  })();
+  regionAgsCache.set(conceptIri, p);
+  return p;
 }
 
 /** A region match from a geo wrapper's `/search` (a lean SKOS concept). */

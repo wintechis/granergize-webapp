@@ -253,17 +253,26 @@ export function sourceBase(source: SourceId): string {
 }
 
 /**
+ * The **LAU `skos:Concept` IRI** for a German Gemeinde AGS (`<lau-base>lau/DE_<ags>#it`,
+ * GISCO_ID `DE_<ags>`) — the authoritative place concept (deref → `sameAs`/geometry/
+ * `skos:notation`/`dcterms:identifier`). This is what a building's `dcterms:spatial`
+ * references; the bare AGS join key is the concept's own `dcterms:identifier`, served
+ * by the wrapper and read by dereferencing it (`regionGeometry.fetchRegionAgs`) — not
+ * stored on the building. Pure over {@link sourceBase}, so the RDF serializer can build
+ * it without importing `services/sources/` (keeps rdf↔sources acyclic).
+ */
+export function lauConceptUrl(ags: string): string {
+  return `${sourceBase("lau")}lau/DE_${ags}#it`;
+}
+
+/**
  * The regionalstatistik data-cube **geo-dimension IRI** for a German AGS
- * (`<regionalstatistik-base>ags/<ags>`). Written as a building's `dcterms:spatial`
- * and the aggregation spatial coordinate so they JOIN the regionalstatistik cube
- * (regional benchmarks + the AGS-keyed choropleth). NB: this is a *source-cube*
- * dimension value, not the authoritative place concept — the AGS itself is resolved
- * via **linked-lau** (`regionGeometry`), and the canonical region is the LAU/NUTS
- * `skos:Concept`; coupling `dcterms:spatial` to this scheme rather than the LAU
- * concept is a known modelling shortcut (see notes). Lives here next to
- * {@link sourceBase} (not in the `regionalCube` source client) so the RDF serializer
- * and aggregation can build it without importing `services/sources/`, keeping the
- * rdf↔sources dependency acyclic.
+ * (`<regionalstatistik-base>ags/<ags>`). NOT a stored place reference — it is the
+ * **derived join key** the aggregation/choropleth layer computes from a building's
+ * AGS at query time to look up the regionalstatistik cube (regional benchmarks). The
+ * building itself stores the LAU concept (see {@link lauConceptUrl}); this scheme is
+ * a source-cube dimension, not an authority. Lives here (not in `regionalCube`) so
+ * `regionRollup`/the serializer build it without importing `services/sources/`.
  */
 export function agsConceptUrl(ags: string): string {
   return `${sourceBase("regionalstatistik")}ags/${ags}`;

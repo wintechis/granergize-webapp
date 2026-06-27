@@ -186,11 +186,11 @@ export function parseBuildings(
       return;
     }
 
-    // Region (dcterms:spatial → a `…/ags/{code}` place): keep the AGS, the join key
-    // everything derives from (Kreis = first 5, Land = first 2).
+    // Region: dcterms:spatial → the LAU/NUTS `skos:Concept` IRI, kept verbatim. The
+    // bare AGS join key is the concept's own `dcterms:identifier`, resolved on demand
+    // by dereferencing it (regionGeometry.fetchRegionAgs) — not stored in this file.
     if (pred === DCTERMS_SPATIAL) {
-      const ags = obj.value.match(/\/ags\/(\d+)$/)?.[1];
-      if (ags) building.regionAgs = ags;
+      building.regionConceptIri = obj.value;
       return;
     }
 

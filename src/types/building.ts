@@ -106,9 +106,16 @@ export interface Building extends BuildingFlatFields, GeoPointFields {
    * `geocodePrecision` is the vocab-derived field from `GeoPointFields`). */
   lat?: number;
   long?: number;
-  /** The building's 8-digit Gemeinde AGS, resolved from its coordinates at geocode time
-   * (`dcterms:spatial`). Kreis = first 5 digits, Land = first 2. Drives the regional-statistics
-   * join and the aggregation spatial coordinate without a per-read reverse-geocode. */
+  /** The region's authoritative LAU/NUTS `skos:Concept` IRI — the `dcterms:spatial`
+   * object, parsed verbatim. The canonical stored reference; the bare AGS join key is
+   * the concept's own `dcterms:identifier`, read by dereferencing it (see
+   * `regionGeometry.fetchRegionAgs`), so it generalises to NUTS concepts (whose IRI is
+   * a NUTS code, not an AGS). */
+  regionConceptIri?: string;
+  /** The building's 8-digit Gemeinde AGS. Set at geocode time (drives serialization of
+   * the LAU concept IRI) and, on a loaded building, resolved on demand from
+   * `regionConceptIri`. Kreis = first 5 digits, Land = first 2 — the regional-statistics
+   * / choropleth join key. */
   regionAgs?: string;
   /** The building's energy units (`bldg:hasSystem` nodes) — PV plants, batteries,
    * CHP. A flat list (several of a kind allowed); each carries a stable `id`. */
