@@ -49,7 +49,7 @@ Resolved once per session, then cached:
    `<root>granergize/…` (layout owned by [`storage-layout.md`](./storage-layout.md)). One
    tree; no per-call base munging.
 3. **Discover source URIs.** Own and shared buildings are discovered separately
-   (`loadBuildings` / `fetchAndParseData`, `src/services/TurtleParsingService.ts`):
+   (`loadBuildings` / `fetchAndParseData`, `src/services/turtleParsingService.ts`):
    - *Own buildings* — `discoverOwnBuildings` **LISTS** the `buildings/` container
      and keeps the top-level `*.ttl` files (no registry: adding a building is a
      single PUT, so the listing can't desync). `listDirectChildren` returning `null`

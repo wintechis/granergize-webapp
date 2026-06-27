@@ -7,7 +7,7 @@ import {
   loadBuildings,
   loadEnergy,
   sharedBuildingSourcesFromGrants,
-} from "../services/TurtleParsing.ts";
+} from "../services/turtleParsing.ts";
 import { podResources, resolveStorageRoot } from "../services/pod/solidUtils.ts";
 import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {

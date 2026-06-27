@@ -68,7 +68,7 @@ affects.
 keep a **folder** — `interop/` (sharing, data rooms, inbox), `aggregation/` (computes and
 persists aggregations), `organization/` (org node + avatar), `agents/` (WebID→identity resolution
 and cross-building appearances) — while single-resource units are **flat modules** beside
-`TurtleParsingService` (the root load-and-parse orchestrator): `savedAgents`, `bookmarks`,
+`turtleParsingService` (the root load-and-parse orchestrator): `savedAgents`, `bookmarks`,
 `prefs`, `attachmentManager`, `buildingActions` (the delete-orchestration helper), and
 `geocode` (external geocoding). A folder marks a sub-domain with several collaborating
 files, not a one-file-per-Pod-resource mirror; a single owned resource is just a module.

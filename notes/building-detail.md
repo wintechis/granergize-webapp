@@ -73,7 +73,7 @@ point-in-time computed snapshots that are recomputed explicitly — are the unre
 `quad.subject.value`). `building.sourceUri` = the source file URI
 (`quad.graph.value`). `building.id` is derived from the IRI tail (not a triple).
 `building.attributedTo` (from the file's PROV qualified attribution, read in
-`buildingParser.ts`) and `building.isShared` (set in `TurtleParsingService.ts` — own
+`buildingParser.ts`) and `building.isShared` (set in `turtleParsingService.ts` — own
 buildings live under the storage root, shared ones don't) are derived during parsing,
 not surfaced as graph rows. The backing-document URI shows atop the page as a dev-only
 source link (`RdfSourceLink`, self-hiding outside Developer mode); everything below is

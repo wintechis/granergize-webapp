@@ -15,7 +15,7 @@
  * It is the app-wide **authed entry point**, not an intent-layer detail: every
  * read/write of the user's Pod threads a `PodGateway` — the React Query hooks
  * (`hooks/queries.ts`, `hooks/mutations.ts`), the data layer
- * (`TurtleParsing`, the `rdf/` parsers/serializers, `fetchFresh`), the
+ * (`turtleParsing`, the `rdf/` parsers/serializers, `fetchFresh`), the
  * `interop/`/`aggregation/` services, and the intent cores all take it as their
  * transport. It is the **read/write authed peer** of the read-only, identity-free
  * {@link ../sources/sourceGateway.ts | SourceGateway} (which carries no `webId` and

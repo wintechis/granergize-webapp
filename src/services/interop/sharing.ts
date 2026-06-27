@@ -329,7 +329,7 @@ export async function toggleBuildingVisibility(
     throw new Error("User is not logged in");
   }
   // The hidden list lives in prefs.ttl (read by getSharedWithMe /
-  // TurtleParsing via readPrefs); toggle there so write and read agree.
+  // turtleParsing via readPrefs); toggle there so write and read agree.
   await toggleHiddenBuilding(gateway, buildingUri);
 }
 

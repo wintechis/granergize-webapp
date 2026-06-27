@@ -10,7 +10,7 @@
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import type { BuildingType } from "../../../types.ts";
 import { resolve } from "../../entityQuery.ts";
-import { fetchAndParseData } from "../../../services/TurtleParsing.ts";
+import { fetchAndParseData } from "../../../services/turtleParsing.ts";
 import { bundeslandToAgs } from "../../../services/sources/region.ts";
 import {
   openRegionalItemsFromBuildings,

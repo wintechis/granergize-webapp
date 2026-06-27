@@ -134,7 +134,7 @@ so the banner doesn't nag on every login. Nothing is seeded silently.
 
 Origins (all via `podResources(webId)` unless noted): prefs `prefs.ts`; bookmarks
 `bookmarks.ts`; buildings/energy `buildingSerializer.ts`; own-building discovery +
-shared-fold `TurtleParsingService.ts`; aggregations `aggregationManager.ts`; rooms `dataRoom.ts`;
+shared-fold `turtleParsingService.ts`; aggregations `aggregationManager.ts`; rooms `dataRoom.ts`;
 sharing logs `sharingLog.ts` / `sharingManager.ts` / `inbox.ts`; org node + logo
 (`profile/`) `organizationManager.ts`.
 

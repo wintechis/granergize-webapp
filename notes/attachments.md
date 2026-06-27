@@ -30,7 +30,7 @@ share that carries the files) and [`storage-layout.md`](./storage-layout.md) (wh
 ```
 
 The file IRI is the metadata subject (not a blank node), so the metadata isn't
-affected by `TurtleParsingService`'s per-source blank-node scoping, and a file is
+affected by `turtleParsingService`'s per-source blank-node scoping, and a file is
 removed by dropping all triples with that subject. Constants in `vocabularies.ts`
 (`GRAN_HAS_ATTACHMENT`, `SCHEMA_*`, `DCTERMS_CREATED`).
 

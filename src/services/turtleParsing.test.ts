@@ -7,7 +7,7 @@ import {
   fetchAndParseData,
   loadBuildings,
   SessionExpiredError,
-} from "./TurtleParsing.ts";
+} from "./turtleParsing.ts";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 import { makeFakeSession } from "./testing/fakeSession.ts";
 

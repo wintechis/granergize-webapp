@@ -3,9 +3,21 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **Filename-case convention made explicit and enforced with a content-aware ESLint rule.** First,
+  aligned the lone outlier left by N2: `turtleParsing` (still PascalCase after the suffix drop) →
+  camelCase, matching its `services/` peers. Then added a custom rule
+  (`eslint-rules/filenameExportCase.js`) that decides a file's expected case by *inspecting its
+  content*, not its path/extension: **PascalCase** iff the file defines a React component — a
+  PascalCase function that returns JSX, or a default-exported PascalCase component (incl. imperative
+  ones that return `null`, e.g. a Leaflet layer) — or is an **intent core**; **camelCase** otherwise
+  (a module of functions/values — *even when* it exports PascalCase types or error classes like
+  `SessionExpiredError`, or returns JSX from a camelCase helper like `makeBuildingFields`). That's the
+  distinction `unicorn/filename-case` can't express, and exactly the one that let `TurtleParsingService`
+  drift. Warn-level, `src/` only, entry points (`main`/`index`) exempt; a 13-case unit test drives it
+  through ESLint's `Linter`. 0 warnings on the current tree; lint/check/unit green.
 - **Service modules de-suffixed for a consistent naming convention (architecture review N2).** The
   six `-Manager`/`-Service` module files (the lone `-Service` and five `-Manager`) drop their suffix:
-  `attachmentManager→attachment`, `TurtleParsingService→TurtleParsing`, `aggregationManager→aggregation`,
+  `attachmentManager→attachment`, `turtleParsingService→turtleParsing`, `aggregationManager→aggregation`,
   `sharingManager→interop/sharing`, `organisationManager→organisation`, `logoManager→logo`. The repo
   had no rule for when a module earned "Manager" (why `sharingManager` but plain `prefs`/`bookmarks`?);
   dropping the suffixes makes the module names uniform. Exported function names are unchanged — file

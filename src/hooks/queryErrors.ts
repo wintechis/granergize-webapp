@@ -1,4 +1,4 @@
-import { SessionExpiredError } from "../services/TurtleParsing.ts";
+import { SessionExpiredError } from "../services/turtleParsing.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 import { formatError } from "../lib/formatError.ts";
 import { type MessageId, translate } from "../lib/messages.ts";

@@ -32,7 +32,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { resolveStorageRoot, podResources } from "../../src/services/pod/solidUtils.ts";
 import { drainInbox, ensureOwnInbox } from "../../src/services/interop/inbox.ts";
 import { ensureContainer } from "../../src/services/pod/podWrite.ts";
-import { fetchAndParseData } from "../../src/services/TurtleParsing.ts";
+import { fetchAndParseData } from "../../src/services/turtleParsing.ts";
 import { getSharedWithMe } from "../../src/services/interop/sharing.ts";
 import {
   createRoom,

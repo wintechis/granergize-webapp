@@ -22,7 +22,7 @@ import {
   parseCsvToFields,
 } from "../../../src/services/rdf/building/buildingImport.ts";
 import { buildingsToXlsx } from "../../../src/services/xlsx/buildingWorkbook.ts";
-import { fetchAndParseData } from "../../../src/services/TurtleParsing.ts";
+import { fetchAndParseData } from "../../../src/services/turtleParsing.ts";
 
 import {
   mintBuildingSubject,
