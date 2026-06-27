@@ -11,6 +11,9 @@ node_modules
 dist
 dist-*
 
+# Generated typedoc HTML for the intent layer (deno task doc:intents)
+docs/api/
+
 # Run artifacts: Playwright traces/reports + benchmark output (test-results/bench/)
 test-results
 playwright-report
