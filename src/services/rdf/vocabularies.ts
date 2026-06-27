@@ -1,4 +1,5 @@
 /** Shared RDF vocabulary IRI constants used across services */
+import type { GeocodePrecision } from "./buildingShape.generated.ts";
 
 // The three Granergize vocabularies, partitioned by subject (see vocab/README.md):
 // core (app/interop plumbing), building (rec:Building master data), consumption
@@ -65,12 +66,13 @@ export const GEO_LONG = `${GEO_NS}long`;
  * the lookup had to fall back to a coarser query. IRI-valued (controlled vocab).
  */
 export const GRAN_GEOCODE_PRECISION = `${BUILDING_NS}geocodePrecision`;
-export const GEOCODE_PRECISION_IRI = {
-  address: `${BUILDING_NS}Address`,
-  postcode: `${BUILDING_NS}Postcode`,
-  city: `${BUILDING_NS}City`,
-} as const;
-export type GeocodePrecision = keyof typeof GEOCODE_PRECISION_IRI;
+// Keyed by the vocab-derived GeocodePrecision token; the IRI local name IS the token.
+export const GEOCODE_PRECISION_IRI: Record<GeocodePrecision, string> = {
+  Address: `${BUILDING_NS}Address`,
+  Postcode: `${BUILDING_NS}Postcode`,
+  City: `${BUILDING_NS}City`,
+};
+export type { GeocodePrecision };
 /** Reverse of {@link GEOCODE_PRECISION_IRI} (IRI → precision key), for parsing. */
 export const IRI_TO_GEOCODE_PRECISION: Record<string, GeocodePrecision> = Object
   .fromEntries(

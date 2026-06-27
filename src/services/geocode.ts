@@ -26,9 +26,9 @@ export async function geocodeFields(
   // Progressively coarser candidates, each tagged with the precision a hit
   // implies — included only when its distinguishing field is present.
   const candidates: Array<{ precision: GeocodePrecision; parts: (string | undefined)[] }> = [];
-  if (street) candidates.push({ precision: "address", parts: [street, postal, city, region] });
-  if (postal) candidates.push({ precision: "postcode", parts: [postal, city, region] });
-  if (city) candidates.push({ precision: "city", parts: [city, region] });
+  if (street) candidates.push({ precision: "Address", parts: [street, postal, city, region] });
+  if (postal) candidates.push({ precision: "Postcode", parts: [postal, city, region] });
+  if (city) candidates.push({ precision: "City", parts: [city, region] });
 
   const tried = new Set<string>();
   let first = true;

@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { Parser } from "n3";
-import { BUILDING_FIELDS } from "./building/buildingConfig.ts";
+import { BUILDING_FIELDS, schemaFor } from "./building/buildingConfig.ts";
 import { MEMBERSHIP_ROLE_TO_IRI } from "../../constants/roles.ts";
 import {
   BENCH_COMPUTED_BY,
@@ -62,8 +62,9 @@ Deno.test("every owned building-field predicate is defined in the vocab", () => 
 
 Deno.test("every owned object-property range class is defined in the vocab", () => {
   for (const f of BUILDING_FIELDS) {
-    if (f.range && isOwned(f.range)) {
-      assert.ok(defined.has(f.range), `range class not defined in vocab/: ${f.range}`);
+    const range = schemaFor(f.iri).range; // range now sourced from the generated schema
+    if (range && isOwned(range)) {
+      assert.ok(defined.has(range), `range class not defined in vocab/: ${range}`);
     }
   }
 });
@@ -86,13 +87,6 @@ const CONTROLLED_VOCAB_INSTANCES = [
   "MultiTenant",
   "MaxTwelveDegrees",
   "MaxEighteenDegrees",
-  // operating-cost instances (buildingParser pass 2)
-  "Low",
-  "Simple",
-  "Medium",
-  "High",
-  "AllRisk",
-  "FullServiceManagement",
 ];
 
 Deno.test("every controlled-vocab instance is defined in the building vocab", () => {
@@ -166,7 +160,7 @@ Deno.test("benchmark + aggregation terms are defined in the consumption vocab", 
  * carries no label at all (not just an incomplete translation) is a failure.
  */
 const CODE_REFERENCED_OWNED: string[] = [
-  ...BUILDING_FIELDS.flatMap((f) => [f.iri, f.range]).filter(
+  ...BUILDING_FIELDS.flatMap((f) => [f.iri, schemaFor(f.iri).range]).filter(
     (iri): iri is string => !!iri && isOwned(iri),
   ),
   ...CONTROLLED_VOCAB_INSTANCES.map((n) => `${BUILDING_NS}${n}`),

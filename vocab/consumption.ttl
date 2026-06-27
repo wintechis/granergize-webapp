@@ -20,6 +20,7 @@
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix unit: <https://qudt.org/vocab/unit#> .
 
 <#> rdf:type owl:Ontology ;
     rdfs:label "Granergize consumption vocabulary"@en ;
@@ -67,18 +68,30 @@
 :Actual  rdf:type :Scenario ; rdfs:label "Actual"@en ; rdfs:label "Ist"@de ; rdfs:label "Réel"@fr .
 :Planned rdf:type :Scenario ; rdfs:label "Planned"@en ; rdfs:label "Plan"@de ; rdfs:label "Prévu"@fr .
 
+# The canonical app unit an observable property's results are normalised to — read by
+# the schema generator to build the metric→unit map (see vocabSchema.generated.ts).
+:canonicalUnit rdf:type owl:ObjectProperty ;
+    rdfs:label "canonical unit"@en ; rdfs:label "kanonische Einheit"@de ; rdfs:label "unité canonique"@fr ;
+    rdfs:domain sosa:ObservableProperty .
+
 # Observable properties used as sosa:observedProperty on energy observations.
 :ElectricityConsumption rdf:type sosa:ObservableProperty ;
+    :canonicalUnit unit:KiloW-HR ;
     rdfs:label "Electricity consumption"@en ; rdfs:label "Stromverbrauch"@de ; rdfs:label "Consommation d'électricité"@fr .
 :HeatConsumption rdf:type sosa:ObservableProperty ;
+    :canonicalUnit unit:KiloW-HR ;
     rdfs:label "Heat consumption"@en ; rdfs:label "Wärmeverbrauch"@de ; rdfs:label "Consommation de chaleur"@fr .
 :WaterConsumption rdf:type sosa:ObservableProperty ;
+    :canonicalUnit unit:M3 ;
     rdfs:label "Water consumption"@en ; rdfs:label "Wasserverbrauch"@de ; rdfs:label "Consommation d'eau"@fr .
 :WastewaterConsumption rdf:type sosa:ObservableProperty ;
+    :canonicalUnit unit:M3 ;
     rdfs:label "Wastewater consumption"@en ; rdfs:label "Abwasseraufkommen"@de ; rdfs:label "Consommation d'eaux usées"@fr .
 :RenewableSelfGeneratedShare rdf:type sosa:ObservableProperty ;
+    :canonicalUnit unit:PERCENT ;
     rdfs:label "Renewable self-generated share"@en ; rdfs:label "Anteil selbst erzeugter erneuerbarer Energie"@de ; rdfs:label "Part d'énergie renouvelable autoproduite"@fr .
 :ElectricityGeneration rdf:type sosa:ObservableProperty ;
+    :canonicalUnit unit:KiloW-HR ;
     rdfs:label "Electricity generation"@en ; rdfs:label "Stromerzeugung"@de ; rdfs:label "Production d'électricité"@fr .
 
 # A single sub-hourly energy-meter reading (observedProperty + featureOfInterest

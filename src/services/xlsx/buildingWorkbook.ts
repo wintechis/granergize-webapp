@@ -75,7 +75,7 @@ function investorRows(b: BuildingType): Cell[][] {
   for (const cert of b.certifications ?? []) {
     if (!cert.type) continue;
     put(cert.type, "Ja");
-    if (cert.level) put(certLevelLabel(cert.type), cert.level);
+    if (cert.certificationLevel) put(certLevelLabel(cert.type), cert.certificationLevel);
   }
   return rows;
 }
@@ -160,8 +160,8 @@ function buildingToFlatRecord(b: BuildingType): Record<string, string | number> 
   const cert = b.certifications?.[0];
   if (cert) {
     set("_cert_0_type", cert.type);
-    set("_cert_0_level", cert.level);
-    set("_cert_0_scope", cert.scope);
+    set("_cert_0_level", cert.certificationLevel);
+    set("_cert_0_scope", cert.certificationScope);
   }
   return rec;
 }

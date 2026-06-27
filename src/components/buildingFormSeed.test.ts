@@ -33,7 +33,7 @@ Deno.test("buildingToFields: scalars by key; nested costs/certs flattened", () =
     hallArea: 5000,
     hasHeatPump: true,
     operatingCosts: { security: "1200", operationInspectionAndMaintenance: true },
-    certifications: [{ type: "DGNB", level: "Gold", scope: "Shell" }],
+    certifications: [{ type: "DGNB", certificationLevel: "Gold", certificationScope: "Shell" }],
   } as unknown as BuildingType);
   assert.equal(f.companyName, "Co");
   assert.equal(f.hallArea, "5000");

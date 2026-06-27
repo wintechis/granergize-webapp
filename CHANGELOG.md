@@ -3,6 +3,43 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **The building object's TS shape is generated from the vocab.** A new generator
+  `scripts/genVocabInterface.ts` (`deno task gen:interface`) groups `vocab/building.ttl` properties
+  by `rdfs:domain` (folding subclasses) and emits `buildingShape.generated.ts`: `BuildingFlatFields`
+  (the ~32 flat fields, from the `BUILDING_FIELDS` bridge), the node-field interfaces
+  (`TechnicalSystemFields`/`OperatingCostsFields`/`BuildingCertificationFields`/`GeoPointFields`),
+  and **proper enum unions** from each controlled-vocab class's instances (`ShiftRegime`,
+  `TenancyType`, `IndoorTemperatureClass`, `ServiceLevel`, `GeocodePrecision`). `BuildingType` now
+  `extends BuildingFlatFields, GeoPointFields` and the node interfaces intersect the generated fields
+  with their hand-written app/runtime envelope — only `id`/`uri`/structured-collection/computed
+  fields stay authored by hand. Freshness-guarded like the labels/schema.
+- **Controlled-vocab fields store the stable token, not a display label.** `shiftRegime` etc. now
+  hold the vocab token (`"OneShift"`) in memory and render the label via `optionLabel` at the edge,
+  removing the `investorLocalNameLabels` map + the form's label↔token reverse step (the round-trip is
+  now token-throughout). `geocodePrecision` aligned to its tokens (`Address`/`Postcode`/`City`).
+  Certification fields renamed to the vocab local names (`certificationLevel`/`certificationScope`).
+  Operating-cost values are genuinely free-text in the data (`"Landlord"`, German labels, amounts),
+  so the vocab range was corrected `:ServiceLevel` → `xsd:string` and they stay `string`.
+  (plans/done/plan-vocab-derived-interface.md; check/lint/unit all green.)
+- **Building parsing config is vocab-derived (no more restated `rdfs:range`).** Extending the
+  vocab-driven-labels pattern to the parsing schema: a new generator
+  `scripts/genVocabSchema.ts` (`deno task gen:schema`) parses `vocab/*.ttl` into
+  `vocabSchema.generated.ts` — per-property `{ kind (literal/agent/enum/structured), datatype,
+  range, functional, instances }` — freshness-guarded like the labels. `BUILDING_FIELDS` shrank
+  to the irreducible `{ field, iri }` app-key↔IRI bridge; the predicate/object/agent maps,
+  datatype coercion, serializer datatype sets (`buildingConfig.ts`) and the selector's
+  `FIELD_KIND` (`selector.ts`) now derive their range from the generated schema via `schemaFor`,
+  removing the duplication `vocab.test` policed. Added range declarations for the reused
+  external agent properties (`rec:operatedBy`/`rec:ownedBy` → `owl:ObjectProperty`/`foaf:Agent`)
+  so they classify. No behaviour change — round-trip parser/serializer tests + full unit green.
+- **Energy metric units are vocab-driven too.** `consumption.ttl` now declares a
+  `cons:canonicalUnit` per `sosa:ObservableProperty`; the schema generator emits it, and
+  `ENERGY_METRICS` (`energyDataset.ts`) derives each metric's `{ prop, unit }` from its key
+  (PascalCase under `cons:`) + the generated unit instead of inlined constants. `EnergyMetricKey`
+  is now derived from the `METRIC_KEYS` list (one source). Identical values; energy round-trip
+  tests green. (Slices 1+2 of plans/plan-vocab-derived-schema.md. Slice 3 — core roles — was
+  already at target: `roleLabel` reads vocab labels and the role IRIs are drift-guarded. The only
+  deferred piece is generating the flat `BuildingType` interface from the schema.)
 - **Building master-data field labels are vocab-driven (one source, no read/edit drift).**
   The read view (`MasterDataSection`) and edit form (`BuildingDetailFields`) sourced field
   labels from three families (`md*` ids, `lbl*` ids, raw `fieldLabel()`), so a field's

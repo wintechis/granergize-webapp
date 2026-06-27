@@ -19,7 +19,6 @@ interface SystemRaw {
   sameAs?: string;
 }
 import {
-  investorLocalNameLabels,
   iriPropertyMap,
   objectPropertyMap,
   parsingFunctions,
@@ -212,7 +211,7 @@ export function parseBuildings(
     ) {
       const propertyName = objectPropertyMap[pred];
       const ln = localName(obj.value);
-      building[propertyName] = investorLocalNameLabels[ln] ?? ln;
+      building[propertyName] = ln;
       return;
     }
 
@@ -278,27 +277,27 @@ export function parseBuildings(
       const oc = opCostData.get(bId)!;
       const ln = localName(objVal);
       if (pred === `${BUILDING_NS}wasteDisposal`) {
-        oc.wasteDisposal = investorLocalNameLabels[ln] ?? ln;
+        oc.wasteDisposal = ln;
       } else if (pred === `${BUILDING_NS}insurance`) {
-        oc.insurance = investorLocalNameLabels[ln] ?? ln;
+        oc.insurance = ln;
       } else if (pred === `${BUILDING_NS}operationInspectionAndMaintenance`) {
-        oc.operationInspectionAndMaintenance = investorLocalNameLabels[ln] ?? ln;
+        oc.operationInspectionAndMaintenance = ln;
       } else if (pred === `${BUILDING_NS}routineCleaningOffice`) {
-        oc.routineCleaningOffice = investorLocalNameLabels[ln] ?? ln;
+        oc.routineCleaningOffice = ln;
       } else if (pred === `${BUILDING_NS}routineCleaningWarehouse`) {
-        oc.routineCleaningWarehouse = investorLocalNameLabels[ln] ?? ln;
+        oc.routineCleaningWarehouse = ln;
       } else if (pred === `${BUILDING_NS}glassCleaning`) {
-        oc.glassCleaning = investorLocalNameLabels[ln] ?? ln;
+        oc.glassCleaning = ln;
       } else if (pred === `${BUILDING_NS}exteriorMaintenance`) {
-        oc.exteriorMaintenance = investorLocalNameLabels[ln] ?? ln;
+        oc.exteriorMaintenance = ln;
       } else if (pred === `${BUILDING_NS}security`) {
-        oc.security = investorLocalNameLabels[ln] ?? ln;
+        oc.security = ln;
       } else if (pred === `${BUILDING_NS}propertyManagement`) {
-        oc.propertyManagement = investorLocalNameLabels[ln] ?? ln;
+        oc.propertyManagement = ln;
       } else if (pred === `${BUILDING_NS}caretaker`) {
-        oc.caretaker = investorLocalNameLabels[ln] ?? ln;
+        oc.caretaker = ln;
       } else if (pred === `${BUILDING_NS}repairAndMaintenance`) {
-        oc.repairAndMaintenance = investorLocalNameLabels[ln] ?? ln;
+        oc.repairAndMaintenance = ln;
       }
       return;
     }
@@ -415,8 +414,8 @@ export function parseBuildings(
       building.certifications = building.certifications || [];
       (building.certifications as InvestorCertification[]).push({
         type: cd.type,
-        level: cd.level,
-        scope: cd.scope,
+        certificationLevel: cd.level,
+        certificationScope: cd.scope,
       });
     }
   }

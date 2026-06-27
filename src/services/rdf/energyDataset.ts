@@ -13,6 +13,7 @@ import {
   XSD_DURATION,
   XSD_NS,
 } from "./vocabularies.ts";
+import { VOCAB_SCHEMA } from "./vocabSchema.generated.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
 import { sameUnit, toCanonical } from "../energy/units.ts";
 import {
@@ -71,46 +72,35 @@ export type { EnergyDatasetRef, Scenario };
  *      cons:datasetLocation <observations/2024/> .
  */
 
-export type EnergyMetricKey =
-  | "electricityConsumption"
-  | "heatConsumption"
-  | "waterConsumption"
-  | "wastewaterConsumption"
-  | "renewableSelfGeneratedShare"
-  | "electricityGeneration";
+/** The energy metric keys, in cube/UI order. Each maps to a `cons:` observed-property
+ *  IRI by PascalCase; its canonical unit comes from the vocab (`cons:canonicalUnit`). */
+export const METRIC_KEYS = [
+  "electricityConsumption",
+  "heatConsumption",
+  "waterConsumption",
+  "wastewaterConsumption",
+  "renewableSelfGeneratedShare",
+  "electricityGeneration",
+] as const;
+
+export type EnergyMetricKey = typeof METRIC_KEYS[number];
 
 export type AnnualMetrics = Partial<Record<EnergyMetricKey, number>>;
 
-/** Each metric's observed-property IRI + result unit IRI (unified under cons:). */
-export const ENERGY_METRICS: Record<
-  EnergyMetricKey,
-  { prop: string; unit: string }
-> = {
-  electricityConsumption: {
-    prop: `${CONSUMPTION_NS}ElectricityConsumption`,
-    unit: `${UNIT_NS}KiloW-HR`,
-  },
-  heatConsumption: {
-    prop: `${CONSUMPTION_NS}HeatConsumption`,
-    unit: `${UNIT_NS}KiloW-HR`,
-  },
-  waterConsumption: {
-    prop: `${CONSUMPTION_NS}WaterConsumption`,
-    unit: `${UNIT_NS}M3`,
-  },
-  wastewaterConsumption: {
-    prop: `${CONSUMPTION_NS}WastewaterConsumption`,
-    unit: `${UNIT_NS}M3`,
-  },
-  renewableSelfGeneratedShare: {
-    prop: `${CONSUMPTION_NS}RenewableSelfGeneratedShare`,
-    unit: `${UNIT_NS}PERCENT`,
-  },
-  electricityGeneration: {
-    prop: `${CONSUMPTION_NS}ElectricityGeneration`,
-    unit: `${UNIT_NS}KiloW-HR`,
-  },
-};
+const pascal = (k: string): string => k.charAt(0).toUpperCase() + k.slice(1);
+
+/** Each metric's observed-property IRI + canonical result unit IRI — derived from the
+ *  metric key (its PascalCase name under `cons:`) and the vocab's `cons:canonicalUnit`
+ *  (see vocabSchema.generated.ts), so the units live in one place: the ontology. */
+export const ENERGY_METRICS: Record<EnergyMetricKey, { prop: string; unit: string }> = Object
+  .fromEntries(
+    METRIC_KEYS.map((key) => {
+      const prop = `${CONSUMPTION_NS}${pascal(key)}`;
+      const unit = VOCAB_SCHEMA[prop]?.unit;
+      if (!unit) throw new Error(`vocab declares no cons:canonicalUnit for ${prop}`);
+      return [key, { prop, unit }];
+    }),
+  ) as Record<EnergyMetricKey, { prop: string; unit: string }>;
 
 const PROP_TO_METRIC: Record<string, EnergyMetricKey> = Object.fromEntries(
   (Object.entries(ENERGY_METRICS) as [EnergyMetricKey, { prop: string }][])

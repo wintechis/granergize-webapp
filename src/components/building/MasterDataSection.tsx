@@ -22,10 +22,16 @@ import {
 } from "../BuildingDetailFields.tsx";
 import { ADDRESS_FIELDS } from "../../constants/addressFields.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
-import { fieldLabel } from "../../services/rdf/vocabLabels.ts";
+import { fieldLabel, optionLabel } from "../../services/rdf/vocabLabels.ts";
+import { BUILDING_NS } from "../../services/rdf/vocabularies.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../../services/xlsx/buildingTemplates.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { DetailRow, SectionTitle } from "../detail/DetailView.tsx";
+
+/** Display label for a controlled-vocab TOKEN stored on the building (e.g. "OneShift"
+ *  → "1-Shift"), resolved through the vocab catalog. */
+const enumLabel = (token?: string): string =>
+  token ? optionLabel(`${BUILDING_NS}${token}`) : "";
 
 const hasValue = (value: unknown): boolean => {
   if (value == null) return false;
@@ -113,10 +119,10 @@ function ReadView({ building }: { building: BuildingType }) {
         <DetailRow label={fieldLabel("yearOfRenovation")} value={building.yearOfRenovation} />
       )}
       {hasValue(building.shiftRegime) && (
-        <DetailRow label={fieldLabel("shiftRegime")} value={building.shiftRegime} />
+        <DetailRow label={fieldLabel("shiftRegime")} value={enumLabel(building.shiftRegime)} />
       )}
       {hasValue(building.tenancyType) && (
-        <DetailRow label={fieldLabel("tenancyType")} value={building.tenancyType} />
+        <DetailRow label={fieldLabel("tenancyType")} value={enumLabel(building.tenancyType)} />
       )}
       {hasValue(building.leaseType) && (
         <DetailRow label={fieldLabel("leaseType")} value={building.leaseType} />
@@ -133,7 +139,7 @@ function ReadView({ building }: { building: BuildingType }) {
       {hasValue(building.indoorTemperatureClass) && (
         <DetailRow
           label={fieldLabel("indoorTemperatureClass")}
-          value={building.indoorTemperatureClass}
+          value={enumLabel(building.indoorTemperatureClass)}
         />
       )}
       {/* Heat generators moved out of master data — they're :TechnicalSystem nodes shown +
@@ -147,7 +153,9 @@ function ReadView({ building }: { building: BuildingType }) {
             <DetailRow
               key={i}
               label={cert.type}
-              value={`${cert.level}${cert.scope ? ` (${cert.scope})` : ""}`}
+              value={`${cert.certificationLevel}${
+                cert.certificationScope ? ` (${cert.certificationScope})` : ""
+              }`}
             />
           ))}
         </>
@@ -165,7 +173,7 @@ function ReadView({ building }: { building: BuildingType }) {
                   {k.replace(/([A-Z])/g, " $1").trim()}
                 </span>
               }
-              value={typeof v === "boolean" ? boolIcon(v) : String(v)}
+              value={typeof v === "boolean" ? boolIcon(v) : enumLabel(String(v))}
             />
           ))}
         </>

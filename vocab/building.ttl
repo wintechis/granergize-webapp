@@ -152,10 +152,15 @@
     rdfs:comment "Un conseiller ou courtier qui conseille sur / commercialise le bâtiment, identifié par WebID."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
-# Reused external terms — a display label (de/en/fr) in our profile so the app's
-# fieldLabel() resolves these REC/schema.org IRIs (we only annotate rendering).
-rec:operatedBy rdfs:label "Operated by"@en ; rdfs:label "Betrieben von"@de ; rdfs:label "Exploité par"@fr .
-rec:ownedBy rdfs:label "Owned by"@en ; rdfs:label "Eigentümer"@de ; rdfs:label "Propriétaire"@fr .
+# Reused external terms — annotated in our profile so the app generates from the
+# vocab: a display label (de/en/fr) for fieldLabel(), and for the agent links the
+# range (foaf:Agent) so the schema generator classifies them as WebID references.
+# (schema:customer / rec:nace-code are plain string literals — no range needed, the
+# generator defaults an undeclared field to xsd:string, as the app does today.)
+rec:operatedBy rdf:type owl:ObjectProperty ; rdfs:range foaf:Agent ;
+    rdfs:label "Operated by"@en ; rdfs:label "Betrieben von"@de ; rdfs:label "Exploité par"@fr .
+rec:ownedBy rdf:type owl:ObjectProperty ; rdfs:range foaf:Agent ;
+    rdfs:label "Owned by"@en ; rdfs:label "Eigentümer"@de ; rdfs:label "Propriétaire"@fr .
 rec:nace-code rdfs:label "NACE code"@en ; rdfs:label "NACE-Code"@de ; rdfs:label "Code NACE"@fr .
 schema:customer rdfs:label "Customer"@en ; rdfs:label "Kunde"@de ; rdfs:label "Client"@fr .
 
@@ -277,39 +282,28 @@ schema:customer rdfs:label "Customer"@en ; rdfs:label "Kunde"@de ; rdfs:label "C
     rdfs:label "has operating costs"@en ; rdfs:label "Hat Betriebskosten"@de ; rdfs:label "possède des coûts d'exploitation"@fr ; rdfs:domain rec:Building ; rdfs:range :OperatingCosts .
 :OperatingCosts rdf:type rdfs:Class ; rdfs:label "Operating costs"@en ; rdfs:label "Betriebskosten"@de ; rdfs:label "Coûts d'exploitation"@fr .
 
-# Service-level categories used by the operating-cost properties below. These values are
-# service levels (Low/Medium/High/…) today, but the same categories could instead carry a
-# monetary amount (e.g. €/a) — a future model may prefer figures over service levels.
-:ServiceLevel rdf:type rdfs:Class ; rdfs:label "Service level"@en ; rdfs:label "Serviceniveau"@de ; rdfs:label "Niveau de service"@fr .
-:Low                  rdf:type :ServiceLevel ; rdfs:label "Low"@en ; rdfs:label "Niedrig"@de ; rdfs:label "Faible"@fr .
-:Simple               rdf:type :ServiceLevel ; rdfs:label "Simple"@en ; rdfs:label "Einfach"@de ; rdfs:label "Simple"@fr .
-:Medium               rdf:type :ServiceLevel ; rdfs:label "Medium"@en ; rdfs:label "Mittel"@de ; rdfs:label "Moyen"@fr .
-:High                 rdf:type :ServiceLevel ; rdfs:label "High"@en ; rdfs:label "Hoch"@de ; rdfs:label "Élevé"@fr .
-:AllRisk              rdf:type :ServiceLevel ; rdfs:label "All-Risk"@en ; rdfs:label "All-Risk"@de ; rdfs:label "Tous risques"@fr .
-:FullServiceManagement rdf:type :ServiceLevel ; rdfs:label "Full Service"@en ; rdfs:label "Komplettservice"@de ; rdfs:label "Service complet"@fr .
-
 :wasteDisposal rdf:type owl:ObjectProperty ;
-    rdfs:label "waste disposal"@en ; rdfs:label "Abfallentsorgung"@de ; rdfs:label "élimination des déchets"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "waste disposal"@en ; rdfs:label "Abfallentsorgung"@de ; rdfs:label "élimination des déchets"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :insurance rdf:type owl:ObjectProperty ;
-    rdfs:label "insurance"@en ; rdfs:label "Versicherung"@de ; rdfs:label "assurance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "insurance"@en ; rdfs:label "Versicherung"@de ; rdfs:label "assurance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :operationInspectionAndMaintenance rdf:type owl:ObjectProperty ;
-    rdfs:label "operation, inspection & maintenance"@en ; rdfs:label "Betrieb, Inspektion und Wartung"@de ; rdfs:label "exploitation, inspection et maintenance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "operation, inspection & maintenance"@en ; rdfs:label "Betrieb, Inspektion und Wartung"@de ; rdfs:label "exploitation, inspection et maintenance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :routineCleaningOffice rdf:type owl:ObjectProperty ;
-    rdfs:label "routine cleaning (office)"@en ; rdfs:label "Unterhaltsreinigung (Büro)"@de ; rdfs:label "nettoyage courant (bureaux)"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "routine cleaning (office)"@en ; rdfs:label "Unterhaltsreinigung (Büro)"@de ; rdfs:label "nettoyage courant (bureaux)"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :routineCleaningWarehouse rdf:type owl:ObjectProperty ;
-    rdfs:label "routine cleaning (warehouse)"@en ; rdfs:label "Unterhaltsreinigung (Lager)"@de ; rdfs:label "nettoyage courant (entrepôt)"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "routine cleaning (warehouse)"@en ; rdfs:label "Unterhaltsreinigung (Lager)"@de ; rdfs:label "nettoyage courant (entrepôt)"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :glassCleaning rdf:type owl:ObjectProperty ;
-    rdfs:label "glass cleaning"@en ; rdfs:label "Glasreinigung"@de ; rdfs:label "nettoyage des vitres"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "glass cleaning"@en ; rdfs:label "Glasreinigung"@de ; rdfs:label "nettoyage des vitres"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :exteriorMaintenance rdf:type owl:ObjectProperty ;
-    rdfs:label "exterior maintenance"@en ; rdfs:label "Außenpflege"@de ; rdfs:label "entretien extérieur"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "exterior maintenance"@en ; rdfs:label "Außenpflege"@de ; rdfs:label "entretien extérieur"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :security rdf:type owl:ObjectProperty ;
-    rdfs:label "security"@en ; rdfs:label "Sicherheit"@de ; rdfs:label "sécurité"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "security"@en ; rdfs:label "Sicherheit"@de ; rdfs:label "sécurité"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :propertyManagement rdf:type owl:ObjectProperty ;
-    rdfs:label "property management"@en ; rdfs:label "Objektverwaltung"@de ; rdfs:label "gestion immobilière"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "property management"@en ; rdfs:label "Objektverwaltung"@de ; rdfs:label "gestion immobilière"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :caretaker rdf:type owl:ObjectProperty ;
-    rdfs:label "caretaker"@en ; rdfs:label "Hausmeister"@de ; rdfs:label "concierge"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "caretaker"@en ; rdfs:label "Hausmeister"@de ; rdfs:label "concierge"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 :repairAndMaintenance rdf:type owl:ObjectProperty ;
-    rdfs:label "repair & maintenance"@en ; rdfs:label "Reparatur und Wartung"@de ; rdfs:label "réparation et maintenance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "repair & maintenance"@en ; rdfs:label "Reparatur und Wartung"@de ; rdfs:label "réparation et maintenance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:string .
 
 ############################
 ###   Certifications     ###
