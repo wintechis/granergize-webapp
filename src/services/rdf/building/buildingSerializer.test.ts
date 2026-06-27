@@ -20,7 +20,7 @@ import { synthDayReadings } from "../../xlsx/energySeriesXlsx.ts";
 import {
   datasetFileUri,
   observationsRootForBuilding,
-} from "../energyDataset.ts";
+} from "../../energy/energyDataset.ts";
 import { toggleBuildingVisibility } from "../../interop/sharingManager.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { _setStorageRootForTesting, podResources } from "../../pod/solidUtils.ts";

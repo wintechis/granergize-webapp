@@ -15,7 +15,7 @@ import {
 } from "../../src/services/rdf/building/buildingSerializer.ts";
 import { mintBuildingSubject } from "../../src/services/rdf/building/buildingId.ts";
 import { synthDayReadings } from "../../src/services/xlsx/energySeriesXlsx.ts";
-import { seriesContainerUri } from "../../src/services/rdf/energyDataset.ts";
+import { seriesContainerUri } from "../../src/services/energy/energyDataset.ts";
 import { shareBuildingData, type ShareOptions } from "../../src/services/interop/share.ts";
 import { appRoot, getPodBaseUri } from "../../src/services/pod/solidUtils.ts";
 import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
@@ -38,9 +38,9 @@ import {
   setMyRole,
 } from "../../src/services/interop/dataRoom.ts";
 import {
-  saveOrganization,
+  saveOrganisation,
   uploadOrgLogo,
-} from "../../src/services/organization/organizationManager.ts";
+} from "../../src/services/organisation/organisationManager.ts";
 import type { UserRole } from "../../src/types.ts";
 
 /** Bounded write concurrency — same small pool the app uses for daily files. */
@@ -245,7 +245,7 @@ async function putPublicReadAcl(url: string, x: BenchActor): Promise<void> {
  * (read–modify–write, never PATCH).
  *
  * With `org` set, the actor additionally gets a company identity through the
- * app's own org functions (`saveOrganization` + `uploadOrgLogo`): the `<#org>`
+ * app's own org functions (`saveOrganisation` + `uploadOrgLogo`): the `<#org>`
  * node with `foaf:name`/`foaf:homepage`, and a `foaf:logo` image — which is what
  * the map's producer-logo marker resolves from a building's `attributedTo`.
  * The logo, like the avatar, gets a public-read `.acl`.
@@ -282,7 +282,7 @@ export async function seedProfile(
     }
   });
   if (org) {
-    await saveOrganization(x.gateway, {
+    await saveOrganisation(x.gateway, {
       name: org.name,
       homepage: org.homepage,
     });

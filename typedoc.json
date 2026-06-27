@@ -2,15 +2,15 @@
   "$schema": "https://typedoc.org/schema.json",
   "tsconfig": "tsconfig.check.json",
   "entryPointStrategy": "expand",
-  "entryPoints": ["src/intents"],
-  "exclude": ["**/*.test.ts", "**/*.drift.test.ts"],
-  "out": "docs/api/intents",
-  "name": "Granergize intent layer",
-  "readme": "src/intents/README.md",
+  "entryPoints": ["src"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"],
+  "out": "docs/api",
+  "name": "Granergize app — source reference",
   "excludePrivate": true,
   "excludeInternal": true,
   "githubPages": false,
   "validation": {
-    "invalidLink": false
+    "invalidLink": false,
+    "notExported": false
   }
 }

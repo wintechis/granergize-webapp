@@ -8,7 +8,7 @@ import { fetchFresh } from "./podFetch.ts";
  *
  * Several independent subsystems read the same profile right after login —
  * storage-root resolution (`solidUtils.resolveStorageRoot`), the organisation
- * (`organizationManager`), and the avatar (`logoManager`) — and each used to
+ * (`organisationManager`), and the avatar (`logoManager`) — and each used to
  * fetch + parse it on its own, so a single login GET the profile 4–5×. Routing
  * them all through {@link loadProfileStore} collapses that to one fetch: the
  * first caller fetches, the rest reuse the cached Store (and concurrent callers

@@ -22,7 +22,7 @@ import {
   XSD_INTEGER,
   XSD_NS,
 } from "../rdf/vocabularies.ts";
-import { ENERGY_METRICS } from "../rdf/energyDataset.ts";
+import { ENERGY_METRICS } from "../energy/energyDataset.ts";
 import { CONS } from "../rdf/consumption/consumptionConfig.ts";
 import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";

@@ -22,7 +22,7 @@ export type Scenario = "actual" | "planned";
  * granularity and scenario are read from the triples the building re-states
  * about the dataset node (`cons:granularity`/`cons:scenario`) — so load can be
  * dispatched (series lazy, annual prefetched) without fetching the dataset. See
- * `services/rdf/energyDataset.ts`.
+ * `services/energy/energyDataset.ts`.
  */
 export interface EnergyDatasetRef extends EnergyDatasetFields {
   /** The dataset node IRI (the linked `observations/{year}/{id}.ttl#ds`). */

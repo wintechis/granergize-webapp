@@ -14,7 +14,7 @@ import {
   type EnergyDataset,
   type EnergyDatasetRef,
   loadEnergyDatasets,
-} from "../../../services/rdf/energyDataset.ts";
+} from "../../../services/energy/energyDataset.ts";
 import { isSeriesGranularity } from "../../../services/rdf/durationUtils.ts";
 import { fetchFresh } from "../../../services/pod/podFetch.ts";
 

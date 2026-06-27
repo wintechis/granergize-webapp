@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import Typography from "@mui/material/Typography";
 import { type BuildingType } from "../../types.ts";
-import { type EnergyMetricKey } from "../../services/rdf/energyDataset.ts";
+import { type EnergyMetricKey } from "../../services/energy/energyDataset.ts";
 import { DEFAULT_METRIC } from "../../services/energy/energyMetric.ts";
 import { type EnergyByBuildingYear } from "../../services/energy/energyTimeCut.ts";
 import { buildOverYears } from "../../services/energy/energyOverYears.ts";

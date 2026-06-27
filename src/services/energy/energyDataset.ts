@@ -12,17 +12,17 @@ import {
   XSD_DECIMAL,
   XSD_DURATION,
   XSD_NS,
-} from "./vocabularies.ts";
-import { VOCAB_SCHEMA } from "./vocabSchema.generated.ts";
-import { CONS } from "./consumption/consumptionConfig.ts";
+} from "../rdf/vocabularies.ts";
+import { VOCAB_SCHEMA } from "../rdf/vocabSchema.generated.ts";
+import { CONS } from "../rdf/consumption/consumptionConfig.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
-import { sameUnit, toCanonical } from "../energy/units.ts";
+import { sameUnit, toCanonical } from "./units.ts";
 import {
   observationContainer,
   type ObservationRef,
   observationUri,
   parseObservationUri,
-} from "./observationPath.ts";
+} from "../rdf/observationPath.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { logError } from "../../lib/logError.ts";
 

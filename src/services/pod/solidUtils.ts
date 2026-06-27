@@ -190,7 +190,7 @@ export function getPodBaseUri(webId: string): string {
  * so callers never re-derive paths (which previously mixed `getPodBaseUri` and
  * `getStorageRoot`, desyncing for non-`/profile/card` WebIDs). The org logo is the
  * one exception: it's profile data, stored at `profile/logo.<ext>` (see
- * organizationManager), not here.
+ * organisationManager), not here.
  */
 export function podResources(webId: string): {
   appRoot: string;

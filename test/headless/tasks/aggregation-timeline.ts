@@ -23,7 +23,7 @@ import {
 import { mintBuildingSubject } from "../../../src/services/rdf/building/buildingId.ts";
 import { computeAggregationSeries } from "../../../src/services/aggregation/aggregationComputer.ts";
 import type { AggregationDefinition } from "../../../src/types.ts";
-import type { EnergyDataset } from "../../../src/services/rdf/energyDataset.ts";
+import type { EnergyDataset } from "../../../src/services/energy/energyDataset.ts";
 
 export const name = "aggregation-timeline";
 

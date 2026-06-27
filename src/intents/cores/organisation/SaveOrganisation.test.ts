@@ -24,7 +24,7 @@ interface Call {
 
 /**
  * Stateful fake one-Pod world: serves the WebID profile doc (so the conditional
- * GET→PUT of `saveOrganization` resolves) and records every call so the save vs
+ * GET→PUT of `saveOrganisation` resolves) and records every call so the save vs
  * logo-upload PUTs can be distinguished by URL.
  */
 function orgPod(): { session: PodGateway; calls: Call[] } {

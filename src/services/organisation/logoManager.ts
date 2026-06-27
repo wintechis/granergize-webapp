@@ -8,7 +8,7 @@ import { logError } from "../../lib/logError.ts";
  * Reads the logged-in person's avatar from their WebID profile.
  *
  * This is the *personal* depiction, distinct from the organisation's logo
- * (see organizationManager.ts, which writes foaf:logo on a <#org> node). We read
+ * (see organisationManager.ts, which writes foaf:logo on a <#org> node). We read
  * foaf:img first — a personal logo other Solid tools may set — then fall back to
  * vcard:hasPhoto, the profile photo an identity provider commonly populates.
  *

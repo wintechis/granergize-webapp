@@ -9,7 +9,7 @@ import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { saveObservationCore } from "./SaveObservation.ts";
 import { _setStorageRootForTesting } from "../../../services/pod/solidUtils.ts";
-import type { EnergyDataset } from "../../../services/rdf/energyDataset.ts";
+import type { EnergyDataset } from "../../../services/energy/energyDataset.ts";
 
 const OWNER = "https://a.example/profile/card#me";
 const BUILDING = "https://a.example/granergize/buildings/b-1.ttl";

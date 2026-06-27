@@ -18,7 +18,7 @@ import Modal from "../components/Modal.tsx";
 import BuildingPicker from "../components/BuildingPicker.tsx";
 import { useLocation, useSearchParams } from "react-router-dom";
 import type { BuildingType } from "../types.ts";
-import type { BuildinglessObservation } from "../services/rdf/energyDataset.ts";
+import type { BuildinglessObservation } from "../services/energy/energyDataset.ts";
 import { observationRoute } from "../routes.ts";
 import {
   useAnnualEnergyByYear,

@@ -26,8 +26,8 @@ import NotificationLogIndicator from "../components/NotificationLogIndicator.tsx
 import CommandPalette, { OPEN_PALETTE_EVENT } from "../components/CommandPalette.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
-import { getAvatarObjectUrl } from "../services/organization/logoManager.ts";
-import { getOrgLogoObjectUrl } from "../services/organization/organizationManager.ts";
+import { getAvatarObjectUrl } from "../services/organisation/logoManager.ts";
+import { getOrgLogoObjectUrl } from "../services/organisation/organisationManager.ts";
 import { useAvatarRefresh } from "../lib/avatarRefresh.ts";
 import { useDemoOffer, useSharedWithMe } from "../hooks/queries.ts";
 import { setDemoSeedDeclined } from "../services/prefs.ts";
@@ -219,10 +219,10 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
 
   // Dev-mode Connect-tab demo data — the contacts/rooms counterpart of
   // `seedDemos` (the seeders tally partial success the same way).
-  const seedContactsMut = useSeedDemoAgents();
+  const seedAgentsMut = useSeedDemoAgents();
   const seedRoomsMut = useSeedDemoRooms();
   const seedDemoAgentsClick = () =>
-    seedContactsMut.mutate(undefined, {
+    seedAgentsMut.mutate(undefined, {
       onSuccess: ({ done: seeded, total }) =>
         showNotification(
           seeded === total
@@ -605,7 +605,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               seedDemoAgentsClick();
               seedDemoRoomsClick();
             }}
-            seedConnectBusy={seedContactsMut.isPending || seedRoomsMut.isPending}
+            seedConnectBusy={seedAgentsMut.isPending || seedRoomsMut.isPending}
             onDownloadArchive={handleDownloadArchive}
             onImportArchive={() => archiveInput.current?.click()}
             onAuditGrants={handleAuditGrants}

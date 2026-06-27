@@ -43,7 +43,7 @@ import { useTrailState } from "../hooks/navTrail.ts";
 import {
   translateToIntentJson,
   TranslateError,
-} from "../services/llm/intentTranslate.ts";
+} from "../intents/llm/intentTranslate.ts";
 import {
   type ReadResultView,
   summarizeReadResult,

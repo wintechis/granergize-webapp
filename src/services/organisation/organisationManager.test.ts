@@ -4,11 +4,11 @@ import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
-  getOrganization,
+  getOrganisation,
   isSupportedLogoType,
-  saveOrganization,
+  saveOrganisation,
   uploadOrgLogo,
-} from "./organizationManager.ts";
+} from "./organisationManager.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
 import { ConflictError } from "../pod/podWrite.ts";
 
@@ -91,8 +91,8 @@ Deno.test("isSupportedLogoType accepts images, rejects others", () => {
   assert.deepEqual(isSupportedLogoType({ type: "" } as File), false);
 });
 
-Deno.test("getOrganization follows org:memberOf and reads the org fields", async () => {
-  _resetProfileCacheForTesting(); // getOrganization reads via the shared cache
+Deno.test("getOrganisation follows org:memberOf and reads the org fields", async () => {
+  _resetProfileCacheForTesting(); // getOrganisation reads via the shared cache
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -107,7 +107,7 @@ Deno.test("getOrganization follows org:memberOf and reads the org fields", async
     `,
   }, []);
 
-  const org = await getOrganization(session);
+  const org = await getOrganisation(session);
   assert.deepEqual(org, {
     name: "ACME Logistics",
     logoUrl: "https://pod.example/profile/logo.png",
@@ -116,7 +116,7 @@ Deno.test("getOrganization follows org:memberOf and reads the org fields", async
   });
 });
 
-Deno.test("getOrganization returns null when no membership is set", async () => {
+Deno.test("getOrganisation returns null when no membership is set", async () => {
   _resetProfileCacheForTesting();
   const session = makeSession({
     [PROFILE_DOC]: `
@@ -124,10 +124,10 @@ Deno.test("getOrganization returns null when no membership is set", async () => 
       <${WEBID}> foaf:name "Homer" .
     `,
   }, []);
-  assert.deepEqual(await getOrganization(session), null);
+  assert.deepEqual(await getOrganisation(session), null);
 });
 
-Deno.test("saveOrganization writes membership + org node into the WebID doc", async () => {
+Deno.test("saveOrganisation writes membership + org node into the WebID doc", async () => {
   const writes: Write[] = [];
   const session = makeSession({
     [PROFILE_DOC]: `
@@ -136,7 +136,7 @@ Deno.test("saveOrganization writes membership + org node into the WebID doc", as
     `,
   }, writes);
 
-  await saveOrganization(session, {
+  await saveOrganisation(session, {
     name: "ACME Logistics",
     homepage: "https://acme.example/",
     sameAs: "https://acme.example/profile/card#me",
@@ -157,7 +157,7 @@ Deno.test("saveOrganization writes membership + org node into the WebID doc", as
   assert.deepEqual(objectsOf(ttl, WEBID, FOAF_NAME), ["Homer"]);
 });
 
-Deno.test("saveOrganization replaces values and preserves an existing logo", async () => {
+Deno.test("saveOrganisation replaces values and preserves an existing logo", async () => {
   const writes: Write[] = [];
   const logo = "https://pod.example/profile/logo.png";
   const session = makeSession({
@@ -171,7 +171,7 @@ Deno.test("saveOrganization replaces values and preserves an existing logo", asy
     `,
   }, writes);
 
-  await saveOrganization(session, { name: "New Name" });
+  await saveOrganisation(session, { name: "New Name" });
   const ttl = writes[0].body as string;
 
   // Name replaced (no duplicate), logo preserved, homepage cleared (blank).
@@ -186,7 +186,7 @@ const WIKIDATA = "https://www.wikidata.org/entity/Q42";
 const COMMONS_LOGO =
   "https://commons.wikimedia.org/wiki/Special:FilePath/Acme_logo.svg";
 
-Deno.test("saveOrganization adopts a Wikidata→Commons logo with provenance when the org has none", async () => {
+Deno.test("saveOrganisation adopts a Wikidata→Commons logo with provenance when the org has none", async () => {
   const writes: Write[] = [];
   const session = makeSession({
     [PROFILE_DOC]: `
@@ -200,7 +200,7 @@ Deno.test("saveOrganization adopts a Wikidata→Commons logo with provenance whe
     }),
   }, writes);
 
-  await saveOrganization(session, { name: "ACME", sameAs: WIKIDATA });
+  await saveOrganisation(session, { name: "ACME", sameAs: WIKIDATA });
   const ttl = writes[0].body as string;
 
   // foaf:logo now points at the Commons file, with provenance back to Wikidata.
@@ -209,7 +209,7 @@ Deno.test("saveOrganization adopts a Wikidata→Commons logo with provenance whe
   assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, DCTERMS_SOURCE), [WIKIDATA]);
 });
 
-Deno.test("saveOrganization does NOT overwrite an existing logo with the Wikidata one", async () => {
+Deno.test("saveOrganisation does NOT overwrite an existing logo with the Wikidata one", async () => {
   const writes: Write[] = [];
   const own = "https://pod.example/profile/logo.svg";
   const session = makeSession({
@@ -224,7 +224,7 @@ Deno.test("saveOrganization does NOT overwrite an existing logo with the Wikidat
     }),
   }, writes);
 
-  await saveOrganization(session, { name: "ACME", sameAs: WIKIDATA });
+  await saveOrganisation(session, { name: "ACME", sameAs: WIKIDATA });
   const ttl = writes[0].body as string;
 
   // The uploaded logo is preserved; the Commons one is not adopted.
@@ -296,7 +296,7 @@ Deno.test("uploadOrgLogo rejects unsupported types", async () => {
   assert(threw, "expected uploadOrgLogo to throw on unsupported type");
 });
 
-Deno.test("saveOrganization guards the PUT with If-Match when the GET carries an ETag", async () => {
+Deno.test("saveOrganisation guards the PUT with If-Match when the GET carries an ETag", async () => {
   const writes: Write[] = [];
   const session = makeSession({
     [PROFILE_DOC]: `
@@ -305,13 +305,13 @@ Deno.test("saveOrganization guards the PUT with If-Match when the GET carries an
     `,
   }, writes, { etag: '"v1"' });
 
-  await saveOrganization(session, { name: "ACME Logistics" });
+  await saveOrganisation(session, { name: "ACME Logistics" });
 
   assert.deepEqual(writes.length, 1);
   assert.deepEqual(writes[0].ifMatch, '"v1"');
 });
 
-Deno.test("saveOrganization surfaces ConflictError after repeated 412s", async () => {
+Deno.test("saveOrganisation surfaces ConflictError after repeated 412s", async () => {
   const writes: Write[] = [];
   const session = makeSession({
     [PROFILE_DOC]: `
@@ -321,18 +321,18 @@ Deno.test("saveOrganization surfaces ConflictError after repeated 412s", async (
   }, writes, { etag: '"v1"', failPutsWith: 412 });
 
   await assert.rejects(
-    () => saveOrganization(session, { name: "ACME Logistics" }),
+    () => saveOrganisation(session, { name: "ACME Logistics" }),
     ConflictError,
   );
   assert(writes.length > 1, "expected the conditional PUT to be retried");
 });
 
-Deno.test("saveOrganization refuses to create a missing profile document", async () => {
+Deno.test("saveOrganisation refuses to create a missing profile document", async () => {
   const writes: Write[] = [];
   const session = makeSession({}, writes); // no profile doc → GET 404
 
   await assert.rejects(
-    () => saveOrganization(session, { name: "ACME Logistics" }),
+    () => saveOrganisation(session, { name: "ACME Logistics" }),
     /Failed to fetch WebID profile/,
   );
   assert.deepEqual(writes.length, 0, "no PUT may create the profile");

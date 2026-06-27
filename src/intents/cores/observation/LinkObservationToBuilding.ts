@@ -4,7 +4,7 @@ import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import { bindObservationToBuilding } from "../../../services/rdf/building/buildingSerializer.ts";
 import { reconcileBuildingGrants } from "../../../services/interop/share.ts";
 import { logError } from "../../../lib/logError.ts";
-import type { Scenario } from "../../../services/rdf/energyDataset.ts";
+import type { Scenario } from "../../../services/energy/energyDataset.ts";
 import type { Settled } from "../../outcomes.ts";
 
 /** Parameters of the LinkObservationToBuilding intent — bind a building-less

@@ -17,7 +17,7 @@ import {
   listSeriesDays,
   loadEnergyDatasets,
   parseEnergyDatasetRefs,
-} from "../rdf/energyDataset.ts";
+} from "../energy/energyDataset.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";

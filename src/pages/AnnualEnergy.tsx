@@ -37,7 +37,7 @@ import {
 import {
   ENERGY_METRICS,
   type EnergyMetricKey,
-} from "../services/rdf/energyDataset.ts";
+} from "../services/energy/energyDataset.ts";
 import { fromCanonical, unitLabel } from "../services/energy/units.ts";
 import {
   ELECTRICITY_COLOR,

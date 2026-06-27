@@ -64,7 +64,7 @@ import {
   serializeEnergyDataset,
   seriesContainerUri,
   seriesDailyFileUri,
-} from "../energyDataset.ts";
+} from "../../energy/energyDataset.ts";
 import { isSeriesGranularity } from "../durationUtils.ts";
 import { getStorageRoot, podResources } from "../../pod/solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";

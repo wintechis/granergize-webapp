@@ -6,7 +6,7 @@ import {
   deleteBuildinglessObservation,
   deleteEnergyYear,
 } from "../../../services/rdf/building/buildingSerializer.ts";
-import type { EnergyDataset } from "../../../services/rdf/energyDataset.ts";
+import type { EnergyDataset } from "../../../services/energy/energyDataset.ts";
 import type { Settled } from "../../outcomes.ts";
 
 /** Parameters of the DeleteObservation intent. A building-linked dataset is selected by

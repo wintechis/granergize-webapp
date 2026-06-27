@@ -41,7 +41,7 @@ import {
   uploadBuilding,
   writeEnergyYear,
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
-import { findDatasetLink } from "../../../src/services/rdf/energyDataset.ts";
+import { findDatasetLink } from "../../../src/services/energy/energyDataset.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 import { Parser, Store } from "n3";
 import type { PodGateway } from "../../../src/services/pod/podGateway.ts";

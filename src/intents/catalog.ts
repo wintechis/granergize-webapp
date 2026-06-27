@@ -305,7 +305,7 @@ export const INTENTS: readonly IntentEntry[] = [
     action: "actionSaveOrganisation",
     effect: "write",
     entity: "organisation",
-    hook: "useSaveOrganization",
+    hook: "useSaveOrganisation",
   },
   // ── Agents ─────────────────────────────────────────────────────────────────
   {

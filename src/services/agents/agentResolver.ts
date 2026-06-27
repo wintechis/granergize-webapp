@@ -165,7 +165,7 @@ function readAddress(store: Store, subject: string): string | undefined {
 
 /**
  * Classify an agent as person vs organisation. A standard `rdf:type`
- * (`…Organization`/`…Organisation` → org, `…Person`/`…Individual` → person) wins.
+ * (`…Organisation`/`…Organisation` → org, `…Person`/`…Individual` → person) wins.
  *
  * Failing that, recognise the **MaStR wrapper** shape: its market actors aren't
  * typed foaf/vcard — they're `vocab:Operator` / `:GridOperator` / `:MarketActor`,
@@ -336,7 +336,7 @@ export interface ResolvedOrg {
  * its `owl:sameAs` links — for the first that resolves to a Wikidata entity, use
  * that entity's logo (P154/P18) rendered through Commons. Serves *arbitrary*
  * producers (e.g. a building's `attributedTo`), unlike the self-only
- * `organizationManager`. Returns `null` when the profile is unreachable/private
+ * `organisationManager`. Returns `null` when the profile is unreachable/private
  * or states no org — never throws, so the map can fall back to a default marker
  * unconditionally. The Wikidata fetch is a public (non-Pod) request, so it goes
  * through the tracked external fetch; tests inject a fake `fetchFn`.

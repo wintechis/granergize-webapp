@@ -11,7 +11,7 @@ import {
   metricValueAtYear,
   SELECTABLE_METRICS,
 } from "./energyMetric.ts";
-import { type AnnualMetrics } from "../rdf/energyDataset.ts";
+import { type AnnualMetrics } from "../energy/energyDataset.ts";
 import { BuildingType } from "../../types.ts";
 
 function building(fields: Partial<BuildingType>): BuildingType {

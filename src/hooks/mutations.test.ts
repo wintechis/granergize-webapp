@@ -220,7 +220,7 @@ Deno.test("useRemoveBookmark drops the bookmark and clears current if it was cur
 import { MutationCache } from "@tanstack/react-query";
 import {
   useCreateAggregation,
-  useSaveOrganization,
+  useSaveOrganisation,
   useShareBuilding,
   useUpdateBuilding,
   useUploadBuildings,
@@ -433,7 +433,7 @@ Deno.test("useRefreshAggregation and useDeleteAggregation invalidate aggregation
   }
 });
 
-Deno.test("useCreateAggregation invalidates aggregationDefinitions; useSaveOrganization the resolved-agent caches", async () => {
+Deno.test("useCreateAggregation invalidates aggregationDefinitions; useSaveOrganisation the resolved-agent caches", async () => {
   const fake = makeFakeSession({
     webId: WEBID,
     respond: () => new Response("boom", { status: 500 }),
@@ -454,7 +454,7 @@ Deno.test("useCreateAggregation invalidates aggregationDefinitions; useSaveOrgan
     }).catch(() => {});
     assert.ok(aggregation.invalidated.includes("aggregationDefinitions"));
 
-    const { result: saveOrg } = renderHook(() => useSaveOrganization(), {
+    const { result: saveOrg } = renderHook(() => useSaveOrganisation(), {
       wrapper: org.wrapper,
     });
     await saveOrg.current.mutateAsync({ org: { name: "ACME" } }).catch(() => {});

@@ -47,7 +47,7 @@ import {
   SCHEMA_NAME,
 } from "../vocabularies.ts";
 import { Store } from "n3";
-import { parseDatasetLink } from "../energyDataset.ts";
+import { parseDatasetLink } from "../../energy/energyDataset.ts";
 import { buildingIdFor } from "./buildingId.ts";
 
 /** Get the local name (after # or last /) from an IRI */

@@ -31,7 +31,7 @@ import {
   type AnnualMetrics,
   type EnergyDataset,
   type EnergyMetricKey,
-} from "../services/rdf/energyDataset.ts";
+} from "../services/energy/energyDataset.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import BuildingPicker from "./BuildingPicker.tsx";
 import {

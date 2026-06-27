@@ -1,5 +1,5 @@
 import type { PodGateway } from "../pod/podGateway.ts";
-import type { Organization } from "../../types/agent.ts";
+import type { Organisation } from "../../types/agent.ts";
 import { DataFactory, Store } from "n3";
 import { readModifyWrite } from "../pod/podWrite.ts";
 import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
@@ -60,9 +60,9 @@ const ORG_MEMBER = `${ORG_NS}member`;
 // distinct from `ORG_ORGANIZATION` above, which is the `org:Organization` CLASS.
 const ORG_ORGANIZATION_PRED = `${ORG_NS}organization`;
 
-// `Organization` now lives in the central object model (src/types/agent.ts); re-exported
+// `Organisation` now lives in the central object model (src/types/agent.ts); re-exported
 // here for this module's existing importers.
-export type { Organization };
+export type { Organisation };
 
 
 /** The WebID document IRI (the WebID without its `#me` fragment). */
@@ -100,9 +100,9 @@ function firstObject(
  * Follows `org:memberOf` to the org node and reads its FOAF fields.
  * @operation query
  */
-export async function getOrganization(
+export async function getOrganisation(
   gateway: PodGateway,
-): Promise<Organization | null> {
+): Promise<Organisation | null> {
   const webId = gateway.webId;
   if (!webId) return null;
   const store = await loadProfileStore(gateway);
@@ -111,7 +111,7 @@ export async function getOrganization(
   const orgIri = firstObject(store, webId, ORG_MEMBER_OF);
   if (!orgIri) return null;
 
-  const org: Organization = {
+  const org: Organisation = {
     name: firstObject(store, orgIri, FOAF_NAME),
     logoUrl: firstObject(store, orgIri, FOAF_LOGO),
     homepage: firstObject(store, orgIri, FOAF_HOMEPAGE),
@@ -127,7 +127,7 @@ export async function getOrganization(
 export async function getOrgLogoObjectUrl(
   gateway: PodGateway,
 ): Promise<string | null> {
-  const org = await getOrganization(gateway);
+  const org = await getOrganisation(gateway);
   if (!org?.logoUrl) return null;
   try {
     const res = await gateway.fetch(org.logoUrl);
@@ -249,9 +249,9 @@ async function mutateProfile(
  * `foaf:logo` is preserved (managed separately by {@link uploadOrgLogo}).
  * @operation mutation
  */
-export async function saveOrganization(
+export async function saveOrganisation(
   gateway: PodGateway,
-  fields: Pick<Organization, "name" | "homepage" | "sameAs">,
+  fields: Pick<Organisation, "name" | "homepage" | "sameAs">,
 ): Promise<void> {
   const webId = gateway.webId;
   if (!webId) {

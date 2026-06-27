@@ -16,10 +16,10 @@
  * endpoint. NOTE: a browser-shipped `VITE_` key is visible to clients — fine for a
  * dev/research endpoint, not for a secret production key.
  */
-import { INTENTS } from "../../intents/catalog.ts";
-import { INTENT_PARAMS } from "../../intents/params.ts";
-import { NAVIGATE_PARAM_HINTS } from "../../intents/navigate.ts";
-import { selectorFieldsSpec } from "../../intents/selector.ts";
+import { INTENTS } from "../catalog.ts";
+import { INTENT_PARAMS } from "../params.ts";
+import { NAVIGATE_PARAM_HINTS } from "../navigate.ts";
+import { selectorFieldsSpec } from "../selector.ts";
 import { trackedFetch } from "../../lib/networkActivity.ts";
 
 // `import.meta.env` is Vite-injected in the app; under `deno test` it is undefined,

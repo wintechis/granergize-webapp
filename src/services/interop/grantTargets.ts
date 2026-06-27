@@ -4,7 +4,7 @@ import {
   observationsRootForObservation,
   parseDatasetLink,
   seriesContainerUri,
-} from "../rdf/energyDataset.ts";
+} from "../energy/energyDataset.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { filesContainerFor } from "../attachmentManager.ts";
 

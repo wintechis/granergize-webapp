@@ -7,7 +7,7 @@ import { BuildingType } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
-import { type EnergyMetricKey } from "../../services/rdf/energyDataset.ts";
+import { type EnergyMetricKey } from "../../services/energy/energyDataset.ts";
 import { DEFAULT_METRIC } from "../../services/energy/energyMetric.ts";
 import {
   buildEnergyMatrix,

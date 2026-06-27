@@ -10,9 +10,9 @@ import type { FindNearbyInstallationsParams } from "../intents/cores/installatio
 import type { FindRegionalStatisticsParams } from "../intents/cores/aggregation/FindRegionalStatistics.ts";
 import type { Selector } from "../intents/selector.ts";
 import { invoke, query } from "../intents/registry.ts";
-import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
+import type { EnergyDataset } from "../services/energy/energyDataset.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
-import type { Organization } from "../services/organization/organizationManager.ts";
+import type { Organisation } from "../services/organisation/organisationManager.ts";
 import type { SavedAgent } from "../services/savedAgents.ts";
 import type { RegionLevel } from "../services/aggregation/regionRollup.ts";
 import type {
@@ -427,12 +427,12 @@ export function useCreateAggregation() {
  * Save the organisation node in the WebID profile (+ optional logo upload).
  * The resolved-agent caches read the profile, so both are refreshed.
  */
-export function useSaveOrganization() {
+export function useSaveOrganisation() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionSaveOrganisation" },
     mutationFn: (vars: {
-      org: Pick<Organization, "name" | "homepage" | "sameAs">;
+      org: Pick<Organisation, "name" | "homepage" | "sameAs">;
       logo?: File | null;
     }) => invoke("SaveOrganisation", vars, getGateway()),
     onSettled: () => {

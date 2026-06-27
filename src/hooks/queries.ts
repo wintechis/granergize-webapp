@@ -49,7 +49,7 @@ import {
   type EnergyMetricKey,
   listSeriesDays,
   loadEnergyDatasets,
-} from "../services/rdf/energyDataset.ts";
+} from "../services/energy/energyDataset.ts";
 import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import type {

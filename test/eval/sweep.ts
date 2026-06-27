@@ -18,7 +18,7 @@ import {
   type Result,
   runCase,
 } from "./intent-translation.eval.ts";
-import type { LlmConfig } from "../../src/services/llm/intentTranslate.ts";
+import type { LlmConfig } from "../../src/intents/llm/intentTranslate.ts";
 import {
   median,
   type PlotSpec,

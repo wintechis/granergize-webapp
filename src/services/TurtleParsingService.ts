@@ -15,7 +15,7 @@ import { mapPooled } from "../lib/pool.ts";
 import {
   type BuildinglessObservation,
   parseEnergyDataset,
-} from "./rdf/energyDataset.ts";
+} from "./energy/energyDataset.ts";
 import { readPrefs } from "./prefs.ts";
 import {
   type ActiveGrant,

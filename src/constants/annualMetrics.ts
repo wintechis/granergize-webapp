@@ -1,4 +1,4 @@
-import type { EnergyMetricKey } from "../services/rdf/energyDataset.ts";
+import type { EnergyMetricKey } from "../services/energy/energyDataset.ts";
 import type { MessageId } from "../lib/messages.ts";
 import { label as vocabLabel } from "../services/rdf/vocabLabels.ts";
 import type { Lang } from "../lib/language.ts";

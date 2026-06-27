@@ -126,7 +126,7 @@ async function bootCss(): Promise<LocalPod> {
 
 // Boot-time snapshot of each account's PRISTINE WebID profile document, keyed by
 // slot. A per-spec `/wipe` restores these after wiping the pod: the app mutates
-// the profile OUTSIDE the granergize/ tree (`saveOrganization` writes org fields
+// the profile OUTSIDE the granergize/ tree (`saveOrganisation` writes org fields
 // into the WebID card), so a data-only wipe would leak an org edit into the next
 // spec — a full CSS restart reset the profile for free, so the in-place wipe must
 // too. Captured once after boot; the accounts and their data dir live for the

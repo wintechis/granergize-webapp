@@ -6,7 +6,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { type PodGateway, sessionGateway } from "../../../services/pod/podGateway.ts";
 import { _setStorageRootForTesting } from "../../../services/pod/solidUtils.ts";
 import { CONSUMPTION_NS, REC_BUILDING } from "../../../services/rdf/vocabularies.ts";
-import type { EnergyDataset } from "../../../services/rdf/energyDataset.ts";
+import type { EnergyDataset } from "../../../services/energy/energyDataset.ts";
 import { getObservationYearCore } from "./GetObservationYear.ts";
 
 const WEBID = "https://a.example/profile/card#me";

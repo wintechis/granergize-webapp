@@ -1,6 +1,6 @@
 import { type BuildingType } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
-import { type EnergyMetricKey } from "../rdf/energyDataset.ts";
+import { type EnergyMetricKey } from "../energy/energyDataset.ts";
 import { type EnergyByBuildingYear } from "./energyTimeCut.ts";
 
 export interface OverYearsChart {

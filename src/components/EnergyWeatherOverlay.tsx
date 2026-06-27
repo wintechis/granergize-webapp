@@ -24,7 +24,7 @@ import {
 import { BuildingType } from "../types.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { useAnnualEnergyByYear } from "../hooks/queries.ts";
-import { type EnergyMetricKey } from "../services/rdf/energyDataset.ts";
+import { type EnergyMetricKey } from "../services/energy/energyDataset.ts";
 import { DEFAULT_METRIC, metricRawAtYear } from "../services/energy/energyMetric.ts";
 import {
   alignEnergyWeather,

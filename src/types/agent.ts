@@ -1,7 +1,7 @@
 // Agent object model — the saved-agent address-book record and the organisation
 // profile node. First-class peers of BuildingType (the persisted records the user
 // curates); their parse/serialize lives in `services/savedAgents.ts` /
-// `services/organization/organizationManager.ts`, which re-export these for their
+// `services/organisation/organisationManager.ts`, which re-export these for their
 // existing importers. Reached via the `src/types.ts` barrel.
 
 /**
@@ -34,7 +34,7 @@ export interface SavedAgent {
 }
 
 /** The user's own organisation node (`<#org>` on the WebID profile). */
-export interface Organization {
+export interface Organisation {
   /** Display name (foaf:name). */
   name?: string;
   /** Logo image IRI (foaf:logo). */

@@ -6,11 +6,11 @@ import { msg } from "../lib/messages.ts";
 import { getSession } from "../hooks/session.ts";
 import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { useSaveOrganization } from "../hooks/mutations.ts";
+import { useSaveOrganisation } from "../hooks/mutations.ts";
 import {
-  getOrganization,
-  type Organization,
-} from "../services/organization/organizationManager.ts";
+  getOrganisation,
+  type Organisation,
+} from "../services/organisation/organisationManager.ts";
 import { BackLink, DetailCard } from "../components/detail/DetailView.tsx";
 import { FINDERS } from "../routes.ts";
 import { OrgEditor, OrgReadView } from "../components/agent/OrgDetail.tsx";
@@ -18,13 +18,13 @@ import { logError } from "../lib/logError.ts";
 import { bumpAvatar } from "../lib/avatarRefresh.ts";
 
 /** The inline editor — the shared org fields + logo upload, saved to the WebID profile. */
-function EditView({ org, onDone }: { org: Organization; onDone: () => void }) {
+function EditView({ org, onDone }: { org: Organisation; onDone: () => void }) {
   const { showNotification } = useNotification();
   const [name, setName] = useState(org.name ?? "");
   const [homepage, setHomepage] = useState(org.homepage ?? "");
   const [sameAs, setSameAs] = useState(org.sameAs ?? "");
   const [pickedFile, setPickedFile] = useState<File | null>(null);
-  const save = useSaveOrganization();
+  const save = useSaveOrganisation();
   const saving = save.isPending;
 
   const handleSave = () =>
@@ -63,7 +63,7 @@ function EditView({ org, onDone }: { org: Organization; onDone: () => void }) {
 }
 
 /** Read view: the org's logo + fields, or a guidance empty state. */
-function ReadView({ org }: { org: Organization }) {
+function ReadView({ org }: { org: Organisation }) {
   const hasAny = Boolean(org.name || org.homepage || org.sameAs || org.logoUrl);
   if (!hasAny) {
     return (
@@ -86,14 +86,14 @@ function ReadView({ org }: { org: Organization }) {
 /**
  * The Organisation page — the org the user works for (W3C Org `org:memberOf` → a
  * `<#org>` node in the WebID profile: name, homepage, the org's own WebID, and a logo;
- * see organizationManager.ts). Read-first with an inline `[Edit]` (mirrors the building
- * page; replaces the old OrganizationDialog), reached from the profile menu. A standalone
+ * see organisationManager.ts). Read-first with an inline `[Edit]` (mirrors the building
+ * page; replaces the old OrganisationDialog), reached from the profile menu. A standalone
  * full-page route, so it carries its own "Loading…" text (the header indicator isn't
  * mounted here — see the loading-spinner policy).
  */
 export default function Organisation() {
   const session = getSession();
-  const [org, setOrg] = useState<Organization | null>(null);
+  const [org, setOrg] = useState<Organisation | null>(null);
   const [editing, setEditing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -102,7 +102,7 @@ export default function Organisation() {
   // render rule). `loading` is derived from the not-yet-resolved null.
   useEffect(() => {
     let cancelled = false;
-    getOrganization(sessionGateway(session))
+    getOrganisation(sessionGateway(session))
       .then((o) => {
         if (!cancelled) setOrg(o ?? {});
       })

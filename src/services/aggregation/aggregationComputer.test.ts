@@ -19,7 +19,7 @@ import {
   datasetNodeUri,
   observationsRootForBuilding,
   serializeEnergyDataset,
-} from "../rdf/energyDataset.ts";
+} from "../energy/energyDataset.ts";
 import { _setAppQueryClient } from "../../lib/appQueryClient.ts";
 
 const POD = "https://pod.example/granergize/buildings/";

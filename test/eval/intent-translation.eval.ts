@@ -25,7 +25,7 @@ import { selectorEquals } from "../../src/intents/selector.ts";
 import {
   type LlmConfig,
   translateToIntentJson,
-} from "../../src/services/llm/intentTranslate.ts";
+} from "../../src/intents/llm/intentTranslate.ts";
 // Reuse the bench plotting infrastructure (test/bench): .dat → .gp → gnuplot PNG +
 // an index.html, exactly as `deno task bench` does.
 import {

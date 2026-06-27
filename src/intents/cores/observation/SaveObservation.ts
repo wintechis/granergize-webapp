@@ -8,7 +8,7 @@ import {
 import { reconcileBuildingGrants } from "../../../services/interop/share.ts";
 import { podResources } from "../../../services/pod/solidUtils.ts";
 import { logError } from "../../../lib/logError.ts";
-import type { EnergyDataset } from "../../../services/rdf/energyDataset.ts";
+import type { EnergyDataset } from "../../../services/energy/energyDataset.ts";
 import type { Settled } from "../../outcomes.ts";
 
 /** Parameters of the SaveObservation intent. A building (`fileUri` + `subjectUri`)

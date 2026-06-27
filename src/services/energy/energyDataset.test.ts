@@ -19,7 +19,7 @@ import {
   seriesDailyFileUri,
   serializeEnergyDataset,
 } from "./energyDataset.ts";
-import { CONSUMPTION_NS, SOSA_NS, UNIT_NS } from "./vocabularies.ts";
+import { CONSUMPTION_NS, SOSA_NS, UNIT_NS } from "../rdf/vocabularies.ts";
 
 const B = "https://pod.example/granergize/buildings/b-1.ttl#it";
 const ROOT = "https://pod.example/granergize/observations/";
