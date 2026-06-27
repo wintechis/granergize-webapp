@@ -70,7 +70,7 @@ export const ENERGY_DATASET_FIELDS: ConsumptionField[] = [
  *  (`id`, `buildingUris`, `metrics`, `spatialExtent`) stays hand-written. */
 export const AGGREGATION_DEFINITION_FIELDS: ConsumptionField[] = [
   { field: "name", iri: CONS.aggregationName, required: true },
-  { field: "aggregationType", iri: CONS.aggregationType, required: true, tsType: "AggregationType" },
+  { field: "aggregationType", iri: CONS.aggregationType, required: true, tsType: "AggregationKind" },
   { field: "period", iri: CONS.aggregationPeriod },
   { field: "benchmark", iri: CONS.benchmark },
   { field: "createdAt", iri: CONS.createdAt, required: true },
@@ -82,7 +82,7 @@ export const AGGREGATION_DEFINITION_FIELDS: ConsumptionField[] = [
  *  are the `:BenchmarkResult` extras. */
 export const AGGREGATION_SNAPSHOT_FIELDS: ConsumptionField[] = [
   { field: "name", iri: CONS.aggregationName, required: true },
-  { field: "aggregationType", iri: CONS.aggregationType, required: true, tsType: "AggregationType" },
+  { field: "aggregationType", iri: CONS.aggregationType, required: true, tsType: "AggregationKind" },
   { field: "computedAt", iri: CONS.computedAt, required: true },
   { field: "buildingCount", iri: CONS.buildingCount, required: true },
   { field: "computedBy", iri: CONS.computedBy },

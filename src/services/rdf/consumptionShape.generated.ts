@@ -4,7 +4,7 @@
 // field bridges in consumptionConfig.ts. Source of truth is the .ttl + that bridge;
 // regenerate with `deno task gen:interface`. A freshness test guards drift.
 
-import type { AggregationType, Scenario } from "../../types.ts";
+import type { AggregationKind, Scenario } from "../../types.ts";
 
 export interface EnergyDatasetFields {
   granularity: string;
@@ -13,7 +13,7 @@ export interface EnergyDatasetFields {
 
 export interface AggregationDefinitionFields {
   name: string;
-  aggregationType: AggregationType;
+  aggregationType: AggregationKind;
   period?: string;
   benchmark?: boolean;
   createdAt: string;
@@ -22,7 +22,7 @@ export interface AggregationDefinitionFields {
 
 export interface AggregationSnapshotFields {
   name: string;
-  aggregationType: AggregationType;
+  aggregationType: AggregationKind;
   computedAt: string;
   buildingCount: number;
   computedBy?: string;

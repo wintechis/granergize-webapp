@@ -3,6 +3,14 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **`AggregationType` → `AggregationKind`: a discriminator stops wearing the object-model suffix
+  (architecture review N3a).** `AggregationType` is a string-literal *union*
+  (`"average" | "sum" | "min" | "max"`) — a categorical/discriminator, not an `enum` and not a record
+  — yet it wore `-Type`, the same suffix as the object models `BuildingType`/`EnergyType`. Renamed to
+  `AggregationKind`, matching the existing `SystemKind`, so no discriminator carries `-Type`. The
+  `aggregationType` *field* keeps its name; the generator's hard-coded import and the
+  `consumptionConfig` `tsType` override were updated so `gen:interface` regenerates consistently.
+  Type-only change (the union has no runtime value); check/lint/unit green.
 - **Filename-case convention made explicit and enforced with a content-aware ESLint rule.** First,
   aligned the lone outlier left by N2: `turtleParsing` (still PascalCase after the suffix drop) →
   camelCase, matching its `services/` peers. Then added a custom rule

@@ -2,7 +2,7 @@ import type { PodGateway } from "../pod/podGateway.ts";
 import type {
   AggregationDefinition,
   AggregationSnapshot,
-  AggregationType,
+  AggregationKind,
   BuildingType,
   EnergyCategoryKey,
   EnergyType,
@@ -180,7 +180,7 @@ function ownStorageRootOrUndefined(gateway: PodGateway): string | undefined {
 /**
  * Aggregate values based on aggregation type
  */
-function aggregateValues(values: number[], type: AggregationType): number {
+function aggregateValues(values: number[], type: AggregationKind): number {
   if (values.length === 0) return 0;
 
   switch (type) {

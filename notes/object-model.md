@@ -39,7 +39,7 @@ types beside the domain, composites one layer up.
      (each building's latest actual year), not a mirror of one.
    - `Scenario` (`actual`|`planned`).
    - The aggregation trio: `AggregationDefinition`,
-     `AggregationSnapshot`, `SharedAggregation` (+ `AggregationType`).
+     `AggregationSnapshot`, `SharedAggregation` (+ `AggregationKind`).
    - `UserRole` — the data-room membership role, and nothing else
      ([`data-schema.md`](./data-schema.md) §`UserRole`).
 
