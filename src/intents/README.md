@@ -6,6 +6,19 @@ The **core** below the hook. See
 (the effect-discriminated result channel), and
 [`../../plans/plan-intent-core.md`](../../plans/plan-intent-core.md) §1.
 
+## Layout
+
+The cores live in **`cores/<entity>/<Name>.ts`**, grouped by the core's
+`catalog.entity` (`building`, `observation`, `aggregation`, `sharing`, `room`,
+`agent`, `attachment`, `organisation`, `installation`, `appData`) — so the source
+tree (and the typedoc nav) mirror the reified catalog. The invariant *folder ==
+catalog entity* is held by `cores/location.drift.test.ts`. The **scaffolding** stays
+at this top level: the substrate the cores build on (`catalog.ts`, `outcomes.ts`,
+`affordances.ts` → `applicable.ts` → `entityQuery.ts`, `selector.ts`) and the
+dispatch/index built on the cores (`registry.ts`, `params.ts`, `launch.ts`,
+`navigate.ts`, `labels.ts`). Navigate intents have no core file — they are pure
+route builders in `NAVIGATE_CORES` (`navigate.ts`).
+
 ## The core/adapter split
 
 An intent's implementation splits in two:

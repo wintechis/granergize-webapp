@@ -5,9 +5,9 @@ import {
 } from "@tanstack/react-query";
 import { getGateway } from "./session.ts";
 import { queryKeys } from "./queries.ts";
-import type { ShareBuildingParams } from "../intents/ShareBuilding.ts";
-import type { FindNearbyInstallationsParams } from "../intents/FindNearbyInstallations.ts";
-import type { FindRegionalStatisticsParams } from "../intents/FindRegionalStatistics.ts";
+import type { ShareBuildingParams } from "../intents/cores/building/ShareBuilding.ts";
+import type { FindNearbyInstallationsParams } from "../intents/cores/installation/FindNearbyInstallations.ts";
+import type { FindRegionalStatisticsParams } from "../intents/cores/aggregation/FindRegionalStatistics.ts";
 import type { Selector } from "../intents/selector.ts";
 import { invoke, query } from "../intents/registry.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
