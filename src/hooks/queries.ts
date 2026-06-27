@@ -772,6 +772,9 @@ export function useResolveOrg(webId?: string) {
 export const queryKeys = {
   buildings: ["buildings"] as const,
   energy: ["energy"] as const,
+  /** One energy dataset, keyed by its node IRI (`["energyDataset", webId, uri]`) — the
+   * shared per-resource read the map fold and the aggregation compute both go through. */
+  energyDataset: ["energyDataset"] as const,
   /** The folded `shared-in/` log — everything "shared with me" derives from it. */
   sharedInLog: ["sharedInLog"] as const,
   /** The folded `shared-out/` log — the shared-buildings/-aggregations lists derive from it. */

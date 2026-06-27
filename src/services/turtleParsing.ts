@@ -16,6 +16,7 @@ import {
   type BuildinglessObservation,
   parseEnergyDataset,
 } from "./energy/energyDataset.ts";
+import { fetchEnergyDatasetShared } from "./energy/energyDatasetCache.ts";
 import { readPrefs } from "./prefs.ts";
 import {
   type ActiveGrant,
@@ -365,13 +366,10 @@ export async function loadEnergy(
       // showing "no energy data" (and dropping out of the map's peer terciles).
       for (const ref of refs) {
         try {
-          const fileUri = buildingFileUri(ref.uri);
-          const res = await fetchFresh(fileUri, gateway);
-          if (!res.ok) continue;
-          const store = new Store(
-            new Parser({ baseIRI: fileUri }).parse(await res.text()),
-          );
-          const ds = parseEnergyDataset(store, ref.uri);
+          // One IRI-keyed read per dataset, shared with the aggregation compute
+          // through the warm query cache (`fetchEnergyDatasetShared`) so the file
+          // is fetched once, not once per consumer.
+          const ds = await fetchEnergyDatasetShared(ref.uri, gateway);
           if (ds?.metrics) return { building, metrics: ds.metrics, year: ref.year };
         } catch (error) {
           console.error(

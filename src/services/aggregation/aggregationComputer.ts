@@ -18,6 +18,7 @@ import {
   loadEnergyDatasets,
   parseEnergyDatasetRefs,
 } from "../energy/energyDataset.ts";
+import { fetchEnergyDatasetShared } from "../energy/energyDatasetCache.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
@@ -143,7 +144,10 @@ async function loadBuildingEnergyData(
       return null;
     }
     const latest = annual.reduce((a, b) => (a.year >= b.year ? a : b));
-    const [ds] = await loadEnergyDatasets([latest], gateway.fetch.bind(gateway));
+    // Read the dataset through the shared IRI-keyed cache — the SAME entry the
+    // map's energy fold fills — so the compute reuses the warm read (and gains
+    // the revalidation the bare gateway.fetch lacked) instead of re-fetching.
+    const ds = await fetchEnergyDatasetShared(latest.uri, gateway);
     if (!ds?.metrics) return null;
 
     return {
