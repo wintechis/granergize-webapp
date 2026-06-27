@@ -48,16 +48,18 @@ conceptual model; the deno tasks keep their historical names — `test`, `it`,
 Adjacent kinds isolate one failure class (data-layer → UI → provider interop). Three
 roles, **A = Alice / B = Bob / C = Charlie**; the catalog specs split by pod count:
 **solo** specs use A; **duo** (cross-Pod sharing) use A + B; **trio** (the
-benchmark-service round-trip) use A + B + C. The specs live in `test/e2e/tasks/` (one per
-feature: login, organisation, add-building, energy-entry, aggregations, data-room,
-share-building, share-aggregation); `headless:local` mirrors a subset in
+benchmark-service round-trip) use A + B + C. The specs live in a folder PER pod count —
+`test/e2e/{solo,duo,trio}/*.spec.ts` (one per feature: login, organisation, add-building,
+energy-entry, aggregations, data-room, share-building, share-aggregation) — so each
+project's `testMatch` is just its folder glob and a new/renamed spec auto-registers by
+location (no hand-maintained list to fall out of); `headless:local` mirrors a subset in
 `test/headless/tasks/`. Shared config in `test/config/` (`providers.ts`, `accounts.ts`,
 `actors.ts`).
 
 ```
 deno task unit:local                                          # unit:local
 deno task headless:local                                            # headless:local (no creds)
-deno task e2e:local [test/e2e/tasks/<spec>.spec.ts]     # e2e:local (no creds)
+deno task e2e:local [test/e2e/solo/<spec>.spec.ts]      # e2e:local (no creds)
 source test/.env.e2e.local && deno task e2e:remote      # e2e:remote (real Pods)
 ```
 
