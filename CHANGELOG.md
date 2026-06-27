@@ -3,6 +3,17 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **Lazy-load the command-palette body (`index` 62 → 40 kB / 20 → 13 kB gzip).** `CommandPalette`
+  was mounted eagerly in the shell to own the ⌘K listener, dragging its whole graph (the intent
+  registry et al.) into first paint. Split it into a thin always-mounted host (`CommandPalette.tsx`
+  — the `open` state + the global ⌘K / `OPEN_PALETTE_EVENT` listeners, no heavy imports) and a lazy
+  `CommandPaletteBody.tsx` (the ~590-line component) fetched on first open; the body is now a
+  controlled dialog (`open`/`onClose`) that resets its filter on the open→true transition. The
+  palette UI + LLM-translate now load on ⌘K, not at paint. **Note:** this did *not* reclaim the
+  ~140 kB `vendor-charts`/`mastrNearby`/`navTrail` — those stay eager via `mutations.ts → registry`,
+  which statically aggregates every core; decoupling that is a separate (larger) intent-system task.
+  check/lint/build green; palette-launch-json e2e 3/3 (the one add-and-energy failure is an unrelated
+  `/observation` data-load flake — plans/flakes.md).
 - **Extract the auth boundary into `useSessionLifecycle` (`main.tsx` 312 → 118 lines).** The entry
   module's `AppContent` had accreted the entire session lifecycle — the `session`/`suppressRestore`
   state, the `useSyncExternalStore` expiry gate, three effects (fetch instrumentation, expiry→logout,
