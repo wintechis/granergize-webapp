@@ -2,6 +2,15 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-27]
+- **Centralize the remaining inlined namespace IRIs in the Turtle serializers.** The
+  sibling serializers that still hardcoded `@prefix` namespace strings now use the
+  `vocabularies.ts` constants like the rest of the RDF layer: `sharingLog.ts`,
+  `energySeriesXlsx.ts` (xsd/sosa/ssn/time/unit), `aggregationManager.ts`'s `TTL_PREFIXES`
+  (rdf/xsd) and `dataRoom.ts`'s `Writer` prefixes (xsd). New `RDF_NS` constant (with
+  `RDF_TYPE` derived from it). Output is byte-identical (the constants resolve to the same
+  IRIs); the round-trip unit suites stay green.
+
 ## [2026-06-26]
 - **Clarity & consistency sweep (code-review follow-up).** No behaviour change —
   internal clarity/consistency only; typecheck, lint, and the touched unit suites stay

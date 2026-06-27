@@ -10,6 +10,7 @@ import {
   RDFS_LABEL,
   SIOC_NS,
   XSD_DATETIME,
+  XSD_NS,
 } from "../rdf/vocabularies.ts";
 import { appRoot, getStorageRoot } from "../pod/solidUtils.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
@@ -513,7 +514,7 @@ async function postEvent(
     as: AS_NS,
     sioc: SIOC_NS,
     gran: GRAN_NS,
-    xsd: "http://www.w3.org/2001/XMLSchema#",
+    xsd: XSD_NS,
   });
 
   await ensureContainer(containerUri, gateway);

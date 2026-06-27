@@ -1,5 +1,12 @@
 import * as XLSX from "xlsx";
-import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
+import {
+  CONSUMPTION_NS,
+  SOSA_NS,
+  SSN_NS,
+  TIME_NS,
+  UNIT_NS,
+  XSD_NS,
+} from "../rdf/vocabularies.ts";
 
 // ---------------------------------------------------------------------------
 // Lastgang (15-min load profile) helpers — parse a utility load-profile XLSX
@@ -196,11 +203,11 @@ export function generateEnergyDayTtl(
 
   return (
     `@prefix : <#> .\n` +
-    `@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n` +
-    `@prefix sosa: <http://www.w3.org/ns/sosa/> .\n` +
-    `@prefix ssn: <http://www.w3.org/ns/ssn/> .\n` +
-    `@prefix time: <http://www.w3.org/2006/time#> .\n` +
-    `@prefix unit: <https://qudt.org/vocab/unit#> .\n` +
+    `@prefix xsd: <${XSD_NS}> .\n` +
+    `@prefix sosa: <${SOSA_NS}> .\n` +
+    `@prefix ssn: <${SSN_NS}> .\n` +
+    `@prefix time: <${TIME_NS}> .\n` +
+    `@prefix unit: <${UNIT_NS}> .\n` +
     `@prefix cons: <${CONSUMPTION_NS}> .\n` +
     `\n# 15-minute energy readings — ${date} (UTC)\n` +
     `# ${label}\n` +

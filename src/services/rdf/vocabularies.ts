@@ -138,7 +138,8 @@ export const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
 // sharing event logs (shared-in/ and shared-out/) and the inbox messages.
 export const INTEROP_NS = "http://www.w3.org/ns/solid/interop#";
 
-export const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+export const RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+export const RDF_TYPE = `${RDF_NS}type`;
 export const RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#";
 export const RDFS_LABEL = `${RDFS_NS}label`;
 export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
