@@ -19,7 +19,7 @@ import {
   revokeAllBuildingRecipients,
   revokeAllAggregationRecipients,
   revokeAggregationAccess,
-} from "./sharingManager.ts";
+} from "./sharing.ts";
 
 const WEBID = "https://me.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://me.example/");

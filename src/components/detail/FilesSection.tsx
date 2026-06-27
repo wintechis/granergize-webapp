@@ -3,7 +3,7 @@ import { Button } from "@mui/material";
 import type { AttachmentRef, BuildingType } from "../../types.ts";
 import { RdfSourceLink, SectionTitle } from "./DetailView.tsx";
 import { listStyle, rowStyle } from "../../constants/listStyles.ts";
-import { filesContainerFor } from "../../services/attachmentManager.ts";
+import { filesContainerFor } from "../../services/attachment.ts";
 import { getGateway } from "../../hooks/session.ts";
 import { useAttachmentDownload } from "../../hooks/useAttachmentDownload.ts";
 import AttachmentInfo from "../AttachmentInfo.tsx";

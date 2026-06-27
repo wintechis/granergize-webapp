@@ -22,7 +22,7 @@ import {
   datasetFileUri,
   observationsRootForBuilding,
 } from "../../energy/energyDataset.ts";
-import { toggleBuildingVisibility } from "../../interop/sharingManager.ts";
+import { toggleBuildingVisibility } from "../../interop/sharing.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { _setStorageRootForTesting, podResources } from "../../pod/solidUtils.ts";
 import { makeFakeSession } from "../../testing/fakeSession.ts";

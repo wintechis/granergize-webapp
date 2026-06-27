@@ -7,7 +7,7 @@ import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import {
   getSharedWithMe,
   type SharedWithMeBuilding,
-} from "../../../services/interop/sharingManager.ts";
+} from "../../../services/interop/sharing.ts";
 
 export function sharedWithMeCore(
   gateway: PodGateway,

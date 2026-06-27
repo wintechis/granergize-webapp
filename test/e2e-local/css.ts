@@ -44,12 +44,12 @@ import {
   wipeRooms,
 } from "../bench/seed.ts";
 import { shareBuildingData } from "../../src/services/interop/share.ts";
-import { createAggregationDefinition } from "../../src/services/aggregation/aggregationManager.ts";
+import { createAggregationDefinition } from "../../src/services/aggregation/aggregation.ts";
 import {
   computeAndStoreSnapshot,
   summarizeContributors,
 } from "../../src/services/aggregation/aggregationComputer.ts";
-import { getSharedWithMe } from "../../src/services/interop/sharingManager.ts";
+import { getSharedWithMe } from "../../src/services/interop/sharing.ts";
 import { CONSUMPTION_METRIC_KEYS } from "../../src/constants/annualMetrics.ts";
 
 /**

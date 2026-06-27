@@ -3,6 +3,13 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **Service modules de-suffixed for a consistent naming convention (architecture review N2).** The
+  six `-Manager`/`-Service` module files (the lone `-Service` and five `-Manager`) drop their suffix:
+  `attachmentManager→attachment`, `TurtleParsingService→TurtleParsing`, `aggregationManager→aggregation`,
+  `sharingManager→interop/sharing`, `organisationManager→organisation`, `logoManager→logo`. The repo
+  had no rule for when a module earned "Manager" (why `sharingManager` but plain `prefs`/`bookmarks`?);
+  dropping the suffixes makes the module names uniform. Exported function names are unchanged — file
+  renames + import-path updates only, behaviour identical. check/lint/unit (1056) green.
 - **External-source clients consolidated under `services/sources/`, acyclically (architecture review #6).**
   The 16 external-source modules that sat loose at the `services/` root — the `linked-*` wrappers
   (mastr/lod2/netztransparenz/regionalCube/regionGeometry/region), Nominatim (`geocode`), PVGIS

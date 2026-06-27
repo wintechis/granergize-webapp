@@ -2,7 +2,7 @@
 // `useUploadAttachments`). See ./README.md for the core/adapter split and the
 // write→outcome convention.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import { uploadAttachment } from "../../../services/attachmentManager.ts";
+import { uploadAttachment } from "../../../services/attachment.ts";
 import type { AttachmentRef } from "../../../types.ts";
 import type { Tally } from "../../outcomes.ts";
 

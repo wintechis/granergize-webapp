@@ -12,7 +12,7 @@ import {
   importArchive,
 } from "../../../src/services/pod/podArchive.ts";
 import { reissueGrants, shareBuildingData } from "../../../src/services/interop/share.ts";
-import { removeFromACL } from "../../../src/services/interop/sharingManager.ts";
+import { removeFromACL } from "../../../src/services/interop/sharing.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   deleteBuilding,
@@ -20,7 +20,7 @@ import {
   serializeBuildingToTurtle,
   uploadBuilding,
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
-import { filesContainerFor } from "../../../src/services/attachmentManager.ts";
+import { filesContainerFor } from "../../../src/services/attachment.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 import {

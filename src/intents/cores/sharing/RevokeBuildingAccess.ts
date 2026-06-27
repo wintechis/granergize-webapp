@@ -2,7 +2,7 @@
 // `useRevokeBuildingAccess`). See ./README.md for the core/adapter split and the
 // write→outcome convention.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
-import { revokeAccess } from "../../../services/interop/sharingManager.ts";
+import { revokeAccess } from "../../../services/interop/sharing.ts";
 import type { Settled } from "../../outcomes.ts";
 
 /** Parameters of the RevokeBuildingAccess intent. */

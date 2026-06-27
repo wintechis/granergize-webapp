@@ -26,7 +26,7 @@ import { intentLabelKey, paramLabelKey } from "../intents/labels.ts";
 import { useInvokeIntent } from "../hooks/invokeIntent.ts";
 import { fieldKindFor } from "../lib/paramForm.ts";
 import { msg, type MessageId } from "../lib/messages.ts";
-import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
+import { getSnapshotUri } from "../services/aggregation/aggregation.ts";
 import BuildingPicker from "./BuildingPicker.tsx";
 import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
 import { AgentField } from "./AgentField.tsx";

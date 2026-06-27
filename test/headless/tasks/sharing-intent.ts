@@ -14,7 +14,7 @@ import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   getReceivedAggregations,
   getSharedWithMe,
-} from "../../../src/services/interop/sharingManager.ts";
+} from "../../../src/services/interop/sharing.ts";
 import { buildingFileUri } from "../../../src/services/rdf/building/buildingId.ts";
 import { deleteBuilding } from "../../../src/services/rdf/building/buildingSerializer.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";

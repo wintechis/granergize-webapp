@@ -9,7 +9,7 @@ import {
   filesContainerFor,
   setEnergyCertificate,
   uploadAttachment,
-} from "./attachmentManager.ts";
+} from "./attachment.ts";
 import { parseBuildings } from "./rdf/building/buildingParser.ts";
 import {
   DCTERMS_CREATED,

@@ -12,7 +12,7 @@ import { shareBuildingData } from "../../../src/services/interop/share.ts";
 import {
   getSharedBuildings,
   getSharedWithMe,
-} from "../../../src/services/interop/sharingManager.ts";
+} from "../../../src/services/interop/sharing.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import { deleteBuildingResource } from "../../../src/services/buildingActions.ts";
 import {

@@ -2,7 +2,7 @@
 import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { getAvatarUrl } from "./logoManager.ts";
+import { getAvatarUrl } from "./logo.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
 
 const WEBID = "https://pod.example/profile/card#me";

@@ -10,7 +10,7 @@ import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   getReceivedAggregations,
   revokeAggregationAccess,
-} from "../../../src/services/interop/sharingManager.ts";
+} from "../../../src/services/interop/sharing.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 export const name = "share-aggregation";

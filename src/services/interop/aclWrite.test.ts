@@ -4,7 +4,7 @@ import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { grantReadAccess } from "./share.ts";
-import { removeFromACL } from "./sharingManager.ts";
+import { removeFromACL } from "./sharing.ts";
 import { ACL_NS } from "../rdf/vocabularies.ts";
 
 const OWNER = "https://owner.example/profile/card#me";

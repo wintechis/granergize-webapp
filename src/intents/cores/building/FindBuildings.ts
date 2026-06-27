@@ -11,7 +11,7 @@
  */
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import type { BuildingType } from "../../../types.ts";
-import { fetchAndParseData } from "../../../services/TurtleParsingService.ts";
+import { fetchAndParseData } from "../../../services/TurtleParsing.ts";
 import { filter, type Selector } from "../../selector.ts";
 
 /** Load the viewer's visible buildings (own ∪ shared-not-hidden) headlessly. */

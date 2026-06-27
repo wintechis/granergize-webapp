@@ -5,7 +5,7 @@ import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import {
   auditObservationLinks,
   type ObservationLinkAuditResult,
-} from "../../../services/TurtleParsingService.ts";
+} from "../../../services/TurtleParsing.ts";
 
 /** The read's value type, re-exported with the core (the single headless entry point). */
 export type { ObservationLinkAuditResult };

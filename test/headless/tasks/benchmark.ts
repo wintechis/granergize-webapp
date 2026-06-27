@@ -20,7 +20,7 @@ import {
   createAggregationDefinition,
   deleteAggregation,
   getReceivedBenchmarksFor,
-} from "../../../src/services/aggregation/aggregationManager.ts";
+} from "../../../src/services/aggregation/aggregation.ts";
 import {
   computeAndStoreSnapshot,
   summarizeContributors,
@@ -28,7 +28,7 @@ import {
 import {
   getReceivedAggregations,
   getSharedWithMe,
-} from "../../../src/services/interop/sharingManager.ts";
+} from "../../../src/services/interop/sharing.ts";
 import { CONSUMPTION_METRIC_KEYS } from "../../../src/constants/annualMetrics.ts";
 import {
   deleteBuilding,

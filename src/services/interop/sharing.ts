@@ -10,7 +10,7 @@ import {
 } from "./sharingLog.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import { readModifyWrite } from "../pod/podWrite.ts";
-import { filesContainerFor } from "../attachmentManager.ts";
+import { filesContainerFor } from "../attachment.ts";
 import { readPrefs, toggleHiddenBuilding } from "../prefs.ts";
 import { ACL_NS } from "../rdf/vocabularies.ts";
 import { buildingTargetsFromStore } from "./grantTargets.ts";
@@ -329,7 +329,7 @@ export async function toggleBuildingVisibility(
     throw new Error("User is not logged in");
   }
   // The hidden list lives in prefs.ttl (read by getSharedWithMe /
-  // TurtleParsingService via readPrefs); toggle there so write and read agree.
+  // TurtleParsing via readPrefs); toggle there so write and read agree.
   await toggleHiddenBuilding(gateway, buildingUri);
 }
 

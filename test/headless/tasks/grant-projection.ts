@@ -32,7 +32,7 @@ import {
   reissueGrants,
   shareBuildingData,
 } from "../../../src/services/interop/share.ts";
-import { revokeAccess } from "../../../src/services/interop/sharingManager.ts";
+import { revokeAccess } from "../../../src/services/interop/sharing.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   deleteBuilding,

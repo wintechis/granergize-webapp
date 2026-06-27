@@ -7,7 +7,7 @@ import {
   loadBuildings,
   loadEnergy,
   sharedBuildingSourcesFromGrants,
-} from "../services/TurtleParsingService.ts";
+} from "../services/TurtleParsing.ts";
 import { podResources, resolveStorageRoot } from "../services/pod/solidUtils.ts";
 import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
@@ -20,7 +20,7 @@ import {
   sharedBuildingsFromGrants,
   sharedAggregationsFromGrants,
   sharedWithMeFromGrants,
-} from "../services/interop/sharingManager.ts";
+} from "../services/interop/sharing.ts";
 import { readPrefs } from "../services/prefs.ts";
 import {
   getComputedSnapshotByAggregationId,
@@ -28,7 +28,7 @@ import {
   getAggregationDefinition,
   getAggregationDefinitions,
   loadComputedSnapshot,
-} from "../services/aggregation/aggregationManager.ts";
+} from "../services/aggregation/aggregation.ts";
 import {
   loadSharedBuilding,
   type SharedBuildingEntry,

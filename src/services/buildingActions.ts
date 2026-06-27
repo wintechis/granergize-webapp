@@ -3,7 +3,7 @@ import type { BuildingType } from "../types.ts";
 import { deleteBuilding } from "./rdf/building/buildingSerializer.ts";
 import { formatResourceList, listContainedResources } from "./pod/podDelete.ts";
 import { getStorageRoot } from "./pod/solidUtils.ts";
-import { revokeAllBuildingRecipients } from "./interop/sharingManager.ts";
+import { revokeAllBuildingRecipients } from "./interop/sharing.ts";
 import {
   buildingFileUri,
   buildingIdStem,

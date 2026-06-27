@@ -5,7 +5,7 @@ import {
   classifyQueryError,
   classifyQueryNotification,
 } from "./queryErrors.ts";
-import { SessionExpiredError } from "../services/TurtleParsingService.ts";
+import { SessionExpiredError } from "../services/TurtleParsing.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 import {
   markSessionExpired,

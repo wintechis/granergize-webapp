@@ -4,8 +4,8 @@ import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import {
   deleteAggregation,
   getSnapshotUri,
-} from "../../../services/aggregation/aggregationManager.ts";
-import { revokeAllAggregationRecipients } from "../../../services/interop/sharingManager.ts";
+} from "../../../services/aggregation/aggregation.ts";
+import { revokeAllAggregationRecipients } from "../../../services/interop/sharing.ts";
 import type { Settled } from "../../outcomes.ts";
 
 /** Parameters of the DeleteAggregation intent. */

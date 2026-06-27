@@ -13,7 +13,7 @@ import {
   getSnapshotUri,
   loadComputedSnapshot,
   storeComputedSnapshot,
-} from "./aggregationManager.ts";
+} from "./aggregation.ts";
 import { CONSUMPTION_NS, SOSA_NS } from "../rdf/vocabularies.ts";
 
 const WEBID = "https://pod.example/profile/card#me";

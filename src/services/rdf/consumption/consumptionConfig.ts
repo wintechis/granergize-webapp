@@ -3,7 +3,7 @@ import { CONSUMPTION_NS } from "../vocabularies.ts";
 /**
  * Single source of truth for the consumption family's predicate IRIs + the
  * field↔IRI bridges that drive interface generation (see `genVocabInterface.ts`)
- * and the parse/serialize code in `aggregationManager.ts` / `energyDataset.ts`.
+ * and the parse/serialize code in `aggregation.ts` / `energyDataset.ts`.
  *
  * Mirrors `buildingConfig.BUILDING_FIELDS`: the app's camelCase key isn't derivable
  * from the IRI local name, so the bridge stays here. Each entry also carries the

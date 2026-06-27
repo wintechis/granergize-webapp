@@ -14,7 +14,7 @@ import {
 } from "../../../src/services/interop/dataRoom.ts";
 import { shareBuildingData } from "../../../src/services/interop/share.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
-import { getSharedWithMe } from "../../../src/services/interop/sharingManager.ts";
+import { getSharedWithMe } from "../../../src/services/interop/sharing.ts";
 import {
   deleteBuilding,
   newBuildingUri,

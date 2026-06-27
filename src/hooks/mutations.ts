@@ -12,7 +12,7 @@ import type { Selector } from "../intents/selector.ts";
 import { invoke, query } from "../intents/registry.ts";
 import type { EnergyDataset } from "../services/energy/energyDataset.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
-import type { Organisation } from "../services/organisation/organisationManager.ts";
+import type { Organisation } from "../services/organisation/organisation.ts";
 import type { SavedAgent } from "../services/savedAgents.ts";
 import type { RegionLevel } from "../services/aggregation/regionRollup.ts";
 import type {

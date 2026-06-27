@@ -40,7 +40,7 @@ import { parseBuildings } from "../services/rdf/building/buildingParser.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { fetchFresh } from "../services/pod/podFetch.ts";
 import { getStorageRoot } from "../services/pod/solidUtils.ts";
-import { getAggregationDefinition } from "../services/aggregation/aggregationManager.ts";
+import { getAggregationDefinition } from "../services/aggregation/aggregation.ts";
 
 /**
  * Resolve a building IRI (its subject IRI `…/b.ttl#it`, or the bare document IRI)

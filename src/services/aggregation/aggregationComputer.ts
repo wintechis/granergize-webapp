@@ -8,7 +8,7 @@ import type {
   EnergyType,
   SpatialExtent,
 } from "../../types.ts";
-import { getAggregationDefinition, storeComputedSnapshot } from "./aggregationManager.ts";
+import { getAggregationDefinition, storeComputedSnapshot } from "./aggregation.ts";
 import { commonRegion, type RegionLevel } from "./regionRollup.ts";
 import { fetchContainingGemeindeAgs } from "../sources/regionGeometry.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
@@ -320,7 +320,7 @@ export async function computeAggregation(
 
   // Monthly path (data shape: a sub-hourly series): aggregate the period's
   // electricity totals per building. Bounded concurrency (mapPooled, the
-  // Cloudflare-safe pattern aggregationManager uses) instead of strictly serial
+  // Cloudflare-safe pattern aggregation uses) instead of strictly serial
   // round-trips — a 20-building aggregation was 40+ sequential fetches.
   if (period) {
     const monthlyTotals = (await mapPooled(

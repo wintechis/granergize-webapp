@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import type { AttachmentRef } from "../types.ts";
-import { fetchAttachmentBlob } from "../services/attachmentManager.ts";
+import { fetchAttachmentBlob } from "../services/attachment.ts";
 import { downloadBlob } from "../lib/download.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../lib/formatError.ts";

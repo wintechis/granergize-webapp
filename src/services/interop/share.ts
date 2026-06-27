@@ -5,7 +5,7 @@ import {
   recordSharing,
   recordAggregationSharing,
   removeFromACL,
-} from "./sharingManager.ts";
+} from "./sharing.ts";
 import { postSharingEventToInbox } from "./inbox.ts";
 import {
   foldSharingLogEvents,
@@ -24,7 +24,7 @@ import {
 import { mintLocalIri } from "../rdf/rdfHelpers.ts";
 import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
-import { filesContainerFor } from "../attachmentManager.ts";
+import { filesContainerFor } from "../attachment.ts";
 import { getStorageRoot } from "../pod/solidUtils.ts";
 import { mapPooled } from "../../lib/pool.ts";
 

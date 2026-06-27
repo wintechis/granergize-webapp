@@ -19,7 +19,7 @@ import { Box, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { MapContainer, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { AggregationDefinition } from "../../types.ts";
-import type { ReceivedAggregation } from "../../services/interop/sharingManager.ts";
+import type { ReceivedAggregation } from "../../services/interop/sharing.ts";
 import type { OpenRegionalItem } from "../../services/sources/openRegional.ts";
 import {
   fetchRegionGeometry,
@@ -29,7 +29,7 @@ import {
 import {
   getComputedSnapshotByAggregationId,
   loadComputedSnapshot,
-} from "../../services/aggregation/aggregationManager.ts";
+} from "../../services/aggregation/aggregation.ts";
 import {
   fetchRegionalChoropleth,
   REGIONAL_TABLES,

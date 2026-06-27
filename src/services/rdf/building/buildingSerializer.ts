@@ -1237,7 +1237,7 @@ export async function deleteBuilding(
   // before the resource would briefly fall it back to the container's (possibly
   // more permissive) inherited ACL — a TOCTOU exposure window. The owner-lockout
   // that motivated such a "recovery" is prevented at the source now (a revoke
-  // never strips the owner's Control; see sharingManager.removeFromACL), so a
+  // never strips the owner's Control; see sharing.removeFromACL), so a
   // normal delete keeps the owner's authorization and just works.
   const res = await gateway.fetch(fileUri, { method: "DELETE" });
   if (!res.ok && res.status !== 404) {

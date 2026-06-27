@@ -30,7 +30,7 @@ import {
   useSharedWithMe,
 } from "../hooks/queries.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
-import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
+import { getSnapshotUri } from "../services/aggregation/aggregation.ts";
 import { summarizeContributors } from "../services/aggregation/aggregationComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";

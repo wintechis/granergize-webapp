@@ -6,7 +6,7 @@ import {
   type Organisation,
   saveOrganisation,
   uploadOrgLogo,
-} from "../../../services/organisation/organisationManager.ts";
+} from "../../../services/organisation/organisation.ts";
 import type { Settled } from "../../outcomes.ts";
 
 /** Parameters of the SaveOrganisation intent. */

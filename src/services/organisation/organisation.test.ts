@@ -8,7 +8,7 @@ import {
   isSupportedLogoType,
   saveOrganisation,
   uploadOrgLogo,
-} from "./organisationManager.ts";
+} from "./organisation.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
 import { ConflictError } from "../pod/podWrite.ts";
 

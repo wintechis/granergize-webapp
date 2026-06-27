@@ -6,7 +6,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { SessionExpiredError } from "../services/TurtleParsingService.ts";
+import { SessionExpiredError } from "../services/TurtleParsing.ts";
 import {
   classifyMutationError,
   classifyQueryNotification,
