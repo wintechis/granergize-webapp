@@ -14,6 +14,7 @@ import {
   XSD_NS,
 } from "./vocabularies.ts";
 import { VOCAB_SCHEMA } from "./vocabSchema.generated.ts";
+import { CONS } from "./consumption/consumptionConfig.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
 import { sameUnit, toCanonical } from "../energy/units.ts";
 import {
@@ -275,11 +276,11 @@ export function parseDatasetLink(
   if (store) {
     const node = namedNode(linkUri);
     granularity =
-      store.getObjects(node, namedNode(`${CONSUMPTION_NS}granularity`), null)[0]
+      store.getObjects(node, namedNode(CONS.granularity), null)[0]
         ?.value ?? granularity;
-    const sc = store.getObjects(node, namedNode(`${CONSUMPTION_NS}scenario`), null)[0]
+    const sc = store.getObjects(node, namedNode(CONS.scenario), null)[0]
       ?.value;
-    if (sc === `${CONSUMPTION_NS}Planned`) scenario = "planned";
+    if (sc === CONS.scenarioPlanned) scenario = "planned";
     featureOfInterest = store
       .getObjects(node, namedNode(`${SOSA_NS}hasFeatureOfInterest`), null)[0]?.value;
   }
@@ -299,7 +300,7 @@ export function parseEnergyDatasetRefs(
   return store
     .getObjects(
       buildingNodeUri === null ? null : namedNode(buildingNodeUri),
-      namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
+      namedNode(CONS.hasEnergyDataset),
       null,
     )
     .map((o: Term) => parseDatasetLink(o.value, store))
@@ -473,18 +474,18 @@ export function parseEnergyDataset(
   const isDataset = store.getQuads(
     ds,
     namedNode(RDF_TYPE),
-    namedNode(`${CONSUMPTION_NS}EnergyDataset`),
+    namedNode(CONS.energyDatasetClass),
     null,
   ).length > 0;
   if (!isDataset) return null;
 
   const building =
-    store.getObjects(ds, namedNode(`${CONSUMPTION_NS}ofBuilding`), null)[0]?.value ?? "";
+    store.getObjects(ds, namedNode(CONS.ofBuilding), null)[0]?.value ?? "";
   const granularity =
-    store.getObjects(ds, namedNode(`${CONSUMPTION_NS}granularity`), null)[0]?.value ?? "";
-  const scenarioIri = store.getObjects(ds, namedNode(`${CONSUMPTION_NS}scenario`), null)[0]
+    store.getObjects(ds, namedNode(CONS.granularity), null)[0]?.value ?? "";
+  const scenarioIri = store.getObjects(ds, namedNode(CONS.scenario), null)[0]
     ?.value;
-  const scenario: Scenario = scenarioIri === `${CONSUMPTION_NS}Planned`
+  const scenario: Scenario = scenarioIri === CONS.scenarioPlanned
     ? "planned"
     : "actual";
   const year = yearOf(store, ds);
@@ -493,7 +494,7 @@ export function parseEnergyDataset(
 
   const location = store.getObjects(
     ds,
-    namedNode(`${CONSUMPTION_NS}datasetLocation`),
+    namedNode(CONS.datasetLocation),
     null,
   )[0]?.value;
   if (location) {

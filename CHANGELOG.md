@@ -3,6 +3,20 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **The consumption family is vocab-derived too.** A new consumption bridge
+  (`src/services/rdf/consumption/consumptionConfig.ts`) centralizes the family's predicate IRIs
+  (`CONS`) + field↔IRI tables; `genVocabInterface` now also emits `consumptionShape.generated.ts`
+  (`EnergyDatasetFields` / `AggregationDefinitionFields` / `AggregationSnapshotFields`), and
+  `EnergyDatasetRef`/`AggregationDefinition`/`AggregationSnapshot` extend those generated fields —
+  the vocab-clean scalars (name, aggregationType, createdAt, computedAt, buildingCount, granularity,
+  …) now come from the vocab. The bridge carries the app facts the vocab can't (these records are
+  mostly *required*, unlike sparse building fields; `aggregationType`/`metricPeriod` tsType
+  overrides). The ~33 inline predicate strings in `aggregationManager.ts`/`energyDataset.ts` now
+  reference `CONS` (value-identical, round-trip unchanged). Hand-written carve-outs: `SpatialExtent`
+  (a 2-property object), `values` (collapsed `sosa:Observation` members), `isBenchmark` (derived
+  from `rdf:type`), the derived envelope (`id`/`uri`/`year`/`buildingUris`/`metrics`), and the
+  `Scenario` enum (app keeps lowercase `"actual"`/`"planned"`; aligning to vocab tokens would be a
+  separate proper-enum migration). check/lint/unit (1056) + aggregation/energy round-trip green.
 - **Follow-ups to the vocab-derived interface.** The XLSX export now writes controlled-vocab
   cells as their German vocab label (via `optionLabel`) instead of the raw token, and the import
   accepts the label (round-trips); workbook *headers* stay in the partner sheet's wording by design
