@@ -1,10 +1,11 @@
 import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { normalizeRoomUri, ownsRoom } from "../services/interop/dataRoom.ts";
-import { useRoomState } from "../hooks/queries.ts";
+import { queryKeys, useRoomState } from "../hooks/queries.ts";
 import { useDeleteRoom, useEnterRoom, useExitRoom } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { msg } from "../lib/messages.ts";
@@ -76,6 +77,18 @@ export default function RoomDetail(
     // enter/showNotification are stable; room identifies the room to enter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room]);
+
+  // The room log is CROSS-AGENT state: a peer's join/role change is appended by
+  // THEM into the room container, so no local write invalidates it — and the global
+  // policy is refetch-on-invalidation only (refetchOnMount: false). Opening this page
+  // is the user's "look" at the membership (the pull topology: readers fold the
+  // container when they look), so it triggers the one refetch — once per open, mirroring
+  // ShareAggregationDialog / RoomsFinder. Without it, a peer who joined while you were
+  // elsewhere never appears until some unrelated room mutation invalidates the log.
+  const qc = useQueryClient();
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: queryKeys.roomLog });
+  }, [qc]);
 
   const roomQuery = useRoomState();
   const current = roomQuery.data?.current ?? null;

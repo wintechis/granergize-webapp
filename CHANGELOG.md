@@ -3,6 +3,12 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-28]
+- **Opening a room now shows peers who joined while you were away (cross-agent freshness).** A room's
+  membership/role log is appended by OTHER members, so no local write invalidates it, and the global
+  policy is refetch-on-invalidation only (`refetchOnMount: false`) — so the room page served a stale
+  member/role list. The room detail page now invalidates `roomLog` on mount (the user's "look" at the
+  membership), mirroring `ShareAggregationDialog`/`RoomsFinder`; a peer's join/role change appears on
+  the next open instead of waiting for an unrelated room mutation.
 - **Sharing logs as per-event resource queries; query-layer naming + catalogue consistency
   (ldp-query-layer).** `useSharedInGrants`/`useSharedOutGrants` became a container-listing query +
   one `["sharingEvent", webId, eventUri]` query per event (events are immutable → `staleTime:
