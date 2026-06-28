@@ -217,21 +217,47 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
  */
 const eventCacheBySession = new WeakMap<PodGateway, Map<string, SharingEvent[]>>();
 
-/** Read every event resource in a log container (bounded concurrency). */
+/**
+ * List the event resource IRIs in a log container (the membership listing). The
+ * container query of the `useSharedInGrants`/`useSharedOutGrants` fan-out; an empty
+ * array when the container doesn't exist yet (fresh Pod).
+ */
+export async function listLogEvents(
+  containerUri: string,
+  gateway: PodGateway,
+): Promise<string[]> {
+  const children = await listDirectChildren(containerUri, gateway);
+  if (!children) return []; // container doesn't exist yet
+  return children.filter((u) => !u.endsWith("/"));
+}
+
+/**
+ * Parse ONE event resource into its `SharingEvent[]` (usually one). The per-event
+ * read the React Query fan-out caches: an event is IMMUTABLE once POSTed (append-only,
+ * server-minted IRI), so its query is `staleTime: Infinity` — a re-fold after a new
+ * share fetches only the new event, not every event.
+ */
+export async function loadSharingEvent(
+  eventUri: string,
+  gateway: PodGateway,
+): Promise<SharingEvent[]> {
+  return parseSharingEvents(await readStoreOrEmpty(eventUri, gateway));
+}
+
+/** Read every event resource in a log container (bounded concurrency). The headless
+ * fold path; the reactive hooks use the per-event React Query cache instead. */
 async function readAllEvents(
   containerUri: string,
   gateway: PodGateway,
 ): Promise<SharingEvent[]> {
-  const children = await listDirectChildren(containerUri, gateway);
-  if (!children) return []; // container doesn't exist yet
-  const eventUris = children.filter((u) => !u.endsWith("/"));
+  const eventUris = await listLogEvents(containerUri, gateway);
   const cache = eventCacheBySession.get(gateway) ??
     new Map<string, SharingEvent[]>();
   eventCacheBySession.set(gateway, cache);
   const parsed = await mapPooled(eventUris, 4, async (uri) => {
     const cached = cache.get(uri);
     if (cached) return cached;
-    const events = parseSharingEvents(await readStoreOrEmpty(uri, gateway));
+    const events = await loadSharingEvent(uri, gateway);
     if (events.length > 0) cache.set(uri, events);
     return events;
   });
@@ -247,11 +273,13 @@ async function readAllEvents(
  * WITHDRAW enforcement the log says is gone — not just re-apply active grants.
  * @operation query
  */
-export async function foldSharingLogEvents(
-  containerUri: string,
-  gateway: PodGateway,
-): Promise<SharingEvent[]> {
-  const events = await readAllEvents(containerUri, gateway);
+/**
+ * Pure fold: the LATEST event per (grantee, resource) pair (grants AND revocations).
+ * Latest by `prov:generatedAtTime`; on an exact tie a revocation wins. Shared by the
+ * headless {@link foldSharingLogEvents} and the reactive hooks' `combine` selector so
+ * the projection can't drift between them.
+ */
+export function foldEvents(events: SharingEvent[]): SharingEvent[] {
   const latest = new Map<string, SharingEvent>();
   for (const e of events) {
     const key = `${e.grantee}\n${e.resource}`;
@@ -263,17 +291,9 @@ export async function foldSharingLogEvents(
   return [...latest.values()];
 }
 
-/**
- * Fold a log container to its currently-active grants: the latest event per
- * (grantee, resource) pair, kept only if it is a grant (a later revocation
- * drops the pair). See {@link foldSharingLogEvents} for the tie-break rule.
- * @operation query
- */
-export async function foldSharingLog(
-  containerUri: string,
-  gateway: PodGateway,
-): Promise<ActiveGrant[]> {
-  return (await foldSharingLogEvents(containerUri, gateway))
+/** Pure: the currently-active grants from a set of FOLDED events (drop revocations). */
+export function grantsFromEvents(folded: SharingEvent[]): ActiveGrant[] {
+  return folded
     .filter((e) => e.type === "grant")
     .map((e): ActiveGrant => {
       const grant: ActiveGrant = {
@@ -288,4 +308,24 @@ export async function foldSharingLog(
       if (e.attachmentUris) grant.attachmentUris = e.attachmentUris;
       return grant;
     });
+}
+
+export async function foldSharingLogEvents(
+  containerUri: string,
+  gateway: PodGateway,
+): Promise<SharingEvent[]> {
+  return foldEvents(await readAllEvents(containerUri, gateway));
+}
+
+/**
+ * Fold a log container to its currently-active grants: the latest event per
+ * (grantee, resource) pair, kept only if it is a grant (a later revocation
+ * drops the pair). See {@link foldSharingLogEvents} for the tie-break rule.
+ * @operation query
+ */
+export async function foldSharingLog(
+  containerUri: string,
+  gateway: PodGateway,
+): Promise<ActiveGrant[]> {
+  return grantsFromEvents(await foldSharingLogEvents(containerUri, gateway));
 }

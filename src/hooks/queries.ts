@@ -29,7 +29,12 @@ import {
 } from "../services/pod/solidUtils.ts";
 import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
-  foldSharingLog,
+  type ActiveGrant,
+  foldEvents,
+  grantsFromEvents,
+  listLogEvents,
+  loadSharingEvent,
+  type SharingEvent,
   sharedInUri,
   sharedOutUri,
 } from "../services/interop/sharingLog.ts";
@@ -166,27 +171,79 @@ function useDeriveFromQuery<TData, TOut>(
   };
 }
 
+/** Combine selector for a sharing log's per-event queries: fold to the active grants,
+ * plus the aggregate load/error state. Module-level (stable identity) so `useQueries`
+ * memoises it. */
+function foldEventQueries(results: Array<UseQueryResult<SharingEvent[]>>) {
+  return {
+    grants: grantsFromEvents(foldEvents(results.flatMap((r) => r.data ?? []))),
+    anyData: results.some((r) => r.data !== undefined),
+    isLoading: results.some((r) => r.isLoading),
+    isFetching: results.some((r) => r.isFetching),
+    error: results.find((r) => r.error)?.error ?? null,
+  };
+}
+
 /**
- * The folded `shared-in/` log — THE one fold per load. Everything "shared with
- * me" (shared building sources, the Share-tab list, received aggregations, received
- * benchmarks) derives from this query's data instead of folding the log again;
- * with N events a fold costs a container listing + N GETs, so the dedup is the
- * difference between 1× and 4× that per load.
+ * One append-only sharing log as a container listing query (`sharedInLog`/`sharedOutLog`
+ * — what mutations invalidate) + one `["sharingEvent", …]` query per event. Events are
+ * IMMUTABLE (server-minted IRIs), so each per-event query is `staleTime: Infinity`:
+ * invalidating the container re-lists and refolds while existing events stay warm, so a
+ * new share fetches only the new event. The fold is a `combine` selector (derive-at-edge),
+ * and the uniform `{ data, isLoading, isFetching, error, isError }` result feeds the
+ * `*FromGrants` derivations + `useBuildings`.
+ */
+function useSharingLog(
+  containerKey: readonly unknown[],
+  containerUriFor: (webId: string) => string,
+): {
+  data: ActiveGrant[] | undefined;
+  isLoading: boolean;
+  isFetching: boolean;
+  error: unknown;
+  isError: boolean;
+} {
+  const webId = webIdOf();
+  const container = useWebIdQuery(
+    containerKey,
+    (gateway, wid) => listLogEvents(containerUriFor(wid), gateway),
+  );
+  const eventUris = container.data;
+  const events = useQueries({
+    queries: (eventUris ?? []).map((uri) => ({
+      queryKey: [...queryKeys.sharingEvent, webId, uri],
+      queryFn: () => loadSharingEvent(uri, getGateway()),
+      enabled: Boolean(webId),
+      staleTime: Infinity,
+    })),
+    combine: foldEventQueries,
+  });
+  const error = container.error ?? events.error ?? null;
+  const ready = container.data !== undefined; // listing resolved
+  const stillInitial = ready && !events.anyData && events.isLoading;
+  return {
+    data: (ready && !stillInitial) ? events.grants : undefined,
+    isLoading: (container.isLoading || stillInitial) && error == null,
+    isFetching: container.isFetching || events.isFetching,
+    error,
+    isError: error != null,
+  };
+}
+
+/**
+ * The folded `shared-in/` log — THE one fold per load. Everything "shared with me"
+ * (shared building sources, the Share-tab list, received aggregations, received
+ * benchmarks) derives from this hook's grants instead of folding the log again; the
+ * container is listed once (deduped) and each event is read once across consumers.
  */
 export function useSharedInGrants() {
-  return useWebIdQuery(
-    queryKeys.sharedInLog,
-    (session, webId) => foldSharingLog(sharedInUri(webId), session),
-  );
+  return useSharingLog(queryKeys.sharedInLog, sharedInUri);
 }
 
 /** The folded `shared-out/` log — see {@link useSharedInGrants}; the
  * shared-buildings and shared-aggregations lists derive from it. */
 export function useSharedOutGrants() {
-  return useWebIdQuery(
-    queryKeys.sharedOutLog,
-    (session, webId) => foldSharingLog(sharedOutUri(webId), session),
-  );
+  return useSharingLog(queryKeys.sharedOutLog, sharedOutUri);
 }
 
 /** `prefs.ttl` (hidden buildings, …). Invalidated by the visibility toggle. */
@@ -935,10 +992,15 @@ export const queryKeys = {
   /** One energy dataset, keyed by its node IRI (`["energyDataset", webId, uri]`) — the
    * shared per-resource read the map fold and the aggregation compute both go through. */
   energyDataset: ["energyDataset"] as const,
-  /** The folded `shared-in/` log — everything "shared with me" derives from it. */
+  /** The `shared-in/` log's container LISTING (event IRIs) — everything "shared with me"
+   * derives from folding it; mutations invalidate this to re-list + refold. */
   sharedInLog: ["sharedInLog"] as const,
-  /** The folded `shared-out/` log — the shared-buildings/-aggregations lists derive from it. */
+  /** The `shared-out/` log's container listing — the shared-buildings/-aggregations lists
+   * derive from folding it. */
   sharedOutLog: ["sharedOutLog"] as const,
+  /** One sharing-log event (`["sharingEvent", webId, eventUri]` → `SharingEvent[]`) — the
+   * immutable per-event read the log fan-outs cache (staleTime Infinity). */
+  sharingEvent: ["sharingEvent"] as const,
   /** prefs.ttl (hidden buildings, …). Invalidated by the visibility toggle. */
   prefs: ["prefs"] as const,
   aggregationDefinitions: ["aggregationDefinitions"] as const,

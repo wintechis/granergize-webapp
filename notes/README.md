@@ -49,6 +49,7 @@ data-architecture entry point: [data-architecture.md](./data-architecture.md).
 - [energy-model.md](./energy-model.md) — the unified `cons:EnergyDataset`, one per (building, year, granularity).
 - [data-deref.md](./data-deref.md) — how a WebID becomes in-memory objects: what's fetched, in what order, joined in memory.
 - [app-pod-state-sync.md](./app-pod-state-sync.md) — keeping React-Query caches fresh against Pod writes (the query-key coverage hazard).
+- [query-layer.md](./query-layer.md) — the resource-oriented cache: IRI-keyed resource entries + containers-as-queries, with the domain shapes derived at the edge by selectors.
 - [sharing.md](./sharing.md) — bilateral WebID-to-WebID building/aggregation sharing over append-only event logs.
 - [room.md](./room.md) — data rooms: event-sourced membership + roles, used as a sharing directory.
 - [aggregations.md](./aggregations.md) — saved aggregations: a private definition plus a shareable computed snapshot.
