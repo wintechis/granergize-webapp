@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { t, tPattern } from "../helpers/i18n.ts";
-import { account, hasAccount, login, LOGIN_HEADING } from "../helpers/login.ts";
+import { account, hasAccount, login, signInScreen } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { watchAppErrors } from "../helpers/errorGuard.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -106,7 +106,7 @@ test.describe("session restore", () => {
 
     // Click the remedy: it wipes local storage and reloads to a clean login form.
     await clearBtn.click();
-    await expect(page.getByRole("heading", { name: LOGIN_HEADING })).toBeVisible({
+    await expect(signInScreen(page)).toBeVisible({
       timeout: T.action,
     });
 
@@ -132,22 +132,28 @@ test.describe("login escape hatch (no creds)", () => {
     const page = await browser.newPage();
     try {
       await page.goto("./");
-      await expect(page.getByRole("heading", { name: LOGIN_HEADING }))
+      await expect(signInScreen(page))
         .toBeVisible({ timeout: T.login });
 
-      // The always-visible remedy (distinct from the failed-restore Alert above).
-      const clearBtn = page.getByRole("button", { name: t("loginClearData") });
-      await expect(clearBtn).toBeVisible();
-
-      // Seed some local storage, then clear it through the button.
+      // Simulate a user stranded with stale local data (e.g. a dead OIDC client
+      // registration), then reload so the chooser re-checks on mount and sees
+      // there's something to clear — the remedy is gated on local data presence
+      // (a pristine browser has nothing to clear).
       await page.evaluate(() => {
         localStorage.setItem("granergize:restoreAttempted", "1");
         localStorage.setItem("prevIdps", JSON.stringify(["https://example.test"]));
       });
+      await page.reload();
+
+      // The clear-storage remedy lives in the sign-in dialog (distinct from the
+      // failed-restore Alert above, which auto-opens the dialog itself).
+      await signInScreen(page).click();
+      const clearBtn = page.getByRole("button", { name: t("loginClearData") });
+      await expect(clearBtn).toBeVisible();
       await clearBtn.click();
 
       // It wipes local storage and returns to a clean chooser.
-      await expect(page.getByRole("heading", { name: LOGIN_HEADING }))
+      await expect(signInScreen(page))
         .toBeVisible({ timeout: T.action });
       const leftover = await page.evaluate(() => localStorage.length);
       expect(leftover).toBe(0);

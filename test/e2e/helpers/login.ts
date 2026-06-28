@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { t } from "./i18n.ts";
 import { account as resolveAccount, type TestAccount } from "../../config/accounts.ts";
 import { localProvider } from "../../config/providers.ts";
@@ -148,6 +148,12 @@ export async function loginInteractive(page: Page, acc: SolidAccount): Promise<v
     // baseURL carries a subpath (…/testing/granergize/), which an absolute "/"
     // would drop — landing on the host's homepage instead of the app.
     await page.goto("./");
+    // The logged-out view is the public landing page; the provider chooser lives in
+    // a dialog opened from the sticky header. Open it before picking a provider.
+    // (goto above reloads, so the dialog is closed on every retry — this reopens it.)
+    await page.getByRole("button", {
+      name: /^(Log in|Anmelden|Se connecter)$/i,
+    }).first().click();
     // Pick the matching preset Identity Provider, or type a custom issuer.
     const recommended = page.getByRole("button", {
       name: new RegExp(host.replace(/\./g, "\\."), "i"),
@@ -155,9 +161,9 @@ export async function loginInteractive(page: Page, acc: SolidAccount): Promise<v
     if (await recommended.count()) {
       await recommended.first().click();
     } else {
-      // The field label is localized ("Identity Provider" in en/de, "Fournisseur
-      // d'identité" in fr) — match all so login works in any video-spec locale.
-      await page.getByLabel(/Identity Provider|Fournisseur d'identité/i)
+      // The field label is localized ("Identity provider URI" en, "Identity-Provider-URI"
+      // de, "URI du fournisseur d'identité" fr) — match all so login works in any locale.
+      await page.getByLabel(/Identity[\s-]?provider[\s-]?URI|URI du fournisseur/i)
         .fill(acc.provider.issuer);
       await page.getByRole("button", { name: "+" }).click();
     }
@@ -205,8 +211,15 @@ export async function loginInteractive(page: Page, acc: SolidAccount): Promise<v
 }
 
 
-/** The app's login-screen heading (the `name` passed to <Login>). */
-export const LOGIN_HEADING = "Granergize App";
+/**
+ * The logged-out landing's stable sign-in affordance — the header "Log in"
+ * button. The whole app sits behind the login gate, so this being present ⇒ we
+ * are on the public landing (the post-logout / pre-login screen). Replaces the
+ * old `LOGIN_HEADING` heading the landing redesign removed.
+ */
+export function signInScreen(page: Page): Locator {
+  return page.getByRole("button", { name: t("landingNavLogin") }).first();
+}
 
 /**
  * The logged-in user's real WebID, read from the account-menu button's
@@ -243,9 +256,7 @@ export async function logout(page: Page): Promise<void> {
     await expect(menu).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: T.poll });
   await menu.click();
-  await expect(
-    page.getByRole("heading", { name: LOGIN_HEADING }),
-  ).toBeVisible({ timeout: T.action });
+  await expect(signInScreen(page)).toBeVisible({ timeout: T.action });
 
   // App logout does NOT end the identity-provider session — its cookie persists,
   // so a different account would silently reuse the first one (the IdP skips the

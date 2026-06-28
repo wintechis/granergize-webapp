@@ -4,20 +4,23 @@ import { T } from "../helpers/timeouts.ts";
 
 /**
  * Smoke tests that need NO login. The whole app sits behind the Solid login
- * gate, so logged-out we can only reach the sign-in screen — but asserting it
- * renders catches build breakage, white-screens and routing regressions, and
- * runs in CI without any credentials.
+ * gate, so logged-out we land on the public landing page — asserting it renders
+ * (and that the sign-in dialog opens to the provider chooser) catches build
+ * breakage, white-screens and routing regressions, and runs in CI without any
+ * credentials.
  */
 test.describe("smoke (no login)", () => {
-  test("the sign-in screen renders", async ({ page }) => {
+  test("the landing page renders with a working sign-in dialog", async ({ page }) => {
     await page.goto("/");
 
-    // The app name (the login screen shows it once auth state has settled).
-    await expect(
-      page.getByRole("heading", { name: "Granergize App" }),
-    ).toBeVisible({ timeout: T.visible });
+    // The logged-out view is the public landing page; its header carries the
+    // sign-in affordance.
+    const signIn = page.getByRole("button", { name: t("landingNavLogin") }).first();
+    await expect(signIn).toBeVisible({ timeout: T.visible });
 
-    // The two recommended identity providers and the custom-provider input.
+    // Opening the dialog reveals the recommended identity providers and the
+    // custom-provider input.
+    await signIn.click();
     await expect(
       page.getByRole("button", { name: /solidcommunity\.net/i }),
     ).toBeVisible();
@@ -27,14 +30,12 @@ test.describe("smoke (no login)", () => {
     await expect(page.getByLabel(t("loginIdpLabel"))).toBeVisible();
   });
 
-  test("the login screen explains what the app is (pre-login)", async ({ page }) => {
-    // heike-1: the landing page (before login) gave no explanation. The login
-    // screen now leads with a one-line description of the app, so a first-time
-    // visitor sees what Granergize is for before authenticating. (The Praxishandbuch
-    // download moved off the login screen into the dev-mode account menu.)
+  test("the landing explains what the app is (pre-login)", async ({ page }) => {
+    // heike-1: a first-time visitor sees what Granergize is for before
+    // authenticating — the landing hero leads with a one-line description.
     await page.goto("/");
     await expect(
-      page.getByText(t("loginLede")),
+      page.getByText(t("landingHeroLead")),
     ).toBeVisible({ timeout: T.visible });
   });
 });

@@ -14,6 +14,17 @@ All notable changes to the Granergize WebApp project will be documented in this 
   title, and marketing lead (and the now-dead `name`/`logo`/`lead`/`footer` `Login` props). Landing
   reuses the app theme + favicon; copy de-duplicated (the data-sovereignty message no longer repeats
   across six sections). check/lint/build green.
+- **Test suite caught up with the landing-page login redesign (CSS + JSS e2e green).** Moving the
+  login chooser into a header-triggered dialog (and renaming the IdP field to "Identity provider URI")
+  broke every e2e spec at login plus a catalog-partition unit test; fixed across the suite. The e2e
+  login helper now opens the dialog before picking a provider and matches the new field label; the
+  removed "Granergize App" heading is replaced by a `signInScreen()` locator (the header "Log in"
+  button) across logout/session-restore/screenshots; `login.spec` is retargeted at the landing; and
+  the session-restore escape-hatch opens the dialog to reach the clear-data remedy (now gated on local
+  data → seed + reload). One real app bug fixed: `Landing` seeds `loginOpen` from `loginErrorOpen`, so
+  a failed silent restore surfaces its remedy dialog even when the error is already present at first
+  render. `messages.test.ts` adds the `landing` slice to its catalog-partition guard. Both e2e
+  backends pass (CSS 114, JSS 117, patched checkout); check/lint/unit (1078) green.
 - **Region → the authoritative LAU/NUTS `skos:Concept`; the AGS is resolved by dereferencing it.**
   A building's `dcterms:spatial` now references the LAU/NUTS concept IRI (the authority,
   `lauConceptUrl` → `…/lau/DE_<ags>#it`) instead of the regionalstatistik cube-dimension IRI; the

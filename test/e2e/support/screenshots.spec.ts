@@ -4,7 +4,7 @@ import {
   account,
   hasAccount,
   login,
-  LOGIN_HEADING,
+  signInScreen,
   webIdOf,
 } from "../helpers/login.ts";
 import { freshPage } from "../helpers/twoPod.ts";
@@ -126,7 +126,7 @@ test.describe("handbuch screenshots", () => {
     //     previous session; on a fresh context that resolves to the IdP picker. ---
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: LOGIN_HEADING }),
+      signInScreen(page),
     ).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: /solidcommunity\.net/i }).first()
       .waitFor({ timeout: 10_000 }).catch(() => {});

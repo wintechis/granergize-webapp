@@ -132,11 +132,12 @@ export default function Landing(
   const t = useT();
   // The chooser lives in a dialog so logging in is one click from the sticky
   // header — never a scroll to the bottom of the page.
-  const [loginOpen, setLoginOpen] = useState(false);
   // A failed silent restore (e.g. a stale OIDC client) surfaces its remedy in the
   // chooser — open the dialog on the error so it's reachable without hunting for it.
-  // Adjust state during render on the prop transition (no effect needed); the user
-  // can still close it afterwards.
+  // Seed from the prop so an error already present at first render opens the dialog
+  // too (not only a later false→true transition); the user can still close it.
+  const [loginOpen, setLoginOpen] = useState(!!loginErrorOpen);
+  // Adjust state during render on a later prop transition (no effect needed).
   const [prevErr, setPrevErr] = useState(loginErrorOpen);
   if (loginErrorOpen !== prevErr) {
     setPrevErr(loginErrorOpen);

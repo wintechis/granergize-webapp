@@ -10,6 +10,7 @@ import { shellAuth } from "./messages/shellAuth.ts";
 import { detailRooms } from "./messages/detailRooms.ts";
 import { dialogsShare } from "./messages/dialogsShare.ts";
 import { notifications } from "./messages/notifications.ts";
+import { landing } from "./messages/landing.ts";
 
 Deno.test("translate: resolves a plain message per language", () => {
   assert.equal(translate("en", "uiLanguage"), "Language");
@@ -52,6 +53,7 @@ Deno.test("the per-area slices partition the catalog — no id shadowed by a spr
     detailRooms,
     dialogsShare,
     notifications,
+    landing,
   };
   const seen = new Map<string, string>();
   let total = 0;
