@@ -1,12 +1,14 @@
 import type { PodGateway } from "./pod/podGateway.ts";
-import { parseBuildings } from "./rdf/building/buildingParser.ts";
+import {
+  BuildingSourceError,
+  loadBuildingSource,
+} from "./building/buildingSource.ts";
 import { buildingFileUri } from "./rdf/building/buildingId.ts";
 import type {
   Building,
   Energy,
 } from "../types.ts";
-import { DataFactory, Parser, Store } from "n3";
-import type { Quad } from "@rdfjs/types";
+import { Parser, Store } from "n3";
 import { getStorageRoot, podResources } from "./pod/solidUtils.ts";
 import { fetchFresh } from "./pod/podFetch.ts";
 import { listDirectChildren } from "./pod/podDelete.ts";
@@ -28,9 +30,6 @@ import {
 } from "./interop/sharingLog.ts";
 
 /**
- * Attempts to load Turtle data from multiple sources, continuing if some fail
- */
-/**
  * Thrown when Pod reads fail with HTTP 401 — the auth token has (almost
  * certainly) expired. Callers should keep any previously loaded data and prompt
  * the user to log in again, rather than treat it as "no data".
@@ -42,119 +41,6 @@ export class SessionExpiredError extends Error {
   }
 }
 
-async function loadTtlFromMultipleSources(
-  urls: string[],
-  gateway: PodGateway,
-  description: string,
-): Promise<{
-  quads: Quad[];
-  /** Sources that 403/404'd — access revoked since the grant; prunable. */
-  failedSources: Array<{ uri: string; status: number }>;
-  /** Sources that failed transiently (timeout / network / 5xx, NOT 403/404).
-   * These are NOT pruned — they may load on the next refresh — but the caller
-   * surfaces them so a slow Pod silently shedding files is never invisible. */
-  transientFailures: string[];
-}> {
-  const allQuads: Quad[] = [];
-  const successfulSources: string[] = [];
-  const failedSources: { uri: string; error: string; status?: number }[] = [];
-
-  // Try each source independently. fetchFresh revalidates (cache: "no-cache"),
-  // so an unchanged document comes back as a cheap 304 instead of a full body.
-  await Promise.all(
-    urls.map(async (uri) => {
-      try {
-        const response = await fetchFresh(uri, gateway);
-        if (!response.ok) {
-          failedSources.push({
-            uri,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            status: response.status,
-          });
-          return;
-        }
-
-        const text = await response.text();
-        const parser = new Parser({
-          baseIRI: uri,
-        });
-
-        // Parse with default graph set to the IRI
-        const quads = parser.parse(text);
-
-        // Unique prefix for blank nodes from this source, to avoid ID collisions
-        // when multiple files use the same generic blank node names (_:obs0_0, etc.)
-        const bnPrefix = encodeURIComponent(uri) + "__";
-        const scopedNode = (term: Quad["subject"]): Quad["subject"] => {
-          if (term.termType === "BlankNode") {
-            return DataFactory.blankNode(bnPrefix + term.value);
-          }
-          return term;
-        };
-
-        // Add source information to each quad
-        const quadsWithGraph = quads.map((quad: Quad) => {
-          // Create a new quad with the source IRI as the graph and scoped blank nodes
-          return DataFactory.quad(
-            scopedNode(quad.subject) as Quad["subject"],
-            quad.predicate,
-            scopedNode(quad.object as Quad["subject"]) as Quad["object"],
-            DataFactory.namedNode(uri),
-          );
-        });
-
-        // Add these quads to our collection
-        allQuads.push(...quadsWithGraph);
-        successfulSources.push(uri);
-      } catch (error) {
-        failedSources.push({
-          uri,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }),
-  );
-
-  // Log results
-  if (successfulSources.length > 0) {
-    console.log(
-      `Successfully loaded ${description} from ${successfulSources.length} sources:`,
-      successfulSources,
-    );
-  }
-
-  if (failedSources.length > 0) {
-    console.warn(
-      `Failed to load ${description} from ${failedSources.length} sources:`,
-      failedSources,
-    );
-  }
-
-  if (allQuads.length === 0 && urls.length > 0) {
-    // All sources unreadable. A 401 means the token expired — distinguish it so
-    // the caller can keep prior data and prompt re-login instead of blanking out.
-    if (failedSources.some((f) => f.status === 401)) {
-      throw new SessionExpiredError(
-        `Authentication failed loading ${description} (HTTP 401).`,
-      );
-    }
-    throw new Error(
-      `Could not access any of the ${description} sources. Check permissions or connectivity.`,
-    );
-  }
-
-  return {
-    quads: allQuads,
-    failedSources: failedSources
-      .filter((f) => f.status === 403 || f.status === 404)
-      .map((f) => ({ uri: f.uri, status: f.status! })),
-    // Everything else that failed without a 401 (which already threw above):
-    // timeouts, network errors, 5xx. Reported, not pruned.
-    transientFailures: failedSources
-      .filter((f) => f.status !== 403 && f.status !== 404)
-      .map((f) => f.uri),
-  };
-}
 
 /**
  * Prune shared building sources that 403/404'd — append a self-revocation to the
@@ -162,7 +48,7 @@ async function loadTtlFromMultipleSources(
  * owner's side thus self-heals (and converges: once revoked, the source isn't
  * folded back in, so it isn't re-fetched).
  */
-async function removeInaccessibleBuildingSources(
+export async function removeInaccessibleBuildingSources(
   failedSources: Array<{ uri: string; status: number }>,
   gateway: PodGateway,
 ): Promise<void> {
@@ -195,7 +81,7 @@ async function removeInaccessibleBuildingSources(
  * them via a banner (see `useDemoSeedPrompt` / `seedDemoBuildings`). So a fresh
  * Pod simply loads empty until the user chooses.
  */
-async function discoverOwnBuildings(
+export async function discoverOwnBuildings(
   gateway: PodGateway,
   webId: string,
 ): Promise<string[]> {
@@ -252,41 +138,66 @@ export async function loadBuildings(
 
   const ownBuildings = await discoverOwnBuildings(gateway, webId);
   const buildingSources = [...new Set([...ownBuildings, ...sharedSources])];
+  const storageRoot = getStorageRoot(webId);
 
-  const buildingsResult = await loadTtlFromMultipleSources(
-    buildingSources,
-    gateway,
-    "buildings",
-  );
+  // Each source is read + parsed independently (the same per-source path the
+  // `useBuildings` query fans out over — `building/buildingSource.ts`), with bounded
+  // concurrency. A failure is classified by HTTP status: 403/404 = access revoked
+  // (prunable), 401 = expired token, anything else transient.
+  const failedSources: Array<{ uri: string; status: number }> = [];
+  const transientFailures: string[] = [];
+  let had401 = false;
+  let okCount = 0;
 
-  // A shared source that 403/404s (e.g. access revoked since the grant) is
-  // pruned from the registry; own buildings always load, so this self-heals
-  // missed revocations on the next load.
-  if (buildingsResult.failedSources.length > 0) {
-    await removeInaccessibleBuildingSources(
-      buildingsResult.failedSources,
-      gateway,
+  const perSource = await mapPooled(buildingSources, 6, async (uri) => {
+    try {
+      const buildings = await loadBuildingSource(uri, gateway, storageRoot);
+      okCount++;
+      return buildings;
+    } catch (error) {
+      const status = error instanceof BuildingSourceError
+        ? error.status
+        : undefined;
+      if (status === 403 || status === 404) {
+        failedSources.push({ uri, status });
+      } else if (status === 401) {
+        had401 = true;
+      } else {
+        transientFailures.push(uri);
+      }
+      return [] as Building[];
+    }
+  });
+
+  // No source was readable: a 401 means the token expired (keep prior data + prompt
+  // re-login); otherwise it's a permissions/connectivity wall.
+  if (okCount === 0 && buildingSources.length > 0) {
+    if (had401) {
+      throw new SessionExpiredError("Authentication failed loading buildings (HTTP 401).");
+    }
+    throw new Error(
+      "Could not access any of the buildings sources. Check permissions or connectivity.",
     );
   }
 
-  const storageRoot = getStorageRoot(webId);
-  const buildings = parseBuildings(buildingsResult.quads, storageRoot);
+  // A shared source that 403/404s (e.g. access revoked since the grant) is pruned
+  // from the registry; own buildings always load, so this self-heals missed
+  // revocations on the next load.
+  if (failedSources.length > 0) {
+    await removeInaccessibleBuildingSources(failedSources, gateway);
+  }
 
-  // Filter out hidden buildings and mark shared buildings.
-  const visibleBuildings = new Map<string, Building>();
-  for (const [buildingId, building] of buildings) {
-    if (!hiddenBuildingUris.has(buildingFileUri(building.uri))) {
-      // Ownership = whether the source file lives under the user's storage root.
-      const sourceForOwnershipCheck = building.sourceUri || building.uri;
-      building.isShared = !sourceForOwnershipCheck.startsWith(storageRoot);
-      visibleBuildings.set(buildingId, building);
-    }
+  // Filter out hidden buildings (isShared is set per source in parseBuildingSource).
+  const visibleBuildings: Building[] = [];
+  for (const building of perSource.flat()) {
+    if (hiddenBuildingUris.has(buildingFileUri(building.uri))) continue;
+    visibleBuildings.push(building);
   }
 
   return {
-    buildings: Array.from(visibleBuildings.values()),
-    prunedSources: buildingsResult.failedSources.map((f) => f.uri),
-    transientFailures: buildingsResult.transientFailures,
+    buildings: visibleBuildings,
+    prunedSources: failedSources.map((f) => f.uri),
+    transientFailures,
   };
 }
 

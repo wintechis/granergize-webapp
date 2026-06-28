@@ -32,7 +32,7 @@ import { getStorageRoot } from "../pod/solidUtils.ts";
 import { mapPooled } from "../../lib/pool.ts";
 
 /**
- * The building's `cons:hasEnergyDataset` refs from the WARM `useBuildings` cache,
+ * The building's `cons:hasEnergyDataset` refs from the WARM per-source building cache,
  * or null when there's no client / the building isn't cached. The map parses these
  * refs reliably; re-reading the building file to re-derive them is the slow-Pod
  * flake that left fresh snapshots empty — so prefer the cache and only fall back to
@@ -41,13 +41,14 @@ import { mapPooled } from "../../lib/pool.ts";
 function cachedBuilding(buildingUri: string): Building | null {
   const qc = getAppQueryClient();
   if (!qc) return null;
-  // Prefix-match the "buildings" query root (the WebID/fingerprint tail varies),
-  // matching `queryKeys.buildings[0]` without importing the hooks layer.
-  const entries = qc.getQueriesData<{ buildings: Building[] }>({
-    predicate: (q) => q.queryKey[0] === "buildings",
+  // Each source is a `["buildingSource", webId, sourceUri]` query holding that source's
+  // `Building[]` (the `useBuildings` fan-out). Prefix-match the root without importing
+  // the hooks layer, and find the building by its subject IRI across the sources.
+  const entries = qc.getQueriesData<Building[]>({
+    predicate: (q) => q.queryKey[0] === "buildingSource",
   });
   for (const [, data] of entries) {
-    const b = data?.buildings.find((x) => x.uri === buildingUri);
+    const b = data?.find((x) => x.uri === buildingUri);
     if (b) return b;
   }
   return null;

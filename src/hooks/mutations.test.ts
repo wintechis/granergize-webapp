@@ -137,14 +137,13 @@ Deno.test("useCreateRoom adds the new room to the registry and makes it current"
   }
 });
 
-Deno.test("useDeleteBuilding drops the deleted building from the list cache on success (no refetch needed)", async () => {
-  // Regression: a burst of rapid deletes left the Manage list showing a phantom
-  // row because the onSettled invalidation didn't refetch within the poll window
-  // (the just-emptied container was never re-read). The fix patches the
-  // `["buildings", webId]` cache authoritatively in onSuccess, so the list
-  // converges the instant the delete is confirmed — independent of any refetch.
-  // This hook renders no `useBuildings` observer, so invalidateQueries can't
-  // refetch; the assertion therefore isolates the cache patch.
+Deno.test("useDeleteBuilding drops the deleted source from the container roster on success (no refetch needed)", async () => {
+  // Regression: a burst of rapid deletes left the Manage list showing a phantom row
+  // because the onSettled invalidation didn't refetch within the poll window. The fix
+  // patches the `["buildingsContainer", webId]` roster (and removes the per-source
+  // entry) authoritatively in onSuccess, so the `useBuildings` selector converges the
+  // instant the delete is confirmed. This hook renders no observer, so invalidateQueries
+  // can't refetch; the assertion therefore isolates the cache patch.
   const B1 = `${ORIGIN}granergize/buildings/b1.ttl`;
   const B2 = `${ORIGIN}granergize/buildings/b2.ttl`;
   const pod = new FakePod();
@@ -153,30 +152,25 @@ Deno.test("useDeleteBuilding drops the deleted building from the list cache on s
   pod.resources.set(B2, "<#it> a <urn:Building> .");
   _setSessionForTesting(sessionFor(pod));
   const b1 = { id: "1", uri: B1 } as unknown as Building;
-  const b2 = { id: "2", uri: B2 } as unknown as Building;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  client.setQueryData<{ buildings: Building[] }>(
-    [...queryKeys.buildings, WEBID],
-    { buildings: [b1, b2] },
-  );
+  client.setQueryData<string[]>(["buildingsContainer", WEBID], [B1, B2]);
+  client.setQueryData<Building[]>(["buildingSource", WEBID, B1], [b1]);
   const wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client }, children);
   try {
     const { result } = renderHook(() => useDeleteBuilding(), { wrapper });
     await result.current.mutateAsync(b1);
     await waitFor(() => {
-      const data = client.getQueryData<{ buildings: Building[] }>(
-        [...queryKeys.buildings, WEBID],
-      )!;
       assert.deepEqual(
-        data.buildings.map((b) => b.uri),
+        client.getQueryData<string[]>(["buildingsContainer", WEBID]),
         [B2],
-        "the deleted building is removed; the other survives",
+        "the deleted source is removed from the roster; the other survives",
       );
     });
-    // The building file is actually gone server-side too.
+    // The per-source entry was dropped, and the file is gone server-side too.
+    assert.equal(client.getQueryData(["buildingSource", WEBID, B1]), undefined);
     assert.equal(pod.resources.has(B1), false);
     assert.equal(pod.resources.has(B2), true);
   } finally {
@@ -301,7 +295,8 @@ Deno.test("useWriteEnergyYear writes the dataset and invalidates the building-da
     assert.ok(datasetPut, "the dataset resource was PUT");
     for (
       const key of [
-        "buildings",
+        "buildingsContainer",
+        "buildingSource",
         "buildingEnergy",
         "energyDataset",
         "annualEnergy",
@@ -398,7 +393,8 @@ Deno.test("useShareBuilding invalidates ONLY the shared-out log (not buildings)"
     }).catch(() => {});
     assert.ok(invalidated.includes("sharedOutLog"), "sharedOutLog invalidated");
     assert.ok(
-      !invalidated.includes("buildings"),
+      !invalidated.includes("buildingSource") &&
+        !invalidated.includes("buildingsContainer"),
       "a share does not reload the buildings",
     );
   } finally {
@@ -558,7 +554,7 @@ Deno.test("useSeedDemoBuildings seeds the full demo set and invalidates the buil
     const outcome = await result.current.mutateAsync();
     assert.equal(outcome.done, outcome.total, "all demo buildings written");
     assert.ok(outcome.total > 0);
-    assert.ok(invalidated.includes("buildings"));
+    assert.ok(invalidated.includes("buildingsContainer"));
   } finally {
     _setSessionForTesting(null);
     _setSourceGatewayForTesting(null);

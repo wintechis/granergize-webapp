@@ -3,6 +3,23 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-28]
+- **Buildings are per-source resource queries (ldp-query-layer).** The root of the data layer —
+  every screen reads buildings — moved from one monolithic `useBuildings` query (keyed by the whole
+  shared-source + hidden fingerprint) to a **`useQueries` fan-out**: each building source document is
+  its own `["buildingSource", webId, sourceUri]` query (`Building[]`), discovered from a container
+  query (`["buildingsContainer", webId]`, own roster) ∪ the shared-in fold. A pure `combine` selector
+  merges them, applies the hidden filter and selects the error (only an all-sources failure surfaces;
+  401 → `SessionExpired`); a `useReconcileBuildingSources` effect does the writes the selector can't
+  (stale-grant prune + transient notice, ref-guarded once-per-uri). The public
+  `{ data, isLoading, isFetching, error }` contract is preserved, so `useSolidData` and the 14
+  consumers are unchanged. New `services/building/buildingSource.ts` (`parseBuildingSource` —
+  each source parses in its own n3 Store, so the old cross-source blank-node scoping is gone;
+  `loadBuildingSource`; `fetchBuildingSourceShared`) is shared by the hook and the headless
+  `loadBuildings` fold. Wins: a single building's edit refetches one source (not the whole
+  portfolio), and the hidden filter lives in the selector so toggling visibility no longer refetches.
+  Mutations invalidate `buildingsContainer`/`buildingSource` (`useDeleteBuilding` patches the roster +
+  drops the per-source entry); `aggregationComputer`'s warm-cache ref peek reads `["buildingSource"]`;
+  `queryKeys.buildings` retired. check + lint green, unit 1096.
 - **Energy hooks recomposed as per-building `useQueries` selectors (ldp-query-layer).** `useEnergy`
   and `useAnnualEnergyByYear` were monolithic folds keyed by a whole-set fingerprint (`energyKeyFor`)
   whose cached value baked the screen shapes (`energyNeed[]` + portfolio/operator averages; the

@@ -157,11 +157,11 @@ export function useSessionLifecycle(): SessionLifecycle {
       // shared-in/ log; refold it (the ONE shared-in fold — every "shared with
       // me" reader derives from it) so they appear. receivedBenchmarks is also
       // invalidated since snapshot contents can change with the grant set
-      // unchanged; buildings refetches via its shared-source key when the
-      // refolded grants differ.
+      // unchanged; drop the per-source cache so a re-shared (previously pruned)
+      // source's stale entry refetches once the refolded grants add it back.
       queryClient.invalidateQueries({ queryKey: queryKeys.sharedInLog });
       queryClient.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
-      queryClient.invalidateQueries({ queryKey: queryKeys.buildings });
+      queryClient.invalidateQueries({ queryKey: queryKeys.buildingSource });
     } catch (error) {
       // If the session expired while this inbox work was in flight, the service
       // calls throw "User is not logged in" — but the expiry gate has already

@@ -1,19 +1,32 @@
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import type { QueryClient, UseQueryResult } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { getGateway, getSession } from "./session.ts";
 import {
+  discoverOwnBuildings,
   loadBuildinglessObservations,
-  loadBuildings,
+  removeInaccessibleBuildingSources,
+  SessionExpiredError,
   sharedBuildingSourcesFromGrants,
 } from "../services/turtleParsing.ts";
+import {
+  BuildingSourceError,
+  loadBuildingSource,
+} from "../services/building/buildingSource.ts";
+import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
+import { logError } from "../lib/logError.ts";
 import {
   buildingEnergyKeyFor,
   computeEnergyAverages,
   resolveBuildingEnergy,
   resolveBuildingEnergyByYear,
 } from "../services/energy/buildingEnergy.ts";
-import { podResources, resolveStorageRoot } from "../services/pod/solidUtils.ts";
+import {
+  getStorageRoot,
+  podResources,
+  resolveStorageRoot,
+} from "../services/pod/solidUtils.ts";
 import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
   foldSharingLog,
@@ -190,60 +203,172 @@ export function usePrefs() {
  * buildings because the data changed. A FAILED dependency degrades (no shared
  * sources / nothing hidden) rather than blocking own buildings.
  */
+/**
+ * The own-buildings container listing — the membership query (`ldp:contains` → top-level
+ * `*.ttl` IRIs). It does NOT depend on the shared-in fold (shared sources come from there
+ * separately); adding/deleting a building invalidates it. Resolves the storage root first,
+ * like the old buildings query. A fresh Pod (404 container) reads as `[]`, not an error.
+ */
+export function useBuildingsContainer() {
+  return useWebIdQuery(
+    queryKeys.buildingsContainer,
+    async (gateway, webId) => {
+      await resolveStorageRoot(gateway);
+      return discoverOwnBuildings(gateway, webId);
+    },
+  );
+}
+
+/**
+ * Reconciliation for the per-source building reads — the WRITES the pure selector
+ * can't do. A SHARED source that 403/404'd means access was revoked: append a
+ * self-revocation to shared-in/ (once per uri) and refold the log so the source drops
+ * out. A transient failure (not 401/403/404) can't self-heal — notify once so the
+ * missing building isn't a silent gap. An OWN-source 403/404 is a real problem, not a
+ * revocation, so it's left alone. The ref-guards make each prune/notice fire at most
+ * once per uri per session (an append-log would otherwise spam).
+ */
+function useReconcileBuildingSources(
+  failures: ReadonlyArray<{ uri: string; status?: number; isOwn: boolean }>,
+  qc: QueryClient,
+) {
+  const pruned = useRef<Set<string>>(new Set());
+  const notified = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const toPrune = failures.filter(
+      (f) =>
+        !f.isOwn && (f.status === 403 || f.status === 404) &&
+        !pruned.current.has(f.uri),
+    );
+    if (toPrune.length > 0) {
+      for (const f of toPrune) pruned.current.add(f.uri);
+      removeInaccessibleBuildingSources(
+        toPrune.map((f) => ({ uri: f.uri, status: f.status! })),
+        getGateway(),
+      )
+        .then(() => qc.invalidateQueries({ queryKey: queryKeys.sharedInLog }))
+        .catch((e) => logError("prune inaccessible building source", e));
+    }
+    const transient = failures.filter(
+      (f) =>
+        f.status !== 401 && f.status !== 403 && f.status !== 404 &&
+        !notified.current.has(f.uri),
+    );
+    if (transient.length > 0) {
+      for (const f of transient) notified.current.add(f.uri);
+      const n = transient.length;
+      emitNotification(
+        `Couldn't load ${n} building${n === 1 ? "" : "s"} — the Pod was slow ` +
+          `to respond. Reload the page to try again.`,
+        "warning",
+      );
+    }
+  }, [failures, qc]);
+}
+
 export function useBuildings() {
   const qc = useQueryClient();
+  const webId = webIdOf();
+  const container = useBuildingsContainer();
   const log = useSharedInGrants();
   const prefs = usePrefs();
+
+  // Each dependency degrades to "empty" on error rather than blocking own buildings.
+  // `ready` gates on own + shared sources being KNOWN; hidden is NOT a gate (it's a
+  // selector concern, so a visibility toggle re-derives without any refetch).
+  const ownSources = container.data ?? (container.isError ? [] : undefined);
   const sharedSources = log.data
-    ? sharedBuildingSourcesFromGrants(log.data).sort()
+    ? sharedBuildingSourcesFromGrants(log.data)
     : log.isError
     ? []
     : undefined;
-  const hidden = prefs.data
-    ? prefs.data.hiddenBuildings
-    : prefs.isError
-    ? new Set<string>()
-    : undefined;
-  return useWebIdQuery(
-    queryKeys.buildings,
-    async (session) => {
-      // Resolve the Pod storage root from pim:storage before any path is built.
-      await resolveStorageRoot(session);
-      const { buildings, prunedSources, transientFailures } =
-        await loadBuildings(
-          session,
-          sharedSources ?? [],
-          hidden ?? new Set(),
-        );
-      // An inaccessible shared source was pruned (a self-revocation appended to
-      // shared-in/): refold the log so the grant set — and every reader derived
-      // from it, incl. this query's own key — drops the revoked source.
-      if (prunedSources.length > 0) {
-        qc.invalidateQueries({ queryKey: queryKeys.sharedInLog });
-      }
-      // Some building files failed transiently (a slow/throttled Pod shedding
-      // connections). They're NOT pruned — but nothing refetches on its own
-      // (refetchOnMount/focus/reconnect are all off; the only triggers are first
-      // load and a write-driven invalidation), so tell the user the action that
-      // actually retries: reloading the page. Beats a silent gap on the map.
-      if (transientFailures.length > 0) {
-        const n = transientFailures.length;
-        emitNotification(
-          `Couldn't load ${n} building${n === 1 ? "" : "s"} — the Pod was slow ` +
-            `to respond. Reload the page to try again.`,
-          "warning",
-        );
-      }
-      return { buildings };
-    },
-    {
-      extraKey: [
-        (sharedSources ?? []).join(";"),
-        [...(hidden ?? [])].sort().join(";"),
-      ],
-      enabled: sharedSources !== undefined && hidden !== undefined,
-    },
+  const ready = ownSources !== undefined && sharedSources !== undefined;
+  const hidden = useMemo(
+    () =>
+      prefs.data
+        ? prefs.data.hiddenBuildings
+        : prefs.isError
+        ? new Set<string>()
+        : undefined,
+    [prefs.data, prefs.isError],
   );
+
+  const ownFp = (ownSources ?? []).join(";");
+  const sharedFp = (sharedSources ?? []).join(";");
+  const sources = useMemo(
+    (): Array<{ uri: string; isOwn: boolean }> => {
+      if (!ready) return [];
+      const seen = new Map<string, boolean>();
+      for (const u of ownSources!) if (!seen.has(u)) seen.set(u, true);
+      for (const u of sharedSources!) if (!seen.has(u)) seen.set(u, false);
+      return [...seen].map(([uri, isOwn]) => ({ uri, isOwn }));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ready, ownFp, sharedFp],
+  );
+
+  // Pure: collect buildings (hidden-filtered, isShared set) + the per-source failures;
+  // select the surfaced error (only when ALL sources failed; 401 → SessionExpired).
+  // Never writes — the writes live in `useReconcileBuildingSources`.
+  const combine = useCallback(
+    (results: Array<UseQueryResult<Building[]>>) => {
+      const buildings: Building[] = [];
+      const failures: Array<{ uri: string; status?: number; isOwn: boolean }> = [];
+      sources.forEach((s, i) => {
+        const r = results[i];
+        for (const b of r?.data ?? []) {
+          // `isShared` is set at parse time (per source); here we only drop hidden.
+          if (hidden?.has(buildingFileUri(b.uri))) continue;
+          buildings.push(b);
+        }
+        if (r?.error) {
+          const status = r.error instanceof BuildingSourceError
+            ? r.error.status
+            : undefined;
+          failures.push({ uri: s.uri, status, isOwn: s.isOwn });
+        }
+      });
+      const allFailed = results.length > 0 && results.every((r) => r.isError);
+      const error: Error | null = allFailed
+        ? (failures.some((f) => f.status === 401)
+          ? new SessionExpiredError()
+          : (results.find((r) => r.error)?.error ?? null))
+        : null;
+      return {
+        buildings,
+        failures,
+        error,
+        anyData: results.some((r) => r.data !== undefined),
+        isLoading: results.some((r) => r.isLoading),
+        isFetching: results.some((r) => r.isFetching),
+      };
+    },
+    [sources, hidden],
+  );
+
+  const q = useQueries({
+    queries: sources.map((s) => ({
+      queryKey: [...queryKeys.buildingSource, webId, s.uri],
+      queryFn: () => loadBuildingSource(s.uri, getGateway(), getStorageRoot(webId!)),
+      enabled: ready && Boolean(webId),
+      staleTime: Infinity,
+    })),
+    combine,
+  });
+
+  useReconcileBuildingSources(q.failures, qc);
+
+  // `data === undefined` through the whole gated + first-load window (so
+  // `useSolidData().isLoading` stays true and the empty state doesn't flash), but
+  // adding a source later keeps the existing list on screen (anyData), not a blank.
+  const stillInitial = !q.anyData && q.isLoading;
+  const data = (!ready || stillInitial) ? undefined : { buildings: q.buildings };
+  return {
+    data,
+    isLoading: !ready || stillInitial,
+    isFetching: !ready || q.isFetching,
+    error: q.error,
+  };
 }
 
 /** Phase 2: energy for the given buildings (dependent on phase 1).
@@ -796,7 +921,13 @@ export function useResolveOrg(webId?: string) {
  * key typo.
  */
 export const queryKeys = {
-  buildings: ["buildings"] as const,
+  /** The own-buildings container listing (`["buildingsContainer", webId]`) — the
+   * membership query the `useBuildings` fan-out reads its own source IRIs from. */
+  buildingsContainer: ["buildingsContainer"] as const,
+  /** One building source document (`["buildingSource", webId, sourceUri]` → `Building[]`)
+   * — the per-resource read the `useBuildings` fan-out and `fetchBuildingSourceShared`
+   * go through. */
+  buildingSource: ["buildingSource"] as const,
   /** One building's latest-annual energy, keyed per building
    * (`["buildingEnergy", webId, buildingUri, linkFingerprint]`) — the `useEnergy`
    * useQueries fan-out; the portfolio/operator averages derive from these in `combine`. */
