@@ -132,6 +132,19 @@ is not discovered until the inbox drain or the next login refreshes its containe
 (see [`sharing.ts` interop in `queries-mutations.md`](./queries-mutations.md) and
 [`room.md`](./room.md) for where a reader's "look" must invalidate).
 
+## Trade-offs
+
+Resource keying is normalised caching, so there are *more, smaller* entries than the old
+screen-shaped folds — relied on rather than fought: React Query's structural sharing and
+`gcTime` keep that cheap, and net fetch volume *drops* (each resource is read once and
+reused, not re-read per consumer). Container→children reads can **waterfall**; the fan-outs
+read the children from the container result with bounded concurrency (the `mapPooled`
+pattern), not lazily per render. The mutation side is unchanged in spirit — writes commit
+against the storage models ([`queries-mutations.md`](./queries-mutations.md)) and
+invalidate — but invalidation shrinks from whole-fold fingerprints to resource IRIs. The
+transport (the gateway, retry, `fetchFresh` revalidation) is untouched: this reshapes
+*what* is cached and *how it is keyed*, not the fetch plumbing.
+
 ## The source-facing port (read-only external sources)
 
 The same cache holds a second resource family: the **read-only external sources** — the

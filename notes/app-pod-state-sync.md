@@ -4,12 +4,15 @@ The Pod is ground truth; the app only ever holds a **cached, derived projection*
 of it — the React Query cache of parsed RDF (buildings, energy, shares, rooms,
 aggregations), joined and shaped in memory. Every freshness question reduces to one thing:
 **when the Pod changes, does the projection that depends on it refetch?** This note
-collects the mechanisms the app relies on for that, and the one structural place
-the contract currently leaks. The same staleness class also exists on the *write*
-side — derived state stored **on the Pod** (the `.acl` projection) rather than in
-the cache — audited at the end. Companion to [`data-deref.md`](./data-deref.md)
-(what gets dereferenced and joined) and [`storage-layout.md`](./storage-layout.md) (where
-it lives on the Pod).
+collects the mechanisms the app relies on for that. The cache is **resource-oriented** —
+one entry per Pod resource, keyed by its IRI ([`query-layer.md`](./query-layer.md)) — and
+that keying *structurally* closes the class of staleness bug a screen-shaped fold used to
+risk (described below, as the rationale for why the layer is keyed this way). The same
+staleness class also exists on the *write* side — derived state stored **on the Pod** (the
+`.acl` projection) rather than in the cache — audited at the end. Companion to
+[`query-layer.md`](./query-layer.md) (how the cache is keyed and composed),
+[`data-deref.md`](./data-deref.md) (what gets dereferenced and joined) and
+[`storage-layout.md`](./storage-layout.md) (where it lives on the Pod).
 
 ## The sync contract
 
@@ -32,43 +35,32 @@ hooks):
   polls the `buildings/` listing until the deleted file is gone; a load 404-prunes
   an inaccessible shared source). The projection is corrected on read, not assumed.
 
-The leak below is a case where the *first two* mechanisms don't compose: a read
-whose cache key doesn't cover all the Pod inputs it folds, so no write that changes
-those inputs is seen to change the key, and the server-driven refetch never fires.
+The class of bug below is the one resource keying closes: a read whose cache key
+doesn't cover all the Pod inputs it folds, so no write that changes those inputs is seen
+to change the key, and the server-driven refetch never fires.
 
-## The leak — a derived read whose key under-covers its inputs
+## Why per-resource keying closes it
 
-A React Query cache key must capture every Pod input whose change alters the
-query's result. The risky shape here is two-phase: a phase-1 query lists/parses a
-set of container items (each carrying links to further resources), and a phase-2
-query folds those linked resources into a derived result, keyed off the phase-1
-set. If phase 2's key encodes only the *identity of the set* (which items exist)
-and not the *content it folds* (which linked resources each item points at), then a
-Pod change that edits an item's links **without** adding or removing an item is
-invisible: the key is unchanged, so the projection neither refetches nor is
-considered stale. `staleTime: 0` and `keepPreviousData` then make the staleness
-*silent* — the eager refetch keeps returning the same key's cached fold, and the
-last-good projection stays on screen.
+The risky shape was a screen-shaped fold: a query folded a set of linked resources into one
+derived value, keyed off the *identity of the set* (which items exist) rather than the
+*content it folds* (which resources each item links). A Pod change that edited an item's
+links without adding or removing an item left the key unchanged — and `staleTime: 0` +
+`keepPreviousData` made the staleness *silent* (the eager refetch kept returning the same
+key's cached fold).
 
-## The instance, and its fix — energy
-
-`useBuildings` (phase 1) parses each building, including its
-`cons:hasEnergyDataset` links; `useEnergy` (phase 2) folds those linked datasets
-into the per-building energy the map and charts read. Its key was the **sorted set
-of building ids**, so writing an energy year to an *existing* building — which
-adds/replaces a link but not an id — did not refetch; the map energy lens, which
-wants every building's current energy at once right after a write, read stale.
-
-Fixed by folding the linked content into the key: `useEnergy` now keys on
-`energyKeyFor(buildings)` (pure, exported, unit-tested) — each building's id **plus
-its sorted dataset slugs** (year/granularity/scenario) — so adding or deleting an
-energy year changes the key and refetches. It still also refetches when the
-building set changes, and `queryKeys.energy` still prefix-matches so existing
-invalidations work.
-
-This is masked in the ordinary single-building flow (the energy-year mutation
-invalidates both keys, and the user lands on that one building's own energy view,
-which fetches fresh); only the *bulk* read exposed it.
+Energy was the instance. `useEnergy` was one query keyed by the sorted building-id set, so
+writing an energy year to an *existing* building changed a link but not an id, and the map
+energy lens read stale. The fix is structural: there is no whole-set fold to under-cover
+any more. Each building's energy is its own `["buildingEnergy", {webId}, {buildingUri}, …]`
+query and each dataset its own `["energyDataset", {webId}, {datasetUri}]` entry
+([`query-layer.md`](./query-layer.md)); an energy write invalidates the touched dataset
+entry **by IRI**, so coverage falls out of the keying rather than out of a fingerprint that
+has to enumerate the fold's inputs. The same holds for buildings (per-source entries) and
+the sharing logs (per-event entries): the unit of the key is the resource, so the key
+can't fail to cover the resource. The lone remaining fingerprinted key is a per-building
+one (`buildingEnergyKeyFor`, a building's own dataset slugs) and the building-less
+observations set — both fold a *single* subject's links, where the fingerprint and the
+resource coincide.
 
 ## Audit of the other reads
 
@@ -76,26 +68,26 @@ The question to ask of any read: **"can a resource this query folds change on th
 Pod without my key changing AND without a mutation invalidating it?"** If yes, the
 projection can drift out of sync. Applying it to the query hooks (`queries.ts`):
 
-- **`useEnergy`** was the one query whose key was *derived from another query's
-  output* (the building set) yet under-covered the content it folds (ids, not
-  dataset links). Fixed (above). Several reads are now derived-keyed — `annualEnergy`
-  (id + dataset-link fingerprint), `useReceivedBenchmarks` (snapshot-IRI fingerprint,
-  below) — but `useEnergy` was the only one that ever *under-covered*; the rest fold
-  their inputs into the key by construction.
-- **`useRoomLog`** is also derived-keyed (`["roomLog", webId, current-room-IRI]`),
-  but the room IRI is the right *identity* and the log's event content changes are
-  covered by direct invalidation — every room mutation invalidates `queryKeys.roomLog`
-  (`mutations.ts`). Keyed correctly, content via invalidation. Not the trap.
-- The top-level reads — `aggregationDefinitions`, `agents`, `prefs`, and the two
-  log folds `sharedInLog` / `sharedOutLog` — use a constant `["name", webId]` key.
-  (Every "shared with/by me" and shared-aggregation list is a pure in-memory
-  derivation of those two folds, not a separate query, so there is no extra key to
-  under-cover.) They don't derive a key from upstream data, so the key can't
-  under-cover; freshness is `staleTime: 0` refetch-on-observe plus mutation
-  invalidation. Sound, different model.
-- **`useRooms`** is deliberately `staleTime: Infinity` and patched optimistically by
-  the room mutations (a background refetch could revert an in-flight room switch).
-  Intentionally outside the auto-refetch model.
+- **`useEnergy`** / **`useBuildings`** / **`useAnnualEnergyByYear`** are now `useQueries`
+  fan-outs over per-resource entries (one `buildingSource`/`buildingEnergy`/`energyDataset`
+  per resource) folded by a `combine` selector. There is no whole-set key to under-cover;
+  an edit invalidates the touched resource entry by IRI.
+- **The sharing logs** (`useSharedInGrants` / `useSharedOutGrants`) are container-listing
+  queries (`sharedInContainer` / `sharedOutContainer`) plus one immutable `sharingEvent`
+  entry per event; every "shared with/by me" list is still a pure in-memory derivation of
+  those, not a separate query. **Aggregation definitions** are likewise a container
+  (`aggregationsContainer`) + one `aggregationDefinition` entry each. Adding/removing
+  invalidates the container; editing content invalidates the per-resource entry.
+- **`useRoomLog`** is keyed by the current room IRI; its event content changes from *own*
+  writes are covered by direct invalidation (`queryKeys.roomLog`). But the membership log
+  is also appended by **other** agents, which no local write sees — so the room detail page
+  invalidates `roomLog` on open (the "look" refetch), mirroring the Share-tab readers. Keyed
+  correctly, own content via invalidation, cross-agent content via the look.
+- **`prefs`** / **`agents`** are single documents under a constant `["name", webId]` key —
+  one resource, one query; freshness is mutation invalidation.
+- **`useRooms`** is deliberately `staleTime: Infinity` and patched optimistically by the
+  room mutations (a background refetch could revert an in-flight room switch). Intentionally
+  outside the auto-refetch model.
 
 The audit also surfaced **`useReceivedBenchmarks`** — a gap of the same *family* that
 started in a different mechanism and was ultimately closed by the same construction as
@@ -192,10 +184,13 @@ So responsiveness here is bounded by Pod I/O — a long sequential write followe
 *largest* re-read the app can issue — not by the query layer, which is doing its job
 the instant data arrives.
 
-The app today keys and invalidates at the grain of **app-shaped queries**
-(`buildings`, `energy`, the folds), not per individual resource — and the archive
-restore is the coarsest point, invalidate-everything. The grain of invalidation is
-therefore what bounds write responsiveness here.
+The app now keys and invalidates at the grain of the **individual resource** (one entry per
+source/dataset/event), so an ordinary write refetches only the resources it touched — the
+container if structure changed, otherwise just the edited resource, the others staying warm.
+The archive restore remains the coarsest point — `invalidateQueries()` with no key, because
+the restore may have replaced anything — so it is the one place that still re-reads the whole
+projection regardless of the per-resource keying. The grain of invalidation is what bounds
+write responsiveness, and it is now fine everywhere except the deliberately-coarse restore.
 
 ## Two assemblies of the projection — the cached read and the headless read
 
@@ -215,9 +210,12 @@ the collection loader `loadBuildings` / `loadEnergy`. The intent collection read
 `loadBuildings`:
 
 - **Caching / reactivity** — the hook path wraps the load in React Query: the cache,
-  `staleTime: 0` freshness, and the invalidation-on-write this whole note is about.
-  The intent paths are **one-shot and uncached** — fire, return, done; nothing
-  invalidates them and nothing holds their result.
+  the freshness, and the invalidation-on-write this whole note is about. The intent paths
+  read the **same warm cache** when the app is mounted (the `cachedBuilding` /
+  `cachedVisibleBuildings` / `cachedSharingGrants` peeks, and the `fetch…Shared` accessors,
+  over the published client — [`query-layer.md`](./query-layer.md)) and fall back to a
+  direct load only when it is cold (fully headless / before the hook ran). So they reuse the
+  projection rather than re-reading the Pod; they just don't subscribe to it.
 - **Who folds the side-inputs** — `loadBuildings` needs two derived inputs, the
   shared-in source list and the hidden-prefs set. The hook path folds them as
   **separate cached queries** (`sharedInLog`, `prefs`) and passes them in, so each
@@ -229,15 +227,14 @@ the collection loader `loadBuildings` / `loadEnergy`. The intent collection read
   container listing, no shared-in fold, no hidden filter (`isShared` is a storage-root
   check on the IRI). The collection reads discover-then-parse; this one parses one IRI.
 
-So the same projection is assembled twice by different front doors — the reactive
-cache for what the screen renders, the one-shot callable for what the user invokes or
-a headless caller needs. The redundancy is deliberate (the two have genuinely
-different needs) but real: `fetchAndParseData` re-folds the shared-in/prefs inputs the
-hooks already cache, and there are two entry *shapes* (collection-load vs
-single-resolve) over one parser. Collapsing both onto a single IRI-keyed resource
-store — so the cache and the headless callers read **one** projection rather than two
-assemblies over shared primitives — is the direction the LDP-direction query-layer
-work points at.
+So both front doors now read **one** projection — the same IRI-keyed cache — rather than
+re-reading the Pod independently: the reactive hooks for what the screen renders, the
+imperative cores for what the user invokes or a headless caller needs, both reaching the
+warm entries through the published client. The remaining difference is only the *front
+door's shape* (a collection fan-out vs a single-resolve, both over the same loaders and
+selectors) and the cold-cache fallback a headless caller still needs. That convergence is
+the realisation of the resource-keyed direction — there is no second cache to keep in step,
+because there is one cache and TanStack is it ([`query-layer.md`](./query-layer.md)).
 
 ## The principle
 

@@ -159,8 +159,10 @@ The storage models and projection disciplines above classify mutations by
   user action: the app notices an inconsistency and writes to close it.
 
 The axes compose: a reconciliation mutation still commits through the same mechanisms.
-The reconciliation mutations are a small family — the stale-grant prune in `loadBuildings`
-(event-sourced: appends a self-revocation to `shared-in/` when a shared source 403/404s),
+The reconciliation mutations are a small family — the stale-grant prune
+(`removeInaccessibleBuildingSources`, event-sourced: appends a self-revocation to
+`shared-in/` when a shared source 403/404s — run from the headless `loadBuildings` and, on
+the reactive path, the `useReconcileBuildingSources` effect),
 the ACL rebuild in `reissueGrants` (materialized projection: regenerates `.acl` from
 the log), and the grant extension in `reconcileBuildingGrants` (materialized
 projection: a new energy year grew a granted scope,
@@ -268,9 +270,12 @@ violates Command–Query Separation. Each embeds a reconciliation mutation (see 
 axis above), kept in the query path so the app self-heals without an explicit cleanup
 step:
 
-- `loadBuildings` (`turtleParsing.ts`) detects inaccessible shared sources
-  (403/404) and **appends revocation events to `shared-in/`** to prune them
-  (`removeInaccessibleBuildingSources`). A query mutates an event log. The prune is
+- The per-source building load detects inaccessible shared sources (403/404) and
+  **appends revocation events to `shared-in/`** to prune them
+  (`removeInaccessibleBuildingSources`) — from the headless `loadBuildings`
+  (`turtleParsing.ts`), and on the reactive path from the `useReconcileBuildingSources`
+  effect (the pure `useBuildings` selector only *collects* the failures; the effect does
+  the write, keeping the read pure). A read path mutates an event log. The prune is
   exceptional, not per-call: on the happy path (every source accessible) it performs no
   write, and each append is best-effort (failures are logged, never thrown).
 - `drainInbox` (`inbox.ts`) drains the inbox: copies each message into `shared-in/`, then

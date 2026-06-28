@@ -231,8 +231,9 @@ unauthenticated `<img>` requests.
   `fetchFresh` revalidates the *HTTP* cache for the underlying GETs (`cache:
   "no-cache"`, so a `304` serves the stored body), keying on a stable URI; React
   Query caches the *parsed result* in memory and refetches on invalidation. The
-  two-phase load is two queries: `useBuildings` (map paints) → dependent
-  `useEnergy`. Writes go through `useMutation` hooks (`src/hooks/mutations.ts`) that
+  two-phase load is two `useQueries` fan-outs: `useBuildings` (one `buildingSource` query
+  per source, map paints) → dependent `useEnergy` (one `buildingEnergy` query per
+  building). Writes go through `useMutation` hooks (`src/hooks/mutations.ts`) that
   reuse the service functions (incl. `readModifyWrite`'s ETag locking) as
   `mutationFn` and `invalidateQueries` on settle. `useSolidData()` survives as a
   thin RQ-backed selector composing the two. Two deliberate exceptions stay on their

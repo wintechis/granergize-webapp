@@ -133,9 +133,9 @@ bespoke fetch. The shape has four parts:
   `Building[]` plus `isLoading`/`isFetching`/`error`. The component sees the
   object, never RDF.
 
-So "give me the buildings" (`useBuildings`) is a WebID-keyed, gated read returning
-`Building[]`; "give me the dashboard" (`useSolidData`) composes several such
-reads into one selector object.
+So "give me the buildings" (`useBuildings`) is a WebID-keyed, gated `useQueries` fan-out
+(one entry per building source) folded to `Building[]`; "give me the dashboard"
+(`useSolidData`) composes several such reads into one selector object.
 
 **Acting on it — the intent shape.** Each verb on the object is one named unit
 ([`mutations.ts`](../src/hooks/mutations.ts)) with four declared parts. Take "share
