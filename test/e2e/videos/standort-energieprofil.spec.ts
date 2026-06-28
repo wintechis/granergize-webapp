@@ -191,6 +191,35 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     );
     await demo.caption("");
 
+    // --- Scene 7: amtliche Regionalstatistik — beyond the location potential, the
+    //     official statistics (Regionalstatistik/Destatis) put the building's
+    //     Bundesland/Kreis in context. Same page, just below the
+    //     Standort-Energieprofil. Show the table, then switch to the choropleth.
+    //     (Live data: the Regionalstatistik wrapper must be reachable at record
+    //     time, like the Energie-Atlas above.) ---
+    await demo.scene(
+      "regional-stats",
+      "Über das Standort-Potenzial hinaus: amtliche Regionalstatistik als Vergleich",
+    );
+    const regionalStats = stage.getByRole("group", { name: vt("regStatsViewAria") });
+    await expect(regionalStats).toBeVisible({ timeout: 90_000 });
+    await demo.moveTo(regionalStats);
+    await demo.pause(1_200);
+    await demo.caption(
+      "Offene Daten der amtlichen Statistik – etwa der Anteil erneuerbaren Stroms im Bundesland, je Jahr",
+      4_000,
+    );
+    await demo.caption("");
+    // Switch from the table to the choropleth view (the regional-stats toggle only).
+    await demo.click(regionalStats.getByRole("button", { name: vt("btnMap") }));
+    await stage.waitForLoadState("networkidle").catch(() => {});
+    await demo.pause(2_800);
+    await demo.caption(
+      "Als Karte: alle Regionen nach Kennzahl eingefärbt – das eigene Gebäude darin markiert",
+      4_000,
+    );
+    await demo.caption("");
+
     // --- Payoff. ---
     await demo.pause(800);
     await demo.caption(
