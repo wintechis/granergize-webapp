@@ -311,6 +311,18 @@ export function grantsFromEvents(folded: SharingEvent[]): ActiveGrant[] {
     });
 }
 
+/**
+ * The active grants from a set of per-event record lists (flatten → fold → drop
+ * revocations). The single derive-at-edge selector both app-facing adapters call — the
+ * reactive `useSharingLog` `combine` and the imperative `cachedSharingGrants` peek — so
+ * the two can't diverge.
+ */
+export function activeGrantsFrom(
+  eventLists: ReadonlyArray<SharingEvent[] | undefined>,
+): ActiveGrant[] {
+  return grantsFromEvents(foldEvents(eventLists.flatMap((l) => l ?? [])));
+}
+
 export async function foldSharingLogEvents(
   containerUri: string,
   gateway: PodGateway,
@@ -346,11 +358,11 @@ export function cachedSharingGrants(
   if (!qc) return null;
   const listing = qc.getQueryData<string[]>([containerKey, webId]);
   if (listing === undefined) return null;
-  const events: SharingEvent[] = [];
+  const lists: SharingEvent[][] = [];
   for (const eventUri of listing) {
     const e = qc.getQueryData<SharingEvent[]>(["sharingEvent", webId, eventUri]);
     if (e === undefined) return null; // an event not cached → don't trust a partial fold
-    events.push(...e);
+    lists.push(e);
   }
-  return grantsFromEvents(foldEvents(events));
+  return activeGrantsFrom(lists);
 }

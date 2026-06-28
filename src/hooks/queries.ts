@@ -13,8 +13,8 @@ import {
 import {
   BuildingSourceError,
   loadBuildingSource,
+  visibleBuildings,
 } from "../services/building/buildingSource.ts";
-import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { logError } from "../lib/logError.ts";
 import {
   buildingEnergyKeyFor,
@@ -30,8 +30,7 @@ import {
 import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
   type ActiveGrant,
-  foldEvents,
-  grantsFromEvents,
+  activeGrantsFrom,
   listLogEvents,
   loadSharingEvent,
   type SharingEvent,
@@ -177,7 +176,7 @@ function useDeriveFromQuery<TData, TOut>(
  * memoises it. */
 function foldEventQueries(results: Array<UseQueryResult<SharingEvent[]>>) {
   return {
-    grants: grantsFromEvents(foldEvents(results.flatMap((r) => r.data ?? []))),
+    grants: activeGrantsFrom(results.map((r) => r.data)),
     anyData: results.some((r) => r.data !== undefined),
     isLoading: results.some((r) => r.isLoading),
     isFetching: results.some((r) => r.isFetching),
@@ -370,15 +369,16 @@ export function useBuildings() {
   // Never writes — the writes live in `useReconcileBuildingSources`.
   const combine = useCallback(
     (results: Array<UseQueryResult<Building[]>>) => {
-      const buildings: Building[] = [];
+      // The visible list is the shared selector (`isShared` is set at parse time; here
+      // only hidden is dropped); the combine adds the per-source failures the reactive
+      // path needs for reconciliation.
+      const buildings = visibleBuildings(
+        results.map((r) => r?.data),
+        hidden ?? new Set<string>(),
+      );
       const failures: Array<{ uri: string; status?: number; isOwn: boolean }> = [];
       sources.forEach((s, i) => {
         const r = results[i];
-        for (const b of r?.data ?? []) {
-          // `isShared` is set at parse time (per source); here we only drop hidden.
-          if (hidden?.has(buildingFileUri(b.uri))) continue;
-          buildings.push(b);
-        }
         if (r?.error) {
           const status = r.error instanceof BuildingSourceError
             ? r.error.status

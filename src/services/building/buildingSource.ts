@@ -129,6 +129,25 @@ export function cachedBuilding(buildingUri: string): Building | null {
 }
 
 /**
+ * Compose the visible building list from per-source `Building[]` results and the hidden
+ * set: flatten, dropping any whose document IRI is hidden. The single derive-at-edge
+ * selector both app-facing adapters call — the reactive `useBuildings` `combine` and the
+ * imperative `cachedVisibleBuildings` peek — so the two can't diverge.
+ */
+export function visibleBuildings(
+  perSource: ReadonlyArray<Building[] | undefined>,
+  hidden: ReadonlySet<string>,
+): Building[] {
+  const out: Building[] = [];
+  for (const data of perSource) {
+    for (const b of data ?? []) {
+      if (!hidden.has(buildingFileUri(b.uri))) out.push(b);
+    }
+  }
+  return out;
+}
+
+/**
  * The hidden-building document IRIs from the WARM `["prefs", webId]` entry, or `null`
  * when prefs isn't cached (the caller then falls back to a fresh read rather than risk
  * showing a hidden building).
@@ -158,14 +177,8 @@ export function cachedVisibleBuildings(gateway: PodGateway): Building[] | null {
   const hidden = cachedHiddenBuildings(gateway.webId);
   if (hidden === null) return null; // prefs not warm → fall back (don't show a hidden one)
 
-  const out: Building[] = [];
   const entries = qc.getQueriesData<Building[]>({
     predicate: (q) => q.queryKey[0] === "buildingSource",
   });
-  for (const [, data] of entries) {
-    for (const b of data ?? []) {
-      if (!hidden.has(buildingFileUri(b.uri))) out.push(b);
-    }
-  }
-  return out;
+  return visibleBuildings(entries.map(([, data]) => data), hidden);
 }
