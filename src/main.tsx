@@ -6,18 +6,15 @@ import * as React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import CssBaseline from "@mui/material/CssBaseline";
-import Typography from "@mui/material/Typography";
 import { ThemeProvider } from "@mui/material/styles";
 import "./index.css";
 import theme from "./theme.ts";
 import Login from "./pages/Login.tsx";
-import Footer from "./components/Footer.tsx";
 import { NotificationProvider } from "./context/NotificationContext.tsx";
 import { ConfirmProvider } from "./context/ConfirmContext.tsx";
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { I18nProvider } from "./context/I18nProvider.tsx";
 import { PaletteFocusProvider } from "./context/PaletteFocusContext.tsx";
-import { msg } from "./lib/messages.ts";
 import { clearLocalData } from "./lib/clearLocalData.ts";
 import { useSessionLifecycle } from "./hooks/useSessionLifecycle.ts";
 
@@ -31,7 +28,6 @@ function AppContent() {
     <Login
       onLogin={handleLogin}
       suppressRestore={suppressRestore}
-      name="Granergize App"
       // Identify the app to the Solid provider via a stable Client Identifier
       // Document (its IRI in VITE_OIDC_CLIENT_ID), so the consent screen shows
       // "Granergize App" + logo instead of an opaque dynamically-registered ID.
@@ -39,22 +35,11 @@ function AppContent() {
       loginOptions={import.meta.env.VITE_OIDC_CLIENT_ID
         ? { clientId: import.meta.env.VITE_OIDC_CLIENT_ID }
         : undefined}
-      logo={
-        <img
-          src={`${import.meta.env.BASE_URL}favicon.svg`}
-          alt="Granergize"
-        />
-      }
       recommendedLogins={[
         "https://solidcommunity.net",
+        "https://solid.ti.rw.fau.de",
         "https://solid.iis.fraunhofer.de",
       ]}
-      lead={
-        <Typography variant="body1">
-          {msg("loginLede")}
-        </Typography>
-      }
-      footer={<Footer />}
     >
       <App session={session!} onLogout={handleLogout} />
     </Login>

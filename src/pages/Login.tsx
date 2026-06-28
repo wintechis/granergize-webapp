@@ -9,7 +9,6 @@ import {
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
-import Card from "@mui/material/Card";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import Alert from "@mui/material/Alert";
@@ -17,6 +16,7 @@ import ActivityScreen from "../components/ActivityScreen.tsx";
 import { shouldRestoreSession } from "../services/pod/sessionRestore.ts";
 import { logError } from "../lib/logError.ts";
 import { clearLocalData, hasLocalData } from "../lib/clearLocalData.ts";
+import Landing from "./Landing.tsx";
 import { normalizeIssuer } from "../lib/normalizeIssuer.ts";
 import { msg } from "../lib/messages.ts";
 
@@ -29,11 +29,6 @@ interface LoginProps {
    * and re-create just-deleted data. Manual login is unaffected.
    */
   suppressRestore?: boolean;
-  name?: string;
-  logo?: React.JSX.Element;
-  lead?: React.JSX.Element;
-  /** Rendered centered at the bottom of the login screen (e.g. project links). */
-  footer?: React.JSX.Element;
   loadingIndicator?: React.JSX.Element;
   recommendedLogins?: string[];
   loginOptions?: Omit<ILoginInputOptions, "oidcIssuer">;
@@ -97,16 +92,7 @@ export const Login: React.FC<LoginProps> = ({
   loadingIndicator,
   auto = true,
   suppressRestore = false,
-  name,
-  lead,
-  footer,
   loginOptions,
-  logo = (
-    <img
-      src="https://solidproject.org/assets/img/solid-emblem.svg"
-      alt={msg("loginLogoAlt")}
-    />
-  ),
   recommendedLogins = [
     "https://login.inrupt.com",
     "https://solidcommunity.net",
@@ -488,37 +474,12 @@ export const Login: React.FC<LoginProps> = ({
   // Not logged in: show the login card. Its body swaps between the post-click
   // redirect (live requests + Cancel) and the provider chooser.
   if (!activeWebId) {
+    // The logged-out view is the public landing page; its "Anmelden" section
+    // hosts the real provider chooser below (a working OIDC sign-in, not links).
     return (
-      <Box
-        sx={{
-          width: "100%",
-          minHeight: "100vh",
-          // #root is a fixed-height (100%) flex column; without this it would
-          // shrink this box to the viewport and the centered content would
-          // overflow upward, clipped and unreachable. Keeping full content
-          // height lets tall content overflow downward so the normal browser
-          // scrollbar appears — and short content still centers via the gap
-          // between min-height and `justifyContent: center`.
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          py: 4,
-          px: 2,
-        }}
-      >
-        <Card
-          variant="outlined"
-          sx={{
-            width: "100%",
-            // Wider than a typical narrow login card so the content (and the
-            // full-width provider buttons) has room to breathe. Tune this single
-            // value if you want it wider/narrower.
-            maxWidth: 720,
-            p: { xs: 3, sm: 4 },
-          }}
-        >
+      <Landing
+        loginErrorOpen={!!restoreError}
+        login={
           <Box
             sx={{
               display: "flex",
@@ -527,24 +488,6 @@ export const Login: React.FC<LoginProps> = ({
               gap: 3,
             }}
           >
-            {logo && (
-              <Box
-                sx={{
-                  width: 80,
-                  height: "auto",
-                  display: "flex",
-                  justifyContent: "center",
-                  "& img": { width: "100%", height: "auto", display: "block" },
-                }}
-              >
-                {logo}
-              </Box>
-            )}
-
-            <Typography variant="h5">
-              {name ?? msg("loginTitleFallback")}
-            </Typography>
-
             <Box
               sx={{
                 display: "flex",
@@ -556,14 +499,6 @@ export const Login: React.FC<LoginProps> = ({
                 width: "100%",
               }}
             >
-              {/* lead text or default */}
-              {lead || (
-                <Typography variant="body1">
-                  {msg("loginChooseIdpPrefix")}
-                  <a href="https://solidproject.org/">{msg("loginSolidApp")}</a>
-                </Typography>
-              )}
-
               {/* Stale-registration remedy: shown only after a silent restore
                   failed (the IdP's "Unknown client" error). Echoes the IdP's
                   literal message so the cause is visible. */}
@@ -733,14 +668,8 @@ export const Login: React.FC<LoginProps> = ({
               )}
             </Box>
           </Box>
-        </Card>
-
-        {footer && (
-          <Box sx={{ mt: 3, textAlign: "center" }}>
-            {footer}
-          </Box>
-        )}
-      </Box>
+        }
+      />
     );
   }
 

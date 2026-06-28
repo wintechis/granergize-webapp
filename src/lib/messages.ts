@@ -25,6 +25,7 @@ import { shellAuth } from "./messages/shellAuth.ts";
 import { detailRooms } from "./messages/detailRooms.ts";
 import { dialogsShare } from "./messages/dialogsShare.ts";
 import { notifications } from "./messages/notifications.ts";
+import { landing } from "./messages/landing.ts";
 
 /** Named interpolation params; `count` additionally drives plural selection. */
 export type MessageParams = Record<string, string | number>;
@@ -44,6 +45,7 @@ export const MESSAGES = {
   ...detailRooms,
   ...dialogsShare,
   ...notifications,
+  ...landing,
 } satisfies Record<string, Message>;
 
 export type MessageId = keyof typeof MESSAGES;

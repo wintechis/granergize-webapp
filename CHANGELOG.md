@@ -3,6 +3,17 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-28]
+- **Public landing page (de/en/fr) as the logged-out view.** A marketing landing page
+  (`src/pages/Landing.tsx`) now greets logged-out visitors — hero with a live `MetricBarChart`
+  preview, value cards, persona use cases, a data-sovereignty band, get-started steps, and a
+  funded-by footer. Fully i18n'd via a new `messages/landing.ts` catalog slice and rendered in the
+  browser's negotiated locale (`navigator.languages` → de/en/fr; no selector). The real OIDC login
+  chooser is embedded in a one-click dialog reachable from the sticky header (signing in never needs
+  a scroll), and the chooser itself was leaned to a focused form: provider buttons + an "Identity
+  provider URI" field + the stale-client remedy, dropping the old full-screen card's logo, app-name
+  title, and marketing lead (and the now-dead `name`/`logo`/`lead`/`footer` `Login` props). Landing
+  reuses the app theme + favicon; copy de-duplicated (the data-sovereignty message no longer repeats
+  across six sections). check/lint/build green.
 - **Region → the authoritative LAU/NUTS `skos:Concept`; the AGS is resolved by dereferencing it.**
   A building's `dcterms:spatial` now references the LAU/NUTS concept IRI (the authority,
   `lauConceptUrl` → `…/lau/DE_<ags>#it`) instead of the regionalstatistik cube-dimension IRI; the
