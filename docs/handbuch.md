@@ -632,6 +632,95 @@ von Wetterdaten ist Gegenstand der Weiterentwicklung.
 > - **cons** (`https://solid.ti.rw.fau.de/gra/consumption.ttl#`) – Verbrauch,
 >   Aggregationen, Benchmarks
 
+### Wer mit einem Gebäude verbunden ist: Agenten
+
+Rund um jedes Gebäude stehen **Agenten** – Personen oder Organisationen, die in der
+Anwendung über ihre **WebID** (eine weltweit eindeutige Web-Adresse, vgl. den Abschnitt
+„Solid Pod einrichten") eindeutig benannt sind. Ein Gebäude verweist auf solche Agenten
+in klar benannten **Beziehungen**, nicht als freien Text: **Eigentümer**, **Betreiber**
+(maßgeblich für Benchmarks), **Investor**, **Facility-Management**, **Projektentwickler**
+und **Berater**. Der Betreiber eines Gebäudes ist damit ein Verweis auf dessen WebID –
+und nicht bloß ein Name, der sich nirgendwo wiederfindet.
+
+Daneben hält jedes Gebäude fest, **wer seine Daten erstellt hat** (die Datenherkunft).
+Diese Angabe erscheint als Zeile **„Data source"** und – sofern hinterlegt – mit **Name
+und Logo der Organisation** in der Sprechblase des Kartenmarkers. So ist auf einen Blick
+erkennbar, aus welcher Quelle ein Gebäude stammt, gerade wenn Sie Daten mehrerer Partner
+nebeneinander betrachten.
+
+Ihre eigenen Kontakte verwalten Sie im Reiter **Agents**: ein Adressbuch aus Personen und
+Organisationen mit Name, Art (Person/Organisation) und Logo. Agenten, die in Ihren
+Gebäuden auftauchen, Sie aber noch nicht gespeichert haben, listet die App gesondert als
+**referenzierte** Agenten – Sie können sie mit einem Klick ins Adressbuch übernehmen. Auch
+beim **Teilen** eines Gebäudes ist der Empfänger ein Agent: Sie geben dessen WebID an. Und
+**Ihre eigene Organisation** (Name und Logo, siehe Abschnitt „Ihre Organisation festlegen")
+hinterlegen Sie einmalig in Ihrem Profil; sie erscheint dann in der Kopfzeile und an den
+Gebäuden, deren Daten Sie erstellen.
+
+Wichtig: Eine Beziehung wie **„Eigentümer"** ist eine Verbindung **zwischen Gebäude und
+Agent** – keine feste Eigenschaft des Agenten. Dieselbe Organisation kann bei einem
+Gebäude Eigentümer und bei einem anderen nur Betreiber sein. Eine **Rolle**, die einer
+Person dauerhaft anhaftet, gibt es in der App nur an einer Stelle: als **Mitgliedschaft in
+einem Datenraum** (siehe Abschnitt „Rollenbasierte Freigaben").
+
+> **Technische Details (für Administratoren)**
+>
+> Die Beteiligten-Beziehungen sind Objekt-Eigenschaften mit einer WebID als Ziel:
+> `rec:ownedBy`, `rec:operatedBy` (Betreiber), `bldg:investor`, `bldg:facilityManagedBy`,
+> `bldg:developedBy`, `bldg:consultedBy`. Die Datenherkunft ist eine PROV-O-Attribution
+> (`prov:qualifiedAttribution → prov:Attribution → prov:agent <webid>`), die der Parser als
+> `Building.attributedTo` liest; ein früher genutztes `prov:hadRole` wird ignoriert. Das
+> Adressbuch ist eine `vcard:AddressBook`-Datei (`agents.ttl`) mit `vcard:hasMember`; die
+> eigene Organisation ist ein `foaf:Organization`-Knoten im WebID-Profil (`foaf:name`,
+> `foaf:logo`, `foaf:homepage`, `owl:sameAs`) – ohne `org:role`.
+
+### Welche Energiezahlen die App kennt
+
+Die Anwendung unterscheidet zwei grundverschiedene Arten von Zahlen zu einem Gebäude:
+**Stammdaten**, die das Gebäude beschreiben, und **Verbrauchsdaten**, die seinen
+Energieeinsatz messen.
+
+Die **Stammdaten** umfassen unter anderem:
+
+- **Lage und Adresse:** Straße, Postleitzahl, Ort, Region sowie geografische Koordinaten
+  für die Karte.
+- **Flächen und Maße:** Gebäudefläche, Grundstücksfläche, Bürofläche, Hallenfläche,
+  Sozialflächen und Gebäudehöhe.
+- **Bau und Zustand:** Baujahr und Sanierungsjahr.
+- **Nutzung:** Nutzungsart, Logistikfunktion, Art der Klimatisierung, Schichtbetrieb,
+  Miet- bzw. Pachtform, Anzahl der Ladetore und die Branche des Mieters.
+- **Technische Anlagen:** vorhandene Photovoltaik-, Batteriespeicher- oder
+  Blockheizkraftwerks-Anlagen werden als eigene technische Systeme mit eigenen Kennzahlen
+  (etwa der installierten Leistung) hinterlegt.
+- **Kennungen und Beteiligte:** interner Gebäudecode, NACE-Wirtschaftszweig sowie die im
+  vorigen Abschnitt beschriebenen Agenten (Eigentümer, Betreiber …).
+
+Die **Verbrauchsdaten** werden je **Jahr** geführt (siehe Abschnitt „Energiedaten erfassen
+und aktualisieren"). Pro Jahr erfasst die App die folgenden Größen:
+
+- **Stromverbrauch** (kWh)
+- **Wärmeverbrauch** (kWh)
+- **Wasserverbrauch** (m³)
+- **Abwasser** (m³)
+- **Erneuerbarer Eigenanteil** – der selbst erzeugte, erneuerbare Anteil am Strom (%)
+- **Stromerzeugung** – etwa aus einer eigenen PV-Anlage (kWh)
+
+Jedes Jahr lässt sich zudem in zwei **Szenarien** ablegen: als **Ist-Wert** (tatsächlich
+gemessen) und als **Soll-Wert** (geplant). Damit lassen sich Plan und Verbrauch unmittelbar
+nebeneinanderstellen. Energiedaten können entweder als **Jahressumme** vorliegen oder – bei
+feiner Auflösung – als **Zeitreihe** (etwa Viertelstundenwerte); Zeitreihen lädt die App
+erst bei Bedarf nach, da sie sehr umfangreich werden können.
+
+> **Technische Details (für Administratoren)**
+>
+> Verbrauchswerte sind SOSA-Beobachtungen (`sosa:Observation`) mit `sosa:observedProperty`
+> aus der `cons`-Ontologie: `cons:ElectricityConsumption`, `cons:HeatConsumption`,
+> `cons:WaterConsumption`, `cons:WastewaterConsumption`, `cons:RenewableSelfGeneratedShare`
+> und `cons:ElectricityGeneration`. Sie sind je Jahr in einem `cons:EnergyDataset`
+> gebündelt; `cons:granularity` (`P1Y` für Jahreswerte, `PT15M` für Viertelstunden) steuert
+> das Nachladen, `cons:scenario` (`cons:Actual` / `cons:Planned`) das Soll-Ist-Szenario.
+> Einheiten werden über QUDT bezeichnet (`unit:KiloW-HR`, `unit:M3`, `unit:PERCENT`).
+
 ## Gebäude hinzufügen
 
 Im Tab **Manage** bündelt eine Aktionsleiste über der Liste „Your buildings"
@@ -822,6 +911,61 @@ eine Fläche vorliegen. Sie vergleichen damit eigene und fremde Objekte im selbe
 Wettbewerbsumfeld.
 
 ![Tab „Explore": die Karte mit aktiver Energie-Linse – die Marker sind nach Energieintensität eingefärbt, die Legende zeigt die Kategorien](figures/energy-lens.png){width=100%}
+
+## Regionale Statistiken als Vergleichsmaßstab
+
+Neben dem Vergleich mit den eigenen und den geteilten Gebäuden (Energie-Linse, Benchmarks)
+zieht die Granergize-App auch **amtliche Statistik** als regionalen Bezugsrahmen heran. So
+lässt sich ein einzelnes Gebäude nicht nur gegen andere Objekte, sondern gegen die
+**Kennzahlen seiner Region** einordnen – etwa: Wie hoch ist der Anteil erneuerbaren Stroms
+im Bundesland? Wie viele Mehrfamilienhäuser im Landkreis entstehen mit Wärmepumpe?
+
+Diese Zahlen stammen aus **offenen Daten der amtlichen Statistik** – konkret aus dem
+gemeinsamen Angebot der Statistischen Ämter des Bundes und der Länder
+(„Regionalstatistik"/GENESIS, u. a. Bayerisches Landesamt für Statistik und Statistisches
+Bundesamt). Sie sind öffentlich zugänglich: Für ihre Anzeige ist **kein Solid Pod und keine
+Anmeldung** erforderlich, und es werden **keine Daten Ihres Gebäudes übertragen**.
+
+Damit die richtigen Zahlen erscheinen, ordnet die App jedes Gebäude über **amtliche
+Regionalschlüssel** seiner Verwaltungsregion zu. In Deutschland ist das der **AGS**
+(Amtlicher Gemeindeschlüssel), der hierarchisch das Bundesland (2-stellig), den Kreis
+(5-stellig) und die Gemeinde (8-stellig) bezeichnet; auf europäischer Ebene entsprechen dem
+die **LAU**-Codes (Gemeinden) und **NUTS**-Codes (Kreise und Länder). Die App leitet diese
+Zuordnung aus dem Standort des Gebäudes ab – Sie müssen den Schlüssel nicht selbst
+eintragen.
+
+Je nach Region stehen unter anderem folgende Kennzahlen bereit:
+
+- **Anteil erneuerbaren Stroms** (je Bundesland)
+- **Primärenergieverbrauch** (je Bundesland)
+- **Fernwärme aus Kraft-Wärme-Kopplung** (je Bundesland)
+- **Treibhausgas-Emissionen je Einwohner** (je Bundesland)
+- **Einsatz erneuerbarer Energien in der Industrie** (je Kreis)
+- **Baugenehmigungen und Fertigstellungen von Mehrfamilienhäusern mit Wärmepumpe** (je Kreis)
+
+Auf der **Detailseite eines Gebäudes** finden Sie diese Werte im Abschnitt zur regionalen
+Statistik in zwei Ansichten, die Sie über einen Umschalter wechseln: als **Tabelle**
+(Kennzahl mit Jahreswerten und Quellenangabe) und als **Karte** – eine eingefärbte
+Regionenkarte (Choropleth), auf der alle Regionen nach dem Wert der gewählten Kennzahl
+schattiert sind und das eigene Gebäude markiert ist. Beim Hineinzoomen wechselt die Karte
+von der Bundesland- zur Kreisebene. Ein Hinweis unter der Tabelle stellt klar, dass es sich
+um Werte **für die Region** handelt, nicht um Messwerte des konkreten Gebäudes – die
+regionale Statistik liefert den **Hintergrund**, vor dem Ihre eigenen Verbrauchszahlen
+stehen. Dieselben Datensätze lassen sich auch unabhängig von einem Gebäude über die
+Aggregations-Übersicht öffnen.
+
+![Detailseite eines Gebäudes: regionale Statistik als Vergleichsmaßstab – die Kennzahlen der Region neben den eigenen Werten, wahlweise als Tabelle oder als eingefärbte Regionenkarte](figures/regional-context.png){width=100%}
+
+> **Technische Details (für Administratoren)**
+>
+> Die Statistiken werden zur Laufzeit von Linked-Data-Diensten abgerufen, die die amtlichen
+> Daten als RDF Data Cube (`qb:DataSet` mit `qb:Observation` je Region und Jahr)
+> bereitstellen: die **Regionalstatistik** (`VITE_REGIONALSTATISTIK_API_URI`) für die
+> Kennzahlen sowie **linked-nuts** und **linked-lau** für die Regionsgeometrien (GeoJSON je
+> Ebene). Ein Gebäude verweist über `dcterms:spatial` auf den `skos:Concept` seiner Region
+> (LAU/NUTS); der bare AGS wird bei Bedarf durch Dereferenzieren dieses Konzepts
+> (`dcterms:identifier`) aufgelöst. Es findet **kein** SPARQL gegen die Dienste statt – die
+> App dereferenziert nur die jeweils benötigten Ressourcen.
 
 # Daten gemeinsam nutzen und Mehrwerte schaffen
 
@@ -1194,6 +1338,91 @@ Benchmark-Berechnungen aus.
 > Energie-Ansicht der Empfänger ihn von gewöhnlichen geteilten Ansichten
 > unterscheiden und als Vergleichswert bevorzugen kann (Reihenfolge: externer
 > Benchmark vor Betreiber-Durchschnitt vor Portfolio-Durchschnitt).
+
+# Aktionen und Abfragen über die Befehlspalette
+
+Jede Aktion in der Granergize-App – ein Gebäude anlegen, ein Energiejahr erfassen, ein
+Gebäude teilen, eine Aggregation berechnen – lässt sich nicht nur über die jeweilige
+Schaltfläche auslösen, sondern auch zentral über die **Befehlspalette**. Sie ist ein
+einzelnes Suchfeld, das Sie jederzeit mit **Cmd+K** (macOS) bzw. **Strg+K** (Windows/Linux)
+oder über die Schaltfläche in der Kopfzeile öffnen. Darüber erreichen Sie dieselben
+Funktionen schneller – und können Ihren Gebäudebestand gezielt **durchsuchen**.
+
+## Was ein „Intent" ist
+
+Hinter jeder Aktion steht ein benannter **Intent** (eine „Absicht"). Die App kennt rund
+vier Dutzend davon, gruppiert nach dem Gegenstand, auf den sie sich beziehen – Gebäude,
+Energiedaten, Anhänge, Aggregationen, Freigaben, Datenräume, Agenten und Kontodaten. Ein
+Intent ist entweder
+
+- eine **Aktion**, die etwas verändert (etwa *Gebäude anlegen*, *Gebäude teilen*,
+  *Energiejahr speichern*),
+- eine **Abfrage**, die etwas nachschlägt, ohne etwas zu ändern (etwa *Gebäude finden*,
+  *Wer hat Zugriff*), oder
+- ein **Sprung** zu einer Ansicht.
+
+Entscheidend ist: Es ist **dieselbe** benannte Aktion, ob Sie sie über eine Schaltfläche,
+über die Befehlspalette oder über eine Abfrage auslösen – so verhält sich die App überall
+gleich.
+
+## Die Befehlspalette nutzen
+
+Nach dem Öffnen tippen Sie in das Feld, um die Liste der Befehle zu filtern. Die Palette
+zeigt **kontextbezogen** nur die Aktionen, die zum gerade betrachteten Gegenstand passen –
+zu einem eigenen Gebäude etwa *Bearbeiten*, *Teilen* oder *Löschen*, zu einem geteilten
+Gebäude hingegen nur die sinnvollen Verben. Mit den **Pfeiltasten** wählen Sie einen
+Eintrag, mit **Enter** lösen Sie ihn aus. Benötigt eine Aktion noch Angaben (etwa die
+Empfänger einer Freigabe), öffnet die Palette ein passendes **Formular** oder führt Sie zum
+zugehörigen Dialog.
+
+![Die Befehlspalette (Cmd+K/Strg+K): ein Suchfeld mit den zum aktuellen Gegenstand passenden Aktionen und Abfragen](figures/command-palette.png){width=100%}
+
+## Gebäude gezielt finden: das Abfragemodell
+
+Die Abfrage *Gebäude finden* filtert Ihren sichtbaren Bestand (eigene und geteilte Gebäude)
+anhand der **Stammdaten**. Eine Abfrage besteht aus einer oder mehreren **Bedingungen**,
+die jeweils ein **Feld**, einen **Vergleich** und einen **Wert** verbinden; mehrere
+Bedingungen werden **logisch UND-verknüpft** (alle müssen zutreffen).
+
+Filtern können Sie nach Feldern wie **Hallenfläche**, **Gebäudefläche**, **Baujahr**,
+**Ort**, **Postleitzahl**, **Region**, **Nutzungsart**, **Mieterbranche** oder
+**Eigentümer/Betreiber**. Als Vergleiche stehen je nach Feldart zur Verfügung: bei Zahlen
+**größer/kleiner/gleich**, bei Texten **gleich**, **enthält** oder **einer aus** einer
+Liste, dazu **vorhanden** bzw. **fehlt** für die An- oder Abwesenheit eines Werts. So findet
+etwa „Hallenfläche größer 5000 **und** Ort gleich Fürth" alle großen Hallen in Fürth. (Die
+Filter beziehen sich auf die Stammdaten; nach Verbrauchswerten wird nicht unmittelbar
+gefiltert.)
+
+## Abfragen in natürlicher Sprache
+
+Sie müssen Bedingungen nicht von Hand zusammenstellen. Beginnen Sie eine Eingabe in der
+Palette mit **„>"**, formulieren Sie Ihr Anliegen in **normaler Sprache** – etwa
+*„Bürogebäude in Bayern, gebaut vor 2000"* –, und die App übersetzt es in den passenden
+Intent samt Filter. Das Ergebnis erscheint zunächst als **bearbeitbarer Vorschlag**, den Sie
+vor dem Ausführen prüfen (und bei Bedarf korrigieren) können. Wer die genaue Form kennt, kann
+mit **„{"** auch direkt einen Intent als JSON einfügen und starten.
+
+> **Technische Details (für Administratoren)**
+>
+> Eine Abfrage ist ein `Selector` der Form `{"and":[{"field","op","value"}, …]}` – eine
+> UND-Konjunktion von Bedingungen (kein ODER; Negation über `ne`/`lacks`). Die Felder sind
+> die Gebäude-Stammdatenfelder (`buildingConfig.ts`); die Operatoren `eq`, `ne`, `lt`, `le`,
+> `gt`, `ge`, `contains`, `in`, `has`, `lacks` gelten je nach Feldart (numerisch/Text). Die
+> Natürlichsprach-Eingabe wird von einem Sprachmodell (konfigurierbar über
+> `VITE_LLM_API_URI`/`VITE_LLM_MODEL`) in ein `{"name","params"}`-JSON übersetzt und stets
+> **dem Nutzer zur Bestätigung** angezeigt, bevor es ausgeführt wird.
+
+## Wie Alice, Bob und Charlie die Palette nutzen
+
+- **Alice** legt mit **Cmd+K → *Gebäude anlegen*** eine neue Halle an, erfasst über
+  ***Energiejahr speichern*** den Verbrauch und gibt das Gebäude per ***Gebäude teilen*** an
+  Bob frei – alles aus dem Suchfeld heraus.
+- **Bob** sucht mit **„> Bürogebäude in Bayern vor 2000"** die passenden Objekte, fasst die
+  Treffer über ***Aggregation erstellen*** zu einer Auswertung zusammen und teilt deren
+  Momentaufnahme.
+- **Charlie** richtet über ***Datenraum erstellen*** eine Arbeitsgruppe ein, pflegt mit
+  ***Organisation speichern*** Name und Logo seines Benchmark-Dienstes und sichert seinen
+  Bestand über den Archiv-Export.
 
 # Was steckt hinter Granergize
 

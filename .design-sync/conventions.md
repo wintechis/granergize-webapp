@@ -35,6 +35,22 @@ The brand tokens are CSS custom properties in `styles.css` (`:root`), e.g. `--mu
 - Error `#c62828` · Warning `#e65100` · Success `#2e7d32`
 - Background `#f5f7fa` · Paper (cards) `#ffffff`
 
+## Feature colour tokens (the `--gr-*` family)
+
+For the app's data-visualisation surfaces, `styles.css` (`:root`) also defines a `--gr-*` family beyond the MUI palette — reference these (never re-pick) so a design's map, lens and chart colours match the app:
+- **Map markers** — `--gr-marker-owned` (blue), `--gr-marker-shared` (orange), `--gr-marker-open` (green), `--gr-marker-no-data` (grey).
+- **Energy lens** (efficiency tier) — `--gr-energy-below` (efficient/green), `--gr-energy-typical` (amber), `--gr-energy-above` (inefficient/red).
+- **Regional-statistics choropleth** (magnitude, low→high) — `--gr-magnitude-low` / `-mid` / `-high` (single-hue blue; carries no good/bad meaning).
+- **Trend lens** — `--gr-trend-improving` (blue) / `-flat` (grey) / `-worsening` (orange).
+- **Per-metric chart series** — `--gr-metric-{electricity,heat,water,wastewater,renewable,generation,planned}`.
+
+## App surfaces to design for
+
+Recently documented in the user handbook; design for these using the tokens above:
+- **Map + energy lens** — buildings on a Leaflet map, markers tinted efficient→inefficient.
+- **Regional statistics** — official open-data benchmarks for a building's region (German AGS / EU LAU codes), shown as a table and a magnitude choropleth beside the building's own figures.
+- **Command palette** — a ⌘K/Ctrl+K launcher for every action and for natural-language building queries: a search field over a grouped command list, plus a schema-driven parameter form.
+
 ## Components (see each `.prompt.md` + `.d.ts`)
 - **GranergizeThemeProvider** — the theme wrapper (above).
 - **TierDot** — `tier="mine" | "shared" | "open"`: a colour-coded source dot (owned blue / shared orange / open green), shown beside a finder item.
