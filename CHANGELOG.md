@@ -3,6 +3,21 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-28]
+- **Energy hooks recomposed as per-building `useQueries` selectors (ldp-query-layer).** `useEnergy`
+  and `useAnnualEnergyByYear` were monolithic folds keyed by a whole-set fingerprint (`energyKeyFor`)
+  whose cached value baked the screen shapes (`energyNeed[]` + portfolio/operator averages; the
+  per-year cube). Each is now a **`useQueries` fan-out** — one query per building
+  (`["buildingEnergy", …]` / `["buildingEnergyByYear", …]`) resolving that building's energy, with a
+  `combine` selector deriving the screen shapes in memory (*derive-at-edge*). The per-building
+  resolution + averages math live in `services/energy/buildingEnergy.ts` (`resolveBuildingEnergy`,
+  `resolveBuildingEnergyByYear`, `computeEnergyAverages`); `loadEnergy` (headless `fetchAndParseData`)
+  reuses them so the app and headless folds can't drift. One building's energy edit now refetches only
+  that building's query (mostly served warm from the per-dataset cache) instead of recomputing the whole
+  fold. The cube's `combine` is `useCallback`-stable so its `data` Map stays identity-stable in consumer
+  `useMemo` deps. `queryKeys.energy`/`annualEnergyByYear` → `buildingEnergy`/`buildingEnergyByYear`
+  (invalidated by `invalidateBuildingData`; the by-year cube wasn't invalidated before, so a content-only
+  energy edit could leave it stale — now fixed). `energyKeyFor` remains only for
+  `useBuildinglessObservations` + the single-building detail hooks. check + lint green, unit 1089.
 - **Energy datasets are a shared per-resource query — every annual read goes through it once
   (ldp-query-layer).** Introduced the first IRI-keyed resource query: each `cons:EnergyDataset` is
   cached by its node IRI (`["energyDataset", webId, uri]`) holding the canonical `EnergyDataset`.

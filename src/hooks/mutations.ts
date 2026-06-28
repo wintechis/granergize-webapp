@@ -49,6 +49,7 @@ function invalidateBuildingData(qc: QueryClient): void {
   // energyDatasets never appears in the finder. Refetch it now so any later mount is fresh.
   qc.invalidateQueries({ queryKey: queryKeys.buildings, refetchType: "all" });
   qc.invalidateQueries({ queryKey: queryKeys.buildingEnergy });
+  qc.invalidateQueries({ queryKey: queryKeys.buildingEnergyByYear });
   // The per-dataset resource cache (staleTime: Infinity) is refreshed by a write,
   // not by time — so a building/energy mutation must drop its entries here.
   qc.invalidateQueries({ queryKey: queryKeys.energyDataset });

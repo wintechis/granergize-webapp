@@ -1,5 +1,5 @@
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { getGateway, getSession } from "./session.ts";
 import {
@@ -11,6 +11,7 @@ import {
   buildingEnergyKeyFor,
   computeEnergyAverages,
   resolveBuildingEnergy,
+  resolveBuildingEnergyByYear,
 } from "../services/energy/buildingEnergy.ts";
 import { podResources, resolveStorageRoot } from "../services/pod/solidUtils.ts";
 import { listDirectChildren } from "../services/pod/podDelete.ts";
@@ -257,9 +258,9 @@ export function useBuildings() {
  * once right after a write (see `notes/query-key-coverage.md`). Folding the link
  * fingerprint in makes the refetch fall out of the data, not out of each mutation
  * remembering to invalidate. (It also still AUTO-refetches when the building set
- * changes — e.g. the demo seed adding buildings.) The remaining whole-set folds
- * (`useAnnualEnergyByYear`, `useBuildinglessObservations`) still key on it; `useEnergy`
- * itself now fans out per-building (`buildingEnergyKeyFor`). */
+ * changes — e.g. the demo seed adding buildings.) `useBuildinglessObservations` still
+ * keys on it; `useEnergy` and `useAnnualEnergyByYear` now fan out per-building
+ * (`buildingEnergyKeyFor`). */
 /**
  * The energy query's content fingerprint: each building's id PLUS its
  * `cons:hasEnergyDataset` links (year/granularity/scenario), so the key changes
@@ -629,51 +630,47 @@ export function useBuildinglessObservations(
 /**
  * Every reachable annual energy figure across the building set, keyed by building
  * id and the year it covers — the per-year cube the map's interactive time-cut
- * slider (`plans/plan-cube-ui.md` §1) re-colours over. `useEnergy`/`loadEnergy`
- * keep only each building's LATEST year (enough to paint the static map); the
- * slider scrubs the whole range, so it loads ALL actual annual datasets. Keyed on
- * the same dataset-link fingerprint (`energyKeyFor`) so adding/removing a year
- * refetches from the data, not a remembered invalidation; `enabled` gates it to
- * the energy lens so the extra GETs only happen when the lens (and thus the
- * slider) is in use. The per-year figure is the `energyNeed` section, built the
- * same way `loadEnergy` builds the latest one.
+ * slider (`plans/plan-cube-ui.md` §1) re-colours over. `useEnergy` keeps only each
+ * building's LATEST year (enough to paint the static map); the slider scrubs the whole
+ * range, so this loads ALL actual annual datasets. Like `useEnergy`, it's a `useQueries`
+ * fan-out (one query per building, `["buildingEnergyByYear", …]`) combined into the cube,
+ * so the whole-set `energyKeyFor` is retired here too; `enabled` gates it to the energy
+ * lens so the extra GETs only happen when the lens (and thus the slider) is in use. The
+ * returned `{ data, isFetching, isLoading, error }` mirrors the query-result shape its
+ * consumers read.
  */
 export function useAnnualEnergyByYear(
   buildings: Building[] | undefined,
   enabled = true,
 ) {
-  return useWebIdQuery(
-    queryKeys.annualEnergyByYear,
-    async (): Promise<EnergyByBuildingYear> => {
-      const out: EnergyByBuildingYear = new Map();
-      const gateway = getGateway();
-      await Promise.all((buildings ?? []).map(async (building) => {
-        const refs = (building.energyDatasets ?? []).filter(
-          (r) =>
-            r.scenario === "actual" && !isSeriesGranularity(r.granularity) &&
-            !r.featureOfInterest, // building-level only (per-unit series excluded)
-        );
-        if (refs.length === 0) return;
-        const datasets = await loadEnergyDatasetsShared(refs, gateway);
-        const byYear: EnergyByYear = new Map();
-        for (const ds of datasets) {
-          if (!ds.metrics) continue;
-          // Keep the full per-metric figures (consumption AND generation) so a cube
-          // view can read the SELECTED metric off the year — the metric is a
-          // selectable measure axis, not a fixed consumption sum (plan-cube-ui §
-          // "Metric / observed-property selection"). A later year wins on a clash.
-          if (Object.keys(ds.metrics).length === 0) continue;
-          byYear.set(ds.year, { ...ds.metrics });
-        }
-        if (byYear.size > 0) out.set(building.id, byYear);
-      }));
-      return out;
+  const webId = webIdOf();
+  // Stable so useQueries memoises the combined value — its consumers put `data`
+  // (the cube Map) in `useMemo`/`useEffect` deps, which would churn every render
+  // if the combined result got a fresh identity.
+  const combine = useCallback(
+    (results: { data?: EnergyByYear; isFetching: boolean; isLoading: boolean; error: Error | null }[]) => {
+      const data: EnergyByBuildingYear = new Map();
+      (buildings ?? []).forEach((b, i) => {
+        const byYear = results[i]?.data;
+        if (byYear && byYear.size > 0) data.set(b.id, byYear);
+      });
+      return {
+        data,
+        isFetching: results.some((r) => r.isFetching),
+        isLoading: results.some((r) => r.isLoading),
+        error: results.find((r) => r.error)?.error ?? null,
+      };
     },
-    {
-      extraKey: [energyKeyFor(buildings)],
-      enabled: Boolean(buildings) && enabled,
-    },
+    [buildings],
   );
+  return useQueries({
+    queries: (buildings ?? []).map((b) => ({
+      queryKey: [...queryKeys.buildingEnergyByYear, webId, b.uri, buildingEnergyKeyFor(b)],
+      queryFn: () => resolveBuildingEnergyByYear(b, getGateway()),
+      enabled: Boolean(webId) && enabled,
+    })),
+    combine,
+  });
 }
 
 /**
@@ -836,8 +833,9 @@ export const queryKeys = {
   annualEnergy: ["annualEnergy"] as const,
   /** One building's raw annual datasets (energy-year dialog), keyed by id + fingerprint. */
   annualDatasets: ["annualDatasets"] as const,
-  /** Every reachable annual figure across the set, keyed by set fingerprint (the time-cut slider). */
-  annualEnergyByYear: ["annualEnergyByYear"] as const,
+  /** One building's per-year annual cube (`["buildingEnergyByYear", webId, uri, fingerprint]`)
+   * — the `useAnnualEnergyByYear` useQueries fan-out behind the time-cut slider. */
+  buildingEnergyByYear: ["buildingEnergyByYear"] as const,
   /** The user's building-less (unbound) observations, keyed by the building-link fingerprint. */
   buildinglessObservations: ["buildinglessObservations"] as const,
   /** The fresh-Pod demo-buildings offer (own container empty + not declined). */

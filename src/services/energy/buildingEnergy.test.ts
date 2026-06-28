@@ -12,6 +12,7 @@ import {
   buildingEnergyKeyFor,
   computeEnergyAverages,
   resolveBuildingEnergy,
+  resolveBuildingEnergyByYear,
 } from "./buildingEnergy.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
@@ -95,6 +96,30 @@ Deno.test("resolveBuildingEnergy returns null when no dataset is readable", asyn
     gatewayServing({}),
   );
   assert.equal(energy, null);
+});
+
+Deno.test("resolveBuildingEnergyByYear maps EVERY readable annual year", async () => {
+  _setAppQueryClient(null);
+  const gateway = gatewayServing({
+    [datasetFileUri(ROOT, 2023, "a")]: datasetTtl(2023, 100),
+    [datasetFileUri(ROOT, 2024, "b")]: datasetTtl(2024, 200),
+  });
+  const byYear = await resolveBuildingEnergyByYear(
+    buildingWith([{ year: 2023, id: "a" }, { year: 2024, id: "b" }]),
+    gateway,
+  );
+  assert.equal(byYear.size, 2);
+  assert.equal(byYear.get(2023)?.electricityConsumption, 100);
+  assert.equal(byYear.get(2024)?.electricityConsumption, 200);
+});
+
+Deno.test("resolveBuildingEnergyByYear: no readable datasets → empty map", async () => {
+  _setAppQueryClient(null);
+  const byYear = await resolveBuildingEnergyByYear(
+    buildingWith([{ year: 2024, id: "b" }]),
+    gatewayServing({}),
+  );
+  assert.equal(byYear.size, 0);
 });
 
 function energyOf(electricity: number): Energy {

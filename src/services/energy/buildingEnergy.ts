@@ -2,7 +2,11 @@ import type { Building, Energy } from "../../types.ts";
 import type { PodGateway } from "../pod/podGateway.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { CONSUMPTION_METRIC_KEYS } from "../../constants/annualMetrics.ts";
-import { fetchEnergyDatasetShared } from "./energyDatasetCache.ts";
+import {
+  fetchEnergyDatasetShared,
+  loadEnergyDatasetsShared,
+} from "./energyDatasetCache.ts";
+import type { EnergyByYear } from "./energyTimeCut.ts";
 
 /**
  * One building's energy as a per-building resource read — the unit the `useEnergy`
@@ -100,6 +104,33 @@ export async function resolveBuildingEnergy(
     }
   }
   return null;
+}
+
+/**
+ * Every reachable annual figure for one building, keyed by year — one per-building row
+ * of the map's time-cut cube (`useAnnualEnergyByYear`). Unlike {@link resolveBuildingEnergy}
+ * (latest year only) this loads ALL actual-annual datasets through the shared per-dataset
+ * cache; a later year wins on a clash. Empty map when the building has no readable annual
+ * data. Keeps the full per-metric figures (consumption AND generation) so a cube view can
+ * read the selected measure axis off the year.
+ */
+export async function resolveBuildingEnergyByYear(
+  building: Building,
+  gateway: PodGateway,
+): Promise<EnergyByYear> {
+  const byYear: EnergyByYear = new Map();
+  const refs = (building.energyDatasets ?? []).filter(
+    (r) =>
+      r.scenario === "actual" && !isSeriesGranularity(r.granularity) &&
+      !r.featureOfInterest, // building-level only (per-unit series excluded)
+  );
+  if (refs.length === 0) return byYear;
+  const datasets = await loadEnergyDatasetsShared(refs, gateway);
+  for (const ds of datasets) {
+    if (!ds.metrics || Object.keys(ds.metrics).length === 0) continue;
+    byYear.set(ds.year, { ...ds.metrics });
+  }
+  return byYear;
 }
 
 /**
