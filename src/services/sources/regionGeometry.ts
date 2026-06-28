@@ -19,6 +19,8 @@ import type { Store } from "n3";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { contains, deref, search } from "./capabilities.ts";
+import { getAppQueryClient } from "../../lib/appQueryClient.ts";
+import { sourceKeys } from "./sourceKeys.ts";
 import { DCTERMS_IDENTIFIER, SKOS_NS } from "../rdf/vocabularies.ts";
 
 /**
@@ -211,30 +213,38 @@ export function regionAgsFromConcept(store: Store): string | null {
   return null;
 }
 
-/** Per-IRI memo (region codes are immutable) so repeated resolves — across the service
- *  callers and the React-Query hook — dereference each concept at most once. */
-const regionAgsCache = new Map<string, Promise<string | null>>();
-
 /**
  * Resolve a region concept IRI (a building's `dcterms:spatial` object) to its bare AGS
  * by **dereferencing the concept and reading its `dcterms:identifier`** — the
  * authoritative literal the wrapper serves. Generalises to NUTS (whose IRI is a NUTS
  * code, not an AGS). Best-effort: `null` when unreachable or the concept has no
- * identifier. Memoised per IRI.
+ * identifier. The RAW deref — the React Query `["regionAgs", iri]` entry IS the cache
+ * (used as the `queryFn` by the map/regional hooks); non-reactive readers use
+ * {@link fetchRegionAgsShared}.
  */
-export function fetchRegionAgs(conceptIri: string): Promise<string | null> {
-  const hit = regionAgsCache.get(conceptIri);
-  if (hit) return hit;
-  const p = (async () => {
-    try {
-      const store = await deref(getSourceGateway(), conceptIri, "region-identifier");
-      return regionAgsFromConcept(store);
-    } catch {
-      return null; // best-effort: concept unreachable → no region
-    }
-  })();
-  regionAgsCache.set(conceptIri, p);
-  return p;
+export async function fetchRegionAgs(conceptIri: string): Promise<string | null> {
+  try {
+    const store = await deref(getSourceGateway(), conceptIri, "region-identifier");
+    return regionAgsFromConcept(store);
+  } catch {
+    return null; // best-effort: concept unreachable → no region
+  }
+}
+
+/**
+ * {@link fetchRegionAgs} read **once** through the warm React Query cache when the app is
+ * mounted (`ensureQueryData` on `["regionAgs", iri]` — the same entry the map's choropleth
+ * fills), else a direct deref (headless / unit). Region AGS is immutable, so `staleTime:
+ * Infinity`. For non-hook readers (the aggregation compute's region resolver).
+ */
+export function fetchRegionAgsShared(conceptIri: string): Promise<string | null> {
+  const qc = getAppQueryClient();
+  if (!qc) return fetchRegionAgs(conceptIri);
+  return qc.ensureQueryData({
+    queryKey: [...sourceKeys.regionAgs, conceptIri],
+    queryFn: () => fetchRegionAgs(conceptIri),
+    staleTime: Infinity,
+  });
 }
 
 /** A region match from a geo wrapper's `/search` (a lean SKOS concept). */

@@ -132,6 +132,19 @@ is not discovered until the inbox drain or the next login refreshes its containe
 (see [`sharing.ts` interop in `queries-mutations.md`](./queries-mutations.md) and
 [`room.md`](./room.md) for where a reader's "look" must invalidate).
 
+## The source-facing port (read-only external sources)
+
+The same cache holds a second resource family: the **read-only external sources** — the
+geo/region wrappers, regionalstatistik, weather, the area profile — reached through a
+distinct `SourceGateway` (no auth, its own CORS/retry), keyed by the source identifier
+(an IRI, an AGS, a station id). Their keys live in their own catalogue,
+`services/sources/sourceKeys.ts`, kept apart from the Pod `queryKeys` on purpose: that one
+is the *invalidation contract* (every key is invalidated by a mutation), whereas source
+entries are **never write-invalidated** — the data is immutable or slow-changing, so they
+carry a long/`Infinity` `staleTime` and refresh only by time. A non-hook reader shares a
+warm source entry the same way it shares a Pod one — through an `ensureQueryData` accessor
+(e.g. `fetchRegionAgsShared`) — so there is one cache, not a private per-service memo.
+
 ## Where the parts live
 
 The key catalogue and the hook wiring (the fan-outs and combine selectors) are in the

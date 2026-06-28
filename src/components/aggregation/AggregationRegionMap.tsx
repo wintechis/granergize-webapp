@@ -5,6 +5,7 @@
  * shared `MagnitudeChoroplethLayer` — here as a single-region highlight, not a magnitude scale.
  */
 import { useEffect, useMemo } from "react";
+import { sourceKeys } from "../../services/sources/sourceKeys.ts";
 import { Box, Stack, Typography } from "@mui/material";
 import MapIcon from "@mui/icons-material/Map";
 import { MapContainer, useMap, WMSTileLayer } from "react-leaflet";
@@ -62,7 +63,7 @@ export default function AggregationRegionMap(
     : code.slice(0, 2);
 
   const geo = useQuery({
-    queryKey: ["regionGeometry", grain, null],
+    queryKey: [...sourceKeys.regionGeometry, grain, null],
     queryFn: () => fetchRegionGeometry(grain),
     staleTime: DAY,
     // Best-effort decorative overlay: a wrapper outage drops the choropleth, never toasts.

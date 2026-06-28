@@ -14,6 +14,7 @@
  * Reuses the shared `MagnitudeChoroplethLayer` + magnitude lens.
  */
 import { useState } from "react";
+import { sourceKeys } from "../../services/sources/sourceKeys.ts";
 import { useQuery } from "@tanstack/react-query";
 import { Box, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { MapContainer, WMSTileLayer } from "react-leaflet";
@@ -142,7 +143,7 @@ export default function AggregationsMap(
     ? REGIONAL_TABLES.find((tb) => tb.tableId === active.tableId)
     : undefined;
   const regional = useQuery({
-    queryKey: ["regionalChoropleth", regionalTable?.tableId, regionalTable],
+    queryKey: [...sourceKeys.regionalChoropleth, regionalTable?.tableId, regionalTable],
     enabled: !!regionalTable,
     staleTime: HOUR,
     queryFn: () => fetchRegionalChoropleth(regionalTable!),
@@ -150,7 +151,7 @@ export default function AggregationsMap(
   const regionalMap = regional.data ?? EMPTY_REGIONAL;
 
   const geo = useQuery({
-    queryKey: ["regionGeometry", grain, null],
+    queryKey: [...sourceKeys.regionGeometry, grain, null],
     queryFn: () => fetchRegionGeometry(grain),
     staleTime: DAY,
     // Best-effort decorative overlay: a wrapper outage drops the choropleth, never toasts.

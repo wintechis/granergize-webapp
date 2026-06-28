@@ -1,9 +1,13 @@
 /// <reference lib="deno.ns" />
+import "../../hooks/test-dom-setup.ts"; // QueryClient pulls react-query; DOM globals first
 import { strict as assert } from "node:assert";
+import { QueryClient } from "@tanstack/react-query";
 import { parseRdfText } from "../rdf/rdfHelpers.ts";
+import { _setAppQueryClient } from "../../lib/appQueryClient.ts";
 import { _setSourceGatewayForTesting } from "./sourceGateway.ts";
 import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
 import {
+  fetchRegionAgsShared,
   gemeindeAgsFromContains,
   normalizeRegionGeometry,
   parseRegionMatches,
@@ -193,5 +197,37 @@ Deno.test("searchRegions hits /search?q= and parses matches (gateway-stubbed)", 
     assert.ok(fake.calls.some((c) => c.url.includes("lau/search?q=erlangen")));
   } finally {
     _setSourceGatewayForTesting(null);
+  }
+});
+
+Deno.test("fetchRegionAgsShared: warm cache derefs once; headless falls back", async () => {
+  const CONCEPT = "https://example/lau/DE_09564000#it";
+  const TTL = `@prefix dcterms: <http://purl.org/dc/terms/> .
+<${CONCEPT}> dcterms:identifier "09564000" .`;
+  let derefs = 0;
+  const fake = makeFakeSourceGateway({
+    respond: () => {
+      derefs++;
+      return new Response(TTL, { headers: { "content-type": "text/turtle" } });
+    },
+  });
+  _setSourceGatewayForTesting(fake.gateway);
+  _setAppQueryClient(null);
+  try {
+    // Headless (no app client): direct deref.
+    assert.equal(await fetchRegionAgsShared(CONCEPT), "09564000");
+    assert.equal(derefs, 1);
+
+    // Warm cache: two reads → one deref (read-once via ensureQueryData).
+    const qc = new QueryClient();
+    _setAppQueryClient(qc);
+    derefs = 0;
+    assert.equal(await fetchRegionAgsShared(CONCEPT), "09564000");
+    await fetchRegionAgsShared(CONCEPT);
+    assert.equal(derefs, 1, "the concept is dereferenced once via the cache");
+    qc.clear();
+  } finally {
+    _setSourceGatewayForTesting(null);
+    _setAppQueryClient(null);
   }
 });

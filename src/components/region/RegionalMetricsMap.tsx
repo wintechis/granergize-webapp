@@ -15,6 +15,7 @@
  * (Energie-Atlas) — this map is the statistics half.
  */
 import { useState } from "react";
+import { sourceKeys } from "../../services/sources/sourceKeys.ts";
 import { MapContainer, Marker, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
@@ -74,7 +75,7 @@ export default function RegionalMetricsMap(
 
   // Geometry (whole German layer at this level) + the chosen table's values.
   const geo = useQuery({
-    queryKey: ["regionGeometry", grain, null],
+    queryKey: [...sourceKeys.regionGeometry, grain, null],
     queryFn: () => fetchRegionGeometry(grain),
     staleTime: DAY,
     // Best-effort decorative overlay: a wrapper outage drops the choropleth, never toasts.
@@ -82,7 +83,7 @@ export default function RegionalMetricsMap(
   });
   const fc = geo.data;
   const values = useQuery({
-    queryKey: ["regionalChoropleth", table.tableId, table],
+    queryKey: [...sourceKeys.regionalChoropleth, table.tableId, table],
     queryFn: () => fetchRegionalChoropleth(table),
     staleTime: HOUR,
   });

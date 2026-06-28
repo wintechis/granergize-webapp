@@ -12,6 +12,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { sourceKeys } from "../services/sources/sourceKeys.ts";
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -47,7 +48,7 @@ export default function RegionalDataset() {
   const { data, isFetching } = useQuery({
     // `table` is derived 1:1 from `tableId`, but the lint rule wants every value
     // the queryFn closes over represented in the key.
-    queryKey: ["regionalDataset", tableId, ags, table],
+    queryKey: [...sourceKeys.regionalDataset, tableId, ags, table],
     enabled: Boolean(table) && Boolean(ags),
     staleTime: 1000 * 60 * 60,
     queryFn: () => fetchRegionalObservations(table!, ags),

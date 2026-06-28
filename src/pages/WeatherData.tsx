@@ -1,4 +1,5 @@
 import { msg, type MessageId } from "../lib/messages.ts";
+import { sourceKeys } from "../services/sources/sourceKeys.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -65,7 +66,7 @@ function useWeatherStations(building: Building, parameter: string) {
   const lat = building?.lat;
   const long = building?.long;
   return useQuery({
-    queryKey: ["weatherStations", lat, long, parameter],
+    queryKey: [...sourceKeys.weatherStations, lat, long, parameter],
     enabled: Boolean(lat) && Boolean(long),
     queryFn: () =>
       fetchNearestStations(lat as number, long as number, 5, parameter),
@@ -75,7 +76,7 @@ function useWeatherStations(building: Building, parameter: string) {
 /** Recent values for one station + parameter; disabled until a station is picked. */
 function useWeatherValues(station: string | null, parameter: string) {
   return useQuery({
-    queryKey: ["weatherValues", station, parameter],
+    queryKey: [...sourceKeys.weatherValues, station, parameter],
     enabled: Boolean(station),
     queryFn: () => fetchStationValues(station as string, parameter),
   });

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { sourceKeys } from "../services/sources/sourceKeys.ts";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchNearestStations,
@@ -62,7 +63,7 @@ function useNearestStation(building: Building) {
   const lat = building?.lat;
   const long = building?.long;
   return useQuery({
-    queryKey: ["overlayWeatherStation", lat, long],
+    queryKey: [...sourceKeys.overlayWeatherStation, lat, long],
     enabled: Boolean(lat) && Boolean(long),
     queryFn: async () => {
       const stations = await fetchNearestStations(
@@ -79,7 +80,7 @@ function useNearestStation(building: Building) {
 /** Recent annual mean-temperature values for a station. */
 function useStationTemperatures(stationId: string | null) {
   return useQuery({
-    queryKey: ["overlayWeatherValues", stationId],
+    queryKey: [...sourceKeys.overlayWeatherValues, stationId],
     enabled: Boolean(stationId),
     queryFn: () =>
       fetchStationValues(

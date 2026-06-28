@@ -9,7 +9,10 @@ import type {
 } from "../../types.ts";
 import { getAggregationDefinition, storeComputedSnapshot } from "./aggregation.ts";
 import { commonRegion, type RegionLevel } from "./regionRollup.ts";
-import { fetchContainingGemeindeAgs, fetchRegionAgs } from "../sources/regionGeometry.ts";
+import {
+  fetchContainingGemeindeAgs,
+  fetchRegionAgsShared,
+} from "../sources/regionGeometry.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import {
   type EnergyDatasetRef,
@@ -59,7 +62,7 @@ export async function resolveSpatialExtent(
     // for a building stored without a region.
     if (b?.regionAgs) return b.regionAgs;
     if (b?.regionConceptIri) {
-      const ags = await fetchRegionAgs(b.regionConceptIri);
+      const ags = await fetchRegionAgsShared(b.regionConceptIri);
       if (ags) return ags;
     }
     if (b?.lat == null || b?.long == null) return null;

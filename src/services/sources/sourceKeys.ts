@@ -1,0 +1,34 @@
+/**
+ * React Query key prefixes for the **read-only external sources** (the source-facing
+ * port: the geo/region wrappers, regionalstatistik, weather, the LfU area profile — not
+ * the user's Pod). Kept separate from `hooks/queries.ts`' `queryKeys` on purpose: that
+ * catalogue is the *invalidation contract* for Pod state (every key is invalidated by some
+ * mutation), whereas these are **never write-invalidated** — the data is immutable or
+ * slow-changing (a region's geometry, a concept's AGS, a Bundesland's statistics), so the
+ * entries carry a long/`Infinity` `staleTime` and refresh only by time, never by a write.
+ *
+ * Each entry is keyed by the *source identifier* that follows the prefix (an IRI, an AGS,
+ * a station id, …), e.g. `[...sourceKeys.regionAgs, conceptIri]`. Living in
+ * `services/sources/` lets non-hook readers (the aggregation compute's region resolver)
+ * share the same entries via an `ensureQueryData` accessor without importing the hooks.
+ */
+export const sourceKeys = {
+  /** A LAU/NUTS concept IRI → its bare AGS (immutable). */
+  regionAgs: ["regionAgs"] as const,
+  /** Region boundary GeoJSON for a grain (± a bbox scope). */
+  regionGeometry: ["regionGeometry"] as const,
+  /** A regionalstatistik table's choropleth values, keyed by table id. */
+  regionalChoropleth: ["regionalChoropleth"] as const,
+  /** A regionalstatistik table for one AGS (the detail page). */
+  regionalDataset: ["regionalDataset"] as const,
+  /** The LfU/energy-atlas area profile for an AGS. */
+  standortEnergieprofil: ["standortEnergieprofil"] as const,
+  /** Wetterdienst stations near a point (the Weather page). */
+  weatherStations: ["weatherStations"] as const,
+  /** A station's weather values for a parameter (the Weather page). */
+  weatherValues: ["weatherValues"] as const,
+  /** The nearest station for the energy-weather overlay, keyed by coords. */
+  overlayWeatherStation: ["overlayWeatherStation"] as const,
+  /** The overlay station's annual temperature values, keyed by station id. */
+  overlayWeatherValues: ["overlayWeatherValues"] as const,
+} as const;

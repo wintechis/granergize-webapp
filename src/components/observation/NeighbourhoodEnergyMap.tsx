@@ -11,6 +11,7 @@
  * building in Bavaria — elsewhere there's no data, so the section is omitted.
  */
 import { useState } from "react";
+import { sourceKeys } from "../../services/sources/sourceKeys.ts";
 import { MapContainer, Marker, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQueries, useQuery } from "@tanstack/react-query";
@@ -61,7 +62,7 @@ export default function NeighbourhoodEnergyMap(
   );
 
   const geo = useQuery({
-    queryKey: ["regionGeometry", "gemeinde", bbox],
+    queryKey: [...sourceKeys.regionGeometry, "gemeinde", bbox],
     queryFn: () => fetchRegionGeometry("gemeinde", { bbox: bbox! }),
     enabled: Boolean(bbox),
     staleTime: DAY,
@@ -78,7 +79,7 @@ export default function NeighbourhoodEnergyMap(
     : [];
   const eaResults = useQueries({
     queries: bavAgs.map((ags) => ({
-      queryKey: ["standortEnergieprofil", ags],
+      queryKey: [...sourceKeys.standortEnergieprofil, ags],
       queryFn: () => fetchAreaProfile(ags),
       staleTime: DAY,
     })),

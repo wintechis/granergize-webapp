@@ -15,6 +15,7 @@
  * The request still shows in the global activity indicator (via `trackedFetch`).
  */
 import { useQuery } from "@tanstack/react-query";
+import { sourceKeys } from "../services/sources/sourceKeys.ts";
 import type { Building } from "../types.ts";
 import { bundeslandName, bundeslandToAgs } from "../services/sources/region.ts";
 import {
@@ -59,7 +60,7 @@ export function useRegionalContext(building: Building) {
   // `dcterms:identifier`). Land = first 2 digits, Kreis = first 5. Falls back to the
   // vcard Bundesland + the nearby-MaStR Kreis when no region concept is recorded.
   const { data: resolvedAgs } = useQuery({
-    queryKey: ["regionAgs", building.regionConceptIri],
+    queryKey: [...sourceKeys.regionAgs, building.regionConceptIri],
     queryFn: () => fetchRegionAgs(building.regionConceptIri!),
     enabled: !!building.regionConceptIri,
     staleTime: Infinity, // region codes are immutable

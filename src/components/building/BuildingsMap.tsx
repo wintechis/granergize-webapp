@@ -1,4 +1,5 @@
 import { msg } from "../../lib/messages.ts";
+import { sourceKeys } from "../../services/sources/sourceKeys.ts";
 import { buildingSearchText } from "../../lib/buildingDisplay.ts";
 import { filterByText } from "../../lib/textSearch.ts";
 import { useListSearch } from "../../hooks/useListSearch.ts";
@@ -291,7 +292,7 @@ export default function BuildingsMap(
   const showChoropleth = zoom < CHOROPLETH_BELOW;
   const grain: RegionGrain = zoom < ZOOM_KREIS ? "land" : "kreis";
   const regionGeo = useQuery({
-    queryKey: ["regionGeometry", grain],
+    queryKey: [...sourceKeys.regionGeometry, grain],
     queryFn: () => fetchRegionGeometry(grain),
     // Only when the choropleth is actually shown AND the tab is visible (the map stays
     // mounted-hidden on other tabs — don't fetch geometry for an off-screen map).
@@ -315,7 +316,7 @@ export default function BuildingsMap(
   );
   const agsQueries = useQueries({
     queries: conceptIris.map((iri) => ({
-      queryKey: ["regionAgs", iri],
+      queryKey: [...sourceKeys.regionAgs, iri],
       queryFn: () => fetchRegionAgs(iri),
       enabled: showChoropleth && active,
       staleTime: Infinity, // region codes are immutable

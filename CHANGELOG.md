@@ -3,6 +3,18 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-28]
+- **External sources tidied onto the one cache (ldp-query-layer, source-facing port).** The read-only
+  external sources (the geo/region wrappers, regionalstatistik, weather, the area profile) were
+  already cached in React Query, but via **inline `useQuery` key literals** scattered across ~10
+  components/hooks, and `regionGeometry` kept a **redundant `Map` memo** on top of the cache for its
+  non-hook caller. Gave them a dedicated catalogue, `services/sources/sourceKeys.ts` — kept apart from
+  the Pod `queryKeys` (which is the *invalidation contract*) because source entries are read-only and
+  **never write-invalidated** (immutable / slow-changing → long·`Infinity` `staleTime`) — and replaced
+  every inline literal with it. Dropped the `regionGeometry` memo (TanStack is the only cache) and
+  added `fetchRegionAgsShared` (the `ensureQueryData` accessor) so the aggregation compute's region
+  resolver reads the warm `["regionAgs", iri]` entry instead of its own memo. The source-facing port
+  now mirrors the Pod port: one cache, keyed by source identifier, with a `fetch…Shared` read-through
+  for non-hook readers. check + lint green, unit 1104.
 - **One read path for the UI and the intents; aggregation definitions made resource-centric
   (ldp-query-layer finish).** The intent **read cores** re-fetched the Pod independently
   (`FindBuildings` re-loaded the whole portfolio on every invocation); they now read the **same warm
