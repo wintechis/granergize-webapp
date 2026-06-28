@@ -178,7 +178,7 @@ Read-only operations group by *how* they read, which mirrors the write side:
 
 - **Direct GET / container LISTING** — read state written in place. Per-resource GETs
   (`getAggregationDefinition`, `resolveAgent`, `readPrefs`) and container listings
-  (`discoverOwnBuildings`, `getAggregationDefinitions`). The phase-2 energy reads are this kind:
+  (`listOwnBuildings`, `listAggregationDefinitionUris`). The phase-2 energy reads are this kind:
   `loadEnergyDatasets` (`energyDataset.ts`) fetches the annual datasets a building links,
   and `parseTtlReadings` (`userEnergyParser.ts`) fetches one daily file of a 15-minute
   series — both keyed off refs parsed in phase 1, and both taking the authed transport as

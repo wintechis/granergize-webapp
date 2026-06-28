@@ -50,7 +50,7 @@ Resolved once per session, then cached:
    tree; no per-call base munging.
 3. **Discover source URIs.** Own and shared buildings are discovered separately
    (`loadBuildings` / `fetchAndParseData`, `src/services/turtleParsing.ts`):
-   - *Own buildings* — `discoverOwnBuildings` **LISTS** the `buildings/` container
+   - *Own buildings* — `listOwnBuildings` **LISTS** the `buildings/` container
      and keeps the top-level `*.ttl` files (no registry: adding a building is a
      single PUT, so the listing can't desync). `listDirectChildren` returning `null`
      (404) means a *fresh* Pod vs `[]` for an *empty* one; demo buildings aren't

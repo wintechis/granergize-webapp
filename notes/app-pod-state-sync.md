@@ -93,8 +93,8 @@ The audit also surfaced **`useReceivedBenchmarks`** — a gap of the same *famil
 started in a different mechanism and was ultimately closed by the same construction as
 energy. It folds the received snapshots (loads each one off the shared-in log and keeps
 the benchmark ones), and first showed an *invalidation-coverage* gap: it was
-constant-keyed, and the inbox drain (`useCheckInbox`) invalidated `sharedInLog`
-and `buildings` but **not** `receivedBenchmarks`, so a benchmark snapshot
+constant-keyed, and the inbox drain (`useCheckInbox`) refreshed the shared-in fold
+and the building sources but **not** `receivedBenchmarks`, so a benchmark snapshot
 newly archived into `shared-in/` could be missing from the energy view's Benchmark column
 until that query was otherwise remounted. It is now **derived-keyed** like energy: the key
 is `[receivedBenchmarks, webId, fingerprint]` where the fingerprint is the sorted set of
@@ -125,8 +125,8 @@ Auditing the resource-creating mutations against that question:
 
 - **Attachment / certificate upload** into a shared building's `files/` — covered
   by construction: the share grants the *container* with `acl:default`, so later
-  files inherit. The projection here is keyed on the scope, not its members —
-  the write-side analogue of `energyKeyFor`.
+  files inherit. The projection here is keyed on the scope (the container), not
+  enumerated over its members — correct by construction, no per-member tracking.
 - **`writeEnergyYear`** on a shared building — was the gap, now reconciled:
   energy grants are per-dataset `.acl`s (deliberately, so per-year grants stay
   enforceable) and `energy/` carries no default, so the write path runs
@@ -218,7 +218,7 @@ the collection loader `loadBuildings` / `loadEnergy`. The intent collection read
   projection rather than re-reading the Pod; they just don't subscribe to it.
 - **Who folds the side-inputs** — `loadBuildings` needs two derived inputs, the
   shared-in source list and the hidden-prefs set. The hook path folds them as
-  **separate cached queries** (`sharedInLog`, `prefs`) and passes them in, so each
+  **separate cached queries** (the shared-in fold, `prefs`) and passes them in, so each
   fold is cached and invalidated on its own; `fetchAndParseData` folds them **inline
   itself**, every call, because a headless caller has no cache. Same `loadBuildings`,
   different *suppliers* of its arguments.
