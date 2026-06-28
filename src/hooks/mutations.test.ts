@@ -302,7 +302,8 @@ Deno.test("useWriteEnergyYear writes the dataset and invalidates the building-da
     for (
       const key of [
         "buildings",
-        "energy",
+        "buildingEnergy",
+        "energyDataset",
         "annualEnergy",
         "seriesDays",
         "dayReadings",

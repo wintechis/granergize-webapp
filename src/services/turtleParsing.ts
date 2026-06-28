@@ -3,7 +3,6 @@ import { parseBuildings } from "./rdf/building/buildingParser.ts";
 import { buildingFileUri } from "./rdf/building/buildingId.ts";
 import type {
   Building,
-  EnergyDatasetRef,
   Energy,
 } from "../types.ts";
 import { DataFactory, Parser, Store } from "n3";
@@ -16,7 +15,10 @@ import {
   type BuildinglessObservation,
   parseEnergyDataset,
 } from "./energy/energyDataset.ts";
-import { fetchEnergyDatasetShared } from "./energy/energyDatasetCache.ts";
+import {
+  computeEnergyAverages,
+  resolveBuildingEnergy,
+} from "./energy/buildingEnergy.ts";
 import { readPrefs } from "./prefs.ts";
 import {
   type ActiveGrant,
@@ -24,8 +26,6 @@ import {
   foldSharingLog,
   sharedInUri,
 } from "./interop/sharingLog.ts";
-import { isSeriesGranularity } from "./rdf/durationUtils.ts";
-import { CONSUMPTION_METRIC_KEYS } from "../constants/annualMetrics.ts";
 
 /**
  * Attempts to load Turtle data from multiple sources, continuing if some fail
@@ -299,28 +299,6 @@ export async function loadBuildings(
  * averages. A pure function of the buildings it's given — no registry re-read.
  * @operation query
  */
-/** Arithmetic mean of a non-empty list. */
-function meanOf(values: number[]): number {
-  return values.reduce((acc, v) => acc + v, 0) / values.length;
-}
-
-/**
- * Mean each metric bucket of a `metric → samples` map, dropping any bucket with
- * fewer than `minCount` samples (the operator averages need ≥2 so a lone
- * building isn't published as its own benchmark — see the call site).
- */
-function meanByMetric(
-  buckets: Record<string, number[]>,
-  minCount = 1,
-): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const metric in buckets) {
-    if (buckets[metric].length < minCount) continue;
-    out[metric] = meanOf(buckets[metric]);
-  }
-  return out;
-}
-
 export async function loadEnergy(
   gateway: PodGateway,
   buildings: Building[],
@@ -329,122 +307,22 @@ export async function loadEnergy(
   portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
 }> {
-  const energyData = new Map<string, Energy>();
-  const operatorAggregatedValues: Record<string, Record<string, number[]>> = {};
-  // The user's OWN buildings only (excludes shared-in) — feeds the honest
-  // "portfolio average" the energy view shows.
-  const portfolioAggregatedValues: Record<string, number[]> = {};
-
-  // For each building, the latest ACCESSIBLE actual annual (non-series) dataset
-  // paints the map and feeds the averages. Sub-hourly *series* datasets are
-  // skipped here and loaded lazily on click — dispatch is purely on the declared
-  // granularity. The annual datasets are separate resources, fetched with bounded
-  // concurrency (one Pod round-trip per building in series made the map slow).
-  const annualTasks: Array<{ building: Building; refs: EnergyDatasetRef[] }> =
-    [];
-  for (const building of buildings) {
-    const annual = (building.energyDatasets ?? [])
-      .filter(
-        (r) =>
-          r.scenario === "actual" && !isSeriesGranularity(r.granularity) &&
-          // Building-level only: per-unit observations (a <#pv>/<#battery>/<#chp>
-          // feature-of-interest) are a separate series, not part of the building total.
-          !r.featureOfInterest,
-      )
-      .sort((a, b) => b.year - a.year); // newest first
-    if (annual.length === 0) continue;
-    annualTasks.push({ building, refs: annual });
-  }
-
-  const parsedAnnual = await mapPooled(
-    annualTasks,
-    6,
-    async ({ building, refs }) => {
-      // Newest-first with fallback: a per-year share grants only some years, so
-      // the recipient's fetch of the newest LINKED year can 403 while an older
-      // granted year is readable — fall through to the next-newest instead of
-      // showing "no energy data" (and dropping out of the map's peer terciles).
-      for (const ref of refs) {
-        try {
-          // One IRI-keyed read per dataset, shared with the aggregation compute
-          // through the warm query cache (`fetchEnergyDatasetShared`) so the file
-          // is fetched once, not once per consumer.
-          const ds = await fetchEnergyDatasetShared(ref.uri, gateway);
-          if (ds?.metrics) return { building, metrics: ds.metrics, year: ref.year };
-        } catch (error) {
-          console.error(
-            `Failed to load energy ${ref.year} for building ${building.id}:`,
-            error,
-          );
-        }
-      }
-      return null;
-    },
+  // Each building's latest accessible actual-annual energy, resolved through the shared
+  // per-dataset cache with bounded concurrency (one Pod round-trip per building in series
+  // made the map slow). The per-building resolution and the averages math are shared with
+  // the `useEnergy` useQueries selector (`buildingEnergy.ts`), so the headless fold and the
+  // app can't drift; sub-hourly *series* are skipped (lazy-loaded on click).
+  const resolved = await mapPooled(buildings, 6, async (building) => {
+    const energy = await resolveBuildingEnergy(building, gateway);
+    return energy ? { building, energy } : null;
+  });
+  const entries = resolved.filter(
+    (e): e is { building: Building; energy: Energy } => e !== null,
   );
 
-  for (const entry of parsedAnnual) {
-    if (!entry) continue;
-    const { building, metrics, year } = entry;
-    // Canonical, vocab-keyed energy: `energyNeed` mirrors the AnnualMetrics keys
-    // (`electricityConsumption`, …) 1:1 with the `cons:*` observed-property IRIs —
-    // the same shape the view compute and benchmark snapshots use. Display labels
-    // ("Electricity", …) are derived at render via `metricLabel`/`ANNUAL_METRICS`,
-    // so the cache stays close to the Turtle and reusable, not display-shaped.
-    const energyNeed: Record<string, number> = {};
-    for (const key of CONSUMPTION_METRIC_KEYS) {
-      const v = metrics[key];
-      if (v !== undefined) energyNeed[key] = v;
-    }
-    if (Object.keys(energyNeed).length === 0) continue;
-
-    energyData.set(building.id, {
-      id: building.id,
-      uri: building.uri as string,
-      year,
-      energyNeed,
-      energyGeneration: {},
-      energyStorage: {},
-      energyDistribution: {},
-      energyTransfer: {},
-      energyUsage: {},
-      environmentalFactor: {},
-    });
-
-    for (const [prop, val] of Object.entries(energyNeed)) {
-      if (!building.isShared) {
-        if (!portfolioAggregatedValues[prop]) portfolioAggregatedValues[prop] = [];
-        portfolioAggregatedValues[prop].push(val);
-      }
-      const operator = building.operatedBy;
-      if (!operator || typeof operator !== "string") continue;
-      if (!operatorAggregatedValues[operator]) {
-        operatorAggregatedValues[operator] = {};
-      }
-      if (!operatorAggregatedValues[operator][prop]) {
-        operatorAggregatedValues[operator][prop] = [];
-      }
-      operatorAggregatedValues[operator][prop].push(val);
-    }
-  }
-
-  // The portfolio average (the user's OWN buildings only).
-  const portfolioAverages = meanByMetric(portfolioAggregatedValues);
-
-  // Operator (Betreiber) averages — published per metric only when ≥2 buildings
-  // contribute: a single-building "mean" IS that building's own value, which
-  // would (a) render the own figure dressed up as a benchmark and (b) win the
-  // comparison-reference precedence over the portfolio mean, silently disabling
-  // the deviation tint (own vs itself is always neutral).
-  const operatorAverages: Record<string, Record<string, number>> = {};
-  for (const operator in operatorAggregatedValues) {
-    const perMetric = meanByMetric(operatorAggregatedValues[operator], 2);
-    if (Object.keys(perMetric).length > 0) operatorAverages[operator] = perMetric;
-  }
-
   return {
-    energyNeed: Array.from(energyData.values()),
-    portfolioAverages,
-    operatorAverages,
+    energyNeed: entries.map((e) => e.energy),
+    ...computeEnergyAverages(entries),
   };
 }
 

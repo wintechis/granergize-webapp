@@ -1,13 +1,17 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { getGateway, getSession } from "./session.ts";
 import {
   loadBuildinglessObservations,
   loadBuildings,
-  loadEnergy,
   sharedBuildingSourcesFromGrants,
 } from "../services/turtleParsing.ts";
+import {
+  buildingEnergyKeyFor,
+  computeEnergyAverages,
+  resolveBuildingEnergy,
+} from "../services/energy/buildingEnergy.ts";
 import { podResources, resolveStorageRoot } from "../services/pod/solidUtils.ts";
 import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
@@ -253,8 +257,9 @@ export function useBuildings() {
  * once right after a write (see `notes/query-key-coverage.md`). Folding the link
  * fingerprint in makes the refetch fall out of the data, not out of each mutation
  * remembering to invalidate. (It also still AUTO-refetches when the building set
- * changes — e.g. the demo seed adding buildings.) `queryKeys.energy` (`["energy"]`)
- * still prefix-matches this key, so existing invalidations keep working. */
+ * changes — e.g. the demo seed adding buildings.) The remaining whole-set folds
+ * (`useAnnualEnergyByYear`, `useBuildinglessObservations`) still key on it; `useEnergy`
+ * itself now fans out per-building (`buildingEnergyKeyFor`). */
 /**
  * The energy query's content fingerprint: each building's id PLUS its
  * `cons:hasEnergyDataset` links (year/granularity/scenario), so the key changes
@@ -274,12 +279,36 @@ export function energyKeyFor(buildings: Building[] | undefined): string {
     .join(";");
 }
 
+/**
+ * Each building's energy as its OWN per-building query
+ * (`["buildingEnergy", webId, uri, <link-fingerprint>]`), recomposed into the screen
+ * shapes — the `energyNeed` array and the portfolio/operator averages — by a `combine`
+ * selector (derive-at-edge). This retires the whole-set `energyKeyFor` fold for the map
+ * energy: one building's energy edit refetches only that building's query, mostly served
+ * warm from the shared per-dataset cache (`fetchEnergyDatasetShared`). The sole caller is
+ * `useSolidData`. See `plans/plan-ldp-query-layer.md`.
+ */
 export function useEnergy(buildings: Building[] | undefined) {
-  return useWebIdQuery(
-    queryKeys.energy,
-    (session) => loadEnergy(session, buildings ?? []),
-    { extraKey: [energyKeyFor(buildings)], enabled: Boolean(buildings) },
-  );
+  const webId = webIdOf();
+  return useQueries({
+    queries: (buildings ?? []).map((b) => ({
+      queryKey: [...queryKeys.buildingEnergy, webId, b.uri, buildingEnergyKeyFor(b)],
+      queryFn: () => resolveBuildingEnergy(b, getGateway()),
+      enabled: Boolean(webId),
+    })),
+    combine: (results) => {
+      const entries = (buildings ?? [])
+        .map((b, i) => ({ building: b, energy: results[i]?.data ?? null }))
+        .filter(
+          (e): e is { building: Building; energy: Energy } => e.energy !== null,
+        );
+      return {
+        energyNeed: entries.map((e) => e.energy),
+        ...computeEnergyAverages(entries),
+        error: results.find((r) => r.error)?.error ?? null,
+      };
+    },
+  });
 }
 
 // The sharing lists below are pure in-memory derivations of the two folded
@@ -771,7 +800,10 @@ export function useResolveOrg(webId?: string) {
  */
 export const queryKeys = {
   buildings: ["buildings"] as const,
-  energy: ["energy"] as const,
+  /** One building's latest-annual energy, keyed per building
+   * (`["buildingEnergy", webId, buildingUri, linkFingerprint]`) — the `useEnergy`
+   * useQueries fan-out; the portfolio/operator averages derive from these in `combine`. */
+  buildingEnergy: ["buildingEnergy"] as const,
   /** One energy dataset, keyed by its node IRI (`["energyDataset", webId, uri]`) — the
    * shared per-resource read the map fold and the aggregation compute both go through. */
   energyDataset: ["energyDataset"] as const,
@@ -839,9 +871,9 @@ export function useSolidData(): SolidData {
   const err = ba.error ?? energy.error;
   return {
     buildings: ba.data?.buildings ?? [],
-    energyNeed: energy.data?.energyNeed ?? [],
-    portfolioAverages: energy.data?.portfolioAverages ?? {},
-    operatorAverages: energy.data?.operatorAverages ?? {},
+    energyNeed: energy.energyNeed,
+    portfolioAverages: energy.portfolioAverages,
+    operatorAverages: energy.operatorAverages,
     // True for the whole initial window — including while `useBuildings` is still
     // GATED on its shared-in/prefs dependencies (a disabled query reports
     // `isLoading: false`, which would otherwise flash the empty state before the

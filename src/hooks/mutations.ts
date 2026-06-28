@@ -48,7 +48,7 @@ function invalidateBuildingData(qc: QueryClient): void {
   // and then serve that stale cache on its next mount — so a building's freshly-added
   // energyDatasets never appears in the finder. Refetch it now so any later mount is fresh.
   qc.invalidateQueries({ queryKey: queryKeys.buildings, refetchType: "all" });
-  qc.invalidateQueries({ queryKey: queryKeys.energy });
+  qc.invalidateQueries({ queryKey: queryKeys.buildingEnergy });
   // The per-dataset resource cache (staleTime: Infinity) is refreshed by a write,
   // not by time — so a building/energy mutation must drop its entries here.
   qc.invalidateQueries({ queryKey: queryKeys.energyDataset });
@@ -98,7 +98,7 @@ export function useDeleteBuilding() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
-      qc.invalidateQueries({ queryKey: queryKeys.energy });
+      qc.invalidateQueries({ queryKey: queryKeys.buildingEnergy });
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
       // Deleting the last building re-enables the fresh-Pod demo offer.
       qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
@@ -621,7 +621,7 @@ export function useSeedDemoBuildings() {
   return useMutation({
     meta: { action: "actionAddDemoBuildings" },
     mutationFn: () => invoke("SeedDemoBuildings", {}, getGateway()),
-    // Energy follows automatically: useEnergy is keyed on the building set.
+    // Energy follows automatically: useEnergy fans out a per-building query over the set.
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
       // Re-probe the demo offer so the banner stands down after seeding (and on the

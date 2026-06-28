@@ -237,14 +237,18 @@ Deno.test("energyKeyFor changes when a building's dataset links change (not only
   assert.equal(energyKeyFor(undefined), "");
 });
 
-Deno.test("useEnergy is disabled until buildings are provided", () => {
+Deno.test("useEnergy with no buildings yields empty energy (no per-building queries)", () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
   const { wrapper } = makeWrapper();
   try {
+    // useEnergy is now a useQueries fan-out + combine selector; undefined buildings
+    // means zero queries, and the combine yields the empty screen shapes.
     const { result } = renderHook(() => useEnergy(undefined), { wrapper });
-    assert.equal(result.current.fetchStatus, "idle"); // not fetching (disabled)
-    assert.equal(result.current.data, undefined);
+    assert.deepEqual(result.current.energyNeed, []);
+    assert.deepEqual(result.current.portfolioAverages, {});
+    assert.deepEqual(result.current.operatorAverages, {});
+    assert.equal(result.current.error, null);
   } finally {
     _setSessionForTesting(null);
   }
