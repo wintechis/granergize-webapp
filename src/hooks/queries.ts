@@ -48,8 +48,8 @@ import {
   type EnergyDatasetRef,
   type EnergyMetricKey,
   listSeriesDays,
-  loadEnergyDatasets,
 } from "../services/energy/energyDataset.ts";
+import { loadEnergyDatasetsShared } from "../services/energy/energyDatasetCache.ts";
 import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import type {
@@ -519,7 +519,7 @@ export function useAnnualEnergy(building: Building) {
         // under their unit, not in the building's annual chart.
         (r) => !isSeriesGranularity(r.granularity) && !r.featureOfInterest,
       );
-      const datasets = await loadEnergyDatasets(refs, freshFetchFn());
+      const datasets = await loadEnergyDatasetsShared(refs, getGateway());
       const rows = (scenario: "actual" | "planned") =>
         datasets
           .filter((d) => d.scenario === scenario && d.metrics)
@@ -560,7 +560,7 @@ export function useAnnualDatasets(
       const refs = (building?.energyDatasets ?? []).filter(
         (r) => r.granularity === "P1Y",
       );
-      return loadEnergyDatasets(refs, freshFetchFn());
+      return loadEnergyDatasetsShared(refs, getGateway());
     },
     {
       extraKey: [building?.id ?? "", building ? energyKeyFor([building]) : ""],
@@ -617,7 +617,7 @@ export function useAnnualEnergyByYear(
     queryKeys.annualEnergyByYear,
     async (): Promise<EnergyByBuildingYear> => {
       const out: EnergyByBuildingYear = new Map();
-      const fetchFn = freshFetchFn();
+      const gateway = getGateway();
       await Promise.all((buildings ?? []).map(async (building) => {
         const refs = (building.energyDatasets ?? []).filter(
           (r) =>
@@ -625,7 +625,7 @@ export function useAnnualEnergyByYear(
             !r.featureOfInterest, // building-level only (per-unit series excluded)
         );
         if (refs.length === 0) return;
-        const datasets = await loadEnergyDatasets(refs, fetchFn);
+        const datasets = await loadEnergyDatasetsShared(refs, gateway);
         const byYear: EnergyByYear = new Map();
         for (const ds of datasets) {
           if (!ds.metrics) continue;

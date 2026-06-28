@@ -15,10 +15,12 @@ import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import {
   type EnergyDatasetRef,
   listSeriesDays,
-  loadEnergyDatasets,
   parseEnergyDatasetRefs,
 } from "../energy/energyDataset.ts";
-import { fetchEnergyDatasetShared } from "../energy/energyDatasetCache.ts";
+import {
+  fetchEnergyDatasetShared,
+  loadEnergyDatasetsShared,
+} from "../energy/energyDatasetCache.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
@@ -420,7 +422,7 @@ export async function computeAggregationSeries(
     const refs = (await resolveBuildingRefs(uri, buildingFileUri(uri), gateway))
       .filter((r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity));
     if (refs.length === 0) return [] as { year: number; value: number }[];
-    const datasets = await loadEnergyDatasets(refs, gateway.fetch.bind(gateway));
+    const datasets = await loadEnergyDatasetsShared(refs, gateway);
     return datasets.flatMap((ds) => {
       const v = (ds.metrics as Record<string, number | undefined> | undefined)?.[metric];
       return typeof v === "number" ? [{ year: ds.year, value: v }] : [];

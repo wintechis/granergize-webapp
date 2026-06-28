@@ -1,7 +1,11 @@
 import type { PodGateway } from "../pod/podGateway.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { fetchFresh } from "../pod/podFetch.ts";
-import { type EnergyDataset, loadEnergyDataset } from "./energyDataset.ts";
+import {
+  type EnergyDataset,
+  type EnergyDatasetRef,
+  loadEnergyDataset,
+} from "./energyDataset.ts";
 
 /**
  * The React Query key for one energy dataset, keyed by its node IRI — the first
@@ -42,4 +46,21 @@ export async function fetchEnergyDatasetShared(
     staleTime: Infinity,
     revalidateIfStale: true,
   });
+}
+
+/**
+ * Load a set of energy datasets, each through the shared per-resource cache — the
+ * single-read-path equivalent of `loadEnergyDatasets`. Reuses the warm entries the
+ * map fold / aggregation compute already filled (one Pod read per dataset across all
+ * consumers); unreadable datasets are dropped. Use this over `loadEnergyDatasets`
+ * wherever a gateway is in hand (detail-pane hooks, the series compute).
+ */
+export async function loadEnergyDatasetsShared(
+  refs: readonly EnergyDatasetRef[],
+  gateway: PodGateway,
+): Promise<EnergyDataset[]> {
+  const loaded = await Promise.all(
+    refs.map((ref) => fetchEnergyDatasetShared(ref.uri, gateway)),
+  );
+  return loaded.filter((ds): ds is EnergyDataset => ds !== null);
 }

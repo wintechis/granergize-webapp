@@ -3,6 +3,21 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-28]
+- **Energy datasets are a shared per-resource query — every annual read goes through it once
+  (ldp-query-layer).** Introduced the first IRI-keyed resource query: each `cons:EnergyDataset` is
+  cached by its node IRI (`["energyDataset", webId, uri]`) holding the canonical `EnergyDataset`.
+  `fetchEnergyDatasetShared` (`services/energy/energyDatasetCache.ts`) reads it through
+  `ensureQueryData` when the app is mounted — so the map fold, the cube time-slider, the detail pane
+  and both aggregation-compute paths reuse **one** Pod read per dataset — and falls back to a direct
+  fresh fetch when no `QueryClient` is published (headless / bare-provider tests). Previously the map
+  (`loadEnergy`) and the compute (`loadBuildingEnergyData`) each re-fetched the same `.ttl`, the
+  compute via a bare `gateway.fetch` with no revalidation; now both, plus the detail-pane hooks
+  (`useAnnualEnergy`/`useAnnualDatasets`/`useAnnualEnergyByYear`) and the series compute
+  (`computeAggregationSeries`), route through `fetchEnergyDatasetShared`/`loadEnergyDatasetsShared`.
+  Freshness is write-driven: `staleTime: Infinity` keeps the warm entry (read-once), `revalidateIfStale`
+  makes an entry a write *invalidated* refetch on next read, and `invalidateBuildingData` drops the
+  `["energyDataset"]` prefix on every energy/building mutation. `loadEnergyDataset` (single) factored
+  out of `loadEnergyDatasets`. check + lint green, unit 1082.
 - **Region → the authoritative LAU/NUTS `skos:Concept`; the AGS is resolved by dereferencing it.**
   A building's `dcterms:spatial` now references the LAU/NUTS concept IRI (the authority,
   `lauConceptUrl` → `…/lau/DE_<ags>#it`) instead of the regionalstatistik cube-dimension IRI; the
