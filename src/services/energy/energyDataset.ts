@@ -421,6 +421,33 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
 }
 
 /**
+ * Fetch and parse ONE energy dataset from its node IRI (`observations/…#ds`).
+ * Returns the canonical {@link EnergyDataset}, or `null` when the file is
+ * unreadable (e.g. access revoked / 404) — non-fatal. This is the single-resource
+ * read all annual loaders share; the IRI-keyed cache layer (`energyDatasetCache`)
+ * wraps it so map and compute read a dataset once. `fetchFn` is typically a fresh,
+ * revalidating fetch (`fetchFresh(uri, gateway)`).
+ * @operation query
+ */
+export async function loadEnergyDataset(
+  datasetUri: string,
+  fetchFn: (uri: string) => Promise<Response>,
+): Promise<EnergyDataset | null> {
+  try {
+    const fileUri = datasetUri.split("#")[0];
+    const res = await fetchFn(fileUri);
+    if (!res.ok) return null;
+    const store = new Store(
+      new Parser({ baseIRI: fileUri }).parse(await res.text()),
+    );
+    return parseEnergyDataset(store, datasetUri);
+  } catch (err) {
+    logError("load energy dataset", err);
+    return null;
+  }
+}
+
+/**
  * Fetch and parse a set of energy datasets (given their refs) concurrently — for
  * the per-building detail views that need the full annual history. Unreadable
  * datasets are skipped. `fetchFn` is typically `gateway.fetch.bind(gateway)`.
@@ -430,23 +457,10 @@ export async function loadEnergyDatasets(
   refs: EnergyDatasetRef[],
   fetchFn: (uri: string) => Promise<Response>,
 ): Promise<EnergyDataset[]> {
-  const out: EnergyDataset[] = [];
-  await Promise.all(refs.map(async (ref) => {
-    try {
-      const fileUri = ref.uri.split("#")[0];
-      const res = await fetchFn(fileUri);
-      if (!res.ok) return;
-      const store = new Store(
-        new Parser({ baseIRI: fileUri }).parse(await res.text()),
-      );
-      const ds = parseEnergyDataset(store, ref.uri);
-      if (ds) out.push(ds);
-    } catch (err) {
-      logError("load energy dataset", err);
-      // Skip an unreadable dataset (e.g. access revoked) — non-fatal.
-    }
-  }));
-  return out;
+  const loaded = await Promise.all(
+    refs.map((ref) => loadEnergyDataset(ref.uri, fetchFn)),
+  );
+  return loaded.filter((ds): ds is EnergyDataset => ds !== null);
 }
 
 /** Year (from the period's beginning) for a parsed dataset node; 0 if absent. */

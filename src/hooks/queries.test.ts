@@ -89,7 +89,7 @@ Deno.test("useBuildings loads + parses from the session", async () => {
   const { wrapper } = makeWrapper();
   try {
     const { result } = renderHook(() => useBuildings(), { wrapper });
-    await waitFor(() => assert.ok(result.current.isSuccess));
+    await waitFor(() => assert.ok(result.current.data));
     assert.equal(result.current.data?.buildings.length, 1);
   } finally {
     _setSessionForTesting(null);
@@ -134,7 +134,7 @@ Deno.test("one shared-in fold serves buildings + sharedWithMe + receivedAggregat
       benchmarks: useReceivedBenchmarks(),
     }), { wrapper });
     await waitFor(() => {
-      assert.ok(result.current.buildings.isSuccess);
+      assert.ok(result.current.buildings.data);
       assert.ok(result.current.benchmarks.isSuccess);
       assert.ok(result.current.sharedWithMe.data);
     });
@@ -154,6 +154,44 @@ Deno.test("one shared-in fold serves buildings + sharedWithMe + receivedAggregat
       (c) => c.method === "GET" && c.url === PREFS,
     );
     assert.equal(prefsReads.length, 1, "prefs.ttl read once for all consumers");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useBuildings tolerates an inaccessible shared source — own buildings still load", async () => {
+  // A shared grant points at a source that 404s (access revoked). Per-source loading
+  // drops it (and the reconcile effect prunes it best-effort) WITHOUT surfacing an
+  // error — own buildings still paint. Only an all-sources failure is fatal.
+  const SHARED_IN = "https://pod.example/granergize/shared-in/";
+  const EVT = `${SHARED_IN}evt-1`;
+  const GONE = "https://other.example/granergize/buildings/gone.ttl";
+  const fixtures: Record<string, string> = {
+    ...FIXTURES,
+    [SHARED_IN]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${SHARED_IN}> ldp:contains <${EVT}> .`,
+    [EVT]: `@prefix interop: <http://www.w3.org/ns/solid/interop#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix gran: <https://solid.ti.rw.fau.de/gra/vocab.ttl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<> a interop:AccessGrant ;
+   prov:wasAssociatedWith <https://other.example/profile/card#me> ;
+   interop:grantee <${WEBID}> ;
+   interop:forResource <${GONE}#x> ;
+   gran:kind <https://w3id.org/rec#Building> ;
+   prov:generatedAtTime "2026-01-01T00:00:00Z"^^xsd:dateTime .`,
+    // GONE source intentionally absent → 404 → tolerated, not fatal.
+  };
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(
+    makeFakeSession({ webId: WEBID, resources: fixtures }).session,
+  );
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useBuildings(), { wrapper });
+    await waitFor(() => assert.ok(result.current.data));
+    assert.equal(result.current.data?.buildings.length, 1); // own only
+    assert.equal(result.current.error, null); // partial failure tolerated
   } finally {
     _setSessionForTesting(null);
   }
@@ -237,14 +275,18 @@ Deno.test("energyKeyFor changes when a building's dataset links change (not only
   assert.equal(energyKeyFor(undefined), "");
 });
 
-Deno.test("useEnergy is disabled until buildings are provided", () => {
+Deno.test("useEnergy with no buildings yields empty energy (no per-building queries)", () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
   const { wrapper } = makeWrapper();
   try {
+    // useEnergy is now a useQueries fan-out + combine selector; undefined buildings
+    // means zero queries, and the combine yields the empty screen shapes.
     const { result } = renderHook(() => useEnergy(undefined), { wrapper });
-    assert.equal(result.current.fetchStatus, "idle"); // not fetching (disabled)
-    assert.equal(result.current.data, undefined);
+    assert.deepEqual(result.current.energyNeed, []);
+    assert.deepEqual(result.current.portfolioAverages, {});
+    assert.deepEqual(result.current.operatorAverages, {});
+    assert.equal(result.current.error, null);
   } finally {
     _setSessionForTesting(null);
   }
@@ -305,11 +347,14 @@ Deno.test("useToggleVisibility invalidates ONLY prefs (buildings re-keys off the
     await result.current.mutateAsync("https://other.example/b.ttl#b");
     const keyed = (name: string) =>
       invalidated.some((k) => Array.isArray(k) && k[0] === name);
-    // The toggle writes prefs.ttl; the Share-tab list derives from the prefs
-    // query, and the buildings query keys on the hidden set, so the prefs
-    // refetch re-keys it — a second buildings invalidation would double-load.
+    // The toggle writes prefs.ttl; the Share-tab list derives from the prefs query,
+    // and `useBuildings` reads the hidden set in its in-memory selector, so the prefs
+    // refetch re-derives the filtered list — no building source refetch at all.
     assert.ok(keyed("prefs"), "prefs was invalidated");
-    assert.ok(!keyed("buildings"), "no redundant buildings invalidation");
+    assert.ok(
+      !keyed("buildingSource") && !keyed("buildingsContainer"),
+      "no redundant building refetch",
+    );
   } finally {
     _setSessionForTesting(null);
   }

@@ -25,6 +25,53 @@ All notable changes to the Granergize WebApp project will be documented in this 
   a failed silent restore surfaces its remedy dialog even when the error is already present at first
   render. `messages.test.ts` adds the `landing` slice to its catalog-partition guard. Both e2e
   backends pass (CSS 114, JSS 117, patched checkout); check/lint/unit (1078) green.
+- **Buildings are per-source resource queries (ldp-query-layer).** The root of the data layer —
+  every screen reads buildings — moved from one monolithic `useBuildings` query (keyed by the whole
+  shared-source + hidden fingerprint) to a **`useQueries` fan-out**: each building source document is
+  its own `["buildingSource", webId, sourceUri]` query (`Building[]`), discovered from a container
+  query (`["buildingsContainer", webId]`, own roster) ∪ the shared-in fold. A pure `combine` selector
+  merges them, applies the hidden filter and selects the error (only an all-sources failure surfaces;
+  401 → `SessionExpired`); a `useReconcileBuildingSources` effect does the writes the selector can't
+  (stale-grant prune + transient notice, ref-guarded once-per-uri). The public
+  `{ data, isLoading, isFetching, error }` contract is preserved, so `useSolidData` and the 14
+  consumers are unchanged. New `services/building/buildingSource.ts` (`parseBuildingSource` —
+  each source parses in its own n3 Store, so the old cross-source blank-node scoping is gone;
+  `loadBuildingSource`; `fetchBuildingSourceShared`) is shared by the hook and the headless
+  `loadBuildings` fold. Wins: a single building's edit refetches one source (not the whole
+  portfolio), and the hidden filter lives in the selector so toggling visibility no longer refetches.
+  Mutations invalidate `buildingsContainer`/`buildingSource` (`useDeleteBuilding` patches the roster +
+  drops the per-source entry); `aggregationComputer`'s warm-cache ref peek reads `["buildingSource"]`;
+  `queryKeys.buildings` retired. check + lint green, unit 1096.
+- **Energy hooks recomposed as per-building `useQueries` selectors (ldp-query-layer).** `useEnergy`
+  and `useAnnualEnergyByYear` were monolithic folds keyed by a whole-set fingerprint (`energyKeyFor`)
+  whose cached value baked the screen shapes (`energyNeed[]` + portfolio/operator averages; the
+  per-year cube). Each is now a **`useQueries` fan-out** — one query per building
+  (`["buildingEnergy", …]` / `["buildingEnergyByYear", …]`) resolving that building's energy, with a
+  `combine` selector deriving the screen shapes in memory (*derive-at-edge*). The per-building
+  resolution + averages math live in `services/energy/buildingEnergy.ts` (`resolveBuildingEnergy`,
+  `resolveBuildingEnergyByYear`, `computeEnergyAverages`); `loadEnergy` (headless `fetchAndParseData`)
+  reuses them so the app and headless folds can't drift. One building's energy edit now refetches only
+  that building's query (mostly served warm from the per-dataset cache) instead of recomputing the whole
+  fold. The cube's `combine` is `useCallback`-stable so its `data` Map stays identity-stable in consumer
+  `useMemo` deps. `queryKeys.energy`/`annualEnergyByYear` → `buildingEnergy`/`buildingEnergyByYear`
+  (invalidated by `invalidateBuildingData`; the by-year cube wasn't invalidated before, so a content-only
+  energy edit could leave it stale — now fixed). `energyKeyFor` remains only for
+  `useBuildinglessObservations` + the single-building detail hooks. check + lint green, unit 1089.
+- **Energy datasets are a shared per-resource query — every annual read goes through it once
+  (ldp-query-layer).** Introduced the first IRI-keyed resource query: each `cons:EnergyDataset` is
+  cached by its node IRI (`["energyDataset", webId, uri]`) holding the canonical `EnergyDataset`.
+  `fetchEnergyDatasetShared` (`services/energy/energyDatasetCache.ts`) reads it through
+  `ensureQueryData` when the app is mounted — so the map fold, the cube time-slider, the detail pane
+  and both aggregation-compute paths reuse **one** Pod read per dataset — and falls back to a direct
+  fresh fetch when no `QueryClient` is published (headless / bare-provider tests). Previously the map
+  (`loadEnergy`) and the compute (`loadBuildingEnergyData`) each re-fetched the same `.ttl`, the
+  compute via a bare `gateway.fetch` with no revalidation; now both, plus the detail-pane hooks
+  (`useAnnualEnergy`/`useAnnualDatasets`/`useAnnualEnergyByYear`) and the series compute
+  (`computeAggregationSeries`), route through `fetchEnergyDatasetShared`/`loadEnergyDatasetsShared`.
+  Freshness is write-driven: `staleTime: Infinity` keeps the warm entry (read-once), `revalidateIfStale`
+  makes an entry a write *invalidated* refetch on next read, and `invalidateBuildingData` drops the
+  `["energyDataset"]` prefix on every energy/building mutation. `loadEnergyDataset` (single) factored
+  out of `loadEnergyDatasets`. check + lint green, unit 1082.
 - **Region → the authoritative LAU/NUTS `skos:Concept`; the AGS is resolved by dereferencing it.**
   A building's `dcterms:spatial` now references the LAU/NUTS concept IRI (the authority,
   `lauConceptUrl` → `…/lau/DE_<ags>#it`) instead of the regionalstatistik cube-dimension IRI; the

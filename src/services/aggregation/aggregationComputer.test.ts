@@ -210,17 +210,15 @@ Deno.test("computeAggregation: takes the building's dataset refs from the warm c
     },
   } as unknown as Session);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  qc.setQueryData(["buildings", WEBID], {
-    buildings: [{
-      uri: subject,
-      energyDatasets: [{
-        uri: datasetNodeUri(dsFile),
-        year: 2024,
-        granularity: "P1Y",
-        scenario: "actual",
-      }],
+  qc.setQueryData(["buildingSource", WEBID, "src"], [{
+    uri: subject,
+    energyDatasets: [{
+      uri: datasetNodeUri(dsFile),
+      year: 2024,
+      granularity: "P1Y",
+      scenario: "actual",
     }],
-  });
+  }]);
   _setAppQueryClient(qc);
   try {
     const snap = await computeAggregation(session, def([subject], "average"));
@@ -243,12 +241,10 @@ Deno.test("computeAggregation: a metric absent from the data is omitted", async 
 
 Deno.test("resolveSpatialExtent: folds members to their finest shared region", async () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  qc.setQueryData(["buildings", "me"], {
-    buildings: [
-      { uri: B1, lat: 49.45, long: 11.07 },
-      { uri: B2, lat: 49.46, long: 11.08 },
-    ],
-  });
+  qc.setQueryData(["buildingSource", "me", "src"], [
+    { uri: B1, lat: 49.45, long: 11.07 },
+    { uri: B2, lat: 49.46, long: 11.08 },
+  ]);
   _setAppQueryClient(qc);
   try {
     // Both in the same Gemeinde → Gemeinde grain.
@@ -274,7 +270,7 @@ Deno.test("resolveSpatialExtent: folds members to their finest shared region", a
 
 Deno.test("resolveSpatialExtent: a building without coordinates → no region, no lookup", async () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  qc.setQueryData(["buildings", "me"], { buildings: [{ uri: B1 }] }); // no lat/long
+  qc.setQueryData(["buildingSource", "me", "src"], [{ uri: B1 }]); // no lat/long
   _setAppQueryClient(qc);
   try {
     let called = false;

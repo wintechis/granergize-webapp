@@ -1,13 +1,14 @@
 import type { PodGateway } from "./pod/podGateway.ts";
-import { parseBuildings } from "./rdf/building/buildingParser.ts";
+import {
+  BuildingSourceError,
+  loadBuildingSource,
+} from "./building/buildingSource.ts";
 import { buildingFileUri } from "./rdf/building/buildingId.ts";
 import type {
   Building,
-  EnergyDatasetRef,
   Energy,
 } from "../types.ts";
-import { DataFactory, Parser, Store } from "n3";
-import type { Quad } from "@rdfjs/types";
+import { Parser, Store } from "n3";
 import { getStorageRoot, podResources } from "./pod/solidUtils.ts";
 import { fetchFresh } from "./pod/podFetch.ts";
 import { listDirectChildren } from "./pod/podDelete.ts";
@@ -16,6 +17,10 @@ import {
   type BuildinglessObservation,
   parseEnergyDataset,
 } from "./energy/energyDataset.ts";
+import {
+  computeEnergyAverages,
+  resolveBuildingEnergy,
+} from "./energy/buildingEnergy.ts";
 import { readPrefs } from "./prefs.ts";
 import {
   type ActiveGrant,
@@ -23,12 +28,7 @@ import {
   foldSharingLog,
   sharedInUri,
 } from "./interop/sharingLog.ts";
-import { isSeriesGranularity } from "./rdf/durationUtils.ts";
-import { CONSUMPTION_METRIC_KEYS } from "../constants/annualMetrics.ts";
 
-/**
- * Attempts to load Turtle data from multiple sources, continuing if some fail
- */
 /**
  * Thrown when Pod reads fail with HTTP 401 — the auth token has (almost
  * certainly) expired. Callers should keep any previously loaded data and prompt
@@ -41,119 +41,6 @@ export class SessionExpiredError extends Error {
   }
 }
 
-async function loadTtlFromMultipleSources(
-  urls: string[],
-  gateway: PodGateway,
-  description: string,
-): Promise<{
-  quads: Quad[];
-  /** Sources that 403/404'd — access revoked since the grant; prunable. */
-  failedSources: Array<{ uri: string; status: number }>;
-  /** Sources that failed transiently (timeout / network / 5xx, NOT 403/404).
-   * These are NOT pruned — they may load on the next refresh — but the caller
-   * surfaces them so a slow Pod silently shedding files is never invisible. */
-  transientFailures: string[];
-}> {
-  const allQuads: Quad[] = [];
-  const successfulSources: string[] = [];
-  const failedSources: { uri: string; error: string; status?: number }[] = [];
-
-  // Try each source independently. fetchFresh revalidates (cache: "no-cache"),
-  // so an unchanged document comes back as a cheap 304 instead of a full body.
-  await Promise.all(
-    urls.map(async (uri) => {
-      try {
-        const response = await fetchFresh(uri, gateway);
-        if (!response.ok) {
-          failedSources.push({
-            uri,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            status: response.status,
-          });
-          return;
-        }
-
-        const text = await response.text();
-        const parser = new Parser({
-          baseIRI: uri,
-        });
-
-        // Parse with default graph set to the IRI
-        const quads = parser.parse(text);
-
-        // Unique prefix for blank nodes from this source, to avoid ID collisions
-        // when multiple files use the same generic blank node names (_:obs0_0, etc.)
-        const bnPrefix = encodeURIComponent(uri) + "__";
-        const scopedNode = (term: Quad["subject"]): Quad["subject"] => {
-          if (term.termType === "BlankNode") {
-            return DataFactory.blankNode(bnPrefix + term.value);
-          }
-          return term;
-        };
-
-        // Add source information to each quad
-        const quadsWithGraph = quads.map((quad: Quad) => {
-          // Create a new quad with the source IRI as the graph and scoped blank nodes
-          return DataFactory.quad(
-            scopedNode(quad.subject) as Quad["subject"],
-            quad.predicate,
-            scopedNode(quad.object as Quad["subject"]) as Quad["object"],
-            DataFactory.namedNode(uri),
-          );
-        });
-
-        // Add these quads to our collection
-        allQuads.push(...quadsWithGraph);
-        successfulSources.push(uri);
-      } catch (error) {
-        failedSources.push({
-          uri,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }),
-  );
-
-  // Log results
-  if (successfulSources.length > 0) {
-    console.log(
-      `Successfully loaded ${description} from ${successfulSources.length} sources:`,
-      successfulSources,
-    );
-  }
-
-  if (failedSources.length > 0) {
-    console.warn(
-      `Failed to load ${description} from ${failedSources.length} sources:`,
-      failedSources,
-    );
-  }
-
-  if (allQuads.length === 0 && urls.length > 0) {
-    // All sources unreadable. A 401 means the token expired — distinguish it so
-    // the caller can keep prior data and prompt re-login instead of blanking out.
-    if (failedSources.some((f) => f.status === 401)) {
-      throw new SessionExpiredError(
-        `Authentication failed loading ${description} (HTTP 401).`,
-      );
-    }
-    throw new Error(
-      `Could not access any of the ${description} sources. Check permissions or connectivity.`,
-    );
-  }
-
-  return {
-    quads: allQuads,
-    failedSources: failedSources
-      .filter((f) => f.status === 403 || f.status === 404)
-      .map((f) => ({ uri: f.uri, status: f.status! })),
-    // Everything else that failed without a 401 (which already threw above):
-    // timeouts, network errors, 5xx. Reported, not pruned.
-    transientFailures: failedSources
-      .filter((f) => f.status !== 403 && f.status !== 404)
-      .map((f) => f.uri),
-  };
-}
 
 /**
  * Prune shared building sources that 403/404'd — append a self-revocation to the
@@ -161,7 +48,7 @@ async function loadTtlFromMultipleSources(
  * owner's side thus self-heals (and converges: once revoked, the source isn't
  * folded back in, so it isn't re-fetched).
  */
-async function removeInaccessibleBuildingSources(
+export async function removeInaccessibleBuildingSources(
   failedSources: Array<{ uri: string; status: number }>,
   gateway: PodGateway,
 ): Promise<void> {
@@ -194,7 +81,7 @@ async function removeInaccessibleBuildingSources(
  * them via a banner (see `useDemoSeedPrompt` / `seedDemoBuildings`). So a fresh
  * Pod simply loads empty until the user chooses.
  */
-async function discoverOwnBuildings(
+export async function discoverOwnBuildings(
   gateway: PodGateway,
   webId: string,
 ): Promise<string[]> {
@@ -251,41 +138,66 @@ export async function loadBuildings(
 
   const ownBuildings = await discoverOwnBuildings(gateway, webId);
   const buildingSources = [...new Set([...ownBuildings, ...sharedSources])];
+  const storageRoot = getStorageRoot(webId);
 
-  const buildingsResult = await loadTtlFromMultipleSources(
-    buildingSources,
-    gateway,
-    "buildings",
-  );
+  // Each source is read + parsed independently (the same per-source path the
+  // `useBuildings` query fans out over — `building/buildingSource.ts`), with bounded
+  // concurrency. A failure is classified by HTTP status: 403/404 = access revoked
+  // (prunable), 401 = expired token, anything else transient.
+  const failedSources: Array<{ uri: string; status: number }> = [];
+  const transientFailures: string[] = [];
+  let had401 = false;
+  let okCount = 0;
 
-  // A shared source that 403/404s (e.g. access revoked since the grant) is
-  // pruned from the registry; own buildings always load, so this self-heals
-  // missed revocations on the next load.
-  if (buildingsResult.failedSources.length > 0) {
-    await removeInaccessibleBuildingSources(
-      buildingsResult.failedSources,
-      gateway,
+  const perSource = await mapPooled(buildingSources, 6, async (uri) => {
+    try {
+      const buildings = await loadBuildingSource(uri, gateway, storageRoot);
+      okCount++;
+      return buildings;
+    } catch (error) {
+      const status = error instanceof BuildingSourceError
+        ? error.status
+        : undefined;
+      if (status === 403 || status === 404) {
+        failedSources.push({ uri, status });
+      } else if (status === 401) {
+        had401 = true;
+      } else {
+        transientFailures.push(uri);
+      }
+      return [] as Building[];
+    }
+  });
+
+  // No source was readable: a 401 means the token expired (keep prior data + prompt
+  // re-login); otherwise it's a permissions/connectivity wall.
+  if (okCount === 0 && buildingSources.length > 0) {
+    if (had401) {
+      throw new SessionExpiredError("Authentication failed loading buildings (HTTP 401).");
+    }
+    throw new Error(
+      "Could not access any of the buildings sources. Check permissions or connectivity.",
     );
   }
 
-  const storageRoot = getStorageRoot(webId);
-  const buildings = parseBuildings(buildingsResult.quads, storageRoot);
+  // A shared source that 403/404s (e.g. access revoked since the grant) is pruned
+  // from the registry; own buildings always load, so this self-heals missed
+  // revocations on the next load.
+  if (failedSources.length > 0) {
+    await removeInaccessibleBuildingSources(failedSources, gateway);
+  }
 
-  // Filter out hidden buildings and mark shared buildings.
-  const visibleBuildings = new Map<string, Building>();
-  for (const [buildingId, building] of buildings) {
-    if (!hiddenBuildingUris.has(buildingFileUri(building.uri))) {
-      // Ownership = whether the source file lives under the user's storage root.
-      const sourceForOwnershipCheck = building.sourceUri || building.uri;
-      building.isShared = !sourceForOwnershipCheck.startsWith(storageRoot);
-      visibleBuildings.set(buildingId, building);
-    }
+  // Filter out hidden buildings (isShared is set per source in parseBuildingSource).
+  const visibleBuildings: Building[] = [];
+  for (const building of perSource.flat()) {
+    if (hiddenBuildingUris.has(buildingFileUri(building.uri))) continue;
+    visibleBuildings.push(building);
   }
 
   return {
-    buildings: Array.from(visibleBuildings.values()),
-    prunedSources: buildingsResult.failedSources.map((f) => f.uri),
-    transientFailures: buildingsResult.transientFailures,
+    buildings: visibleBuildings,
+    prunedSources: failedSources.map((f) => f.uri),
+    transientFailures,
   };
 }
 
@@ -298,28 +210,6 @@ export async function loadBuildings(
  * averages. A pure function of the buildings it's given — no registry re-read.
  * @operation query
  */
-/** Arithmetic mean of a non-empty list. */
-function meanOf(values: number[]): number {
-  return values.reduce((acc, v) => acc + v, 0) / values.length;
-}
-
-/**
- * Mean each metric bucket of a `metric → samples` map, dropping any bucket with
- * fewer than `minCount` samples (the operator averages need ≥2 so a lone
- * building isn't published as its own benchmark — see the call site).
- */
-function meanByMetric(
-  buckets: Record<string, number[]>,
-  minCount = 1,
-): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const metric in buckets) {
-    if (buckets[metric].length < minCount) continue;
-    out[metric] = meanOf(buckets[metric]);
-  }
-  return out;
-}
-
 export async function loadEnergy(
   gateway: PodGateway,
   buildings: Building[],
@@ -328,125 +218,22 @@ export async function loadEnergy(
   portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
 }> {
-  const energyData = new Map<string, Energy>();
-  const operatorAggregatedValues: Record<string, Record<string, number[]>> = {};
-  // The user's OWN buildings only (excludes shared-in) — feeds the honest
-  // "portfolio average" the energy view shows.
-  const portfolioAggregatedValues: Record<string, number[]> = {};
-
-  // For each building, the latest ACCESSIBLE actual annual (non-series) dataset
-  // paints the map and feeds the averages. Sub-hourly *series* datasets are
-  // skipped here and loaded lazily on click — dispatch is purely on the declared
-  // granularity. The annual datasets are separate resources, fetched with bounded
-  // concurrency (one Pod round-trip per building in series made the map slow).
-  const annualTasks: Array<{ building: Building; refs: EnergyDatasetRef[] }> =
-    [];
-  for (const building of buildings) {
-    const annual = (building.energyDatasets ?? [])
-      .filter(
-        (r) =>
-          r.scenario === "actual" && !isSeriesGranularity(r.granularity) &&
-          // Building-level only: per-unit observations (a <#pv>/<#battery>/<#chp>
-          // feature-of-interest) are a separate series, not part of the building total.
-          !r.featureOfInterest,
-      )
-      .sort((a, b) => b.year - a.year); // newest first
-    if (annual.length === 0) continue;
-    annualTasks.push({ building, refs: annual });
-  }
-
-  const parsedAnnual = await mapPooled(
-    annualTasks,
-    6,
-    async ({ building, refs }) => {
-      // Newest-first with fallback: a per-year share grants only some years, so
-      // the recipient's fetch of the newest LINKED year can 403 while an older
-      // granted year is readable — fall through to the next-newest instead of
-      // showing "no energy data" (and dropping out of the map's peer terciles).
-      for (const ref of refs) {
-        try {
-          const fileUri = buildingFileUri(ref.uri);
-          const res = await fetchFresh(fileUri, gateway);
-          if (!res.ok) continue;
-          const store = new Store(
-            new Parser({ baseIRI: fileUri }).parse(await res.text()),
-          );
-          const ds = parseEnergyDataset(store, ref.uri);
-          if (ds?.metrics) return { building, metrics: ds.metrics, year: ref.year };
-        } catch (error) {
-          console.error(
-            `Failed to load energy ${ref.year} for building ${building.id}:`,
-            error,
-          );
-        }
-      }
-      return null;
-    },
+  // Each building's latest accessible actual-annual energy, resolved through the shared
+  // per-dataset cache with bounded concurrency (one Pod round-trip per building in series
+  // made the map slow). The per-building resolution and the averages math are shared with
+  // the `useEnergy` useQueries selector (`buildingEnergy.ts`), so the headless fold and the
+  // app can't drift; sub-hourly *series* are skipped (lazy-loaded on click).
+  const resolved = await mapPooled(buildings, 6, async (building) => {
+    const energy = await resolveBuildingEnergy(building, gateway);
+    return energy ? { building, energy } : null;
+  });
+  const entries = resolved.filter(
+    (e): e is { building: Building; energy: Energy } => e !== null,
   );
 
-  for (const entry of parsedAnnual) {
-    if (!entry) continue;
-    const { building, metrics, year } = entry;
-    // Canonical, vocab-keyed energy: `energyNeed` mirrors the AnnualMetrics keys
-    // (`electricityConsumption`, …) 1:1 with the `cons:*` observed-property IRIs —
-    // the same shape the view compute and benchmark snapshots use. Display labels
-    // ("Electricity", …) are derived at render via `metricLabel`/`ANNUAL_METRICS`,
-    // so the cache stays close to the Turtle and reusable, not display-shaped.
-    const energyNeed: Record<string, number> = {};
-    for (const key of CONSUMPTION_METRIC_KEYS) {
-      const v = metrics[key];
-      if (v !== undefined) energyNeed[key] = v;
-    }
-    if (Object.keys(energyNeed).length === 0) continue;
-
-    energyData.set(building.id, {
-      id: building.id,
-      uri: building.uri as string,
-      year,
-      energyNeed,
-      energyGeneration: {},
-      energyStorage: {},
-      energyDistribution: {},
-      energyTransfer: {},
-      energyUsage: {},
-      environmentalFactor: {},
-    });
-
-    for (const [prop, val] of Object.entries(energyNeed)) {
-      if (!building.isShared) {
-        if (!portfolioAggregatedValues[prop]) portfolioAggregatedValues[prop] = [];
-        portfolioAggregatedValues[prop].push(val);
-      }
-      const operator = building.operatedBy;
-      if (!operator || typeof operator !== "string") continue;
-      if (!operatorAggregatedValues[operator]) {
-        operatorAggregatedValues[operator] = {};
-      }
-      if (!operatorAggregatedValues[operator][prop]) {
-        operatorAggregatedValues[operator][prop] = [];
-      }
-      operatorAggregatedValues[operator][prop].push(val);
-    }
-  }
-
-  // The portfolio average (the user's OWN buildings only).
-  const portfolioAverages = meanByMetric(portfolioAggregatedValues);
-
-  // Operator (Betreiber) averages — published per metric only when ≥2 buildings
-  // contribute: a single-building "mean" IS that building's own value, which
-  // would (a) render the own figure dressed up as a benchmark and (b) win the
-  // comparison-reference precedence over the portfolio mean, silently disabling
-  // the deviation tint (own vs itself is always neutral).
-  const operatorAverages: Record<string, Record<string, number>> = {};
-  for (const operator in operatorAggregatedValues) {
-    const perMetric = meanByMetric(operatorAggregatedValues[operator], 2);
-    if (Object.keys(perMetric).length > 0) operatorAverages[operator] = perMetric;
-  }
-
   return {
-    energyNeed: Array.from(energyData.values()),
-    portfolioAverages,
-    operatorAverages,
+    energyNeed: entries.map((e) => e.energy),
+    ...computeEnergyAverages(entries),
   };
 }
 

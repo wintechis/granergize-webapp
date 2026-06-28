@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { getGateway } from "./session.ts";
 import { queryKeys } from "./queries.ts";
+import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import type { ShareBuildingParams } from "../intents/cores/building/ShareBuilding.ts";
 import type { FindNearbyInstallationsParams } from "../intents/cores/installation/FindNearbyInstallations.ts";
 import type { FindRegionalStatisticsParams } from "../intents/cores/aggregation/FindRegionalStatistics.ts";
@@ -42,13 +43,19 @@ import type {
  * listings/readings likewise pick up freshly imported day files.
  */
 function invalidateBuildingData(qc: QueryClient): void {
-  // `refetchType: "all"` (not the default "active"): with `refetchOnMount: false`,
-  // an INACTIVE buildings query (e.g. the Observations finder, unmounted while energy
-  // is entered on a building's observation page) would otherwise only be marked stale
-  // and then serve that stale cache on its next mount — so a building's freshly-added
-  // energyDatasets never appears in the finder. Refetch it now so any later mount is fresh.
-  qc.invalidateQueries({ queryKey: queryKeys.buildings, refetchType: "all" });
-  qc.invalidateQueries({ queryKey: queryKeys.energy });
+  // `refetchType: "all"` (not the default "active"): with `refetchOnMount: false`, an
+  // INACTIVE buildings query (e.g. the Observations finder, unmounted while energy is
+  // entered on a building's observation page) would otherwise only be marked stale and
+  // then serve that stale cache on its next mount — so a building's freshly-added
+  // energyDatasets never appears in the finder. Refetch now so any later mount is fresh.
+  // Buildings is a per-source fan-out: drop the container roster AND every per-source entry.
+  qc.invalidateQueries({ queryKey: queryKeys.buildingsContainer, refetchType: "all" });
+  qc.invalidateQueries({ queryKey: queryKeys.buildingSource, refetchType: "all" });
+  qc.invalidateQueries({ queryKey: queryKeys.buildingEnergy });
+  qc.invalidateQueries({ queryKey: queryKeys.buildingEnergyByYear });
+  // The per-dataset resource cache (staleTime: Infinity) is refreshed by a write,
+  // not by time — so a building/energy mutation must drop its entries here.
+  qc.invalidateQueries({ queryKey: queryKeys.energyDataset });
   qc.invalidateQueries({ queryKey: queryKeys.annualEnergy });
   qc.invalidateQueries({ queryKey: queryKeys.seriesDays });
   qc.invalidateQueries({ queryKey: queryKeys.dayReadings });
@@ -77,25 +84,22 @@ export function useDeleteBuilding() {
     // within the poll window, so the just-emptied container was never re-read.
     // `deleteBuildingResource` does a read-after-write (server-confirmed gone) before
     // this runs, so removing it from the cache here is authoritative, not optimistic.
-    // Keyed by WebID to match `useBuildings` (`[...buildings, webId]`); matched on the
-    // stable `uri` (the building file IRI). onSettled still invalidates as a backstop
+    // Drop the source from the container roster + its per-source entry so the
+    // `useBuildings` selector converges instantly; onSettled invalidates as a backstop
     // and refreshes the dependent energy / shared-buildings queries.
     onSuccess: (_data, building) => {
       const webId = getGateway().webId;
-      // Prefix-match (setQueriesData): the buildings key carries the shared-
-      // source fingerprint as a third element, so the exact key isn't knowable
-      // here — patch every cached buildings query for this WebID.
-      qc.setQueriesData<{ buildings: Building[] }>(
-        { queryKey: [...queryKeys.buildings, webId] },
-        (old) =>
-          old
-            ? { ...old, buildings: old.buildings.filter((b) => b.uri !== building.uri) }
-            : old,
+      const file = buildingFileUri(building.uri);
+      qc.setQueryData<string[]>(
+        [...queryKeys.buildingsContainer, webId],
+        (old) => old?.filter((u) => u !== file),
       );
+      qc.removeQueries({ queryKey: [...queryKeys.buildingSource, webId, file] });
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.buildings });
-      qc.invalidateQueries({ queryKey: queryKeys.energy });
+      qc.invalidateQueries({ queryKey: queryKeys.buildingsContainer });
+      qc.invalidateQueries({ queryKey: queryKeys.buildingSource });
+      qc.invalidateQueries({ queryKey: queryKeys.buildingEnergy });
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
       // Deleting the last building re-enables the fresh-Pod demo offer.
       qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
@@ -121,7 +125,9 @@ export function useCheckInbox() {
       // the grant set (its key fingerprint) stays the same.
       qc.invalidateQueries({ queryKey: queryKeys.sharedInLog });
       qc.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
-      qc.invalidateQueries({ queryKey: queryKeys.buildings });
+      // A re-shared source that was previously pruned may hold a stale 403 entry —
+      // drop the per-source cache so it refetches (the refolded shared-in/ adds it back).
+      qc.invalidateQueries({ queryKey: queryKeys.buildingSource });
     },
   });
 }
@@ -133,11 +139,10 @@ export function useToggleVisibility() {
     mutationFn: (buildingUri: string) =>
       invoke("ToggleVisibility", { buildingUri }, getGateway()),
     onSettled: () => {
-      // The toggle writes prefs.ttl; every reader follows from that one
-      // invalidation. The Share-tab "shared with you" list derives from the
-      // prefs query in memory, and the buildings query keys on the hidden set
-      // (its load filters hidden buildings out), so the prefs refetch re-keys
-      // buildings — no separate buildings invalidation, which would double-load.
+      // The toggle writes prefs.ttl; every reader follows from that one invalidation.
+      // The Share-tab "shared with you" list derives from the prefs query in memory, and
+      // `useBuildings` reads the hidden set in its (in-memory) selector — so the prefs
+      // refetch re-derives the filtered list WITHOUT refetching any building source.
       qc.invalidateQueries({ queryKey: queryKeys.prefs });
     },
   });
@@ -338,7 +343,7 @@ export function useUploadAttachments() {
       files: File[];
       onUploaded?: (ref: AttachmentRef) => void;
     }) => invoke("UploadAttachments", vars, getGateway()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildingSource }),
   });
 }
 
@@ -348,7 +353,7 @@ export function useDeleteAttachment() {
     meta: { action: "actionDeleteFile" },
     mutationFn: (vars: { fileUri: string; subjectUri: string; uri: string }) =>
       invoke("DeleteAttachment", vars, getGateway()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildingSource }),
   });
 }
 
@@ -362,7 +367,7 @@ export function useSetEnergyCertificate() {
       subjectUri: string;
       uri: string | null;
     }) => invoke("SetEnergyCertificate", vars, getGateway()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildingSource }),
   });
 }
 
@@ -618,9 +623,9 @@ export function useSeedDemoBuildings() {
   return useMutation({
     meta: { action: "actionAddDemoBuildings" },
     mutationFn: () => invoke("SeedDemoBuildings", {}, getGateway()),
-    // Energy follows automatically: useEnergy is keyed on the building set.
+    // Energy follows automatically: useEnergy fans out a per-building query over the set.
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.buildings });
+      qc.invalidateQueries({ queryKey: queryKeys.buildingsContainer });
       // Re-probe the demo offer so the banner stands down after seeding (and on the
       // next reload, where the session-local `demoDismissed` flag has reset).
       qc.invalidateQueries({ queryKey: queryKeys.demoOffer });

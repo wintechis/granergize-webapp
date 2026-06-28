@@ -156,8 +156,8 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
 
   /**
    * Seed the fixed demo building(s) — banner & menu share this. The hook owns
-   * execution + the buildings invalidation (energy follows: useEnergy is keyed
-   * on the building set); the seeder is best-effort per building (it never
+   * execution + the buildings invalidation (energy follows: useEnergy fans out a
+   * per-building query over the set); the seeder is best-effort per building (it never
    * throws for one), so the tally is the only place a partial failure
    * surfaces — rendered honestly here. Thrown errors toast centrally.
    */
