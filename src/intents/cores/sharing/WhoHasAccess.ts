@@ -7,6 +7,7 @@
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import {
   type ActiveGrant,
+  cachedSharingGrants,
   foldSharingLog,
   sharedOutUri,
 } from "../../../services/interop/sharingLog.ts";
@@ -18,8 +19,9 @@ export interface WhoHasAccessParams {
 
 /** Injectable grants source (defaults to folding the viewer's shared-out log). */
 export type LoadOutGrants = (gateway: PodGateway) => Promise<ActiveGrant[]>;
-const defaultLoad: LoadOutGrants = (gateway) =>
-  foldSharingLog(sharedOutUri(gateway.webId!), gateway);
+const defaultLoad: LoadOutGrants = async (gateway) =>
+  cachedSharingGrants(gateway.webId!, "sharedOutContainer") ??
+    await foldSharingLog(sharedOutUri(gateway.webId!), gateway);
 
 export async function whoHasAccessCore(
   gateway: PodGateway,

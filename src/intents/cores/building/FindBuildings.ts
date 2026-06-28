@@ -4,21 +4,23 @@
  * (`plan-attribute-facets.md`). A pure read — no writes — returning the matching
  * `Building[]`.
  *
- * Loads over the existing headless loader (`fetchAndParseData`) for now; it
- * re-points to the IRI-keyed resource store when that lands ([[project_ldp_query_layer]])
- * without changing this signature. The loader is injectable so the filtering is
- * Tier-1-testable without a Pod (the selector itself is the tested unit).
+ * Reads the warm IRI-keyed cache when the app is mounted (`cachedVisibleBuildings` —
+ * the same `["buildingSource", …]` entries the map filled), falling back to the headless
+ * loader (`fetchAndParseData`) when the cache is cold (headless / before the map ran).
+ * The loader is injectable so the filtering is Tier-1-testable without a Pod (the
+ * selector itself is the tested unit).
  */
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import type { Building } from "../../../types.ts";
 import { fetchAndParseData } from "../../../services/turtleParsing.ts";
+import { cachedVisibleBuildings } from "../../../services/building/buildingSource.ts";
 import { filter, type Selector } from "../../selector.ts";
 
 /** Load the viewer's visible buildings (own ∪ shared-not-hidden) headlessly. */
 export type LoadVisibleBuildings = (gateway: PodGateway) => Promise<Building[]>;
 
 const defaultLoad: LoadVisibleBuildings = async (gateway) =>
-  (await fetchAndParseData(gateway)).buildings;
+  cachedVisibleBuildings(gateway) ?? (await fetchAndParseData(gateway)).buildings;
 
 /** Params for FindBuildings — an optional selector (absent ⇒ the whole set). */
 export interface FindBuildingsParams {

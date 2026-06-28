@@ -17,6 +17,7 @@ import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import { appendToContainer, ensureContainer } from "../pod/podWrite.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { mapPooled } from "../../lib/pool.ts";
+import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 
 const { namedNode } = DataFactory;
 
@@ -328,4 +329,28 @@ export async function foldSharingLog(
   gateway: PodGateway,
 ): Promise<ActiveGrant[]> {
   return grantsFromEvents(await foldSharingLogEvents(containerUri, gateway));
+}
+
+/**
+ * The active grants of a sharing log from the WARM React Query cache — the read-core
+ * equivalent of `useSharedInGrants`/`useSharedOutGrants`: read the container listing
+ * (`["{containerKey}", webId]`) and each `["sharingEvent", webId, eventUri]` entry, then
+ * fold. Returns `null` when the listing or any event isn't cached (cold / partial), so
+ * the caller folds fresh. `containerKey` is `"sharedInContainer"` or `"sharedOutContainer"`.
+ */
+export function cachedSharingGrants(
+  webId: string,
+  containerKey: "sharedInContainer" | "sharedOutContainer",
+): ActiveGrant[] | null {
+  const qc = getAppQueryClient();
+  if (!qc) return null;
+  const listing = qc.getQueryData<string[]>([containerKey, webId]);
+  if (listing === undefined) return null;
+  const events: SharingEvent[] = [];
+  for (const eventUri of listing) {
+    const e = qc.getQueryData<SharingEvent[]>(["sharingEvent", webId, eventUri]);
+    if (e === undefined) return null; // an event not cached → don't trust a partial fold
+    events.push(...e);
+  }
+  return grantsFromEvents(foldEvents(events));
 }

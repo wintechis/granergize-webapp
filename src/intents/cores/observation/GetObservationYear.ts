@@ -1,10 +1,11 @@
 /**
  * `GetObservationYear` — a single-entity read (`plan-intent-core.md` §8): the annual
  * energy observation for one building and year ("building X's electricity in 2024").
- * Resolves the building (EntityQuery), then loads its actual, non-series annual
- * datasets and returns the matching year's metrics. Returns `null` when the building
- * or that year is absent. Composes the same single-resource reads + parsers the
- * by-year energy hook uses, headlessly.
+ * Reads the building from the warm cache (`cachedBuilding`), else resolves it
+ * (EntityQuery), then loads its actual, non-series annual datasets through the shared
+ * per-dataset cache (`fetchEnergyDatasetsShared` — the same `["energyDataset", …]` entries
+ * the map filled) and returns the matching year's metrics. Returns `null` when the
+ * building or that year is absent.
  */
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import type { Building } from "../../../types.ts";
@@ -13,10 +14,10 @@ import {
   type AnnualMetrics,
   type EnergyDataset,
   type EnergyDatasetRef,
-  loadEnergyDatasets,
 } from "../../../services/energy/energyDataset.ts";
+import { fetchEnergyDatasetsShared } from "../../../services/energy/energyDatasetCache.ts";
+import { cachedBuilding } from "../../../services/building/buildingSource.ts";
 import { isSeriesGranularity } from "../../../services/rdf/durationUtils.ts";
-import { fetchFresh } from "../../../services/pod/podFetch.ts";
 
 export interface GetObservationYearParams {
   /** The building's subject/document IRI. */
@@ -38,14 +39,15 @@ export type LoadDatasets = (
   gateway: PodGateway,
 ) => Promise<EnergyDataset[]>;
 const defaultLoad: LoadDatasets = (refs, gateway) =>
-  loadEnergyDatasets(refs, (uri) => fetchFresh(uri, gateway));
+  fetchEnergyDatasetsShared(refs, gateway);
 
 export async function getObservationYearCore(
   gateway: PodGateway,
   params: GetObservationYearParams,
   load: LoadDatasets = defaultLoad,
 ): Promise<ObservationYear | null> {
-  const obj = await resolve("building", params.building, gateway);
+  const obj = cachedBuilding(params.building) ??
+    await resolve("building", params.building, gateway);
   if (!obj || !("energyDatasets" in obj)) return null;
   const b = obj as Building;
   const year = Number(params.year);

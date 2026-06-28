@@ -1,12 +1,16 @@
 /// <reference lib="deno.ns" />
+import "../../hooks/test-dom-setup.ts"; // QueryClient pulls react-query; DOM globals first
 import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser, Store } from "n3";
+import { QueryClient } from "@tanstack/react-query";
+import { _setAppQueryClient } from "../../lib/appQueryClient.ts";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 import {
   appendSharingEvent,
   buildSharingEventTurtle,
+  cachedSharingGrants,
   foldSharingLog,
   parseSharingEvents,
   sharedInUri,
@@ -287,4 +291,38 @@ Deno.test("foldSharingLog: a re-fold re-reads only the listing, not the immutabl
   const active = await foldSharingLog(log, session);
   assert.deepEqual(active.map((g) => g.resource), [B1]);
   assert.equal(eventGets(), 3, "only the new event was read");
+});
+
+Deno.test("cachedSharingGrants folds the warm cache (listing + per-event entries)", () => {
+  const qc = new QueryClient();
+  _setAppQueryClient(qc);
+  try {
+    const EVT = `${sharedOutUri(WEBID)}evt-1`;
+    const grant: SharingEvent = {
+      type: "grant",
+      owner: WEBID,
+      grantee: BOB,
+      resource: B1,
+      at: "2026-01-01T00:00:00Z",
+      kind: "Building",
+    };
+    qc.setQueryData<string[]>(["sharedOutContainer", WEBID], [EVT]);
+    qc.setQueryData<SharingEvent[]>(["sharingEvent", WEBID, EVT], [grant]);
+    const grants = cachedSharingGrants(WEBID, "sharedOutContainer");
+    assert.equal(grants?.length, 1);
+    assert.equal(grants?.[0].resource, B1);
+    assert.equal(grants?.[0].grantee, BOB);
+
+    // A listed event that isn't cached → null (don't trust a partial fold).
+    qc.setQueryData<string[]>(["sharedOutContainer", WEBID], [EVT, `${EVT}-2`]);
+    assert.equal(cachedSharingGrants(WEBID, "sharedOutContainer"), null);
+  } finally {
+    qc.clear();
+    _setAppQueryClient(null);
+  }
+});
+
+Deno.test("cachedSharingGrants: no app client / cold listing → null", () => {
+  _setAppQueryClient(null);
+  assert.equal(cachedSharingGrants(WEBID, "sharedInContainer"), null);
 });

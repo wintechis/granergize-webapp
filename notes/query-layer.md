@@ -138,4 +138,29 @@ building sources, energy datasets and the sharing log each under
 `services/{building|energy|interop}/`. There is intentionally no single "query layer"
 package: the *keys* and *reactivity* live with the hooks, the *resource reads* live with
 the data they read, and the two are bridged by a published client handle so non-hook
-service code (the aggregation compute) can read the same warm entries the hooks filled.
+service code can read the same warm entries the hooks filled.
+
+## TanStack Query *is* the IRI-keyed store
+
+There is no bespoke cache: the resource entries are ordinary React Query entries keyed by
+IRI, and the read-through is `ensureQueryData`. React Query supplies the store, the
+in-flight dedup, garbage collection, structural sharing and the reactivity binding — so
+nothing here reimplements those. The "store" and the "query library" are the same thing.
+
+## One read path for the UI *and* the intents
+
+The published client handle lets React-free code read the warm entries through small peeks
+(`cachedBuilding` / `cachedVisibleBuildings`, `cachedSharingGrants`, and the
+`fetch{Resource}Shared` accessors), so both surfaces converge on the same cache rather than
+re-reading the Pod:
+
+- the **UI** reads through the hooks (the fan-outs populate and read the entries);
+- the **intent read cores** (the headless object-model reads behind the command palette)
+  read the same entries when the app is mounted, and fall back to a direct load only when
+  the cache is cold (fully headless / before the relevant hook ran);
+- the **aggregation compute** likewise reads the warm per-building / per-dataset entries.
+
+Writes already share one path — the UI mutation hooks are thin adapters over the same
+write cores the intents invoke. The few reads that stay independent do so on purpose: an
+audit that must diff *actual* enforcement state against the log reads fresh ground truth,
+and an external open-data lookup has no Pod entry to share.

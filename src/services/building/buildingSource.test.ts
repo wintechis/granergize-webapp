@@ -4,7 +4,10 @@ import { strict as assert } from "node:assert";
 import { QueryClient } from "@tanstack/react-query";
 import { _setAppQueryClient } from "../../lib/appQueryClient.ts";
 import type { PodGateway } from "../pod/podGateway.ts";
+import type { Building } from "../../types.ts";
 import {
+  cachedBuilding,
+  cachedVisibleBuildings,
   fetchBuildingSourceShared,
   parseBuildingSource,
 } from "./buildingSource.ts";
@@ -100,4 +103,68 @@ Deno.test("fetchBuildingSourceShared: no app QueryClient still loads (direct)", 
   const buildings = await fetchBuildingSourceShared(SRC, gateway, ROOT);
   assert.equal(buildings.length, 1);
   assert.equal(calls(), 1);
+});
+
+const onlyWebId: PodGateway = {
+  fetch: (() => Promise.resolve(new Response(""))) as unknown as typeof globalThis.fetch,
+  webId: WEBID,
+};
+
+Deno.test("cachedBuilding finds a building in the warm per-source cache", () => {
+  const qc = new QueryClient();
+  _setAppQueryClient(qc);
+  try {
+    qc.setQueryData<Building[]>(["buildingSource", WEBID, SRC], [
+      { uri: `${SRC}#it` } as Building,
+    ]);
+    assert.equal(cachedBuilding(`${SRC}#it`)?.uri, `${SRC}#it`);
+    assert.equal(cachedBuilding("urn:absent"), null);
+  } finally {
+    qc.clear();
+    _setAppQueryClient(null);
+  }
+});
+
+Deno.test("cachedBuilding: no app client → null", () => {
+  _setAppQueryClient(null);
+  assert.equal(cachedBuilding(`${SRC}#it`), null);
+});
+
+Deno.test("cachedVisibleBuildings: cold cache (no container) → null", () => {
+  const qc = new QueryClient();
+  _setAppQueryClient(qc);
+  try {
+    // A per-source entry exists but the container query never ran → don't trust a
+    // partial peek; the caller falls back to a full load.
+    qc.setQueryData<Building[]>(["buildingSource", WEBID, SRC], [
+      { uri: `${SRC}#it` } as Building,
+    ]);
+    assert.equal(cachedVisibleBuildings(onlyWebId), null);
+  } finally {
+    qc.clear();
+    _setAppQueryClient(null);
+  }
+});
+
+Deno.test("cachedVisibleBuildings: warm cache flattens sources and drops hidden", () => {
+  const qc = new QueryClient();
+  _setAppQueryClient(qc);
+  try {
+    const A = `${ROOT}granergize/buildings/a.ttl`;
+    const B = `${ROOT}granergize/buildings/b.ttl`;
+    qc.setQueryData<string[]>(["buildingsContainer", WEBID], [A, B]);
+    qc.setQueryData<Building[]>(["buildingSource", WEBID, A], [
+      { uri: `${A}#it` } as Building,
+    ]);
+    qc.setQueryData<Building[]>(["buildingSource", WEBID, B], [
+      { uri: `${B}#it` } as Building,
+    ]);
+    qc.setQueryData(["prefs", WEBID], { hiddenBuildings: new Set([B]) });
+    const vis = cachedVisibleBuildings(onlyWebId);
+    assert.equal(vis?.length, 1, "the hidden building is dropped");
+    assert.equal(vis?.[0].uri, `${A}#it`);
+  } finally {
+    qc.clear();
+    _setAppQueryClient(null);
+  }
 });

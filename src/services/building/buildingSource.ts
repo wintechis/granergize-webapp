@@ -5,6 +5,7 @@ import type { PodGateway } from "../pod/podGateway.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { fetchFresh } from "../pod/podFetch.ts";
 import { parseBuildings } from "../rdf/building/buildingParser.ts";
+import { buildingFileUri } from "../rdf/building/buildingId.ts";
 
 /**
  * One building source file as a per-resource read — the buildings analogue of the
@@ -106,4 +107,65 @@ export async function fetchBuildingSourceShared(
     staleTime: Infinity,
     revalidateIfStale: true,
   });
+}
+
+/**
+ * The building with this subject IRI from the WARM per-source cache (the `useBuildings`
+ * fan-out's `["buildingSource", webId, sourceUri]` entries), or `null` when there's no app
+ * client / it isn't cached. Lets React-free readers (the aggregation compute, the read
+ * cores) reuse what the hooks loaded instead of re-reading the file.
+ */
+export function cachedBuilding(buildingUri: string): Building | null {
+  const qc = getAppQueryClient();
+  if (!qc) return null;
+  const entries = qc.getQueriesData<Building[]>({
+    predicate: (q) => q.queryKey[0] === "buildingSource",
+  });
+  for (const [, data] of entries) {
+    const b = data?.find((x) => x.uri === buildingUri);
+    if (b) return b;
+  }
+  return null;
+}
+
+/**
+ * The hidden-building document IRIs from the WARM `["prefs", webId]` entry, or `null`
+ * when prefs isn't cached (the caller then falls back to a fresh read rather than risk
+ * showing a hidden building).
+ */
+export function cachedHiddenBuildings(webId: string): Set<string> | null {
+  const qc = getAppQueryClient();
+  if (!qc) return null;
+  const prefs = qc.getQueryData<{ hiddenBuildings: Set<string> }>(["prefs", webId]);
+  return prefs ? prefs.hiddenBuildings : null;
+}
+
+/**
+ * The user's visible buildings from the WARM cache — the read-core equivalent of
+ * `useBuildings`' result: flatten every cached per-source entry and drop hidden ones.
+ * Returns `null` when the cache is COLD (no `["buildingsContainer", …]` entry → the
+ * fan-out hasn't run) or prefs isn't warm, so the caller falls back to a full load rather
+ * than trusting a partial / unfiltered peek.
+ */
+export function cachedVisibleBuildings(gateway: PodGateway): Building[] | null {
+  const qc = getAppQueryClient();
+  if (!qc) return null;
+  // Cold cache: the buildings fan-out never ran → don't trust a partial set of sources.
+  const containers = qc.getQueriesData<string[]>({
+    predicate: (q) => q.queryKey[0] === "buildingsContainer",
+  });
+  if (!containers.some(([, data]) => data !== undefined)) return null;
+  const hidden = cachedHiddenBuildings(gateway.webId);
+  if (hidden === null) return null; // prefs not warm → fall back (don't show a hidden one)
+
+  const out: Building[] = [];
+  const entries = qc.getQueriesData<Building[]>({
+    predicate: (q) => q.queryKey[0] === "buildingSource",
+  });
+  for (const [, data] of entries) {
+    for (const b of data ?? []) {
+      if (!hidden.has(buildingFileUri(b.uri))) out.push(b);
+    }
+  }
+  return out;
 }

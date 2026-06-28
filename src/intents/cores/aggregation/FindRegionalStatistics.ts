@@ -11,6 +11,10 @@ import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import type { Building } from "../../../types.ts";
 import { resolve } from "../../entityQuery.ts";
 import { fetchAndParseData } from "../../../services/turtleParsing.ts";
+import {
+  cachedBuilding,
+  cachedVisibleBuildings,
+} from "../../../services/building/buildingSource.ts";
 import { bundeslandToAgs } from "../../../services/sources/region.ts";
 import {
   openRegionalItemsFromBuildings,
@@ -27,7 +31,7 @@ export interface FindRegionalStatisticsParams {
 /** Load the viewer's visible buildings (own ∪ shared-not-hidden) headlessly. */
 export type LoadVisibleBuildings = (gateway: PodGateway) => Promise<Building[]>;
 const defaultLoad: LoadVisibleBuildings = async (gateway) =>
-  (await fetchAndParseData(gateway)).buildings;
+  cachedVisibleBuildings(gateway) ?? (await fetchAndParseData(gateway)).buildings;
 
 export async function findRegionalStatisticsCore(
   gateway: PodGateway,
@@ -40,7 +44,8 @@ export async function findRegionalStatisticsCore(
   if (params.region) {
     buildings = [];
   } else if (params.building) {
-    const obj = await resolve("building", params.building, gateway);
+    const obj = cachedBuilding(params.building) ??
+      await resolve("building", params.building, gateway);
     buildings = obj ? [obj as Building] : [];
   } else {
     buildings = await load(gateway);
