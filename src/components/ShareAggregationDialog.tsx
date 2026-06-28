@@ -58,7 +58,7 @@ export default function ShareAggregationDialog(
   // and the share error renders inline (silent hook) through the same
   // classifier the central toast would use. The "currently shared with" list
   // derives from the folded shared-out log (no per-open re-fold); the hooks'
-  // sharedOutLog invalidation refreshes it after a share/revoke.
+  // sharedOutContainer invalidation refreshes it after a share/revoke.
   const share = useShareAggregationSnapshot({ silent: true });
   const revoke = useRevokeAggregationAccess();
   const loading = share.isPending || revoke.isPending;

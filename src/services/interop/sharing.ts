@@ -36,7 +36,7 @@ function buildingIdFromUri(uri: string): string {
 }
 
 // ── Pure derivations over a folded log ──────────────────────────────────────
-// Each sharing log is folded ONCE per load (the `sharedInLog`/`sharedOutLog`
+// Each sharing log is folded ONCE per load (the `sharedInContainer`/`sharedOutContainer`
 // queries in hooks/queries.ts); the list shapes below are cheap in-memory
 // derivations of that fold. Hook code composes these with the log queries —
 // only non-hook callers (headless tasks, service-internal reads) use the
@@ -108,7 +108,7 @@ export function sharedAggregationsFromGrants(grants: ActiveGrant[]): SharedAggre
  * IRI is `interop:forResource` with `gran:kind rec:Building`.
  *
  * NON-HOOK callers only (headless tasks, service-internal reads): it folds the
- * whole log for itself. Hook code derives from the `sharedOutLog` query via
+ * whole log for itself. Hook code derives from the `sharedOutContainer` query via
  * {@link sharedBuildingsFromGrants} so the log is folded once per load.
  * @operation query
  */
@@ -132,7 +132,7 @@ export async function getSharedBuildings(
  * (the event's `owner`). Visibility comes from `prefs.ttl`.
  *
  * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
- * {@link sharedWithMeFromGrants} from the `sharedInLog` + `prefs` queries.
+ * {@link sharedWithMeFromGrants} from the `sharedInContainer` + `prefs` queries.
  * @operation query
  */
 export async function getSharedWithMe(
@@ -428,7 +428,7 @@ export interface ReceivedAggregation {
  * IRI + who shared it; render it with {@link loadComputedSnapshot}.
  *
  * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
- * {@link receivedAggregationsFromGrants} from the `sharedInLog` query.
+ * {@link receivedAggregationsFromGrants} from the `sharedInContainer` query.
  * @operation query
  */
 export async function getReceivedAggregations(
@@ -449,7 +449,7 @@ export async function getReceivedAggregations(
  * (`aggregations/snapshots/<aggregationId>.ttl`).
  *
  * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
- * {@link sharedAggregationsFromGrants} from the `sharedOutLog` query.
+ * {@link sharedAggregationsFromGrants} from the `sharedOutContainer` query.
  * @operation query
  */
 export async function getSharedAggregations(gateway: PodGateway): Promise<SharedAggregation[]> {

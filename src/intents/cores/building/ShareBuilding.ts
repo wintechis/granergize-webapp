@@ -43,7 +43,7 @@ export interface ShareBuildingOutcome {
  *
  * Holds exactly the Pod-request composition the hook's `mutationFn` used to; the
  * hook is now a thin adapter owning only busy state, the central toast, and the
- * `sharedOutLog` invalidation. Takes `gateway` as an argument — never calls
+ * `sharedOutContainer` invalidation. Takes `gateway` as an argument — never calls
  * `getSession()`, imports no React/React Query — so it is callable headless
  * (a palette, a deep link, an LLM tool, the bench seeder, the Tier-2 runner).
  */

@@ -22,7 +22,7 @@ export interface ShareAggregationParams {
  *
  * The hook keeps only busy state, the central toast / inline `<Alert>`
  * (`meta.silent` is an adapter concern — the core knows nothing about it), and
- * the `sharedOutLog` invalidation.
+ * the `sharedOutContainer` invalidation.
  */
 export async function shareAggregationCore(
   gateway: PodGateway,

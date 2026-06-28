@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { getGateway, getSession } from "./session.ts";
 import {
-  discoverOwnBuildings,
+  listOwnBuildings,
   loadBuildinglessObservations,
   removeInaccessibleBuildingSources,
   SessionExpiredError,
@@ -72,7 +72,7 @@ import {
   type EnergyMetricKey,
   listSeriesDays,
 } from "../services/energy/energyDataset.ts";
-import { loadEnergyDatasetsShared } from "../services/energy/energyDatasetCache.ts";
+import { fetchEnergyDatasetsShared } from "../services/energy/energyDatasetCache.ts";
 import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import type {
@@ -185,7 +185,7 @@ function foldEventQueries(results: Array<UseQueryResult<SharingEvent[]>>) {
 }
 
 /**
- * One append-only sharing log as a container listing query (`sharedInLog`/`sharedOutLog`
+ * One append-only sharing log as a container listing query (`sharedInContainer`/`sharedOutContainer`
  * — what mutations invalidate) + one `["sharingEvent", …]` query per event. Events are
  * IMMUTABLE (server-minted IRIs), so each per-event query is `staleTime: Infinity`:
  * invalidating the container re-lists and refolds while existing events stay warm, so a
@@ -237,13 +237,13 @@ function useSharingLog(
  * container is listed once (deduped) and each event is read once across consumers.
  */
 export function useSharedInGrants() {
-  return useSharingLog(queryKeys.sharedInLog, sharedInUri);
+  return useSharingLog(queryKeys.sharedInContainer, sharedInUri);
 }
 
 /** The folded `shared-out/` log — see {@link useSharedInGrants}; the
  * shared-buildings and shared-aggregations lists derive from it. */
 export function useSharedOutGrants() {
-  return useSharingLog(queryKeys.sharedOutLog, sharedOutUri);
+  return useSharingLog(queryKeys.sharedOutContainer, sharedOutUri);
 }
 
 /** `prefs.ttl` (hidden buildings, …). Invalidated by the visibility toggle. */
@@ -271,7 +271,7 @@ export function useBuildingsContainer() {
     queryKeys.buildingsContainer,
     async (gateway, webId) => {
       await resolveStorageRoot(gateway);
-      return discoverOwnBuildings(gateway, webId);
+      return listOwnBuildings(gateway, webId);
     },
   );
 }
@@ -303,7 +303,7 @@ function useReconcileBuildingSources(
         toPrune.map((f) => ({ uri: f.uri, status: f.status! })),
         getGateway(),
       )
-        .then(() => qc.invalidateQueries({ queryKey: queryKeys.sharedInLog }))
+        .then(() => qc.invalidateQueries({ queryKey: queryKeys.sharedInContainer }))
         .catch((e) => logError("prune inaccessible building source", e));
     }
     const transient = failures.filter(
@@ -731,7 +731,7 @@ export function useAnnualEnergy(building: Building) {
         // under their unit, not in the building's annual chart.
         (r) => !isSeriesGranularity(r.granularity) && !r.featureOfInterest,
       );
-      const datasets = await loadEnergyDatasetsShared(refs, getGateway());
+      const datasets = await fetchEnergyDatasetsShared(refs, getGateway());
       const rows = (scenario: "actual" | "planned") =>
         datasets
           .filter((d) => d.scenario === scenario && d.metrics)
@@ -772,7 +772,7 @@ export function useAnnualDatasets(
       const refs = (building?.energyDatasets ?? []).filter(
         (r) => r.granularity === "P1Y",
       );
-      return loadEnergyDatasetsShared(refs, getGateway());
+      return fetchEnergyDatasetsShared(refs, getGateway());
     },
     {
       extraKey: [building?.id ?? "", building ? energyKeyFor([building]) : ""],
@@ -978,6 +978,7 @@ export function useResolveOrg(webId?: string) {
  * key typo.
  */
 export const queryKeys = {
+  // ─── Container listings & per-resource reads (the resource-query layer) ───
   /** The own-buildings container listing (`["buildingsContainer", webId]`) — the
    * membership query the `useBuildings` fan-out reads its own source IRIs from. */
   buildingsContainer: ["buildingsContainer"] as const,
@@ -985,24 +986,41 @@ export const queryKeys = {
    * — the per-resource read the `useBuildings` fan-out and `fetchBuildingSourceShared`
    * go through. */
   buildingSource: ["buildingSource"] as const,
-  /** One building's latest-annual energy, keyed per building
-   * (`["buildingEnergy", webId, buildingUri, linkFingerprint]`) — the `useEnergy`
-   * useQueries fan-out; the portfolio/operator averages derive from these in `combine`. */
-  buildingEnergy: ["buildingEnergy"] as const,
   /** One energy dataset, keyed by its node IRI (`["energyDataset", webId, uri]`) — the
    * shared per-resource read the map fold and the aggregation compute both go through. */
   energyDataset: ["energyDataset"] as const,
   /** The `shared-in/` log's container LISTING (event IRIs) — everything "shared with me"
    * derives from folding it; mutations invalidate this to re-list + refold. */
-  sharedInLog: ["sharedInLog"] as const,
+  sharedInContainer: ["sharedInContainer"] as const,
   /** The `shared-out/` log's container listing — the shared-buildings/-aggregations lists
    * derive from folding it. */
-  sharedOutLog: ["sharedOutLog"] as const,
+  sharedOutContainer: ["sharedOutContainer"] as const,
   /** One sharing-log event (`["sharingEvent", webId, eventUri]` → `SharingEvent[]`) — the
    * immutable per-event read the log fan-outs cache (staleTime Infinity). */
   sharingEvent: ["sharingEvent"] as const,
-  /** prefs.ttl (hidden buildings, …). Invalidated by the visibility toggle. */
-  prefs: ["prefs"] as const,
+
+  // ─── Per-building energy (fan-out selectors + detail/series reads) ───
+  /** One building's latest-annual energy, keyed per building
+   * (`["buildingEnergy", webId, buildingUri, linkFingerprint]`) — the `useEnergy`
+   * useQueries fan-out; the portfolio/operator averages derive from these in `combine`. */
+  buildingEnergy: ["buildingEnergy"] as const,
+  /** One building's per-year annual cube (`["buildingEnergyByYear", webId, uri, fingerprint]`)
+   * — the `useAnnualEnergyByYear` useQueries fan-out behind the time-cut slider. */
+  buildingEnergyByYear: ["buildingEnergyByYear"] as const,
+  /** One building's annual datasets (detail pane), keyed by id + link fingerprint. */
+  annualEnergy: ["annualEnergy"] as const,
+  /** One building's raw annual datasets (energy-year dialog), keyed by id + fingerprint. */
+  annualDatasets: ["annualDatasets"] as const,
+  /** The user's building-less (unbound) observations, keyed by the building-link fingerprint. */
+  buildinglessObservations: ["buildinglessObservations"] as const,
+  /** Day files behind a set of 15-min series descriptors, keyed by ref URLs. */
+  seriesDays: ["seriesDays"] as const,
+  /** One day file's readings, keyed by URL. */
+  dayReadings: ["dayReadings"] as const,
+  /** A month of day files (bulk), keyed by the entry URLs. */
+  monthReadings: ["monthReadings"] as const,
+
+  // ─── Aggregations & received shares ───
   aggregationDefinitions: ["aggregationDefinitions"] as const,
   /** One aggregation's definition + computed snapshot (the standalone /aggregation page), keyed by aggregation id. */
   aggregationDetail: ["aggregationDetail"] as const,
@@ -1012,6 +1030,8 @@ export const queryKeys = {
   sharedBuildingDetail: ["sharedBuildingDetail"] as const,
   /** Benchmark snapshots received from a BSP (subset of received aggregations). */
   receivedBenchmarks: ["receivedBenchmarks"] as const,
+
+  // ─── Rooms & agents ───
   /** The room registry (current + known). Set via setQueryData, not invalidated. */
   rooms: ["rooms"] as const,
   /** A room's log (members + roles), keyed by room. Invalidated on role saves. */
@@ -1022,23 +1042,12 @@ export const queryKeys = {
   agent: ["agent"] as const,
   /** A single resolved agent's organisation (name + logo IRI), keyed by WebID. */
   agentOrg: ["agentOrg"] as const,
-  /** One building's annual datasets (detail pane), keyed by id + link fingerprint. */
-  annualEnergy: ["annualEnergy"] as const,
-  /** One building's raw annual datasets (energy-year dialog), keyed by id + fingerprint. */
-  annualDatasets: ["annualDatasets"] as const,
-  /** One building's per-year annual cube (`["buildingEnergyByYear", webId, uri, fingerprint]`)
-   * — the `useAnnualEnergyByYear` useQueries fan-out behind the time-cut slider. */
-  buildingEnergyByYear: ["buildingEnergyByYear"] as const,
-  /** The user's building-less (unbound) observations, keyed by the building-link fingerprint. */
-  buildinglessObservations: ["buildinglessObservations"] as const,
+
+  // ─── App state ───
+  /** prefs.ttl (hidden buildings, …). Invalidated by the visibility toggle. */
+  prefs: ["prefs"] as const,
   /** The fresh-Pod demo-buildings offer (own container empty + not declined). */
   demoOffer: ["demoOffer"] as const,
-  /** Day files behind a set of 15-min series descriptors, keyed by ref URLs. */
-  seriesDays: ["seriesDays"] as const,
-  /** One day file's readings, keyed by URL. */
-  dayReadings: ["dayReadings"] as const,
-  /** A month of day files (bulk), keyed by the entry URLs. */
-  monthReadings: ["monthReadings"] as const,
 };
 
 /**

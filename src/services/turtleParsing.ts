@@ -81,7 +81,7 @@ export async function removeInaccessibleBuildingSources(
  * them via a banner (see `useDemoSeedPrompt` / `seedDemoBuildings`). So a fresh
  * Pod simply loads empty until the user chooses.
  */
-export async function discoverOwnBuildings(
+export async function listOwnBuildings(
   gateway: PodGateway,
   webId: string,
 ): Promise<string[]> {
@@ -102,7 +102,7 @@ export function sharedBuildingSourcesFromGrants(grants: ActiveGrant[]): string[]
  * Phase 1: discover, fetch and parse the visible buildings (no energy). Own
  * buildings come from listing the `buildings/` container; buildings shared with
  * the user are passed in as `sharedSources` — derived from the `shared-in/` log
- * folded ONCE per load by the `sharedInLog` query (hooks) or by
+ * folded ONCE per load by the `sharedInContainer` query (hooks) or by
  * {@link fetchAndParseData} (headless). `hiddenBuildings` (the prefs
  * `gran:hiddenBuilding` set) is likewise passed in — read ONCE per load by the
  * `prefs` query (hooks) or by {@link fetchAndParseData}, not re-fetched here.
@@ -136,7 +136,7 @@ export async function loadBuildings(
     throw new Error("No WebID found.");
   }
 
-  const ownBuildings = await discoverOwnBuildings(gateway, webId);
+  const ownBuildings = await listOwnBuildings(gateway, webId);
   const buildingSources = [...new Set([...ownBuildings, ...sharedSources])];
   const storageRoot = getStorageRoot(webId);
 
@@ -405,7 +405,7 @@ export async function listSharedBuildingSources(
  * Two-phase orchestrator: phase 0+1 (fold shared-in once + read prefs once,
  * then buildings) and phase 2 (energy), with a callback fired after phase 1.
  * Used by the live harness and the offline tests; the app drives the phases as
- * separate React Query queries instead (the `sharedInLog` query owning the one
+ * separate React Query queries instead (the `sharedInContainer` query owning the one
  * fold, the `prefs` query the one prefs read).
  * @operation query
  */

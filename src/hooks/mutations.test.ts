@@ -391,7 +391,7 @@ Deno.test("useShareBuilding invalidates ONLY the shared-out log (not buildings)"
       recipients: ["https://bob.example/profile/card#me"],
       includeEnergyData: true,
     }).catch(() => {});
-    assert.ok(invalidated.includes("sharedOutLog"), "sharedOutLog invalidated");
+    assert.ok(invalidated.includes("sharedOutContainer"), "sharedOutContainer invalidated");
     assert.ok(
       !invalidated.includes("buildingSource") &&
         !invalidated.includes("buildingsContainer"),
@@ -424,7 +424,7 @@ Deno.test("useRefreshAggregation and useDeleteAggregation invalidate aggregation
     });
     await deleteAggregation.current.mutateAsync("v1").catch(() => {});
     assert.ok(del.invalidated.includes("aggregationDetail"));
-    assert.ok(del.invalidated.includes("sharedOutLog"));
+    assert.ok(del.invalidated.includes("sharedOutContainer"));
   } finally {
     _setSessionForTesting(null);
   }

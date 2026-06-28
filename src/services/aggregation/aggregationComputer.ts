@@ -19,7 +19,7 @@ import {
 } from "../energy/energyDataset.ts";
 import {
   fetchEnergyDatasetShared,
-  loadEnergyDatasetsShared,
+  fetchEnergyDatasetsShared,
 } from "../energy/energyDatasetCache.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
@@ -423,7 +423,7 @@ export async function computeAggregationSeries(
     const refs = (await resolveBuildingRefs(uri, buildingFileUri(uri), gateway))
       .filter((r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity));
     if (refs.length === 0) return [] as { year: number; value: number }[];
-    const datasets = await loadEnergyDatasetsShared(refs, gateway);
+    const datasets = await fetchEnergyDatasetsShared(refs, gateway);
     return datasets.flatMap((ds) => {
       const v = (ds.metrics as Record<string, number | undefined> | undefined)?.[metric];
       return typeof v === "number" ? [{ year: ds.year, value: v }] : [];

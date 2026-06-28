@@ -100,7 +100,7 @@ export function useDeleteBuilding() {
       qc.invalidateQueries({ queryKey: queryKeys.buildingsContainer });
       qc.invalidateQueries({ queryKey: queryKeys.buildingSource });
       qc.invalidateQueries({ queryKey: queryKeys.buildingEnergy });
-      qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedOutContainer });
       // Deleting the last building re-enables the fresh-Pod demo offer.
       qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
     },
@@ -123,7 +123,7 @@ export function useCheckInbox() {
       // in memory), so the drain refolds shared-in/ once. receivedBenchmarks
       // stays separately invalidated: a snapshot's CONTENTS can change while
       // the grant set (its key fingerprint) stays the same.
-      qc.invalidateQueries({ queryKey: queryKeys.sharedInLog });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedInContainer });
       qc.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
       // A re-shared source that was previously pruned may hold a stale 403 entry —
       // drop the per-source cache so it refetches (the refolded shared-in/ adds it back).
@@ -155,7 +155,7 @@ export function useRevokeBuildingAccess() {
     mutationFn: (vars: { buildingUri: string; webId: string }) =>
       invoke("RevokeBuildingAccess", vars, getGateway()),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedOutContainer });
     },
   });
 }
@@ -171,7 +171,7 @@ export function useDeleteAggregation() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions });
       qc.invalidateQueries({ queryKey: queryKeys.aggregationDetail });
-      qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedOutContainer });
     },
   });
 }
@@ -196,7 +196,7 @@ export function useRevokeAggregationAccess() {
     mutationFn: (vars: { snapshotUri: string; webId: string }) =>
       invoke("RevokeAggregationAccess", vars, getGateway()),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedOutContainer });
     },
   });
 }
@@ -385,9 +385,9 @@ export function useShareBuilding() {
     // Thin adapter over the React-free core (src/intents/ShareBuilding.ts),
     // routed through the registry's invoke() entry point (one path for UI +
     // headless): the core owns the Pod-request composition; the hook keeps only
-    // busy state, the central toast, and the sharedOutLog invalidation.
+    // busy state, the central toast, and the sharedOutContainer invalidation.
     mutationFn: (vars: ShareBuildingParams) => invoke("ShareBuilding", vars, getGateway()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutContainer }),
   });
 }
 
@@ -404,7 +404,7 @@ export function useShareAggregationSnapshot(opts: { silent?: boolean } = {}) {
     meta: { action: "actionShareAggregation", silent: opts.silent },
     mutationFn: (vars: { snapshotUri: string; recipients: string[] }) =>
       invoke("ShareAggregation", vars, getGateway()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutContainer }),
   });
 }
 

@@ -159,7 +159,7 @@ export function useSessionLifecycle(): SessionLifecycle {
       // invalidated since snapshot contents can change with the grant set
       // unchanged; drop the per-source cache so a re-shared (previously pruned)
       // source's stale entry refetches once the refolded grants add it back.
-      queryClient.invalidateQueries({ queryKey: queryKeys.sharedInLog });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sharedInContainer });
       queryClient.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
       queryClient.invalidateQueries({ queryKey: queryKeys.buildingSource });
     } catch (error) {

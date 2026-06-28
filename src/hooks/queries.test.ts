@@ -381,7 +381,7 @@ Deno.test("useCheckInbox invalidates the received-benchmarks fold (not just rece
     // The drain refolds the one shared-in log (every "shared with me" reader
     // derives from it) AND receivedBenchmarks — snapshot contents can change
     // while the grant set (the benchmarks query's key fingerprint) does not.
-    assert.ok(keyed("sharedInLog"), "sharedInLog was invalidated");
+    assert.ok(keyed("sharedInContainer"), "sharedInContainer was invalidated");
     assert.ok(keyed("receivedBenchmarks"), "receivedBenchmarks was invalidated");
   } finally {
     _setSessionForTesting(null);

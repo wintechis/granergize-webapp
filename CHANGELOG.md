@@ -3,6 +3,20 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-28]
+- **Sharing logs as per-event resource queries; query-layer naming + catalogue consistency
+  (ldp-query-layer).** `useSharedInGrants`/`useSharedOutGrants` became a container-listing query +
+  one `["sharingEvent", webId, eventUri]` query per event (events are immutable → `staleTime:
+  Infinity`), folded by a `combine` selector — so invalidating the container re-lists and refolds
+  while existing events stay warm (a new share fetches only the new event). Pure `foldEvents`/
+  `grantsFromEvents` + `listLogEvents`/`loadSharingEvent` factored in `sharingLog.ts`, shared with the
+  headless `foldSharingLog`; the `*FromGrants` derivations and all consumers are unchanged. Plus a
+  naming pass so the resource-query layer reads uniformly: container-listing keys are now
+  `{X}Container` (`sharedInLog`/`sharedOutLog` → `sharedInContainer`/`sharedOutContainer`),
+  container-listing loaders are `list…` (`discoverOwnBuildings` → `listOwnBuildings`), and shared-cache
+  accessors are `fetch{Resource}Shared` (`loadEnergyDatasetsShared` → `fetchEnergyDatasetsShared`);
+  the `queryKeys` catalogue is grouped into sections (resource-query layer, per-building energy,
+  aggregations/shares, rooms/agents, app state). New `notes/query-layer.md` documents the
+  resource-oriented cache. check + lint green, unit 1096.
 - **Public landing page (de/en/fr) as the logged-out view.** A marketing landing page
   (`src/pages/Landing.tsx`) now greets logged-out visitors — hero with a live `MetricBarChart`
   preview, value cards, persona use cases, a data-sovereignty band, get-started steps, and a

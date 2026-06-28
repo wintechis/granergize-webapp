@@ -55,7 +55,7 @@ export async function fetchEnergyDatasetShared(
  * consumers); unreadable datasets are dropped. Use this over `loadEnergyDatasets`
  * wherever a gateway is in hand (detail-pane hooks, the series compute).
  */
-export async function loadEnergyDatasetsShared(
+export async function fetchEnergyDatasetsShared(
   refs: readonly EnergyDatasetRef[],
   gateway: PodGateway,
 ): Promise<EnergyDataset[]> {

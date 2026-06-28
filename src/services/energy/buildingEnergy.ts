@@ -4,7 +4,7 @@ import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { CONSUMPTION_METRIC_KEYS } from "../../constants/annualMetrics.ts";
 import {
   fetchEnergyDatasetShared,
-  loadEnergyDatasetsShared,
+  fetchEnergyDatasetsShared,
 } from "./energyDatasetCache.ts";
 import type { EnergyByYear } from "./energyTimeCut.ts";
 
@@ -125,7 +125,7 @@ export async function resolveBuildingEnergyByYear(
       !r.featureOfInterest, // building-level only (per-unit series excluded)
   );
   if (refs.length === 0) return byYear;
-  const datasets = await loadEnergyDatasetsShared(refs, gateway);
+  const datasets = await fetchEnergyDatasetsShared(refs, gateway);
   for (const ds of datasets) {
     if (!ds.metrics || Object.keys(ds.metrics).length === 0) continue;
     byYear.set(ds.year, { ...ds.metrics });
