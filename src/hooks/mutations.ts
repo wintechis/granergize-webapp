@@ -169,7 +169,9 @@ export function useDeleteAggregation() {
     mutationFn: (aggregationId: string) =>
       invoke("DeleteAggregation", { aggregationId }, getGateway()),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions });
+      // Membership shrank (a definition removed) + drop the per-definition entries.
+      qc.invalidateQueries({ queryKey: queryKeys.aggregationsContainer });
+      qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinition });
       qc.invalidateQueries({ queryKey: queryKeys.aggregationDetail });
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutContainer });
     },
@@ -182,7 +184,9 @@ export function useRefreshAggregation() {
     mutationFn: (aggregationId: string) =>
       invoke("RefreshAggregation", { aggregationId }, getGateway()),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions });
+      // The definition's lastComputedAt changed (content, not membership) → refetch the
+      // per-definition entries so the list reflects it.
+      qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinition });
       // The standalone /aggregation page reads through aggregationDetail (definition +
       // snapshot), so the recompute must refetch it.
       qc.invalidateQueries({ queryKey: queryKeys.aggregationDetail });
@@ -422,7 +426,8 @@ export function useCreateAggregation() {
       benchmark?: boolean;
       extentLevel?: RegionLevel;
     }) => invoke("CreateAggregation", vars, getGateway()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions }),
+    // A new definition document → membership grew; the fan-out re-lists and fetches it.
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.aggregationsContainer }),
   });
 }
 

@@ -83,6 +83,8 @@ the resource IRI. The current entries:
 - a sharing-log container listing → the IRIs of its event resources; and one entry per
   **event** → that event's parsed records. Events are immutable (append-only,
   server-minted IRIs), so an event entry is never refreshed by time.
+- the aggregation-definitions container listing → the IRIs of the definition documents;
+  and one entry per **definition** → its parsed `AggregationDefinition`.
 
 A hook composes these. The buildings view fans out over the own container ∪ the shared
 sources, reading one source entry each, and the selector merges them, applies the hidden

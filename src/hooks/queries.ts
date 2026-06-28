@@ -49,7 +49,8 @@ import {
   getComputedSnapshotByAggregationId,
   getReceivedBenchmarksFor,
   getAggregationDefinition,
-  getAggregationDefinitions,
+  listAggregationDefinitionUris,
+  loadAggregationDefinition,
   loadComputedSnapshot,
 } from "../services/aggregation/aggregation.ts";
 import {
@@ -522,11 +523,53 @@ export function useSharedBuildings() {
   return useDeriveFromQuery(useSharedOutGrants(), sharedBuildingsFromGrants);
 }
 
+/** Combine selector for the aggregation-definition fan-out: the non-null definitions
+ * plus the aggregate load/error state. Module-level (stable) so `useQueries` memoises it. */
+function combineAggregationDefinitions(
+  results: Array<UseQueryResult<AggregationDefinition | null>>,
+) {
+  return {
+    list: results
+      .map((r) => r.data)
+      .filter((d): d is AggregationDefinition => d != null),
+    anyData: results.some((r) => r.data !== undefined),
+    isLoading: results.some((r) => r.isLoading),
+    isFetching: results.some((r) => r.isFetching),
+    error: results.find((r) => r.error)?.error ?? null,
+  };
+}
+
+/**
+ * The user's aggregation definitions — a container listing query
+ * (`["aggregationsContainer", webId]`) + one `["aggregationDefinition", webId, defUri]`
+ * query per definition, combined into the list (mirrors the buildings/sharing fan-outs).
+ * Each definition is its own resource (`aggregations/<id>.ttl`), so editing one refetches
+ * one entry, not the whole list.
+ */
 export function useAggregationDefinitions() {
-  return useWebIdQuery(
-    queryKeys.aggregationDefinitions,
-    (session) => getAggregationDefinitions(session),
+  const webId = webIdOf();
+  const container = useWebIdQuery(
+    queryKeys.aggregationsContainer,
+    (gateway) => listAggregationDefinitionUris(gateway),
   );
+  const defUris = container.data;
+  const defs = useQueries({
+    queries: (defUris ?? []).map((uri) => ({
+      queryKey: [...queryKeys.aggregationDefinition, webId, uri],
+      queryFn: () => loadAggregationDefinition(getGateway(), uri),
+      enabled: Boolean(webId),
+    })),
+    combine: combineAggregationDefinitions,
+  });
+  const error = container.error ?? defs.error ?? null;
+  const ready = container.data !== undefined;
+  const stillInitial = ready && !defs.anyData && defs.isLoading;
+  return {
+    data: (ready && !stillInitial) ? defs.list : undefined,
+    isLoading: (container.isLoading || stillInitial) && error == null,
+    isFetching: container.isFetching || defs.isFetching,
+    error,
+  };
 }
 
 export interface AggregationDetail {
@@ -1021,7 +1064,12 @@ export const queryKeys = {
   monthReadings: ["monthReadings"] as const,
 
   // ─── Aggregations & received shares ───
-  aggregationDefinitions: ["aggregationDefinitions"] as const,
+  /** The aggregation-definitions container listing (`["aggregationsContainer", webId]`) — the
+   * membership query the `useAggregationDefinitions` fan-out reads its definition IRIs from. */
+  aggregationsContainer: ["aggregationsContainer"] as const,
+  /** One aggregation definition document (`["aggregationDefinition", webId, defUri]`) — the
+   * per-resource read of the fan-out. */
+  aggregationDefinition: ["aggregationDefinition"] as const,
   /** One aggregation's definition + computed snapshot (the standalone /aggregation page), keyed by aggregation id. */
   aggregationDetail: ["aggregationDetail"] as const,
   /** A received aggregation's computed snapshot, keyed by snapshot IRI. */

@@ -18,6 +18,7 @@ import {
   useSeriesDays,
   useSharedWithMe,
   useSolidData,
+  useAggregationDefinitions,
   useAggregationDetail,
 } from "./queries.ts";
 import type { Building } from "../types.ts";
@@ -670,6 +671,31 @@ Deno.test("useAggregationDetail degrades a failed auto-compute to definition-onl
     assert.equal(result.current.data?.definition?.name, "My aggregation");
     assert.equal(result.current.data?.snapshot, null);
     assert.ok(result.current.data?.computeError, "the failure travels in the data");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+const AGG_CONTAINER = "https://pod.example/granergize/aggregations/";
+
+Deno.test("useAggregationDefinitions fans out over the container's definitions", async () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  const fake = makeFakeSession({
+    webId: WEBID,
+    resources: {
+      ...FIXTURES,
+      [AGG_CONTAINER]:
+        `@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<${AGG_CONTAINER}> ldp:contains <${AGG_DEF}> .`,
+      [AGG_DEF]: AGG_DEF_TTL,
+    },
+  });
+  _setSessionForTesting(fake.session);
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useAggregationDefinitions(), { wrapper });
+    // The container is listed, then each definition is read per-resource and combined.
+    await waitFor(() => assert.equal(result.current.data?.length, 1));
+    assert.equal(result.current.data?.[0].name, "My aggregation");
   } finally {
     _setSessionForTesting(null);
   }

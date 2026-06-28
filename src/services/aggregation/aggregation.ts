@@ -278,39 +278,63 @@ function parseAggregationDefinition(store: Store): AggregationDefinition | null 
 }
 
 /**
- * All aggregation definitions for the current user, discovered by LISTING the `aggregations/`
- * container (the top-level `*.ttl` resources; the `snapshots/` subfolder is
- * skipped) and parsing each. A missing container (fresh Pod) yields `[]`.
+ * The IRIs of the user's aggregation-definition documents — the membership listing of
+ * the `aggregations/` container (top-level `*.ttl`; the `snapshots/` subfolder is
+ * skipped). A missing container (fresh Pod) yields `[]`. The container query of the
+ * `useAggregationDefinitions` fan-out.
+ * @operation query
+ */
+export async function listAggregationDefinitionUris(
+  gateway: PodGateway,
+): Promise<string[]> {
+  const webId = gateway.webId;
+  if (!webId) throw new Error("User is not logged in");
+  const children = await listDirectChildren(aggregationsContainerUri(webId), gateway);
+  if (!children) return []; // container doesn't exist yet
+  return children.filter((u) => u.endsWith(".ttl"));
+}
+
+/**
+ * One aggregation-definition document by IRI → its parsed `AggregationDefinition` (or
+ * `null` if unreadable). The per-resource read both the list fan-out and the by-id
+ * accessor share, so they can't drift.
+ * @operation query
+ */
+export async function loadAggregationDefinition(
+  gateway: PodGateway,
+  defUri: string,
+): Promise<AggregationDefinition | null> {
+  try {
+    return parseAggregationDefinition(await readStoreOrEmpty(defUri, gateway));
+  } catch (error) {
+    console.error("Error getting aggregation definition:", error);
+    return null;
+  }
+}
+
+/**
+ * All aggregation definitions for the current user (the headless fold): list the
+ * container, load+parse each with bounded concurrency. A real failure propagates (React
+ * Query keeps the last good via keepPreviousData); the legitimate empty is the missing
+ * container in {@link listAggregationDefinitionUris}.
  * @operation query
  */
 export async function getAggregationDefinitions(
   gateway: PodGateway,
 ): Promise<AggregationDefinition[]> {
-  const webId = gateway.webId;
-  if (!webId) {
-    throw new Error("User is not logged in");
-  }
-
-  // No try/catch: a real network/parse failure propagates to React Query (which
-  // keeps the last good aggregations via keepPreviousData). The legitimate empty — the
-  // container doesn't exist yet — is the explicit `if (!children) return []` below,
-  // so it stays distinct from "the read failed".
-  const children = await listDirectChildren(aggregationsContainerUri(webId), gateway);
-  if (!children) return []; // container doesn't exist yet
-  const defUris = children.filter((u) => u.endsWith(".ttl"));
-
+  const defUris = await listAggregationDefinitionUris(gateway);
   // Bounded concurrency: a burst of GETs trips Cloudflare's rate limiter.
   const aggregations = await mapPooled(
     defUris,
     4,
-    async (url) => parseAggregationDefinition(await readStoreOrEmpty(url, gateway)),
+    (uri) => loadAggregationDefinition(gateway, uri),
   );
   return aggregations.filter((v): v is AggregationDefinition => v !== null);
 }
 
 /**
- * A single aggregation definition by ID — a direct read of `aggregations/<aggregationId>.ttl` (no
- * need to list the whole container).
+ * A single aggregation definition by ID — a direct read of `aggregations/<aggregationId>.ttl`
+ * (no need to list the whole container).
  * @operation query
  */
 export async function getAggregationDefinition(
@@ -319,16 +343,10 @@ export async function getAggregationDefinition(
 ): Promise<AggregationDefinition | null> {
   const webId = gateway.webId;
   if (!webId) return null;
-  try {
-    const store = await readStoreOrEmpty(
-      getAggregationDefinitionUri(webId, aggregationId),
-      gateway,
-    );
-    return parseAggregationDefinition(store);
-  } catch (error) {
-    console.error("Error getting aggregation definition:", error);
-    return null;
-  }
+  return loadAggregationDefinition(
+    gateway,
+    getAggregationDefinitionUri(webId, aggregationId),
+  );
 }
 
 /**

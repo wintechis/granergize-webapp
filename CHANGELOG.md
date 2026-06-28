@@ -3,6 +3,20 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-28]
+- **One read path for the UI and the intents; aggregation definitions made resource-centric
+  (ldp-query-layer finish).** The intent **read cores** re-fetched the Pod independently
+  (`FindBuildings` re-loaded the whole portfolio on every invocation); they now read the **same warm
+  IRI-keyed cache** the UI hooks fill — `cachedBuilding`/`cachedVisibleBuildings`,
+  `cachedSharingGrants` (+ `cachedHiddenBuildings`), and `fetchEnergyDatasetsShared` — falling back to a
+  direct load only when the cache is cold (headless / before the hook ran). So buildings, energy and
+  sharing reads converge on one cache across both surfaces (writes already shared the write cores).
+  `AuditGrants` stays fresh on purpose (it diffs the *actual* ACLs against the log) and the external
+  open-data lookup has no Pod entry. Separately, **aggregation definitions** — the last convertible
+  fold — became a container + per-resource fan-out (`["aggregationsContainer", webId]` +
+  `["aggregationDefinition", webId, defUri]`), mirroring buildings/sharing, with the mutation
+  invalidations split membership-vs-content. This completes the resource-oriented query layer
+  (`notes/query-layer.md`): TanStack Query *is* the IRI-keyed store; the agents address book stays a
+  single document (nothing to convert). check + lint green, unit 1103.
 - **Opening a room now shows peers who joined while you were away (cross-agent freshness).** A room's
   membership/role log is appended by OTHER members, so no local write invalidates it, and the global
   policy is refetch-on-invalidation only (`refetchOnMount: false`) — so the room page served a stale

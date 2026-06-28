@@ -416,7 +416,7 @@ Deno.test("useRefreshAggregation and useDeleteAggregation invalidate aggregation
       wrapper: refresh.wrapper,
     });
     await refreshAggregation.current.mutateAsync("v1").catch(() => {});
-    assert.ok(refresh.invalidated.includes("aggregationDefinitions"));
+    assert.ok(refresh.invalidated.includes("aggregationDefinition"));
     assert.ok(refresh.invalidated.includes("aggregationDetail"));
 
     const { result: deleteAggregation } = renderHook(() => useDeleteAggregation(), {
@@ -430,7 +430,7 @@ Deno.test("useRefreshAggregation and useDeleteAggregation invalidate aggregation
   }
 });
 
-Deno.test("useCreateAggregation invalidates aggregationDefinitions; useSaveOrganisation the resolved-agent caches", async () => {
+Deno.test("useCreateAggregation invalidates the aggregations container; useSaveOrganisation the resolved-agent caches", async () => {
   const fake = makeFakeSession({
     webId: WEBID,
     respond: () => new Response("boom", { status: 500 }),
@@ -449,7 +449,7 @@ Deno.test("useCreateAggregation invalidates aggregationDefinitions; useSaveOrgan
       aggregationType: "average",
       metrics: ["electricityConsumption"],
     }).catch(() => {});
-    assert.ok(aggregation.invalidated.includes("aggregationDefinitions"));
+    assert.ok(aggregation.invalidated.includes("aggregationsContainer"));
 
     const { result: saveOrg } = renderHook(() => useSaveOrganisation(), {
       wrapper: org.wrapper,
