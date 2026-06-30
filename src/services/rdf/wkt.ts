@@ -26,7 +26,9 @@ export function parseWktPolygon(wkt: string): [number, number][] | null {
   const ring: [number, number][] = [];
   for (const vertex of m[1].split(",")) {
     const nums = vertex.trim().split(/\s+/).map(Number);
-    if (nums.length < 2 || !Number.isFinite(nums[0]) || !Number.isFinite(nums[1])) {
+    if (
+      nums.length < 2 || !Number.isFinite(nums[0]) || !Number.isFinite(nums[1])
+    ) {
       return null;
     }
     // x,y (+ optional z, ignored); reproject when the CRS is native UTM32N.
@@ -43,13 +45,39 @@ function isUtm32n(crs: string | undefined): boolean {
 }
 
 /**
+ * The outer ring of a `POLYGON Z` as **raw `[x, y, z]` vertices, verbatim** (no reprojection,
+ * no CRS handling) — for the 3D building viewer, which works in the source's native UTM metres
+ * (already orthogonal/planar, so the Z is the true elevation). Tolerates the leading `<crs>` tag
+ * and a `Z`/`M` token; the third ordinate defaults to 0 when absent. `null` when unparseable.
+ */
+export function parseWktPolygonZ(
+  wkt: string,
+): [number, number, number][] | null {
+  if (!wkt) return null;
+  const m = /POLYGON\s*[ZM]*\s*\(\s*\(([^)]*)\)/i.exec(wkt);
+  if (!m) return null;
+  const ring: [number, number, number][] = [];
+  for (const vertex of m[1].split(",")) {
+    const n = vertex.trim().split(/\s+/).map(Number);
+    if (n.length < 2 || !Number.isFinite(n[0]) || !Number.isFinite(n[1])) {
+      return null;
+    }
+    ring.push([n[0], n[1], Number.isFinite(n[2]) ? n[2] : 0]);
+  }
+  return ring.length >= 3 ? ring : null;
+}
+
+/**
  * ETRS89 / UTM zone 32N (EPSG:25832) easting/northing → WGS84 `[lon, lat]` in degrees.
  * Standard inverse Transverse-Mercator series (Snyder / USGS PP-1395) on the GRS80 ellipsoid;
  * ETRS89 ≈ WGS84 (sub-metre), so the GRS80 result is used directly. Matches the
  * `linked-lod2-by` wrapper's own `Utm32n.java` (and the dataset pipeline's `utm32nToWgs84`),
  * so the webapp can consume the faithful native-UTM geometry with no proj dependency.
  */
-export function utm32nToWgs84(easting: number, northing: number): [number, number] {
+export function utm32nToWgs84(
+  easting: number,
+  northing: number,
+): [number, number] {
   const A = 6378137.0; // GRS80 semi-major axis
   const F = 1.0 / 298.257222101;
   const E2 = F * (2 - F);
@@ -82,7 +110,8 @@ export function utm32nToWgs84(easting: number, northing: number): [number, numbe
           d ** 6 / 720);
   const lon = LON0 +
     (d - (1 + 2 * t1 + c1) * d ** 3 / 6 +
-      (5 - 2 * c1 + 28 * t1 - 3 * c1 * c1 + 8 * ep2 + 24 * t1 * t1) * d ** 5 / 120) /
+        (5 - 2 * c1 + 28 * t1 - 3 * c1 * c1 + 8 * ep2 + 24 * t1 * t1) * d ** 5 /
+          120) /
       cos1;
   return [(lon * 180) / Math.PI, (phi * 180) / Math.PI];
 }

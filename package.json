@@ -25,6 +25,7 @@
     "react-leaflet": "^5.0.0",
     "recharts": "^2.13.3",
     "react-router-dom": "^7.17.0",
+    "three": "^0.160.0",
     "xlsx": "0.18.5",
     "exceljs": "^4.4.0"
   },
@@ -38,6 +39,7 @@
     "@types/n3": "^1.26.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.160.0",
     "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^10.5.0",
     "eslint-plugin-no-only-tests": "^3.3.0",

@@ -15,6 +15,7 @@ import SourceNote from "../SourceNote.tsx";
 import { SOURCES } from "../../constants/dataSources.ts";
 import IconAction from "../IconAction.tsx";
 import LocatorMap from "../LocatorMap.tsx";
+import Building3DViewer from "./Building3DViewer.tsx";
 import { getGateway } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { attachAnnualData } from "../../services/rdf/building/buildingSerializer.ts";
@@ -62,8 +63,10 @@ export default function BuildingHeader({ building }: { building: Building }) {
 
   return (
     <Box>
-      {/* Back to wherever the user arrived from (an agent's buildings, the map, a
-          finder), falling back to the buildings finder for a deep link. */}
+      {
+        /* Back to wherever the user arrived from (an agent's buildings, the map, a
+          finder), falling back to the buildings finder for a deep link. */
+      }
       <Box sx={{ mb: 1 }}>
         <BackLink fallback={FINDERS.buildings} />
       </Box>
@@ -73,7 +76,11 @@ export default function BuildingHeader({ building }: { building: Building }) {
         sx={{ alignItems: "flex-start", justifyContent: "space-between" }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", mb: 0.5 }}
+          >
             <CorporateFareIcon color="action" />
             <Typography variant="h5">{name}</Typography>
             <TierBadge tier={shared ? "shared" : "mine"} />
@@ -88,8 +95,10 @@ export default function BuildingHeader({ building }: { building: Building }) {
               {address}
             </Typography>
           )}
-          {/* The building's backing document (dev-only; RdfSourceLink self-hides) —
-              after the address, before the coordinate provenance below. */}
+          {
+            /* The building's backing document (dev-only; RdfSourceLink self-hides) —
+              after the address, before the coordinate provenance below. */
+          }
           <Box sx={{ mt: 0.5 }}>
             <RdfSourceLink href={sourceUri} />
           </Box>
@@ -99,12 +108,15 @@ export default function BuildingHeader({ building }: { building: Building }) {
               color="text.secondary"
               sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}
             >
-              {msg("dataSourceLabel")} <AgentLabel value={building.attributedTo} />
+              {msg("dataSourceLabel")}{" "}
+              <AgentLabel value={building.attributedTo} />
             </Typography>
           )}
-          {/* The coordinates were geocoded from OpenStreetMap (Nominatim) iff a
+          {
+            /* The coordinates were geocoded from OpenStreetMap (Nominatim) iff a
               precision is set — record the ODbL attribution that travels with the
-              shared building (see the geo:Point prov:wasDerivedFrom in Turtle). */}
+              shared building (see the geo:Point prov:wasDerivedFrom in Turtle). */
+          }
           {building.geocodePrecision && (
             <Box sx={{ mt: 0.5 }}>
               <SourceNote sources={SOURCES.osm} label={msg("coordsLabel")} />
@@ -112,14 +124,22 @@ export default function BuildingHeader({ building }: { building: Building }) {
           )}
         </Box>
 
-        {/* Interactive locator map (the shared LocatorMap widget) — hidden when
-            the building has no coordinates. */}
+        {
+          /* Right column: the building's locator map (Leaflet) and — beside/below it, at the
+            same footprint — the live 3D LoD2 model (where lod2-by covers the coordinate). */
+        }
         {hasCoords && (
-          <LocatorMap
-            lat={building.lat as number}
-            long={building.long as number}
-            shared={shared}
-          />
+          <Stack
+            spacing={1}
+            sx={{ width: { xs: "100%", sm: 360 }, flexShrink: 0 }}
+          >
+            <LocatorMap
+              lat={building.lat as number}
+              long={building.long as number}
+              shared={shared}
+            />
+            <Building3DViewer building={building} />
+          </Stack>
         )}
       </Stack>
     </Box>

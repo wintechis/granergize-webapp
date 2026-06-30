@@ -2,7 +2,9 @@
 import { strict as assert } from "node:assert";
 import {
   isOpenBuildingIri,
+  parseBuilding3dSurfaces,
   parseBuildingRoofs,
+  parseNearbyBuildings,
   parseNearbyRooftops,
   parseNearestBuilding,
 } from "./lod2Rooftop.ts";
@@ -10,18 +12,27 @@ import { computePotential } from "./rooftopPv.ts";
 
 Deno.test("isOpenBuildingIri: a lod2-by building IRI vs anything else", () => {
   assert.equal(
-    isOpenBuildingIri("https://wunderfacts.com/lod2-by/building/DEBY_LOD2_3334563"),
+    isOpenBuildingIri(
+      "https://wunderfacts.com/lod2-by/building/DEBY_LOD2_3334563",
+    ),
     true,
   );
   // A Pod building, a MaStR unit, and a bare ref are NOT open buildings.
-  assert.equal(isOpenBuildingIri("https://pod.example/granergize/buildings/b.ttl#it"), false);
-  assert.equal(isOpenBuildingIri("https://wunderfacts.com/mastr/see/100#it"), false);
+  assert.equal(
+    isOpenBuildingIri("https://pod.example/granergize/buildings/b.ttl#it"),
+    false,
+  );
+  assert.equal(
+    isOpenBuildingIri("https://wunderfacts.com/mastr/see/100#it"),
+    false,
+  );
   assert.equal(isOpenBuildingIri("granergize/buildings/b.ttl#it"), false);
 });
 
 // A `point` summary slice: two RoofPotential buildings with coordinates. The nearest to the
 // query point wins (the granergize building's centroid vs the LoD2 centroid differ slightly).
-const POINT_BASE = "https://wunderfacts.com/lod2-by/point?lon=11.13&lat=49.61&r=60";
+const POINT_BASE =
+  "https://wunderfacts.com/lod2-by/point?lon=11.13&lat=49.61&r=60";
 const POINT_TTL = `
 @prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
@@ -68,6 +79,15 @@ Deno.test("parseNearbyRooftops skips buildings without an installable-capacity f
 
 Deno.test("parseNearbyRooftops returns [] for an empty document", () => {
   assert.deepEqual(parseNearbyRooftops("", POINT_BASE, 49, 11), []);
+});
+
+Deno.test("parseNearbyBuildings lists ALL nearby buildings (no capacity needed), nearest first", () => {
+  // Unlike parseNearbyRooftops, it does not require lod2:installableCapacity (the wrapper no
+  // longer serves it post-untangle) — it lists the buildings so the app can deref + compute kWp.
+  const all = parseNearbyBuildings(POINT_TTL, POINT_BASE, 49.609711, 11.130988);
+  assert.equal(all.length, 2);
+  assert.ok(all[0].distanceKm <= all[1].distanceKm);
+  assert.ok(all[0].iri.includes("/building/"));
 });
 
 // A faithful slice of building/DEBY_LOD2_3594699 from the live wrapper: the three roof
@@ -147,4 +167,53 @@ Deno.test("parseBuildingRoofs reads the faithful UTM POLYGON Z footprint, reproj
   assert.ok(lat > 49.5 && lat < 49.7, `reprojected lat ${lat}`);
   // The other surface simply lacks geometry — additive, the PV calc is unaffected.
   assert.equal(b.roofs.filter((r) => !r.polygon).length, 1);
+});
+
+Deno.test("parseBuilding3dSurfaces: all surface kinds with native-UTM 3D rings", () => {
+  const base = "https://wunderfacts.com/lod2-by/building/DEBY_LOD2_1";
+  const ttl = `
+@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix gsp: <http://www.opengis.net/ont/geosparql#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+<building/DEBY_LOD2_1> a lod2:Building ; geo:lat 49.45 ; geo:long 11.08 ;
+  gsp:hasGeometry <building/DEBY_LOD2_1#ground-0-geom> ;
+  lod2:hasRoofSurface <building/DEBY_LOD2_1#roof-0> ;
+  lod2:hasWallSurface <building/DEBY_LOD2_1#wall-0> ;
+  lod2:hasGroundSurface <building/DEBY_LOD2_1#ground-0> .
+<building/DEBY_LOD2_1#roof-0> a lod2:RoofSurface ; gsp:hasGeometry <building/DEBY_LOD2_1#roof-0-geom> .
+<building/DEBY_LOD2_1#roof-0-geom> gsp:asWKT "<http://www.opengis.net/def/crs/EPSG/0/25832> POLYGON Z((652000 5480000 310, 652010 5480000 310, 652010 5480010 310, 652000 5480000 310))"^^gsp:wktLiteral .
+<building/DEBY_LOD2_1#wall-0> a lod2:WallSurface ; gsp:hasGeometry <building/DEBY_LOD2_1#wall-0-geom> .
+<building/DEBY_LOD2_1#wall-0-geom> gsp:asWKT "POLYGON Z((652000 5480000 300, 652010 5480000 300, 652010 5480000 310, 652000 5480000 300))"^^gsp:wktLiteral .
+<building/DEBY_LOD2_1#ground-0> a lod2:GroundSurface ; gsp:hasGeometry <building/DEBY_LOD2_1#ground-0-geom> .
+<building/DEBY_LOD2_1#ground-0-geom> gsp:asWKT "POLYGON Z((652000 5480000 300, 652010 5480000 300, 652010 5480010 300, 652000 5480000 300))"^^gsp:wktLiteral .`;
+  const surfaces = parseBuilding3dSurfaces(ttl, base);
+  assert.equal(surfaces.length, 3); // roof + wall + ground; the building's footprint alias is skipped
+  assert.deepEqual(surfaces.map((s) => s.kind).sort(), [
+    "ground",
+    "roof",
+    "wall",
+  ]);
+  const roof = surfaces.find((s) => s.kind === "roof")!;
+  assert.deepEqual(roof.ring[0], [652000, 5480000, 310]); // native UTM, Z kept
+  assert.equal(
+    parseBuilding3dSurfaces("@prefix x: <urn:x#> . <#b> a x:Other .", base)
+      .length,
+    0,
+  );
+});
+
+Deno.test("parseNearestBuilding skips the /nearby LIDS query-point entity (picks a building)", () => {
+  // The renamed /nearby endpoint returns a LIDS call entity <nearby?…#id> a geo:Point carrying
+  // the EXACT query coordinate — it must NOT win as 'nearest' over the actual buildings.
+  const url = "https://wunderfacts.com/lod2-by/nearby?lon=11.13&lat=49.61&r=60";
+  const ttl = `
+@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+<nearby?lat=49.61&lon=11.13&r=60.0#id> a geo:Point ; geo:lat 49.61 ; geo:long 11.13 ;
+  lod2:nearby <https://wunderfacts.com/lod2-by/building/A> .
+<https://wunderfacts.com/lod2-by/building/A> a lod2:Building ; geo:lat 49.6101 ; geo:long 11.1301 .
+`;
+  const n = parseNearestBuilding(ttl, url, 49.61, 11.13);
+  assert.ok(n);
+  assert.equal(n.iri, "https://wunderfacts.com/lod2-by/building/A");
 });

@@ -2,6 +2,32 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01]
+- **3D LoD2 building viewer on the building detail page.** Added `Building3DViewer.tsx`, a
+  Three.js (`three@0.160`) viewer that renders the building's full measured LoD2 solid —
+  every `lod2:RoofSurface`/`WallSurface`/`GroundSurface` — beside the locator map in the
+  right column of `BuildingHeader.tsx` (removed the old bottom-of-page mount in
+  `BuildingDetail.tsx`). The solid is fetched live from `linked-lod2-by` keyed on the
+  building's lat/long (`useBuilding3d` hook → `fetchBuilding3d`), independent of the Pod
+  archive; `data` is `null` outside the dump's Bavaria coverage so the widget self-hides.
+  Geometry is rendered verbatim in the source's native ETRS89/UTM32N metres via the new
+  `parseWktPolygonZ` (raw `[x,y,z]`, no reprojection — the surfaces are already
+  orthogonal/planar). The viewer is north-up aligned (mirror-fixed handedness), starts the
+  camera straight overhead, and has Leaflet-style +/- zoom, a north-up reset, double-click
+  zoom, and an eased zoom animation; a dev-mode `RdfSourceLink` points at the lod2-by
+  resource. New `b3dTitle`/`b3dHint`/`b3dReset` messages.
+- **Adapt to the 2026-06-30 `linked-lod2-by` LIDS endpoint rename (`point` → `nearby`).**
+  `rooftopPointUrl` now queries `nearby?lon&lat&r`. Fixed a latent bug the rename exposed:
+  the `nearby` response includes a `geo:Point` *call entity* (`<nearby?…#id>`) carrying the
+  exact query coordinate, which would always win as "nearest" and derail the deref — both
+  `parseNearestBuilding` and `parseNearbyRooftops` now skip non-`/building/` subjects.
+- **Compute nearby-rooftop kWp app-side (PV-calc untangle finish).** The geometry-only
+  wrapper no longer serves `lod2:installableCapacity`, so `fetchNearbyRooftops` now derefs
+  each nearby building and computes its installable kWp here (`parseBuildingRoofs` →
+  `computePotential`), via the new network-free `parseNearbyBuildings`. Added a remote
+  `lod2Rooftop.contract.test.ts` that drives the app's own parsers + PV calc over the live
+  wrapper, and a `logistics-visible.spec.ts` e2e asserting wrapper-derived fields render.
+
 ## [2026-06-30]
 - **Consume `linked-lod2-by`'s faithful native-UTM geometry (rooftop roof-plan + nearby-rooftops
   map).** The wrapper now serves roof/footprint geometry as a CRS-tagged `POLYGON Z` in ETRS89/UTM

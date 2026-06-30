@@ -61,7 +61,9 @@ export default function BuildingDetail({ building }: BuildingProps) {
       object: building,
       handlers: {
         ToggleVisibility: () =>
-          toggleVisibility.mutate((building.sourceUri ?? building.uri) as string),
+          toggleVisibility.mutate(
+            (building.sourceUri ?? building.uri) as string,
+          ),
       },
     });
     return () => clearFocus();

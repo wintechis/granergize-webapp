@@ -12,6 +12,8 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { Building } from "../types.ts";
 import {
+  type Building3d,
+  fetchBuilding3d,
   fetchNearbyRooftopGeometry,
   fetchNearbyRooftops,
   fetchOpenBuilding,
@@ -67,6 +69,33 @@ export function useLod2Rooftop(
       } catch (err) {
         // Best-effort: a down/partial wrapper must not sink the page or toast.
         logError("fetch rooftop-PV potential", err);
+        return null;
+      }
+    },
+  });
+}
+
+/**
+ * The building's full measured LoD2 solid (roof/wall/ground surfaces, native UTM 3D) for the
+ * {@link ../components/building/Building3DViewer.tsx 3D viewer}. Off-Pod, best-effort: `data`
+ * is `null` when the building has no coordinates (query disabled), the location is outside the
+ * dump coverage, or the fetch failed. Hour-long `staleTime` — the LoD2 model changes slowly.
+ */
+export function useBuilding3d(
+  building: Building,
+): UseQueryResult<Building3d | null> {
+  const { lat, long } = building;
+  const located = lat != null && long != null;
+  return useQuery<Building3d | null>({
+    queryKey: ["building3d", lat, long],
+    enabled: located,
+    staleTime: 1000 * 60 * 60,
+    queryFn: async () => {
+      if (lat == null || long == null) return null;
+      try {
+        return await fetchBuilding3d(lat, long);
+      } catch (err) {
+        logError("fetch building 3D geometry", err);
         return null;
       }
     },

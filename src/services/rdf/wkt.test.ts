@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert";
-import { parseWktPolygon, utm32nToWgs84 } from "./wkt.ts";
+import { parseWktPolygon, parseWktPolygonZ, utm32nToWgs84 } from "./wkt.ts";
 
 Deno.test("parseWktPolygon: outer ring of a simple POLYGON → [lon,lat] pairs", () => {
   const ring = parseWktPolygon("POLYGON ((11.0 49.4, 11.1 49.4, 11.1 49.5, 11.0 49.5, 11.0 49.4))");
@@ -50,4 +50,15 @@ Deno.test("utm32nToWgs84: matches the wrapper's reprojection oracle", () => {
   const [lon, lat] = utm32nToWgs84(652000, 5480000);
   assert(Math.abs(lon - 11.097319) < 1e-5, `lon ${lon}`);
   assert(Math.abs(lat - 49.453629) < 1e-5, `lat ${lat}`);
+});
+
+Deno.test("parseWktPolygonZ: raw [x,y,z] vertices, verbatim (no reprojection)", () => {
+  const ring = parseWktPolygonZ(
+    "<http://www.opengis.net/def/crs/EPSG/0/25832> POLYGON Z((652000 5480000 300, " +
+      "652010 5480000 300, 652010 5480010 310, 652000 5480010 310, 652000 5480000 300))",
+  );
+  assertEquals(ring?.length, 5);
+  assertEquals(ring?.[0], [652000, 5480000, 300]); // native UTM metres, Z kept, not reprojected
+  assertEquals(ring?.[2], [652010, 5480010, 310]);
+  assertEquals(parseWktPolygonZ("POINT (1 2)"), null);
 });

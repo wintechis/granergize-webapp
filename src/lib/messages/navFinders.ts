@@ -20,10 +20,15 @@ export const navFinders = {
     de: "In deinen Gebäuden referenziert — noch nicht gespeichert",
     fr: "Référencé dans vos bâtiments — pas encore enregistré",
   },
-  agentSaveToBookAria: { en: "Save to agents", de: "Zu Agenten speichern", fr: "Enregistrer dans les agents" },
+  agentSaveToBookAria: {
+    en: "Save to agents",
+    de: "Zu Agenten speichern",
+    fr: "Enregistrer dans les agents",
+  },
   buildingsEmpty: {
     en: "No buildings yet. Add one, or autofill it from a file.",
-    de: "Noch keine Gebäude. Füge eines hinzu oder fülle es automatisch aus einer Datei.",
+    de:
+      "Noch keine Gebäude. Füge eines hinzu oder fülle es automatisch aus einer Datei.",
     fr:
       "Aucun bâtiment pour l'instant. Ajoutez-en un, ou remplissez-le automatiquement à partir d'un fichier.",
   },
@@ -35,7 +40,11 @@ export const navFinders = {
     fr:
       "Aucune observation pour l'instant. Ajoutez des données énergétiques sur la page d'observation d'un bâtiment pour les voir ici.",
   },
-  obsClearAria: { en: "Clear all data", de: "Alle Daten löschen", fr: "Effacer toutes les données" },
+  obsClearAria: {
+    en: "Clear all data",
+    de: "Alle Daten löschen",
+    fr: "Effacer toutes les données",
+  },
   obsClearTitle: {
     en: "Clear observation data",
     de: "Beobachtungsdaten löschen",
@@ -182,7 +191,11 @@ export const navFinders = {
     de: "Standort-Energieprofil",
     fr: "Profil énergétique du site",
   },
-  sepRooftopPv: { en: "Rooftop PV", de: "Dach-Photovoltaik", fr: "PV en toiture" },
+  sepRooftopPv: {
+    en: "Rooftop PV",
+    de: "Dach-Photovoltaik",
+    fr: "PV en toiture",
+  },
   // Per-building rooftop-PV (computed in-app over the LoD2 roof geometry).
   rpRooftopPotential: {
     en: "Rooftop PV (this building)",
@@ -190,9 +203,17 @@ export const navFinders = {
     fr: "PV en toiture (ce bâtiment)",
   },
   rpInstallable: { en: "Installable", de: "Installierbar", fr: "Installable" },
-  rpAnnualYield: { en: "Annual yield", de: "Jahresertrag", fr: "Production annuelle" },
+  rpAnnualYield: {
+    en: "Annual yield",
+    de: "Jahresertrag",
+    fr: "Production annuelle",
+  },
   rpValuePerYear: { en: "Value/year", de: "Wert/Jahr", fr: "Valeur/an" },
-  rpUsableArea: { en: "Usable roof area", de: "Nutzbare Dachfläche", fr: "Surface utile" },
+  rpUsableArea: {
+    en: "Usable roof area",
+    de: "Nutzbare Dachfläche",
+    fr: "Surface utile",
+  },
   rpOrientation: { en: "Orientation", de: "Ausrichtung", fr: "Orientation" },
   rpEstimateCaption: {
     en: "Estimate at {price} ct/kWh self-consumption",
@@ -204,19 +225,45 @@ export const navFinders = {
     de: "Auf der LoD2-Karte ansehen ↗",
     fr: "Voir sur la carte LoD2 ↗",
   },
+  // The 3D viewer: the building's full LoD2 solid (roof/wall/ground) from linked-lod2-by.
+  b3dTitle: { en: "3D model", de: "3D-Modell", fr: "Modèle 3D" },
+  b3dReset: {
+    en: "Reset view (north up)",
+    de: "Ansicht zurücksetzen (Norden oben)",
+    fr: "Réinitialiser la vue (nord en haut)",
+  },
+  b3dHint: {
+    en:
+      "Measured LoD2 building model (Bayerische Vermessungsverwaltung, via linked-lod2-by). Drag to orbit, scroll to zoom.",
+    de:
+      "Gemessenes LoD2-Gebäudemodell (Bayerische Vermessungsverwaltung, über linked-lod2-by). Ziehen zum Drehen, Scrollen zum Zoomen.",
+    fr:
+      "Modèle LoD2 mesuré du bâtiment (Bayerische Vermessungsverwaltung, via linked-lod2-by). Glisser pour pivoter, molette pour zoomer.",
+  },
   // The roof-plan: the building's LoD2 roof surfaces, shaded by PV yield.
-  rpRoofPlan: { en: "Roof surfaces", de: "Dachflächen", fr: "Surfaces de toiture" },
+  rpRoofPlan: {
+    en: "Roof surfaces",
+    de: "Dachflächen",
+    fr: "Surfaces de toiture",
+  },
   rpRoofPlanHint: {
-    en: "Each roof face shaded by expected PV yield; grey = unsuitable (north-facing or too steep).",
-    de: "Jede Dachfläche nach erwartetem PV-Ertrag eingefärbt; grau = ungeeignet (nordseitig oder zu steil).",
-    fr: "Chaque pan de toit coloré selon le rendement PV attendu ; gris = inadapté (nord ou trop pentu).",
+    en:
+      "Each roof face shaded by expected PV yield; grey = unsuitable (north-facing or too steep).",
+    de:
+      "Jede Dachfläche nach erwartetem PV-Ertrag eingefärbt; grau = ungeeignet (nordseitig oder zu steil).",
+    fr:
+      "Chaque pan de toit coloré selon le rendement PV attendu ; gris = inadapté (nord ou trop pentu).",
   },
   rpRoofUnsuitable: { en: "unsuitable", de: "ungeeignet", fr: "inadapté" },
   sepPotential: { en: "Potential", de: "Potenzial", fr: "Potentiel" },
   sepInstalled: { en: "Installed", de: "Installiert", fr: "Installé" },
   sepHeadroom: { en: "Untapped", de: "Ausbaulücke", fr: "Inexploité" },
   sepBuiltOut: { en: "built out", de: "erschlossen", fr: "exploité" },
-  sepGroundPv: { en: "Ground-mounted PV", de: "Freiflächen-Photovoltaik", fr: "PV au sol" },
+  sepGroundPv: {
+    en: "Ground-mounted PV",
+    de: "Freiflächen-Photovoltaik",
+    fr: "PV au sol",
+  },
   sepGreenElectricity: {
     en: "Renewable electricity",
     de: "Erneuerbarer Strom",
@@ -228,7 +275,11 @@ export const navFinders = {
   sepBiomass: { en: "Biomass", de: "Biomasse", fr: "Biomasse" },
   sepHydro: { en: "Hydro", de: "Wasser", fr: "Hydraulique" },
   sepGeothermal: { en: "Geothermal", de: "Geothermie", fr: "Géothermie" },
-  sepBiogasPotential: { en: "Biogas potential", de: "Biogaspotenzial", fr: "Potentiel biogaz" },
+  sepBiogasPotential: {
+    en: "Biogas potential",
+    de: "Biogaspotenzial",
+    fr: "Potentiel biogaz",
+  },
   sepPlants: { en: "plants", de: "Anlagen", fr: "installations" },
   sepNearbyGeneration: {
     en: "Nearby generation",
