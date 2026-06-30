@@ -4,10 +4,13 @@ import {
   classifyMutationError,
   classifyQueryError,
   classifyQueryNotification,
+  isRecoveringSessionError,
 } from "./queryErrors.ts";
 import { SessionExpiredError } from "../services/turtleParsing.ts";
+import { BuildingSourceError } from "../services/building/buildingSource.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 import {
+  isSessionExpired,
   markSessionExpired,
   resetSessionGate,
 } from "../services/pod/sessionGate.ts";
@@ -87,6 +90,59 @@ Deno.test("classifyQueryError: a generic error while the session-expiry gate is 
   }
   // Gate reset: classification is back to normal for subsequent loads.
   assert.equal(classifyQueryError(new Error("boom")).severity, "error");
+});
+
+Deno.test("isRecoveringSessionError: an UNCONFIRMED own-Pod 401/403 is recovering (no message yet)", () => {
+  // The transport confirm-retries an own-Pod 401 and trips the gate BEFORE the
+  // error surfaces; a 403 it never confirm-retries. While the gate is untripped,
+  // both read as a still-recovering token-refresh race — the UI must stay neutral.
+  assert.equal(isSessionExpired(), false, "precondition: gate not tripped");
+  assert.equal(isRecoveringSessionError(new BuildingSourceError("HTTP 403", 403)), true);
+  assert.equal(isRecoveringSessionError(new BuildingSourceError("HTTP 401", 401)), true);
+  // The bare-read shape ("… HTTP 401 …" in the message) is recognised too.
+  assert.equal(isRecoveringSessionError(new Error("HTTP 401: Unauthorized for x")), true);
+  assert.equal(isRecoveringSessionError(new Error("HTTP 403: Forbidden for x")), true);
+  // A non-auth status or a plain error is NOT a recovering session blip.
+  assert.equal(isRecoveringSessionError(new BuildingSourceError("HTTP 404", 404)), false);
+  assert.equal(isRecoveringSessionError(new Error("boom")), false);
+  assert.equal(isRecoveringSessionError(null), false);
+  assert.equal(isRecoveringSessionError(undefined), false);
+});
+
+Deno.test("isRecoveringSessionError: a CONFIRMED expiry is not recovering (message shows)", () => {
+  // A SessionExpiredError is the confirmed signal — never 'recovering'…
+  assert.equal(isRecoveringSessionError(new SessionExpiredError("token gone")), false);
+  // …and once the gate trips, even a bare own-Pod 401/403 is a real expiry, not a race.
+  markSessionExpired();
+  try {
+    assert.equal(isRecoveringSessionError(new BuildingSourceError("HTTP 403", 403)), false);
+    assert.equal(isRecoveringSessionError(new Error("HTTP 401")), false);
+  } finally {
+    resetSessionGate();
+  }
+});
+
+Deno.test("classifyQueryNotification: an unconfirmed own-Pod 401/403 stays SILENT; a confirmed expiry warns", () => {
+  // Transient race (gate untripped): no toast — recover invisibly, no scary flash.
+  assert.equal(
+    classifyQueryNotification(new BuildingSourceError("HTTP 403", 403)),
+    null,
+    "transient 403 → no toast",
+  );
+  assert.equal(
+    classifyQueryNotification(new Error("HTTP 401: Unauthorized for x")),
+    null,
+    "transient 401 → no toast",
+  );
+  // Confirmed expiry (gate tripped): the same error now warns (the re-login sentence).
+  markSessionExpired();
+  try {
+    const note = classifyQueryNotification(new BuildingSourceError("HTTP 401", 401));
+    assert.equal(note?.severity, "warning");
+    assert.equal(note?.message, "Session expired — please log in again");
+  } finally {
+    resetSessionGate();
+  }
 });
 
 Deno.test("classifyMutationError: a non-silent mutation error while expired → expiry warning (silent still wins)", () => {

@@ -1,4 +1,5 @@
 import { SessionExpiredError } from "../services/turtleParsing.ts";
+import { BuildingSourceError } from "../services/building/buildingSource.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 import { formatError } from "../lib/formatError.ts";
 import { type MessageId, translate } from "../lib/messages.ts";
@@ -6,6 +7,41 @@ import { getLanguage } from "../lib/language.ts";
 import { isSessionExpired } from "../services/pod/sessionGate.ts";
 
 export type ErrorSeverity = "error" | "warning";
+
+/**
+ * The HTTP status an error exposes, when one is recoverable from it — a
+ * {@link BuildingSourceError} (its `.status`) or any read error whose message embeds
+ * `HTTP <code>` (the shape `loadBuildingSource` and the bare Pod reads throw).
+ * `undefined` when the error carries no attributable status.
+ */
+function httpStatusOf(error: unknown): number | undefined {
+  if (error instanceof BuildingSourceError) return error.status;
+  const message = error instanceof Error ? error.message : "";
+  const m = /\bHTTP (\d{3})\b/.exec(message);
+  return m ? Number(m[1]) : undefined;
+}
+
+/**
+ * Whether `error` is a still-UNCONFIRMED own-Pod auth blip — a 401/403 that the
+ * transport ({@link instrumentSessionFetch}) may yet recover from a background
+ * token-refresh race. Mirrors the fetch wrapper's confirm-retry: until the session
+ * gate is ACTUALLY tripped (`markSessionExpired`), such an error is "still
+ * recovering", not a real expiry / no-access — so the UI should hold a neutral
+ * loading state instead of flashing a scary "no access" / "session expired" message.
+ *
+ * A genuine expiry trips the gate first (the wrapper confirms an own-Pod 401 before
+ * the error ever surfaces), so by the time that error arrives `isSessionExpired()`
+ * is already true → `false` here → the message shows. A {@link SessionExpiredError}
+ * is itself the CONFIRMED signal, so it is never treated as unconfirmed. The real
+ * gap this closes is the 403 path, which the wrapper does NOT confirm-retry.
+ */
+export function isRecoveringSessionError(error: unknown): boolean {
+  if (error == null) return false;
+  if (error instanceof SessionExpiredError) return false; // already confirmed
+  if (isSessionExpired()) return false; // gate tripped → no longer "recovering"
+  const status = httpStatusOf(error);
+  return status === 401 || status === 403;
+}
 
 /**
  * The single sentence shown when the Solid session has expired, in the active UI
@@ -120,5 +156,9 @@ export function classifyQueryNotification(
   meta?: QueryNotificationMeta,
 ): { message: string; severity: ErrorSeverity } | null {
   if (meta?.silent) return null;
+  // A still-unconfirmed own-Pod 401/403 (a background token-refresh race the
+  // transport may yet recover) must NOT toast — mirror the fetch wrapper's
+  // confirm-retry and stay quiet until the session gate actually trips.
+  if (isRecoveringSessionError(error)) return null;
   return classifyQueryError(error);
 }

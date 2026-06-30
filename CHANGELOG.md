@@ -3,6 +3,19 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-07-01]
+- **Stop the transient "no access" / "session expired" flash during silent token refresh.**
+  While `@inrupt/solid-client-authn-browser` refreshes the access token in the background, an
+  in-flight own-Pod read can briefly 401/403 and trip a query's error/empty state — flashing
+  "You may not have access to this data." (or the session-expired warning) before the retry
+  succeeds. The transport (`instrumentSessionFetch`) already confirm-retries an own-Pod **401**,
+  but a **403** was not confirm-retried, so it propagated with the session gate untripped. Added
+  `isRecoveringSessionError` (`hooks/queryErrors.ts`): an own-Pod 401/403 while `!isSessionExpired()`
+  and not a `SessionExpiredError` is a still-recovering refresh race, not a real error. `useSolidData`
+  (`hooks/queries.ts`) now holds the surface in its loading state (route-guard spinner / blank energy
+  page) for such a blip instead of surfacing the message, and `classifyQueryNotification` suppresses
+  the toast — both mirroring the transport's confirm-retry. Real expiry (gate tripped, or a
+  `SessionExpiredError`) and genuine no-access (a pruned/absent source → `!building` with no error
+  object) are unchanged: the message and logout still fire. check + lint clean, unit 1113.
 - **3D LoD2 building viewer on the building detail page.** Added `Building3DViewer.tsx`, a
   Three.js (`three@0.160`) viewer that renders the building's full measured LoD2 solid —
   every `lod2:RoofSurface`/`WallSurface`/`GroundSurface` — beside the locator map in the

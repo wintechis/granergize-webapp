@@ -16,6 +16,7 @@ import {
   visibleBuildings,
 } from "../services/building/buildingSource.ts";
 import { logError } from "../lib/logError.ts";
+import { isRecoveringSessionError } from "./queryErrors.ts";
 import {
   buildingEnergyKeyFor,
   computeEnergyAverages,
@@ -1116,7 +1117,16 @@ export function useSolidData(): SolidData {
   const ba = useBuildings();
   const energy = useEnergy(ba.data?.buildings);
 
-  const err = ba.error ?? energy.error;
+  const rawErr = ba.error ?? energy.error;
+  // Mirror the transport's confirm-retry (instrumentSessionFetch): an own-Pod
+  // 401/403 that hasn't yet tripped the session gate is a still-recovering
+  // token-refresh race, not a real error. Hold the surface in its LOADING state
+  // (the route guard's spinner, the energy page's blank) instead of surfacing the
+  // error — which would flash "no access" / "session expired" before the gate has
+  // confirmed a genuine expiry. Once the gate trips (or it's a SessionExpiredError),
+  // `isRecoveringSessionError` is false and the error surfaces as before.
+  const recovering = isRecoveringSessionError(rawErr);
+  const err = recovering ? null : rawErr;
   return {
     buildings: ba.data?.buildings ?? [],
     energyNeed: energy.energyNeed,
@@ -1125,9 +1135,10 @@ export function useSolidData(): SolidData {
     // True for the whole initial window — including while `useBuildings` is still
     // GATED on its shared-in/prefs dependencies (a disabled query reports
     // `isLoading: false`, which would otherwise flash the empty state before the
-    // fetch even starts). Once buildings resolve, `ba.data` is defined even for an
-    // empty Pod, so a genuinely-empty account reads as loaded, not loading.
-    isLoading: !err && ba.data === undefined,
+    // fetch even starts) AND while an unconfirmed auth blip is still recovering.
+    // Once buildings resolve, `ba.data` is defined even for an empty Pod, so a
+    // genuinely-empty account reads as loaded, not loading.
+    isLoading: recovering || (!err && ba.data === undefined),
     error: err ? (err instanceof Error ? err.message : String(err)) : null,
   };
 }
