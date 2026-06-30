@@ -128,19 +128,23 @@ const BLDG_GEOM_TTL = `
 <#roof-0> a lod2:RoofSurface ; lod2:area 287.5 ; lod2:azimuth 184.5 ; lod2:tilt 38.4 ;
   gsp:hasGeometry <#roof-0-geom> .
 <#roof-0-geom> a gsp:Geometry ;
-  gsp:asWKT "POLYGON((11.130 49.610, 11.131 49.610, 11.131 49.611, 11.130 49.611, 11.130 49.610))"^^gsp:wktLiteral .
+  gsp:asWKT "<http://www.opengis.net/def/crs/EPSG/0/25832> POLYGON Z((654000 5497000 320, 654010 5497000 320, 654010 5497010 320, 654000 5497010 320, 654000 5497000 320))"^^gsp:wktLiteral .
 <#roof-1> a lod2:RoofSurface ; lod2:area 100 ; lod2:azimuth 4.0 ; lod2:tilt 38.0 .
 <> a lod2:RoofPotential ; geo:lat 49.61 ; geo:long 11.13 ;
   lod2:hasRoofSurface <#roof-0> , <#roof-1> .
 `;
 
-Deno.test("parseBuildingRoofs reads the geo:asWKT footprint into surface.polygon", () => {
+Deno.test("parseBuildingRoofs reads the faithful UTM POLYGON Z footprint, reprojected to WGS84", () => {
   const b = parseBuildingRoofs(BLDG_GEOM_TTL, BLDG_BASE);
   assert.ok(b);
   const withGeom = b.roofs.find((r) => r.polygon);
   assert.ok(withGeom, "a surface carries a polygon ring");
   assert.equal(withGeom.polygon?.length, 5);
-  assert.deepEqual(withGeom.polygon?.[0], [11.13, 49.61]);
+  // The wrapper now serves native UTM32N; parseWktPolygon reprojects to WGS84 lon/lat
+  // (NOT the raw ~654000 easting), so the renderers keep receiving degrees.
+  const [lon, lat] = withGeom.polygon![0];
+  assert.ok(lon > 10.5 && lon < 11.5, `reprojected lon ${lon}`);
+  assert.ok(lat > 49.5 && lat < 49.7, `reprojected lat ${lat}`);
   // The other surface simply lacks geometry — additive, the PV calc is unaffected.
   assert.equal(b.roofs.filter((r) => !r.polygon).length, 1);
 });

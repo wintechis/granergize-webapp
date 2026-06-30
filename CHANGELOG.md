@@ -2,6 +2,18 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-30]
+- **Consume `linked-lod2-by`'s faithful native-UTM geometry (rooftop roof-plan + nearby-rooftops
+  map).** The wrapper now serves roof/footprint geometry as a CRS-tagged `POLYGON Z` in ETRS89/UTM
+  zone 32N (EPSG:25832) instead of WGS84 2D. Made `parseWktPolygon` (`services/rdf/wkt.ts`)
+  CRS-aware: it accepts the `Z`/`M` dimensionality token, detects the EPSG:25832 CRS-URI tag, and
+  reprojects each vertex to WGS84 via a ported `utm32nToWgs84` (Snyder inverse Transverse-Mercator,
+  GRS80 — **no proj4 dependency**, matching the wrapper's `Utm32n.java`). It still returns
+  `[lon, lat]` for both the legacy 2D and the new UTM inputs, so `RoofPlan.tsx` and
+  `NearbyRooftopsMap.tsx` are unchanged. Roofs are still linked via `lod2:hasRoofSurface`, so
+  `parseBuildingRoofs` still finds them (the new wall/ground surfaces are ignored, as intended).
+  Updated the `wkt` / `lod2Rooftop` fixtures; rdf + sources suites green (204).
+
 ## [2026-06-28]
 - **External sources tidied onto the one cache (ldp-query-layer, source-facing port).** The read-only
   external sources (the geo/region wrappers, regionalstatistik, weather, the area profile) were

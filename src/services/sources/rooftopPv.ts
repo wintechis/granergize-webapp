@@ -28,8 +28,10 @@ export interface RoofSurface {
   tiltDeg: number;
   /** LoD2 `Dachorientierung` (0=N, 90=E, 180=S, 270=W). */
   azimuthDeg: number;
-  /** The surface's 2-D ground-projected footprint (`geo:asWKT`, EPSG:4326 lon/lat ring),
-   *  when the wrapper serves it. Drawn by the roof-plan; the PV calc ignores it. */
+  /** The surface's 2-D ground-projected footprint as a WGS84 `[lon, lat]` ring, when the
+   *  wrapper serves it. `linked-lod2-by` serves native ETRS89/UTM32N `POLYGON Z`; the WKT
+   *  parser (`parseWktPolygon`) reprojects it to lon/lat here. Drawn by the roof-plan; the
+   *  PV calc ignores it. */
   polygon?: [number, number][];
 }
 

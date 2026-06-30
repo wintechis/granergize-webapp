@@ -1,5 +1,5 @@
-import { assertEquals } from "jsr:@std/assert";
-import { parseWktPolygon } from "./wkt.ts";
+import { assert, assertEquals } from "jsr:@std/assert";
+import { parseWktPolygon, utm32nToWgs84 } from "./wkt.ts";
 
 Deno.test("parseWktPolygon: outer ring of a simple POLYGON → [lon,lat] pairs", () => {
   const ring = parseWktPolygon("POLYGON ((11.0 49.4, 11.1 49.4, 11.1 49.5, 11.0 49.5, 11.0 49.4))");
@@ -31,4 +31,23 @@ Deno.test("parseWktPolygon: non-polygon / malformed → null", () => {
   assertEquals(parseWktPolygon(""), null);
   assertEquals(parseWktPolygon("POINT (11 49)"), null);
   assertEquals(parseWktPolygon("POLYGON ((11 49, 11.1 x))"), null);
+});
+
+Deno.test("parseWktPolygon: reprojects a native UTM32N POLYGON Z to WGS84 lon/lat", () => {
+  // linked-lod2-by's faithful geometry: CRS-tagged, 3-ordinate, native UTM metres.
+  const ring = parseWktPolygon(
+    "<http://www.opengis.net/def/crs/EPSG/0/25832> POLYGON Z((652000 5480000 300, " +
+      "652010 5480000 300, 652010 5480010 300, 652000 5480000 300))",
+  );
+  assertEquals(ring?.length, 4);
+  const [lon, lat] = ring![0];
+  // (652000, 5480000) UTM32N → (11.097319, 49.453629) WGS84 (the wrapper's oracle).
+  assert(Math.abs(lon - 11.097319) < 1e-4, `lon ${lon}`);
+  assert(Math.abs(lat - 49.453629) < 1e-4, `lat ${lat}`);
+});
+
+Deno.test("utm32nToWgs84: matches the wrapper's reprojection oracle", () => {
+  const [lon, lat] = utm32nToWgs84(652000, 5480000);
+  assert(Math.abs(lon - 11.097319) < 1e-5, `lon ${lon}`);
+  assert(Math.abs(lat - 49.453629) < 1e-5, `lat ${lat}`);
 });
