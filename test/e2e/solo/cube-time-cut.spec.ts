@@ -9,8 +9,8 @@ import { T } from "../helpers/timeouts.ts";
 
 /**
  * Competency-question e2e for the space-time-cube **time-cut slider** (Step 1 of
- * `plans/plan-cube-ui.md`; the CQ-anchored e2e half of
- * `explore/explore-presentation.md` §"Competency questions and tasks").
+ * `plans/plan-cube-ui.md`; the CQ-anchored e2e half of the competency questions in
+ * `notes/competency.md`).
  *
  * CQ "How did building X's consumption track over the years?" and the sibling CQ
  * "Which buildings were inefficient in 2022 vs 2024?" — both answered on the in-shell

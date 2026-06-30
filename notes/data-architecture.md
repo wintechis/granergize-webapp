@@ -94,6 +94,23 @@ your own data, and a place-search box geocodes a name and recentres the map ther
 concentric default is untouched; explore is the deliberate deviation — it pairs the
 viewport `/bbox`·`/point` fetch with the geocoder's `/search`.
 
+**Single points are anchored; the area layer browses anywhere.** The open ring splits by
+*grain*. A single foreign **point** — a weather station, a MaStR unit, a building's
+rooftop-PV potential — is only ever shown anchored to one of your buildings: its worth is
+contextual (a station 4 km from your hall, its heating-degree-days normalising *your*
+consumption), so without a building anchor it is empty (bar the opt-in explore mode above).
+The **area / statistics** layer is the browse-anywhere counterpart — the regional
+**choropleth** (`/geojson` region polygons shaded by a statistics value,
+[`aggregations.md`](./aggregations.md) §Finder) renders *any* Kreis/Bundesland whether or
+not you own a building there, because it is a statistic over a region, not an installation
+by your door. (Nuance: only the *map* guise is fully browse-anywhere; the open-tier dataset
+*list*, `openRegionalItemsFromBuildings`, still offers just the Bundesländer you own
+buildings in, as an entry point.) Keeping a single foreign point useful means tying it to
+your data; the aggregated statistics need no such tie — so **points are context, regions are
+the general surface**. A "single points anywhere" browse (a Regionen ⇄ Einzelanlagen layer
+toggle on the area map) would be the natural later extension, deliberately deferred — the
+anchoring is the simpler, clearer default for the personas.
+
 The **Agents** finder reads the same facet via the shared `TierFilter`, but an agent isn't
 a Pod resource with a ring of its own, so its ring is *derived* from where it appears
 (`referencedAgentTiers`): an agent in the address book (`agents.ttl`) or referenced by an
@@ -127,8 +144,8 @@ into the "shared with me" lists ([`sharing.md`](./sharing.md)); the WAC `.acl` f
 derived, replayable projection of the `shared-out/` event log, never the ground truth.
 **Data rooms** ([`room.md`](./room.md)) are an event-sourced membership+role directory used
 as a sharing target. A received aggregation is a foreign computed **snapshot** — region +
-metric + building-count, its member buildings hidden ([`aggregations.md`](./aggregations.md),
-[`peer-benchmark.md`](./peer-benchmark.md)).
+metric + building-count, its member buildings hidden ([`aggregations.md`](./aggregations.md)
+§Peer benchmark).
 
 ## The open ring — public, off-Pod
 

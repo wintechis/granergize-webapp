@@ -9,8 +9,8 @@ to [`energy-model.md`](./energy-model.md) (the energy data being aggregated),
 [`sharing.md`](./sharing.md) (how the snapshot is shared), and
 [`storage-layout.md`](./storage-layout.md) (where the resources sit). A snapshot
 additionally typed as a benchmark result carries a peer benchmark back to contributing
-owners — [`peer-benchmark.md`](./peer-benchmark.md) describes that round-trip and the
-three comparison cases (portfolio / operator / BSP).
+owners — see *Peer benchmark* below for that round-trip and the three comparison cases
+(portfolio / operator / BSP).
 
 ## Two resources
 
@@ -106,7 +106,7 @@ definition** — the same record-the-dimension-at-the-source principle as the sh
 Every compute derives the snapshot's `cons:BenchmarkResult` typing (plus `cons:computedBy`
 and a `cons:metricPeriod` derived from the years actually aggregated) from that persisted
 flag, so a plain refresh cannot strip the benchmark typing; there are no call-site
-benchmark options. See [`peer-benchmark.md`](./peer-benchmark.md).
+benchmark options. See *Peer benchmark* below.
 
 **Spatial extent.** When a definition's member set rolls up to a single region, the
 aggregation records that region as `cons:spatialExtent` (the region IRI) plus a
@@ -153,3 +153,56 @@ Aggregation sharing is the building-sharing flow applied to the **snapshot only*
   in `?ref=` relative / `?uri=` absolute) loads the definition + snapshot and renders a
   bar chart + table. Being a full-page route outside the app shell, it keeps its own
   loading spinner (per the loading policy).
+
+## Peer benchmark (BSP round-trip)
+
+A benchmark is an aggregation snapshot computed by a **Benchmark Service Provider (BSP)** —
+not a server but another Solid user running the same app in a provider capacity — over the
+buildings other owners shared *to* it, and shared back so each contributor compares against
+a *real* peer mean instead of a self-referential local one. (A domain benchmark of energy
+consumption, not a software one.) It reuses the aggregation + sharing machinery unchanged,
+inheriting the privacy property a benchmark needs: only the snapshot (values + count)
+travels; the definition (the contributing building IRIs) stays private to the BSP.
+
+**Three comparison cases.** The annual energy table shows up to three peer means side by
+side — one idea ("how does my building sit against a peer mean?") varied by *who already
+holds the peer data*, which dictates how much sharing it needs:
+
+- **Portfolio average** — peers are the user's *own* buildings; already on their Pod, no
+  sharing. Computed in the energy fold.
+- **Operator average** (Betreiber-Durchschnitt) — peers are one *operator's* buildings,
+  grouped by the `operatedBy` link. The single-Pod form (the user's own buildings grouped
+  by operator, each contributing its latest actual annual year) is the energy fold; the
+  cross-owner form (the operator computes and shares back) is the BSP round-trip with its
+  first movement already satisfied — the operator already holds the numbers.
+- **BSP benchmark** — peers span *other owners'* portfolios and the aggregating agent
+  starts with nothing: the full four-movement round-trip.
+
+They line up by how far outside the user's own data the peer set reaches; each row is
+populated independently (all that apply are shown, never collapsed into one preferred
+figure), the benchmark cell taking the value from the newest received snapshot that carries
+the metric (`pickBenchmark`) — only the four annual-consumption metrics can carry one, so
+the rest show an em-dash.
+
+**The round-trip** — four movements, each resting on existing machinery:
+
+1. An owner shares a building (energy included, optionally scoped to years) with the BSP's
+   WebID — the ordinary building share, the BSP simply a recipient.
+2. The BSP computes the benchmark: its create-aggregation flow sources candidates from the
+   *shared-with-me* fold (not owned buildings — received buildings carry the sharer's
+   provenance), averages the annual electricity/heat/water/wastewater metrics, and persists
+   a snapshot typed as a benchmark result recording the computing agent and the period.
+3. The BSP shares the snapshot back to every contributor in one fan-out (the
+   aggregation-share path: grant + inbox event + `shared-out/` append under
+   `cons:Aggregation`).
+4. The owner consumes it: the annual table adds a benchmark row beside its own per-year
+   (Ist) figures, the computing BSP surfaced as an agent reference.
+
+**Boundary & vocabulary.** The benchmark exposes only aggregate values and a contributor
+count, so no source building is reconstructable — the same definition/snapshot split the
+feature enforces, preserved. The snapshot self-describes as a benchmark (an owned
+`cons:BenchmarkResult` class — a specialisation of the snapshot — plus `cons:computedBy`
+and `cons:metricPeriod`), versioned and conformance-tested with the code. Replay of the
+sharing log stays same-Pod. Verified at the integration tier (two owners share, the BSP
+computes and shares back, an owner reads the averages) and as its own browser benchmarking
+spec; `summarizeContributors` and `pickBenchmark` carry offline-fixture unit tests.

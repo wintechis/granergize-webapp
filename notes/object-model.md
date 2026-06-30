@@ -137,24 +137,13 @@ So "give me the buildings" (`useBuildings`) is a WebID-keyed, gated `useQueries`
 (one entry per building source) folded to `Building[]`; "give me the dashboard"
 (`useSolidData`) composes several such reads into one selector object.
 
-**Acting on it — the intent shape.** Each verb on the object is one named unit
-([`mutations.ts`](../src/hooks/mutations.ts)) with four declared parts. Take "share
-this building" (`useShareBuilding`):
-
-- *name + label* — the human action (`"share the building"`), which the central
-  error toast phrases as `"Failed to {action}: …"`; a verb whose dialog shows its
-  own inline error is marked *silent* instead.
-- *parameters* — a typed argument object: the building IRI, the recipient WebIDs,
-  whether energy is included, which years. This is the intent's signature.
-- *effect* — the Pod write it commits (here: a per-recipient grant + a `shared-out/`
-  log append), reusing the service write with its optimistic locking.
-- *invalidations* — the read keys it refreshes afterwards (here: the shared-out
-  log), which the verb **owns** — no caller wiring.
-
-The building's full verb set is the named intents keyed to it — edit, share, hide,
-attach a file, add / delete an energy year, delete — each that same four-part unit.
-That per-object set is enumerable today as those hooks; the taxonomy behind the parts
-(query vs. mutation, which writes leave events) is
+**Acting on it — the verbs.** Each object carries a set of named **intents** — for a
+building: edit, share, hide, attach a file, add / delete an energy year, delete — each a
+typed unit with a declared effect and the read keys it refreshes. That whole verb layer
+(the four-part anatomy of one intent, the catalogue, the RDF-typed parameters and
+`EntityQuery` resolution, and the front doors that invoke it — affordance menus, the
+command palette, the natural-language box) is [`intents.md`](./intents.md); the
+query-vs-mutation taxonomy behind it, and which writes leave events, is
 [`queries-mutations.md`](./queries-mutations.md).
 
 ## Reference vs. resolution

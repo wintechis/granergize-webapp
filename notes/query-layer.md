@@ -1,11 +1,12 @@
 # The query layer (resource-oriented cache)
 
-How the app caches what it reads from the Pod. The Pod is ground truth; the client holds
-a **cached, derived projection** of it. This note describes the *shape* of that cache —
-how it is keyed and composed. Companion to
-[`app-pod-state-sync.md`](./app-pod-state-sync.md) (when the projection refetches),
+How the app caches what it reads from the Pod, and how that cache is kept fresh against
+Pod writes. The Pod is ground truth; the client holds a **cached, derived projection** of
+it. This note describes the *shape* of that cache — how it is keyed and composed — and its
+*freshness* — when the projection refetches. Companion to
 [`queries-mutations.md`](./queries-mutations.md) (the read/write taxonomy and storage
-models), [`data-deref.md`](./data-deref.md) (what is fetched, in what order) and
+models, incl. the WAC `.acl` materialized projection's own staleness),
+[`data-deref.md`](./data-deref.md) (what is fetched, in what order) and
 [`object-model.md`](./object-model.md) (the domain shapes the reads produce).
 
 ## The cache mirrors the resource graph, not the screens
@@ -115,22 +116,78 @@ reconciliation inline — the one place that exception lives.
 
 ## Freshness and invalidation
 
-Freshness is write-driven, not time-driven (the convention in
-[`app-pod-state-sync.md`](./app-pod-state-sync.md)). A mutation invalidates the keys it
-affected; an active entry then refetches. Three consequences of the resource keying:
+There is no push from the Pod, so the projection is kept in step by four deliberate
+mechanisms (centralised in `QueryProvider` and the hooks):
 
-- A content edit invalidates one resource entry, not a whole screen's fold.
-- A structural change (a building added, a new share) invalidates the **container**
-  listing; the unchanged resource entries it points at stay warm, so the refold reads only
-  the new resource. A container listing reuses the prior whole-fold key, so the existing
-  invalidation sites carry over unchanged.
-- A projection that depends only on derived state (hiding a building, which is a preference
-  edit) refreshes by re-running the selector — no resource is refetched at all.
+- **server-driven freshness** — `staleTime: 0` plus a revalidating conditional GET
+  (`fetchFresh`, so an unchanged resource is a cheap `304`). The app never fabricates a
+  freshness window; it asks the server and lets the validator decide. (Immutable resources
+  — sharing-log events — opt out with no time expiry, refreshed only by invalidation.)
+- **write-driven refetch** — the only thing that changes Pod state from the app is a
+  mutation, and each invalidates the keys it affects (`mutations.ts` → `queryKeys`). A read
+  not invalidated by a write that changes its inputs will not refresh on its own.
+- **last-good-wins** — `keepPreviousData`, so an in-flight or failed refetch keeps the last
+  good projection on screen rather than flashing empty.
+- **read-time reconciliation** — container listings can lag their members, so some reads
+  correct rather than trust one response (a delete polls the listing until the file is gone;
+  a load `404`-prunes an inaccessible shared source — *Reads are pure* above).
 
-Cross-reader concerns are unchanged in spirit: an event log a *different* agent appends to
-is not discovered until the inbox drain or the next login refreshes its container
-(see [`sharing.ts` interop in `queries-mutations.md`](./queries-mutations.md) and
-[`room.md`](./room.md) for where a reader's "look" must invalidate).
+Three consequences of the resource keying: a content edit invalidates one resource entry,
+not a whole screen's fold; a structural change (a building added, a new share) invalidates
+the **container** listing, leaving the resource entries it points at warm so the refold
+reads only the new resource; and a projection over only derived state (hiding a building, a
+preference edit) refreshes by re-running the selector — nothing is refetched.
+
+**Why a derived read can't under-cover its inputs.** The hazard a screen-shaped fold risked:
+a key that captured the *identity of a set* (which items exist) but not the *content it
+folded* (which resources each item links), so an edit to an item's links left the key
+unchanged and the refetch never fired — silently, under `staleTime: 0` + `keepPreviousData`.
+Resource keying closes it structurally: the unit of the key is the resource, so a write
+invalidates the touched resource **by IRI**; there is no whole-set fold whose key could miss
+it. (Energy was the instance — one query keyed by the building-id set missed an energy-year
+write to an existing building; it is now a per-building / per-dataset fan-out.)
+
+The reads, audited against *"can a resource this folds change on the Pod without my key
+changing AND without a mutation invalidating it?"*:
+
+- `useBuildings` / `useEnergy` / `useAnnualEnergyByYear` are fan-outs over per-resource
+  entries — no whole-set key to under-cover.
+- the sharing logs and aggregation definitions are container + per-resource (event /
+  definition) entries; add/remove invalidates the container, content the per-resource entry.
+- `useRoomLog` is keyed by the room IRI; *own* writes invalidate it directly, and because
+  the membership log is also appended by **other** agents, the room page invalidates it on
+  open (the "look" refetch) — keyed correctly, own content via invalidation, cross-agent
+  content via the look.
+- `receivedBenchmarks` is derived-keyed on the sorted set of received snapshot IRIs (a grant
+  arriving/leaving changes the key by construction), with a prefix invalidation kept
+  alongside for the orthogonal case — a snapshot's *contents* changing while the set is
+  unchanged.
+- `prefs` / `agents` are single documents under a constant key (freshness is mutation
+  invalidation); `useRooms` is deliberately `staleTime: Infinity`, patched optimistically by
+  the room mutations (a background refetch could revert an in-flight room switch).
+
+Cross-reader concern: an event log a *different* agent appends to is not discovered until the
+inbox drain or the next login refreshes its container (see [`room.md`](./room.md) and the
+sharing interop in [`queries-mutations.md`](./queries-mutations.md) for where a reader's
+"look" must invalidate).
+
+## Invalidation cost
+
+Invalidation is a client-cache operation — invalidate a key and the dependent components
+re-render from memory instantly — but it does not make the **Pod I/O** faster, and with
+server-driven freshness there is no fresh *cached* data after a write: reflecting the change
+is a network re-read. Per-resource keying makes that re-read minimal — a write refetches only
+the resources it touched, the rest staying warm. The one deliberately-coarse point is the
+**archive restore**: it may have replaced anything under the app collection, so it
+invalidates *everything* (`invalidateQueries()` with no key) and re-reads the whole
+projection through the dependent chain — `keepPreviousData` holds the pre-restore view until
+the maximal re-read lands. No optimistic patch is possible: the archive is opaque bytes the
+client never modelled.
+
+The principle throughout: prefer making the refetch **fall out of the data** — key a derived
+read on the resources it folds and it stays in sync by construction — over making it fall out
+of **discipline**, every mutation remembering to invalidate a dependent key, which works
+until one call site forgets.
 
 ## Trade-offs
 

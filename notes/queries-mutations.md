@@ -140,6 +140,23 @@ is the event in the log, and the ACL can be rebuilt from the log after an archiv
 restore. This split is deliberate and must stay replayable — see
 [`sharing.md`](./sharing.md).
 
+**A grant's recorded scope is intensional; its `.acl` projection is extensional** — and
+that gap is the projection's staleness hazard. The event can say "this building, all energy
+years" while the applied `.acl`s enumerate the per-dataset resources that existed at apply
+time, so a mutation that *creates* a resource inside an intensionally-granted scope is a
+projection-input change with no projection update. The resource-creating mutations are
+audited against it: an attachment upload is covered by construction (the share grants the
+*container* with `acl:default`, so later files inherit); `writeEnergyYear` was the gap, now
+reconciled (energy grants are per-dataset `.acl`s with no container default, so the write
+runs `reconcileBuildingGrants` — fold `shared-out/`, re-apply each active grant per its
+recorded scope, all-years picking up the new dataset, a per-year grant correctly leaving it
+outside — best-effort, since the year is already saved); a delete is benign (a dropped
+resource takes its `.acl`, and replay skips a grant on a missing resource). The invariant —
+*a recipient can read exactly what the folded log says they may* — is executable (the
+`grant-projection` headless task checks it with recipient-side GETs) and observable in the
+field through `auditGrants` ("Check sharing consistency"), the dry-run twin of `reissueGrants`
+that diffs expected against actual `.acl`s through the same enumeration the repair writes.
+
 **Read authority differs by direction.** Outgoing "shared with whom" reads the `.acl`
 directly (you can read your own ACLs; the Buildings/Aggregations finder's "Shared with"
 badge is N parallel acl-GETs), with `shared-out/` as the history. Incoming "shared with me" has no cheaper

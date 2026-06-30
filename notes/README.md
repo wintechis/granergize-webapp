@@ -46,14 +46,15 @@ data-architecture entry point: [data-architecture.md](./data-architecture.md).
 - [storage-layout.md](./storage-layout.md) — the storage layout: the on-Pod `granergize/` directory tree and the building load flow; frames the *schema* (shared vocabulary) at the centre with the app's *profiles* dancing around it, and defines the *resource profile* (storage layout · storage model · addressing).
 - [data-schema.md](./data-schema.md) — building provenance, import/export formats, and dispatch on data shape rather than role.
 - [object-model.md](./object-model.md) — inventory of the typed middle layer: which objects exist, how they're organised (object shape follows storage model), and the verbs on them.
+- [intents.md](./intents.md) — the intent layer as the object-model interface: the read/write core catalogue + one `query`/`invoke` dispatch, RDF-typed params + EntityQuery, and the front doors (affordance menus, the command palette form/JSON launcher, and the natural-language → intent translator).
+- [competency.md](./competency.md) — the competency questions (queries a user wants answered → the read surface) and competency tasks (things a user wants to do → the do surface), their CQ↔query / CT↔mutation mapping, and how they anchor the e2e specs and the Praxishandbuch task catalog.
 - [energy-model.md](./energy-model.md) — the unified `cons:EnergyDataset`, one per (building, year, granularity).
+- [observation-cube.md](./observation-cube.md) — the one model behind the numbers: a `sosa:Observation` *is* a cube cell (feature × property × time → measure), SOSA and external `qb:` as two serializations of a cell converged at the app series, aggregation as a rollup, and every finder/number a projection/coordinate of the one cube.
 - [data-deref.md](./data-deref.md) — how a WebID becomes in-memory objects: what's fetched, in what order, joined in memory.
-- [app-pod-state-sync.md](./app-pod-state-sync.md) — keeping React-Query caches fresh against Pod writes (the query-key coverage hazard).
-- [query-layer.md](./query-layer.md) — the resource-oriented cache: IRI-keyed resource entries + containers-as-queries, with the domain shapes derived at the edge by selectors.
+- [query-layer.md](./query-layer.md) — the resource-oriented cache: IRI-keyed resource entries + containers-as-queries, the domain shapes derived at the edge by selectors, and how it's kept fresh against Pod writes (the per-resource invalidation that closes the query-key coverage hazard).
 - [sharing.md](./sharing.md) — bilateral WebID-to-WebID building/aggregation sharing over append-only event logs.
 - [room.md](./room.md) — data rooms: event-sourced membership + roles, used as a sharing directory.
-- [aggregations.md](./aggregations.md) — saved aggregations: a private definition plus a shareable computed snapshot.
-- [peer-benchmark.md](./peer-benchmark.md) — the benchmark-snapshot round-trip back to contributing owners.
+- [aggregations.md](./aggregations.md) — saved aggregations: a private definition plus a shareable computed snapshot, and the peer-benchmark (BSP) round-trip back to contributing owners.
 - [attachments.md](./attachments.md) — arbitrary files attached to a building (the energy certificate is one of them).
 - [building-detail.md](./building-detail.md) — what hangs off a building IRI and how the detail page projects it.
 - [weather.md](./weather.md) — the external, live, read-only DWD weather layer (nearest-station proximity join), outside the Pod data path.
