@@ -210,3 +210,29 @@
   --mui-opacity-switchTrack: 0.38;
 }
 
+/* Granergize feature tokens — map markers, energy lens, trend lens,
+   regional-statistics choropleth magnitude ramp, and per-metric chart
+   colours (src/constants/chartColors.ts). */
+:root {
+  --gr-marker-owned: #0277bd;
+  --gr-marker-shared: #ef6c00;
+  --gr-marker-open: #2e7d32;
+  --gr-marker-no-data: #bdbdbd;
+  --gr-energy-below: #a5d6a7;
+  --gr-energy-typical: #ffcc80;
+  --gr-energy-above: #ef9a9a;
+  --gr-trend-improving: #2c7fb8;
+  --gr-trend-flat: #cccccc;
+  --gr-trend-worsening: #d95f02;
+  --gr-magnitude-low: #bdd7e7;
+  --gr-magnitude-mid: #6baed6;
+  --gr-magnitude-high: #2171b5;
+  --gr-metric-electricity: rgba(31, 120, 180, 0.8);
+  --gr-metric-heat: rgba(227, 26, 28, 0.8);
+  --gr-metric-water: rgba(51, 160, 44, 0.8);
+  --gr-metric-wastewater: rgba(0, 150, 136, 0.8);
+  --gr-metric-renewable: rgba(178, 223, 138, 0.9);
+  --gr-metric-generation: rgba(255, 127, 0, 0.8);
+  --gr-metric-planned: rgba(120, 120, 120, 0.55);
+}
+
