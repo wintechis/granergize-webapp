@@ -168,6 +168,16 @@ sind nicht erforderlich. Den durchgehenden Ablauf zeigt der Abschnitt
 „Soll-Ist-Vergleich durchgespielt" im Kapitel „Die Anwendungsfälle
 durchgespielt".
 
+**Mit offenen Daten:** Den Soll-Wert müssen Sie nicht raten. Das
+**Standort-Energieprofil** zeigt aus offenen Daten, wie viel Photovoltaik-Potenzial das
+Dach noch hergibt (die „Ausbaulücke") – ein belastbares Ziel, an dem sich die geplante
+Eigenerzeugung ausrichten lässt. Die **regionale Statistik** ordnet Ihren Plan zudem in
+den Trend des Bundeslands ein, etwa den steigenden Anteil erneuerbaren Stroms (siehe
+Abschnitt „Regionale Statistiken als Vergleichsmaßstab"). Bereits nutzbar sind die
+Wetterdaten je Gebäude; in Vorbereitung ist, den Ist-Verbrauch darüber automatisch um
+Witterungseinflüsse (Heizgradtage) zu bereinigen – erst dann zeigt der Vergleich die
+reine Wirkung einer Maßnahme, unabhängig von einem kalten oder milden Jahr.
+
 ### Vertriebsunterstützung
 
 Ein weiterer relevanter Anwendungsfall ist die Unterstützung vertrieblicher
@@ -196,6 +206,18 @@ und beim Empfänger auf der Karte landet, führt der Abschnitt
 „Vertriebsunterstützung durchgespielt" im Kapitel „Die Anwendungsfälle
 durchgespielt" aus.
 
+**Mit offenen Daten:** Aus der Bestandsaufnahme wird so eine Chancen-Darstellung. Geben
+Sie ein Gebäude samt seinem **Standort-Energieprofil** frei, sieht der Makler oder
+Investor nicht nur den heutigen Verbrauch, sondern auch das ungenutzte Dach- und
+Freiflächen-Photovoltaik-Potenzial, den lokalen Grünstrom-Mix und die Erzeugung in der
+Nähe – konkrete Hebel zur Wertsteigerung. Die **regionale Statistik** liefert die
+Einordnung gleich mit (Wärmepumpen-Quote im Landkreis, Treibhausgase je Einwohner; siehe
+Abschnitt „Regionale Statistiken als Vergleichsmaßstab"), ohne eigene Recherche. Weil
+diese Zahlen aus **amtlichen, offenen Quellen** stammen, sind sie unabhängig von Ihren
+eigenen Angaben überprüfbar – ein stärkeres Argument im Vertrieb. In Vorbereitung ist,
+die Befehlspalette so zu erweitern, dass sich ein geteilter Bestand gezielt nach Potenzial
+durchsuchen lässt („Hallen mit hohem ungenutztem PV-Potenzial").
+
 ### Energieverbrauchsbenchmark
 
 Das systematische Benchmarking von Energieverbräuchen bildet den dritten
@@ -220,6 +242,18 @@ der Vergleichswert von einem Benchmark-Dienstleister – in der App die Rolle
 aggregiert; das vollständige Zusammenspiel führt der Abschnitt
 „Energieverbrauchsbenchmark durchgespielt" im Kapitel „Die Anwendungsfälle
 durchgespielt" aus.
+
+**Mit offenen Daten:** Neben die privaten Vergleichswerte (Portfolio, Betreiber,
+Benchmark-Dienstleister) tritt ein **öffentlicher** Maßstab, den niemand schönrechnen
+kann. Die **amtliche Regionalstatistik** stellt den Verbrauch dem Durchschnitt des
+Bundeslands bzw. der Branche gegenüber, und eine **Choropleth-Karte** verortet die
+verglichenen Gebäude in ihren Regionen – so werden unterschiedliche Ausgangslagen (etwa
+ein grünerer oder schmutzigerer Netzstrom je Kreis) sichtbar (siehe Abschnitt „Regionale
+Statistiken als Vergleichsmaßstab"). Zusätzlich lassen sich die **offen verfügbaren
+Gebäude** (frei zugängliche LoD2-/MaStR-Objekte auf der Karte) als öffentliche Basislinie
+heranziehen – ein breiteres Vergleichsfeld, ohne dass jemand mehr teilen muss. In
+Vorbereitung ist, den amtlichen Wert als eigene Vergleichszeile direkt neben Portfolio-
+und Betreiber-Durchschnitt zu führen.
 
 # Sicherer Umgang mit Energieverbrauchsdaten im Immobilienökosystem
 
