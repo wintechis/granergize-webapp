@@ -1,7 +1,6 @@
 # Regional statistics (linked-regionalstatistik) ↔ our model
 
-`linked-regionalstatistik` (`~/projects/linked-regionalstatistik`, served at
-`wunderfacts.com/regionalstatistik/`, `VITE_REGIONALSTATISTIK_API_URI`) publishes
+`linked-regionalstatistik` (`~/projects/linked-regionalstatistik`) publishes
 the German Regionalstatistik / GENESIS tables as an **RDF Data Cube** (`qb:`,
 Turtle). The app reads it through `src/services/regionalCube.ts` (with
 `src/services/openRegional.ts` / `src/hooks/regional.ts` picking the region). It

@@ -1,11 +1,12 @@
 # INSPIRE / ALKIS (linked-inspire) ↔ our model
 
 `linked-inspire` (`~/projects/linked-inspire`, "inspirewrap") wraps regional
-INSPIRE / ALKIS WFS layers as RDF. **Not a webapp-runtime source** — it has no
-`VITE_*` var and is not fetched by the app; it is used by the offline
-Logistikimmobilien **import pipeline** (the script that materialises buildings
-from open data). Listed here for completeness, one file per source id. Shares the
-LDP/RDF patterns catalogued in `mastr.md`.
+INSPIRE / ALKIS WFS layers as RDF. **Not fetched by the app at runtime** — it is
+used by the offline Logistikimmobilien **import pipeline** (the script that
+materialises buildings from open data); the registry still carries its
+transport (`base`/`envKey`) and attribution entry because the imported archive's
+industrial-park context derives from it. Listed here for completeness, one file
+per source id. Shares the LDP/RDF patterns catalogued in `mastr.md`.
 
 ## Entities and vocabulary
 

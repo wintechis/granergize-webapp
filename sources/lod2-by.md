@@ -1,7 +1,6 @@
 # LoD2 roof geometry (linked-lod2-by) ↔ our model
 
-`linked-lod2-by` (`~/projects/linked-lod2-by`, served at
-`wunderfacts.com/lod2-by/`, `VITE_LOD2_API_URI`) publishes the LDBV LoD2-BY 3D
+`linked-lod2-by` (`~/projects/linked-lod2-by`) publishes the LDBV LoD2-BY 3D
 building model (CityGML LoD2, **Bavaria-only** pilot) as RDF. The app reads it
 through `src/services/lod2Rooftop.ts` and computes rooftop-PV potential in
 `src/services/rooftopPv.ts` (with `pvgis.md`). Shares the LDP/RDF patterns

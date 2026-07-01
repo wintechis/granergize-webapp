@@ -1,7 +1,6 @@
 # Netztransparenz EEG settlement (linked-netztransparenz) ↔ our model
 
-`linked-netztransparenz` (`~/projects/linked-netztransparenz`, served at
-`wunderfacts.com/netztransparenz/`, `VITE_NETZTRANSPARENZ_API_URI`) publishes the German
+`linked-netztransparenz` (`~/projects/linked-netztransparenz`) publishes the German
 TSOs' EEG-Jahresabrechnung — a plant's **actually-settled** renewable generation in kWh
 per year. The app reads it through `src/services/netztransparenz.ts`
 (`fetchPlantGenerationByYear` / `parsePlantSettlements`) and shows it as an annual

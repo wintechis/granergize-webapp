@@ -10,9 +10,13 @@ Three sibling artefacts describe adjacent concerns, not this one:
 
 - `vocab/` — **our own** three Granergize `.ttl` vocabularies (building / consumption /
   core) and their README. Those are authored here; external sources are not.
-- `src/constants/dataSources.ts` (`SOURCES`) — the in-app **attribution** registry
-  (name, homepage, licence) surfaced on `/data-sources` and in `SourceNote`. One entry
-  per id, mirroring a `sources/<id>.md` note.
+- `src/constants/dataSources.ts` (`SOURCES`) — the in-app registry, source of truth
+  for two concerns: **attribution** (name, homepage, licence) surfaced on
+  `/data-sources` and in `SourceNote`, and **transport** for the `SourceGateway` (the
+  `base` IRI, its `VITE_*` env override, and the capability verbs). One entry per id,
+  mirroring a `sources/<id>.md` note. The notes describe how each source's RDF model
+  corresponds to ours; they **do not** restate the base/env/capabilities — read those
+  from the registry.
 - `notes/data-deref.md` + `notes/data-architecture.md` — the **read path**: the deref
   primitive, discover-then-bulk-fetch, and where each `open`-tier source surfaces.
 
@@ -111,7 +115,7 @@ Grouped by how the app consumes them. Each lists: what it provides · the client
   wrapper also offers `/filter` (attribute selection), unused by the app.
 - **Weather / DWD** (`wetterdienst.md`, `linked-wetterdienst`) — DWD observations
   (SOSA/QUDT), aligned to a building's energy. `linkedWeather.ts`. Render-only context.
-  Deref only; CORS-enabled (`VITE_WETTERDIENST_API_URI`).
+  Deref only; CORS-enabled.
 - **Regionalstatistik** (`regionalstatistik.md`, `linked-regionalstatistik`) — GENESIS
   tables as RDF Data Cube at Land/Kreis grain. `regionalCube.ts`. `open`. Deref +
   `/sparql`.
@@ -129,6 +133,9 @@ Grouped by how the app consumes them. Each lists: what it provides · the client
   variant carries the AGS) + `/sparql`.
 - **INSPIRE / ALKIS** (`inspire.md`, `linked-inspire`) — cadastral parcels/geometry; a
   MaStR-import join wrapper. Deref + `/sparql`.
+- **OpenStreetMap** (`osm.md`, `linked-osm`) — building footprints + `operator`/`addr:*`
+  over Overpass (custom JSON), the import pipeline's L1 candidate layer. Import-only; the
+  geocoding half of the `osm` id is `nominatim.md`.
 
 ### Geocoder
 

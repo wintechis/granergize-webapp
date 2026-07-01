@@ -1,7 +1,7 @@
 # LAU regions (linked-lau) ↔ our model
 
-`linked-lau` (`~/projects/linked-lau`, served at `wunderfacts.com/lau/`,
-`VITE_LAU_API_URI`) publishes the EU LAU level — German Gemeinden — as SKOS
+`linked-lau` (`~/projects/linked-lau`) publishes the EU LAU level — German
+Gemeinden — as SKOS
 Linked Data with GeoSPARQL geometry. The app reads it through
 `src/services/regionGeometry.ts`: `/geojson?parent={nuts3}` or `?bbox=…` (scoped,
 since the whole Gemeinde layer is ~149 MB), and `/contains?lat=&lon=` to resolve
