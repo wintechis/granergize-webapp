@@ -16,6 +16,7 @@ import { SOURCES } from "../../constants/dataSources.ts";
 import IconAction from "../IconAction.tsx";
 import LocatorMap from "../LocatorMap.tsx";
 import Building3DViewer from "./Building3DViewer.tsx";
+import { useBuilding3d } from "../../hooks/lod2Rooftop.ts";
 import { getGateway } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { attachAnnualData } from "../../services/rdf/building/buildingSerializer.ts";
@@ -44,6 +45,16 @@ export default function BuildingHeader({ building }: { building: Building }) {
   const sourceUri = buildingFileUri(building.sourceUri ?? building.uri);
   const hasCoords = building.lat != null && building.long != null;
   const { showNotification } = useNotification();
+
+  // The authoritative LoD2-BY (LDBV) address for this coordinate, where the dump covers it —
+  // shown alongside the building's recorded/OSM-geocoded address. Shares the `useBuilding3d`
+  // query (same key) with the 3D viewer, so there's no extra fetch; `null` outside coverage.
+  const lod2Address = useBuilding3d(building).data?.address ?? null;
+  const lod2AddressText = lod2Address
+    ? (lod2Address.fullAddress ??
+      [lod2Address.thoroughfare, lod2Address.postName, lod2Address.adminUnitL1]
+        .filter(Boolean).join(", "))
+    : null;
 
   // Export this building as an `.xlsx` workbook (moved here from the buildings
   // list, where the row no longer carries per-object actions). Energy is not
@@ -90,10 +101,22 @@ export default function BuildingHeader({ building }: { building: Building }) {
               onClick={handleDownload}
             />
           </Stack>
+          {
+            /* Addresses: the building's recorded (dataset / OSM-geocoded) address, and — where
+              lod2-by covers the coordinate — the authoritative LDBV LoD2 address beside it. */
+          }
           {address && (
             <Typography variant="body1" color="text.secondary">
               {address}
             </Typography>
+          )}
+          {lod2AddressText && lod2AddressText !== address && (
+            <Box sx={{ mt: 0.25 }}>
+              <Typography variant="body2" color="text.secondary">
+                {msg("addrLod2Label")} {lod2AddressText}
+              </Typography>
+              <SourceNote sources={SOURCES["lod2-by"]} variant="caption" />
+            </Box>
           )}
           {
             /* The building's backing document (dev-only; RdfSourceLink self-hides) —

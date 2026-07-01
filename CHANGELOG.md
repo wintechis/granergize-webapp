@@ -2,6 +2,32 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — Rooftop-PV: match the LoD2 building by address, not just proximity
+
+The per-building rooftop-PV lookup picked the LoD2-BY building **nearest** the geocoded
+address point, so a point near a parcel boundary could resolve the wrong (often larger)
+neighbouring building. `fetchRooftopPotential` now takes the building's street address
+and, when the nearest LoD2 building's own `locn:thoroughfare` **conflicts** with it,
+prefers a candidate whose address matches — the shared key beats mere proximity. It is
+cost-neutral when the nearest is correct or carries no address (one dereference); only
+an actual conflict dereferences further candidates. `useLod2Rooftop` passes
+`building.streetAddress`. (lod2-by address coverage is partial, so the key only fires
+where served.) Two tests; `deno task check` / `lint` clean.
+
+## [2026-07-01] — Show the authoritative LoD2-BY (LDBV) street address
+
+The `linked-lod2-by` building document now carries a `locn:Address` (W3C Core Location Vocabulary:
+`locn:thoroughfare`/`postName`/`adminUnitL1`/`fullAddress`, from the CityGML `bldg:address`). It is
+now surfaced next to the building's recorded (dataset / OSM-geocoded) address:
+
+- `parseLod2Address` reads the `locn:Address` node; `fetchBuilding3d` returns it on
+  `Building3d.address` (no extra request — it shares the `useBuilding3d` query with the 3D viewer).
+- `BuildingHeader` shows it under the recorded address, labelled "Official address:" with an LDBV
+  `SourceNote`, only where lod2-by covers the coordinate and it differs from the recorded line.
+- ~41% of buildings carry an address; outbuildings have none → nothing shown.
+
+`parseLod2Address` unit test; `deno task check` / `deno task lint` clean.
+
 ## [2026-07-01] — Show each energy unit's own name (system `rdfs:label`)
 
 A `bldg:hasSystem` node may carry an `rdfs:label` — the unit's own name (e.g. the MaStR

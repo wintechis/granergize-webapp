@@ -254,6 +254,12 @@ export const energyRegional = {
     de: "Koordinaten:",
     fr: "Coordonnées :",
   },
+  // The authoritative LoD2-BY (LDBV cadastre-derived) address, shown alongside the recorded one.
+  addrLod2Label: {
+    en: "Official address:",
+    de: "Amtliche Adresse:",
+    fr: "Adresse officielle :",
+  },
   // Logo attribution tooltip (org logo resolved from Wikidata → Wikimedia Commons).
   logoViaCommons: {
     en: "Logo via Wikimedia Commons (Wikidata)",
