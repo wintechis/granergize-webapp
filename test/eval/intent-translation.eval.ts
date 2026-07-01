@@ -71,7 +71,7 @@ const env = (...keys: string[]) => {
  * temperature sweep imports this and overrides `temperature` per run. */
 export const config: LlmConfig = {
   apiUri: env("LLM_API_URI", "VITE_LLM_API_URI") ?? "https://hub.nhr.fau.de/api/llmgw/v1",
-  apiKey: env("LLM_API_KEY", "VITE_LLM_API_KEY") ?? "foobarbaz",
+  apiKey: env("LLM_API_KEY", "VITE_LLM_API_KEY"), // absent = not configured (fail fast below)
   model: env("LLM_MODEL", "VITE_LLM_MODEL") ?? "Qwen/Qwen3.6-35B-A3B-FP8",
 };
 
@@ -130,10 +130,9 @@ function pad(s: string, n: number) {
 }
 
 async function main() {
-  if (config.apiKey === "foobarbaz") {
-    console.warn(
-      "⚠  Using the placeholder key 'foobarbaz' — set LLM_API_KEY to a real key.\n",
-    );
+  if (!config.apiKey) {
+    console.error("✖  No API key configured — set LLM_API_KEY (or VITE_LLM_API_KEY).");
+    Deno.exit(1);
   }
   console.log(`Model: ${config.model}   Endpoint: ${config.apiUri}`);
   console.log(`Cases: ${CASES.length}\n`);

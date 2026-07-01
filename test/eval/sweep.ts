@@ -87,8 +87,9 @@ function statsOf(results: Result[]): CellStats {
 }
 
 async function main() {
-  if (baseConfig.apiKey === "foobarbaz") {
-    console.warn("⚠  placeholder key — set LLM_API_KEY.\n");
+  if (!baseConfig.apiKey) {
+    console.error("✖  No API key configured — set LLM_API_KEY (or VITE_LLM_API_KEY).");
+    Deno.exit(1);
   }
   console.log(`Sweep: ${MODELS.length} models × ${TEMPS.length} temps × ${CASES.length} cases\n`);
 

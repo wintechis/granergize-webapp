@@ -2,6 +2,13 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — LLM translate: fail loudly without an API key
+
+An unset `VITE_LLM_API_KEY` used to fall back to a placeholder bearer key baked
+into the bundle — a doomed 401 round-trip instead of a clear error. The key is
+now optional-with-no-fallback: translation rejects BEFORE any request, and the
+evals exit(1) with a message when unconfigured.
+
 ## [2026-07-02] — RDF layer: read chokepoint, delete order, single-table round-trips
 
 - `readBuildingStore` now reads through `fetchFresh` (`Accept: text/turtle`) —

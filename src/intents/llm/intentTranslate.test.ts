@@ -12,6 +12,15 @@ import {
   TranslateError,
 } from "./intentTranslate.ts";
 
+// Explicit endpoint config: the default config deliberately has NO key under
+// `deno test` (unset key = loud failure, covered by its own test below), so
+// every transport-level test supplies one.
+const TEST_CONFIG = {
+  apiUri: "https://llm.example/v1",
+  apiKey: "test-key",
+  model: "test-model",
+};
+
 // A fake chat-completions endpoint that records the request and returns `content`.
 function fakeApi(content: string, status = 200) {
   const seen: { uri: string; init?: RequestInit } = { uri: "" };
@@ -44,7 +53,7 @@ Deno.test("translateToIntentJson: POSTs to the chat endpoint with bearer + model
   const json = '{"name":"ShareBuilding","params":{"buildingUri":"b1"}}';
   const { seen, fetchImpl } = fakeApi(json);
 
-  const out = await translateToIntentJson("share my building b1 with bob", { fetchImpl });
+  const out = await translateToIntentJson("share my building b1 with bob", { fetchImpl, config: TEST_CONFIG });
   assert.equal(out, json);
 
   assert.match(seen.uri, /\/chat\/completions$/);
@@ -60,7 +69,7 @@ Deno.test("translateToIntentJson: POSTs to the chat endpoint with bearer + model
 Deno.test("translateToIntentJson: a non-OK response throws TranslateError", async () => {
   const { fetchImpl } = fakeApi("", 500);
   await assert.rejects(
-    () => translateToIntentJson("anything", { fetchImpl }),
+    () => translateToIntentJson("anything", { fetchImpl, config: TEST_CONFIG }),
     TranslateError,
     "Model request failed",
   );
@@ -69,7 +78,7 @@ Deno.test("translateToIntentJson: a non-OK response throws TranslateError", asyn
 Deno.test("translateToIntentJson: an empty completion throws TranslateError", async () => {
   const { fetchImpl } = fakeApi("   ");
   await assert.rejects(
-    () => translateToIntentJson("anything", { fetchImpl }),
+    () => translateToIntentJson("anything", { fetchImpl, config: TEST_CONFIG }),
     TranslateError,
     "empty completion",
   );
@@ -84,7 +93,7 @@ const hangingFetch: typeof fetch = (_i, init) =>
 
 Deno.test("translateToIntentJson: a stalled request times out (no retry → never hangs)", async () => {
   await assert.rejects(
-    () => translateToIntentJson("anything", { fetchImpl: hangingFetch, timeoutMs: 20, retries: 0 }),
+    () => translateToIntentJson("anything", { fetchImpl: hangingFetch, config: TEST_CONFIG, timeoutMs: 20, retries: 0 }),
     TranslateError,
     "timed out",
   );
@@ -103,6 +112,7 @@ Deno.test("translateToIntentJson: retries once on timeout, then succeeds; onRetr
   };
   const out = await translateToIntentJson("create a data room", {
     fetchImpl: flaky,
+    config: TEST_CONFIG,
     timeoutMs: 20,
     retries: 1,
     onRetry: (a, of) => retries.push([a, of]),
@@ -119,9 +129,27 @@ Deno.test("translateToIntentJson: a non-OK status is NOT retried", async () => {
     return Promise.resolve(new Response("err", { status: 500 }));
   };
   await assert.rejects(
-    () => translateToIntentJson("anything", { fetchImpl: five00, retries: 1 }),
+    () => translateToIntentJson("anything", { fetchImpl: five00, config: TEST_CONFIG, retries: 1 }),
     TranslateError,
     "Model request failed",
   );
   assert.equal(calls, 1); // not retriable → single attempt
+});
+
+Deno.test("translateToIntentJson: an UNSET API key fails loudly before any request is sent", async () => {
+  // The old fallback shipped a placeholder bearer key ("foobarbaz") in the
+  // bundle and sent it over the wire — a doomed 401 round-trip instead of a
+  // clear configuration error. With no key configured (deno test has no Vite
+  // env), the default config must reject BEFORE the transport is touched.
+  let called = 0;
+  const fetchImpl = () => {
+    called++;
+    return Promise.resolve(new Response("{}"));
+  };
+  await assert.rejects(
+    () => translateToIntentJson("share b1 with bob", { fetchImpl }),
+    (e: Error) => e instanceof TranslateError && /API key/i.test(e.message),
+    "a missing key is a clear TranslateError",
+  );
+  assert.equal(called, 0, "no network request is made without a key");
 });

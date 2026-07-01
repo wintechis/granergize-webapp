@@ -26,13 +26,17 @@ import { trackedFetch } from "../../lib/networkActivity.ts";
 // so read it defensively (the defaults then apply).
 const ENV = (import.meta as { env?: Record<string, string | undefined> }).env;
 const API_URI = ENV?.VITE_LLM_API_URI ?? "https://hub.nhr.fau.de/api/llmgw/v1";
-const API_KEY = ENV?.VITE_LLM_API_KEY ?? "foobarbaz";
+// NO fallback key: an unset key means "not configured", and translation fails
+// loudly before any request (a placeholder bearer key would ship in the bundle
+// and buy only a doomed 401 round-trip).
+const API_KEY = ENV?.VITE_LLM_API_KEY;
 const MODEL = ENV?.VITE_LLM_MODEL ?? "Qwen/Qwen3.6-35B-A3B-FP8";
 
 /** Endpoint config — defaults to the env-resolved values; the eval injects its own. */
 export interface LlmConfig {
   apiUri: string;
-  apiKey: string;
+  /** Bearer key. Absent = not configured — translation rejects before any request. */
+  apiKey?: string;
   model: string;
   /** Sampling temperature; defaults to a rather-low 0.2 (see the request body). */
   temperature?: number;
@@ -155,6 +159,11 @@ async function attemptTranslate(
   config: LlmConfig,
   timeoutMs: number,
 ): Promise<string> {
+  if (!config.apiKey) {
+    throw new TranslateError(
+      "No model API key is configured (set VITE_LLM_API_KEY) — request not sent",
+    );
+  }
   // Base request. The two model-specific toggles default ON (tuned for Qwen, the
   // app model); other models need them off (per-model profiles — see the eval
   // sweep): Mistral-Medium 400s on `chat_template_kwargs`, and gpt-oss emits
