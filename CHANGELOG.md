@@ -46,11 +46,13 @@ Two mechanisms against open-data-wrapper drift, prototyped on **mastr** (see
   schema) / **conformant**; the mastr probe checks BOTH that `/routes` still lists `MASTR_ROUTES`
   and that a live `within` query still parses via `parseInstallations`. Beyond the `SourceStatusChip`
   badge, `SourceContract` (from `wrapperContract.ts`) shows, per source: a link to the live **routes**
-  manifest, the **required interface** (the routes the app calls + their purpose), a dereferenceable
-  **example entity** pulled live from the probe (a `see/{id}#it` record), and the wrapper's **LIDS**
-  service-call example entities (`within?…#id` BoundingBox, `filter?…#id` Query). No panel for a
-  source without a contract/probe. Prototype: labels are English (i18n TODO); other sources are
-  follow-ups.
+  manifest; the **required interface** — each route the app calls + its purpose, plus the params it
+  accepts and formats it serves read **faithfully from the live `/routes` manifest** (so pagination,
+  `count`/`offset`, and formats are reported, not hand-maintained; `fetchRouteManifest` tolerates the
+  older name-only manifest); a dereferenceable **example entity** pulled live from the probe (a
+  `see/{id}#it` record); and the wrapper's **LIDS** service-call example entities (`within?…#id`
+  BoundingBox, `filter?…#id` Query, bounded with `count`). No panel for a source without a
+  contract/probe. Prototype: labels are English (i18n TODO); other sources are follow-ups.
 
 ## [2026-07-01] — Rooftop-PV: match the LoD2 building by address, not just proximity
 

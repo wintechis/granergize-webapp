@@ -28,8 +28,13 @@ function reduce(pattern: string): string | null {
 async function liveRoutes(base: string): Promise<string[]> {
   const res = await fetch(`${base}routes.json`, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${base}routes.json`);
-  const body = await res.json() as { routes?: string[] };
-  return [...new Set(body.routes ?? [])].sort();
+  // The manifest is either a name array (older wrapper) or {name,formats,params} objects — the
+  // route union only needs the names.
+  const body = await res.json() as { routes?: (string | { name?: string })[] };
+  const names = (body.routes ?? [])
+    .map((r) => (typeof r === "string" ? r : r.name))
+    .filter((n): n is string => !!n);
+  return [...new Set(names)].sort();
 }
 
 function webxmlRoutes(xml: string): string[] {
