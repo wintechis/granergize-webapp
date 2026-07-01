@@ -139,6 +139,7 @@ export const PROV_NS = "http://www.w3.org/ns/prov#";
 export const PROV_QUALIFIED_ATTRIBUTION = `${PROV_NS}qualifiedAttribution`;
 export const PROV_ATTRIBUTION = `${PROV_NS}Attribution`;
 export const PROV_AGENT = `${PROV_NS}agent`;
+export const PROV_SOFTWARE_AGENT = `${PROV_NS}SoftwareAgent`;
 export const PROV_WAS_ASSOCIATED_WITH = `${PROV_NS}wasAssociatedWith`;
 export const PROV_GENERATED_AT_TIME = `${PROV_NS}generatedAtTime`;
 export const PROV_ENTITY = `${PROV_NS}Entity`;
