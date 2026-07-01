@@ -16,12 +16,12 @@ import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
 
 // ── fetchRooftopPotential: the address shared key beats mere proximity ──────────
 const NEARBY_SUMMARY = `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <building/NEAR> a lod2:Building ; geo:lat 49.48261 ; geo:long 11.12655 .
 <building/FAR>  a lod2:Building ; geo:lat 49.48200 ; geo:long 11.12600 .`;
 const roofDoc = (thoroughfare: string) => `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix locn: <http://www.w3.org/ns/locn#> .
 <#roof-0> a lod2:RoofSurface ; lod2:area 300 ; lod2:azimuth 180 ; lod2:tilt 35 .
@@ -97,7 +97,7 @@ Deno.test("isOpenBuildingIri: a lod2-by building IRI vs anything else", () => {
 const POINT_BASE =
   "https://wunderfacts.com/lod2-by/point?lon=11.13&lat=49.61&r=60";
 const POINT_TTL = `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <https://wunderfacts.com/lod2-by/building/A> a lod2:RoofPotential ;
   geo:lat 49.6098 ; geo:long 11.1310 ; lod2:installableCapacity 40.39 .
@@ -128,7 +128,7 @@ Deno.test("parseNearbyRooftops returns ALL buildings with capacity, nearest firs
 
 Deno.test("parseNearbyRooftops skips buildings without an installable-capacity figure", () => {
   const ttl = `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <https://wunderfacts.com/lod2-by/building/A> a lod2:RoofPotential ;
   geo:lat 49.61 ; geo:long 11.13 ; lod2:installableCapacity 22.38 .
@@ -160,7 +160,7 @@ Deno.test("parseNearbyBuildings lists ALL nearby buildings (no capacity needed),
 // faithful before the wrapper ever drops those fields.
 const BLDG_BASE = "https://wunderfacts.com/lod2-by/building/DEBY_LOD2_3594699";
 const BLDG_TTL = `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <#roof-0> a lod2:RoofSurface ; lod2:area 287.506 ; lod2:azimuth 4.55 ; lod2:tilt 38.444 .
 <#roof-1> a lod2:RoofSurface ; lod2:area 288.506 ; lod2:azimuth 184.553 ; lod2:tilt 38.442 .
@@ -197,7 +197,7 @@ Deno.test("parse + compute reproduces the wrapper's served kWp/kWh (fidelity)", 
 });
 
 Deno.test("parseBuildingRoofs returns null without roof surfaces", () => {
-  const ttl = "@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .";
+  const ttl = "@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .";
   assert.equal(parseBuildingRoofs(ttl, BLDG_BASE), null);
 });
 
@@ -205,7 +205,7 @@ Deno.test("parseBuildingRoofs returns null without roof surfaces", () => {
 // geometry is a NAMED node `<#roof-N-geom>`, exactly as served live. Additive: one surface
 // carries `gsp:hasGeometry → gsp:asWKT`, the other does not.
 const BLDG_GEOM_TTL = `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix gsp: <http://www.opengis.net/ont/geosparql#> .
 <#roof-0> a lod2:RoofSurface ; lod2:area 287.5 ; lod2:azimuth 184.5 ; lod2:tilt 38.4 ;
@@ -235,7 +235,7 @@ Deno.test("parseBuildingRoofs reads the faithful UTM POLYGON Z footprint, reproj
 Deno.test("parseBuilding3dSurfaces: all surface kinds with native-UTM 3D rings", () => {
   const base = "https://wunderfacts.com/lod2-by/building/DEBY_LOD2_1";
   const ttl = `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix gsp: <http://www.opengis.net/ont/geosparql#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <building/DEBY_LOD2_1> a lod2:Building ; geo:lat 49.45 ; geo:long 11.08 ;
@@ -268,7 +268,7 @@ Deno.test("parseBuilding3dSurfaces: all surface kinds with native-UTM 3D rings",
 Deno.test("parseLod2Address: reads the locn:Address (street + locality), null when absent", () => {
   const base = "https://wunderfacts.com/lod2-by/building/DEBY_LOD2_550";
   const ttl = `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix locn: <http://www.w3.org/ns/locn#> .
 <building/DEBY_LOD2_550> a lod2:Building ; locn:address <building/DEBY_LOD2_550#address> .
 <building/DEBY_LOD2_550#address> a locn:Address ;
@@ -284,7 +284,7 @@ Deno.test("parseLod2Address: reads the locn:Address (street + locality), null wh
   // An unaddressed building (~59% of them) → null.
   assert.equal(
     parseLod2Address(
-      "@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> . <#b> a lod2:Building .",
+      "@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> . <#b> a lod2:Building .",
       base,
     ),
     null,
@@ -296,7 +296,7 @@ Deno.test("parseNearestBuilding skips the /nearby LIDS query-point entity (picks
   // the EXACT query coordinate — it must NOT win as 'nearest' over the actual buildings.
   const url = "https://wunderfacts.com/lod2-by/nearby?lon=11.13&lat=49.61&r=60";
   const ttl = `
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <nearby?lat=49.61&lon=11.13&r=60.0#id> a geo:Point ; geo:lat 49.61 ; geo:long 11.13 ;
   lod2:nearby <https://wunderfacts.com/lod2-by/building/A> .

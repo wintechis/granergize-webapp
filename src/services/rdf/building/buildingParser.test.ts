@@ -73,7 +73,7 @@ Deno.test("parseBuildings system kind: untyped → pv (legacy), known type → i
 
 Deno.test("parseBuildings reads the baked LoD2-BY (LDBV) metadata + address", () => {
   const ttl = `@prefix rec: <https://w3id.org/rec#> .
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix locn: <http://www.w3.org/ns/locn#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .

@@ -9,7 +9,8 @@ catalogued in `mastr.md`.
 
 ## Entities and vocabulary
 
-Namespace `w3id.org/linked-lod2-by/vocab#`.
+Namespace `wunderfacts.com/lod2-by/vocab#` (self-hosted alongside the data,
+dereferenceable at `…/lod2-by/vocab`, like `mastr/vocab#`).
 
 - **`lod2:Building`** at `building/{id}#it` (LoD2 `gml:id`, e.g. `DEBY_LOD2_…`),
   carrying `geo:lat`/`geo:long`, `geo:hasGeometry → geo:asWKT` (footprint

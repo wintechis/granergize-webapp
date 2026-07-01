@@ -2,6 +2,18 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — LoD2-BY vocabulary namespace repointed to the wrapper's self-hosted IRI
+
+The `linked-lod2-by` wrapper moved its vocabulary off `w3id.org` to a self-hosted,
+dereferenceable namespace served alongside its data (`…/lod2-by/vocab#`, matching
+linked-mastr's `…/mastr/vocab#`) — it was the lone wrapper serving predicates from an
+external permanent-ID host. The webapp reads that namespace to display the baked-in LoD2
+building metadata, so `LOD2_NS` (`services/rdf/vocabularies.ts`) is repointed to
+`https://wunderfacts.com/lod2-by/vocab#`; the parser fixtures
+(`buildingParser.test.ts`, `lod2Rooftop.test.ts`) and `sources/lod2-by.md` follow. No
+behaviour change — the same predicates, at their now-self-hosted IRIs. check + the lod2 /
+building-parser unit tests pass.
+
 ## [2026-07-01] — Consolidate open-data-source config onto one registry + one vocab
 
 The webapp and the sibling `logistikimmobilien` pipeline each had their own copy of the wrapper

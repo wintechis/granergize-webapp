@@ -244,8 +244,10 @@ export const DCTERMS_IS_PART_OF = `${DCTERMS_NS}isPartOf`;
 
 /** LoD2-BY (LDBV) building vocabulary — the authoritative cadastre-derived metadata
  *  BAKED into each imported building's Turtle (ALKIS id, AdV roof-type code, storeys).
- *  Read-only: parsed for display beside the app's own master data, never edited/serialized. */
-export const LOD2_NS = "https://w3id.org/linked-lod2-by/vocab#";
+ *  Read-only: parsed for display beside the app's own master data, never edited/serialized.
+ *  Self-hosted by the wrapper alongside its data (dereferenceable at `…/lod2-by/vocab`),
+ *  matching linked-mastr's `…/mastr/vocab#`. */
+export const LOD2_NS = "https://wunderfacts.com/lod2-by/vocab#";
 export const LOD2_ALKIS_ID = `${LOD2_NS}alkisId`;
 export const LOD2_ROOF_TYPE = `${LOD2_NS}roofType`;
 export const LOD2_STOREYS_ABOVE_GROUND = `${LOD2_NS}storeysAboveGround`;
