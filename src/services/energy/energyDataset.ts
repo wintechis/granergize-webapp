@@ -413,7 +413,7 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
 
   // Writer.end() invokes its callback synchronously, so `out` is set before return.
   let out = "";
-  writer.end((error, result) => {
+  writer.end((error: Error | null, result: string) => {
     if (error) throw error;
     out = result;
   });

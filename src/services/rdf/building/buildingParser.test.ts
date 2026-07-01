@@ -52,6 +52,25 @@ Deno.test("parseBuildings reads a system node's rdfs:label (the Anlagenname) per
   assert.equal(pv2?.label, undefined); // a node without a label carries none
 });
 
+Deno.test("parseBuildings system kind: untyped → pv (legacy), known type → its kind, unknown type → skipped", () => {
+  const bf = `${ROOT}granergize/buildings/b1.ttl`;
+  const ttl = `@prefix rec: <https://w3id.org/rec#> .
+@prefix bldg: <https://solid.ti.rw.fau.de/gra/building.ttl#> .
+<${B}> a rec:Building ;
+  bldg:hasSystem <${bf}#legacy> , <${bf}#battery> , <${bf}#weird> .
+<${bf}#legacy> bldg:capacityKW "10"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+<${bf}#battery> a bldg:BatteryStorage ;
+  bldg:storageCapacityKWh "5"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+<${bf}#weird> a bldg:SomethingUnknown ; bldg:capacityKW "99"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+`;
+  const building = [...parseBuildings(new Parser().parse(ttl)).values()][0];
+  const byId = Object.fromEntries((building.systems ?? []).map((s) => [s.id, s]));
+  assert.equal(byId["legacy"]?.kind, "pv"); // untyped ⇒ legacy <#pv> tolerance
+  assert.equal(byId["battery"]?.kind, "battery"); // known type ⇒ its kind
+  assert.equal(byId["weird"], undefined); // unrecognised type ⇒ NOT a phantom PV
+  assert.equal(building.systems?.length, 2);
+});
+
 Deno.test("parseBuildings: identity is the IRI — relative under own root, absolute foreign", () => {
   const foreign = "https://bob.example/granergize/buildings/x.ttl#it";
   const ttl = `@prefix rec: <https://w3id.org/rec#> .

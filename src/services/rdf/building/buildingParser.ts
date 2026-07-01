@@ -471,9 +471,11 @@ export function parseBuildings(
   }
 
   // Technical-system nodes: collect each into the building's `systems` list, its kind
-  // from rdf:type (an untyped node defaults to PV — tolerates a legacy `<#pv>`), its
-  // id the node's hash fragment (the per-unit observation feature-of-interest). Each
-  // node carries only its own predicates, so the leftover props match TechnicalSystem.
+  // from rdf:type. An UNTYPED node defaults to PV (tolerates a legacy `<#pv>`); a KNOWN
+  // type maps to its kind; an UNRECOGNISED type is SKIPPED rather than silently
+  // masquerading as PV (kindByType covers every SystemKind, so no valid type is lost).
+  // The id is the node's hash fragment (the per-unit observation feature-of-interest);
+  // each node carries only its own predicates, so the leftover props match TechnicalSystem.
   const kindByType: Record<string, SystemKind> = {
     [`${BUILDING_NS}BatteryStorage`]: "battery",
     [`${BUILDING_NS}CHPSystem`]: "chp",
@@ -488,7 +490,8 @@ export function parseBuildings(
     const building = buildings.get(buildingId);
     if (!building) continue;
     const { type, ...props } = systemData.get(node) ?? {};
-    const kind = (type && kindByType[type]) || "pv";
+    const kind = type ? kindByType[type] : "pv";
+    if (!kind) continue; // typed with an unrecognised class → not a known system
     const id = node.split("#")[1] ?? node;
     (building.systems ??= []).push({ id, kind, ...props });
   }

@@ -2,6 +2,15 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — Don't classify an unknown `bldg:hasSystem` type as PV
+
+`buildingParser` computed a system node's kind as `(type && kindByType[type]) || "pv"`,
+so a `bldg:hasSystem` node typed with an **unrecognised** class silently became a phantom
+PV system — not just the intended untyped-legacy `<#pv>` fallback. Now an untyped node
+still defaults to `pv` (legacy tolerance), a known type maps to its kind, and an
+**unrecognised** type is **skipped** (`kindByType` covers every `SystemKind`, so no valid
+type is lost). One parser test.
+
 ## [2026-07-01] — Wrapper drift: compile-time route contract + Data-sources health badge
 
 Two mechanisms against open-data-wrapper drift, prototyped on **mastr** (see
