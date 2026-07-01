@@ -2,6 +2,26 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — Wrapper drift: compile-time route contract + Data-sources health badge
+
+Two mechanisms against open-data-wrapper drift, prototyped on **mastr** (see
+`explore/explore-wrapper-contract-drift.md`).
+
+- **Route contract (compile-time).** `scripts/genWrapperRoutes.ts` regenerates
+  `src/generated/mastr.routes.ts` (a `MastrRoute` string union) from the wrapper's **live**
+  `/routes` manifest — the deployed reality, not a checked-in `web.xml` copy. `mastrNearby`
+  declares the routes it calls (`MASTR_ROUTES` `satisfies Record<string, MastrRoute>`) and builds
+  its URL from them, so a renamed/removed endpoint (as `/bbox`→`/within` was) breaks
+  `deno task check` at the use site instead of silently 404ing. New tasks `gen:routes:mastr` and
+  `gen:routes:mastr:check` (CI gate: regenerate + fail on diff). Requires the wrapper's `/routes`
+  endpoint (linked-mastr, deployed).
+- **Data-sources health badge (runtime).** `wrapperStatus.ts` probes a source and reports
+  **down** (unreachable) / **available** (reachable but the response drifted from the app's schema)
+  / **conformant**; the mastr probe checks BOTH that `/routes` still lists `MASTR_ROUTES` and that a
+  live `within` query still parses via `parseInstallations`. `SourceStatusChip` renders it on the
+  Data-sources page (no badge for a source without a probe). Prototype: labels are English (i18n
+  TODO); other sources' probes + typed routes are follow-ups.
+
 ## [2026-07-01] — Rooftop-PV: match the LoD2 building by address, not just proximity
 
 The per-building rooftop-PV lookup picked the LoD2-BY building **nearest** the geocoded
