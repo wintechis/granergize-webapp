@@ -17,7 +17,7 @@
  * pure for offline unit-testing.
  */
 import type { Store } from "n3";
-import { QB_NS, RDF_TYPE, SKOS_NS } from "../rdf/vocabularies.ts";
+import { QB_NS, RDF_TYPE, SKOS_NS, SKOS_PREF_LABEL } from "../rdf/vocabularies.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { deref } from "./capabilities.ts";
@@ -319,7 +319,6 @@ export function regionalGeoUrl(table: RegionalTable, ags: string): string {
 // can build it without importing this source client — keeps rdf↔sources acyclic.
 
 const SKOS_NOTATION = `${SKOS_NS}notation`;
-const SKOS_PREF_LABEL = `${SKOS_NS}prefLabel`;
 
 /** Lazily-fetched, session-cached AGS → Kreis-name map from the `cl/geo`
  *  codelist (a SKOS scheme of all Kreise und kreisfreie Städte). */

@@ -43,6 +43,7 @@ export type SourceId =
   | "netztransparenz"
   | "wetterdienst"
   | "osm"
+  | "inspire"
   | "wikidata"
   | "commons";
 
@@ -74,14 +75,29 @@ const CC_BY_4 = "https://creativecommons.org/licenses/by/4.0/";
 export const SOURCES = {
   osm: {
     id: "osm",
-    name: "OpenStreetMap / Nominatim",
+    name: "OpenStreetMap (via linked-osm)",
     homepage: "https://www.openstreetmap.org/copyright",
     license: "ODbL",
     licenseHref: "https://opendatacommons.org/licenses/odbl/1-0/",
-    note: "Geocoding building addresses to coordinates.",
-    envKey: "VITE_NOMINATIM_API_URI",
-    base: "https://nominatim.openstreetmap.org/",
-    // Nominatim search is JSON, not an RDF capability helper — see geocode.ts.
+    note:
+      "Building footprints (Overpass) and address geocoding (Nominatim), via linked-osm.",
+    envKey: "VITE_OSM_API_URI",
+    base: "https://osmwrap.ontologycentral.com/",
+    // Overpass features + Nominatim search are custom JSON endpoints (see geocode.ts /
+    // the pipeline's L1), not RDF capability helpers.
+    capabilities: [],
+  },
+  inspire: {
+    id: "inspire",
+    name: "INSPIRE / ATKIS Basis-DLM (via linked-inspire)",
+    homepage: "https://www.geodaten.bayern.de/",
+    license: "dl-de/by-2.0",
+    licenseHref: DL_DE_BY,
+    // Build-tool source: the app never fetches it, but the imported archive's industrial-park
+    // context (ATKIS Gewerbeflächen) derives from it — so it is credited here.
+    note: "Industrial/commercial areas (ATKIS Basis-DLM), via linked-inspire.",
+    envKey: "VITE_INSPIRE_API_URI",
+    base: "https://inspirewrap.ontologycentral.com/",
     capabilities: [],
   },
   mastr: {

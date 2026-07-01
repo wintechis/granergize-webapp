@@ -2,10 +2,24 @@
 import { strict as assert } from "node:assert";
 import { geocodeFields, geocodeWithRegion } from "./geocode.ts";
 
+/** A linked-osm `/nominatim/search.json` GeoJSON FeatureCollection for one hit (or none) —
+ *  geometry.coordinates is `[lon, lat]`. */
+function featureCollection(hit?: { lat: string; lon: string }): string {
+  return JSON.stringify({
+    type: "FeatureCollection",
+    features: hit
+      ? [{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [Number(hit.lon), Number(hit.lat)] },
+      }]
+      : [],
+  });
+}
+
 /**
  * Stub the global `fetch` (geocode goes through `trackedFetch` → bare `fetch`).
- * `hits` maps a Nominatim `q=` value to a single result; anything else returns an
- * empty array (a miss, which drives the progressive coarsening). Records every
+ * `hits` maps a `q=` value to a single result; anything else returns an empty
+ * FeatureCollection (a miss, which drives the progressive coarsening). Records every
  * queried `q` so tests can assert the order / dedup.
  */
 function stubFetch(hits: Record<string, { lat: string; lon: string }>) {
@@ -15,9 +29,8 @@ function stubFetch(hits: Record<string, { lat: string; lon: string }>) {
     const url = new URL(input.toString());
     const q = url.searchParams.get("q") ?? "";
     queried.push(q);
-    const hit = hits[q];
     return Promise.resolve(
-      new Response(JSON.stringify(hit ? [hit] : []), {
+      new Response(featureCollection(hits[q]), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -99,7 +112,7 @@ function stubGeocodeAndContains(contains: Response) {
     const url = input.toString();
     if (url.includes("/contains")) return Promise.resolve(contains.clone());
     return Promise.resolve(
-      new Response(JSON.stringify([{ lat: "49.45", lon: "11.07" }]), {
+      new Response(featureCollection({ lat: "49.45", lon: "11.07" }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),

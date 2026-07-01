@@ -15,14 +15,39 @@
  * a location the dump doesn't cover yields no match and degrades to `null`, so the card
  * simply does not appear. The parse halves are split out pure for offline testing.
  */
-import { GEO_LAT, GEO_LONG } from "../rdf/vocabularies.ts";
+import {
+  GEO_LAT,
+  GEO_LONG,
+  GSP_AS_WKT,
+  GSP_HAS_GEOMETRY,
+  LOCN_ADDRESS,
+  LOCN_ADMIN_UNIT_L1,
+  LOCN_FULL_ADDRESS,
+  LOCN_POST_NAME,
+  LOCN_THOROUGHFARE,
+  LOD2_NS,
+  RDF_TYPE,
+} from "../rdf/vocabularies.ts";
 import { parseRdfText } from "../rdf/rdfHelpers.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { computePotential, type RoofSurface } from "./rooftopPv.ts";
 import { parseWktPolygon, parseWktPolygonZ } from "../rdf/wkt.ts";
+import type { Lod2ByRoute } from "../../generated/lod2-by.routes.ts";
 
-const LOD2_NS = "https://w3id.org/linked-lod2-by/vocab#";
+/**
+ * The lod2-by routes the app calls, checked at COMPILE TIME against the wrapper's DEPLOYED route set
+ * (`src/generated/lod2-by.routes.ts`, regenerated from the live `/routes` manifest — `deno task
+ * gen:routes:lod2-by`). A rename/removal upstream (as `/point`→`/nearby` did) makes the literal
+ * unassignable to {@link Lod2ByRoute}, so `deno task check` fails rather than the app 404ing.
+ * (`building` = the per-building deref route.) See `explore/explore-wrapper-contract-drift.md`.
+ */
+export const LOD2_ROUTES = {
+  nearby: "nearby",
+  building: "building",
+} as const satisfies Record<string, Lod2ByRoute>;
+
+// Predicates derived from the shared LoD2 namespace (imported from rdf/vocabularies.ts).
 const HAS_ROOF_SURFACE = `${LOD2_NS}hasRoofSurface`;
 const TILT = `${LOD2_NS}tilt`;
 const AZIMUTH = `${LOD2_NS}azimuth`;
@@ -30,24 +55,11 @@ const AREA = `${LOD2_NS}area`;
 const HEIGHT = `${LOD2_NS}buildingHeight`;
 const INSTALLABLE_CAPACITY = `${LOD2_NS}installableCapacity`;
 // The thematic boundary-surface classes (faithful wrapper: roof + wall + ground).
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const SURFACE_KIND: Record<string, "roof" | "wall" | "ground"> = {
   [`${LOD2_NS}RoofSurface`]: "roof",
   [`${LOD2_NS}WallSurface`]: "wall",
   [`${LOD2_NS}GroundSurface`]: "ground",
 };
-// GeoSPARQL canonical pair — the surface footprint the wrapper adds (linked-inspire style).
-const GEO_NS = "http://www.opengis.net/ont/geosparql#";
-const HAS_GEOMETRY = `${GEO_NS}hasGeometry`;
-const AS_WKT = `${GEO_NS}asWKT`;
-
-// W3C Core Location Vocabulary — the building's postal address (bldg:address, INSPIRE-aligned).
-const LOCN_NS = "http://www.w3.org/ns/locn#";
-const LOCN_ADDRESS = `${LOCN_NS}address`;
-const LOCN_THOROUGHFARE = `${LOCN_NS}thoroughfare`;
-const LOCN_POSTNAME = `${LOCN_NS}postName`;
-const LOCN_ADMINUNITL1 = `${LOCN_NS}adminUnitL1`;
-const LOCN_FULLADDRESS = `${LOCN_NS}fullAddress`;
 
 /** One building's rooftop-PV potential (computed in-app over its LoD2 roof geometry). */
 export interface RooftopPotential {
@@ -108,7 +120,7 @@ export function rooftopPointUrl(
   long: number,
   radiusM = DEFAULT_RADIUS_M,
 ): string {
-  return `${lod2Base()}nearby?lon=${long}&lat=${lat}&r=${radiusM}`;
+  return `${lod2Base()}${LOD2_ROUTES.nearby}?lon=${long}&lat=${lat}&r=${radiusM}`;
 }
 
 /**
@@ -259,9 +271,9 @@ export function parseBuildingRoofs(
     ) continue;
     const surface: RoofSurface = { areaM2, tiltDeg, azimuthDeg };
     // The footprint (`gsp:hasGeometry → gsp:asWKT`), served within the dump's coverage — additive.
-    const geomNode = store.getQuads(node, HAS_GEOMETRY, null, null)[0]?.object;
+    const geomNode = store.getQuads(node, GSP_HAS_GEOMETRY, null, null)[0]?.object;
     const wkt = geomNode &&
-      store.getQuads(geomNode, AS_WKT, null, null)[0]?.object.value;
+      store.getQuads(geomNode, GSP_AS_WKT, null, null)[0]?.object.value;
     const ring = wkt ? parseWktPolygon(wkt) : null;
     if (ring) surface.polygon = ring;
     roofs.push(surface);
@@ -315,9 +327,9 @@ export function parseLod2Address(turtle: string, baseIri: string): Lod2Address |
   const lit = (p: string) => store.getQuads(node, p, null, null)[0]?.object.value || undefined;
   const address: Lod2Address = {
     thoroughfare: lit(LOCN_THOROUGHFARE),
-    postName: lit(LOCN_POSTNAME),
-    adminUnitL1: lit(LOCN_ADMINUNITL1),
-    fullAddress: lit(LOCN_FULLADDRESS),
+    postName: lit(LOCN_POST_NAME),
+    adminUnitL1: lit(LOCN_ADMIN_UNIT_L1),
+    fullAddress: lit(LOCN_FULL_ADDRESS),
   };
   return address.thoroughfare || address.postName || address.fullAddress ? address : null;
 }
@@ -333,14 +345,14 @@ export function parseBuilding3dSurfaces(
 ): Surface3d[] {
   const store = parseRdfText(turtle, baseIri);
   const out: Surface3d[] = [];
-  for (const g of store.getQuads(null, HAS_GEOMETRY, null, null)) {
+  for (const g of store.getQuads(null, GSP_HAS_GEOMETRY, null, null)) {
     let kind: "roof" | "wall" | "ground" | undefined;
     for (const t of store.getQuads(g.subject, RDF_TYPE, null, null)) {
       kind = SURFACE_KIND[t.object.value];
       if (kind) break;
     }
     if (!kind) continue; // skip the building's own back-compat footprint geometry alias
-    const wkt = store.getQuads(g.object, AS_WKT, null, null)[0]?.object.value;
+    const wkt = store.getQuads(g.object, GSP_AS_WKT, null, null)[0]?.object.value;
     const ring = wkt ? parseWktPolygonZ(wkt) : null;
     if (ring) out.push({ kind, ring });
   }

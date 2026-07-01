@@ -1,16 +1,17 @@
 /// <reference lib="deno.ns" />
 /**
- * REMOTE contract test for the `osm` source — live **Nominatim** geocoding.
+ * REMOTE contract test for the `osm` source — live geocoding via **linked-osm**.
  *
- * Network-only (no Pod, no actors): hits the real Nominatim host
- * (`nominatim.openstreetmap.org`, override `VITE_NOMINATIM_API_URI`) through the app's own
- * `geocodeFields`, proving an address resolves to coordinates the app can read. Run with
- * `deno task headless:remote:contract`; the hermetic unit tests at
- * `src/services/sources/geocode.test.ts` stub Nominatim.
+ * Network-only (no Pod, no actors): hits linked-osm's Nominatim proxy
+ * (`<osm-base>nominatim/search.json`; base `osmwrap.ontologycentral.com`, override
+ * `VITE_OSM_API_URI`) through the app's own `geocodeFields`, proving an address resolves to
+ * coordinates the app can read. Run with `deno task headless:remote:contract`; the hermetic
+ * unit tests at `src/services/sources/geocode.test.ts` stub the response.
  *
  * Polite by construction: a full-address query hits on the first try (one request, no retry
- * delay), and `geocodeFields` sends the required `User-Agent`. In the app, `osm` is Nominatim
- * geocoding (JSON) — not a linked-* RDF wrapper (that's the pipeline's linked-osm).
+ * delay), and `geocodeFields` sends a `User-Agent`. The response is a GeoJSON FeatureCollection
+ * (`features[].geometry.coordinates` = `[lon, lat]`); one `osm`/linked-osm source now serves both
+ * this geocoding and the pipeline's Overpass building footprints.
  */
 import { assert } from "jsr:@std/assert";
 import { geocodeFields } from "../../../src/services/sources/geocode.ts";

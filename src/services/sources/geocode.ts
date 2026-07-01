@@ -41,17 +41,23 @@ export async function geocodeFields(
     if (!first) await new Promise((r) => setTimeout(r, 1100));
     first = false;
     try {
-      // Nominatim returns JSON, not RDF — a non-vocabulary read, so it uses the
-      // gateway's bare fetch (env-overridable base via `sourceBase("osm")`).
+      // linked-osm's Nominatim proxy returns a GeoJSON FeatureCollection (not RDF) — a
+      // non-vocabulary read, so it uses the gateway's bare fetch (env-overridable base via
+      // `sourceBase("osm")`). Each feature's geometry.coordinates is `[lon, lat]`.
       const res = await getSourceGateway().fetch(
-        `${sourceBase("osm")}search?q=${
+        `${sourceBase("osm")}nominatim/search.json?q=${
           encodeURIComponent(query)
-        }&format=json&limit=1`,
+        }&limit=1`,
         { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
         "geocode address",
       );
-      const data = await res.json() as { lat: string; lon: string }[];
-      if (data.length) return { lat: data[0].lat, long: data[0].lon, precision };
+      const data = await res.json() as {
+        features?: { geometry?: { coordinates?: [number, number] } }[];
+      };
+      const coords = data.features?.[0]?.geometry?.coordinates;
+      if (coords && coords.length >= 2) {
+        return { lat: String(coords[1]), long: String(coords[0]), precision };
+      }
     } catch (err) {
       logError("geocode address candidate", err);
       // Try the next, coarser query.

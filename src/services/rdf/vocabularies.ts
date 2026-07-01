@@ -27,6 +27,8 @@ export const FOAF_LOGO = `${FOAF_NS}logo`;
 /** foaf:mbox / foaf:homepage — contact e-mail and website on a profile. */
 export const FOAF_MBOX = `${FOAF_NS}mbox`;
 export const FOAF_HOMEPAGE = `${FOAF_NS}homepage`;
+/** foaf:Organization — the class the pipeline types a producing-organisation agent node. */
+export const FOAF_ORGANIZATION = `${FOAF_NS}Organization`;
 
 /** vCard — profile photo (vcard:hasPhoto) fallback for the avatar, plus the
  * agent's contact facts (postal address, e-mail, telephone, URL). */
@@ -41,6 +43,8 @@ export const VCARD_ORGANIZATION = `${VCARD_NS}Organization`;
 export const VCARD_ADDRESS_BOOK = `${VCARD_NS}AddressBook`;
 export const VCARD_HAS_MEMBER = `${VCARD_NS}hasMember`;
 export const VCARD_HAS_ADDRESS = `${VCARD_NS}hasAddress`;
+/** vcard:Address — the class of a `vcard:hasAddress` node. */
+export const VCARD_ADDRESS = `${VCARD_NS}Address`;
 export const VCARD_STREET_ADDRESS = `${VCARD_NS}street-address`;
 export const VCARD_LOCALITY = `${VCARD_NS}locality`;
 export const VCARD_POSTAL_CODE = `${VCARD_NS}postal-code`;
@@ -59,6 +63,16 @@ export const GEO_LOCATION = `${GEO_NS}location`;
 export const GEO_POINT = `${GEO_NS}Point`;
 export const GEO_LAT = `${GEO_NS}lat`;
 export const GEO_LONG = `${GEO_NS}long`;
+
+/**
+ * GeoSPARQL — the surface footprint / roof geometry the `linked-lod2-by` wrapper serves
+ * (`gsp:hasGeometry` → a `gsp:Geometry` with a `gsp:asWKT` `gsp:wktLiteral`). Distinct from the
+ * WGS84 {@link GEO_NS} (a point's lat/long); this is the measured polygon geometry.
+ */
+export const GSP_NS = "http://www.opengis.net/ont/geosparql#";
+export const GSP_HAS_GEOMETRY = `${GSP_NS}hasGeometry`;
+export const GSP_AS_WKT = `${GSP_NS}asWKT`;
+export const GSP_WKT_LITERAL = `${GSP_NS}wktLiteral`;
 
 /**
  * Granergize: how precisely a `geo:Point` was geocoded — `Address` (full
@@ -129,6 +143,11 @@ export const PROV_WAS_ASSOCIATED_WITH = `${PROV_NS}wasAssociatedWith`;
 export const PROV_GENERATED_AT_TIME = `${PROV_NS}generatedAtTime`;
 export const PROV_ENTITY = `${PROV_NS}Entity`;
 export const PROV_WAS_DERIVED_FROM = `${PROV_NS}wasDerivedFrom`;
+/** PROV activity chain — the pipeline records a build `prov:Activity` that `prov:used` its
+ *  sources and `prov:wasGeneratedBy` the derived documents. */
+export const PROV_ACTIVITY = `${PROV_NS}Activity`;
+export const PROV_USED = `${PROV_NS}used`;
+export const PROV_WAS_GENERATED_BY = `${PROV_NS}wasGeneratedBy`;
 
 /** The OpenStreetMap/Nominatim geocoder, recorded as the source of geocoded
  * coordinates (ODbL — attribution + share-alike). */
@@ -144,6 +163,7 @@ export const RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 export const RDF_TYPE = `${RDF_NS}type`;
 export const RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#";
 export const RDFS_LABEL = `${RDFS_NS}label`;
+export const RDFS_COMMENT = `${RDFS_NS}comment`;
 export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
 // SKOS — the codelist schemes the statistics/MaStR wrappers publish (notation,
 // prefLabel) for resolving an AGS/carrier code to its human name.
@@ -182,6 +202,8 @@ export const REC_NS = "https://w3id.org/rec#";
 export const REC_BUILDING = `${REC_NS}Building`;
 /** rec:ownedBy — the building's owner as a WebID (reused directly, like rec:operatedBy). */
 export const REC_OWNED_BY = `${REC_NS}ownedBy`;
+/** rec:operatedBy — the building/system operator (a firm agent), used by the pipeline. */
+export const REC_OPERATED_BY = `${REC_NS}operatedBy`;
 
 /**
  * Building file attachments. A building links each uploaded file with
@@ -216,6 +238,8 @@ export const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
 export const DCTERMS_IDENTIFIER = `${DCTERMS_NS}identifier`;
 export const DCTERMS_SOURCE = `${DCTERMS_NS}source`;
 export const DCTERMS_LICENSE = `${DCTERMS_NS}license`;
+/** dcterms:isPartOf — the pipeline links a building to its Gemeinde/NUTS/Energie-Atlas context. */
+export const DCTERMS_IS_PART_OF = `${DCTERMS_NS}isPartOf`;
 
 /** LoD2-BY (LDBV) building vocabulary — the authoritative cadastre-derived metadata
  *  BAKED into each imported building's Turtle (ALKIS id, AdV roof-type code, storeys).
@@ -224,11 +248,15 @@ export const LOD2_NS = "https://w3id.org/linked-lod2-by/vocab#";
 export const LOD2_ALKIS_ID = `${LOD2_NS}alkisId`;
 export const LOD2_ROOF_TYPE = `${LOD2_NS}roofType`;
 export const LOD2_STOREYS_ABOVE_GROUND = `${LOD2_NS}storeysAboveGround`;
+/** lod2:GroundSurface — the measured building footprint the pipeline re-emits (WGS84 POLYGON). */
+export const LOD2_GROUND_SURFACE = `${LOD2_NS}GroundSurface`;
 
 /** ISA Core Location Vocabulary — the LoD2 building's postal address node
  *  (`locn:address` → a `locn:Address`: street+no., town, country, and a full string). */
 export const LOCN_NS = "http://www.w3.org/ns/locn#";
 export const LOCN_ADDRESS = `${LOCN_NS}address`;
+/** locn:Address — the class of a `locn:address` node. */
+export const LOCN_ADDRESS_CLASS = `${LOCN_NS}Address`;
 export const LOCN_THOROUGHFARE = `${LOCN_NS}thoroughfare`;
 export const LOCN_POST_NAME = `${LOCN_NS}postName`;
 export const LOCN_ADMIN_UNIT_L1 = `${LOCN_NS}adminUnitL1`;

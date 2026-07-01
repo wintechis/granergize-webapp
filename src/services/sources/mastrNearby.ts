@@ -23,7 +23,12 @@
  * renewables (solar/wind/hydro/biomass). Per-unit Bruttoleistung and authoritative
  * `vocab:#…Unit` typing would need a follow-up deref of each `…/see/{id}` record.
  */
-import { DCTERMS_NS, GEO_LAT, GEO_LONG, RDFS_NS } from "../rdf/vocabularies.ts";
+import {
+  DCTERMS_SPATIAL,
+  GEO_LAT,
+  GEO_LONG,
+  RDFS_LABEL,
+} from "../rdf/vocabularies.ts";
 import type { Store } from "n3";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
@@ -43,8 +48,6 @@ export const MASTR_ROUTES = {
   filter: "filter",
 } as const satisfies Record<string, MastrRoute>;
 
-const RDFS_LABEL = `${RDFS_NS}label`;
-const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
 /** Matched by suffix so it is independent of the (configurable) wrapper base. */
 const ENERGIETRAEGER_SUFFIX = "#Energietraeger";
 const EEG_MASTR_NR_SUFFIX = "#EegMaStRNummer";
