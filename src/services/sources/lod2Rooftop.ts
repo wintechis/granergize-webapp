@@ -29,6 +29,7 @@ import {
   RDF_TYPE,
 } from "../rdf/vocabularies.ts";
 import { parseRdfText } from "../rdf/rdfHelpers.ts";
+import { mapPooled } from "../../lib/pool.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { computePotential, type RoofSurface } from "./rooftopPv.ts";
@@ -53,7 +54,6 @@ const TILT = `${LOD2_NS}tilt`;
 const AZIMUTH = `${LOD2_NS}azimuth`;
 const AREA = `${LOD2_NS}area`;
 const HEIGHT = `${LOD2_NS}buildingHeight`;
-const INSTALLABLE_CAPACITY = `${LOD2_NS}installableCapacity`;
 // The thematic boundary-surface classes (faithful wrapper: roof + wall + ground).
 const SURFACE_KIND: Record<string, "roof" | "wall" | "ground"> = {
   [`${LOD2_NS}RoofSurface`]: "roof",
@@ -125,7 +125,8 @@ export function rooftopPointUrl(
 
 /**
  * From a `point` summary document, the IRI + coordinates of the building nearest to
- * (`fromLat`, `fromLong`), or `null` if none. Pure — the network-free half.
+ * (`fromLat`, `fromLong`), or `null` if none. Pure — the head of the (distance-
+ * sorted) {@link parseNearbyBuildings} list, not a third copy of its loop.
  */
 export function parseNearestBuilding(
   turtle: string,
@@ -133,33 +134,15 @@ export function parseNearestBuilding(
   fromLat: number,
   fromLong: number,
 ): { iri: string; lat: number; long: number; distanceKm: number } | null {
-  const store = parseRdfText(turtle, baseIri);
-  let best:
-    | { iri: string; lat: number; long: number; distanceKm: number }
-    | null = null;
-  for (const latQuad of store.getQuads(null, GEO_LAT, null, null)) {
-    const subject = latQuad.subject;
-    // Only buildings — skip the LIDS call entity (`<nearby?…#id>` a geo:Point), which carries
-    // the exact query coordinate and would otherwise always win as "nearest".
-    if (!subject.value.includes("/building/")) continue;
-    const lat = Number.parseFloat(latQuad.object.value);
-    const longQ = store.getQuads(subject, GEO_LONG, null, null)[0];
-    if (!longQ || Number.isNaN(lat)) continue;
-    const long = Number.parseFloat(longQ.object.value);
-    if (Number.isNaN(long)) continue;
-    const distanceKm = haversineKm(fromLat, fromLong, lat, long);
-    if (!best || distanceKm < best.distanceKm) {
-      best = { iri: subject.value, lat, long, distanceKm };
-    }
-  }
-  return best;
+  return parseNearbyBuildings(turtle, baseIri, fromLat, fromLong)[0] ?? null;
 }
 
-/** One nearby building's rooftop-PV potential, straight from the `point` summary — no deref
- *  needed (the summary already carries the installable kWp alongside the coordinates). */
+/** One nearby building's rooftop-PV potential — kWp computed APP-SIDE
+ *  ({@link computePotential}) from the building's dereferenced roof geometry
+ *  (the geometry-only wrapper serves no capacity figure since the PV-calc untangle). */
 export interface NearbyRooftop {
   iri: string;
-  /** Installable PV capacity [kWp] — the wrapper's `lod2:installableCapacity`. */
+  /** Installable PV capacity [kWp], computed from the roof surfaces. */
   installableKwp: number;
   lat: number;
   long: number;
@@ -168,45 +151,9 @@ export interface NearbyRooftop {
 }
 
 /**
- * From a `point` summary document, ALL nearby buildings carrying a rooftop-PV figure, sorted
- * nearest-first. Pure (network-free) — the multi-building sibling of {@link parseNearestBuilding};
- * buildings without an `installableCapacity` are skipped.
- */
-export function parseNearbyRooftops(
-  turtle: string,
-  baseIri: string,
-  fromLat: number,
-  fromLong: number,
-): NearbyRooftop[] {
-  const store = parseRdfText(turtle, baseIri);
-  const out: NearbyRooftop[] = [];
-  for (const latQuad of store.getQuads(null, GEO_LAT, null, null)) {
-    const subject = latQuad.subject;
-    if (!subject.value.includes("/building/")) continue; // skip the LIDS call entity
-    const lat = Number.parseFloat(latQuad.object.value);
-    const longQ = store.getQuads(subject, GEO_LONG, null, null)[0];
-    const capQ = store.getQuads(subject, INSTALLABLE_CAPACITY, null, null)[0];
-    if (!longQ || !capQ || Number.isNaN(lat)) continue;
-    const long = Number.parseFloat(longQ.object.value);
-    const installableKwp = Number.parseFloat(capQ.object.value);
-    if (Number.isNaN(long) || Number.isNaN(installableKwp)) continue;
-    out.push({
-      iri: subject.value,
-      installableKwp,
-      lat,
-      long,
-      distanceKm: haversineKm(fromLat, fromLong, lat, long),
-    });
-  }
-  out.sort((a, b) => a.distanceKm - b.distanceKm);
-  return out;
-}
-
-/**
  * From a `nearby` summary document, ALL nearby buildings (iri + coordinates + distance),
- * nearest-first — the geometry-only sibling of {@link parseNearbyRooftops} that does NOT require
- * a wrapper-served `lod2:installableCapacity` (the PV-calc untangle removed it; kWp is computed
- * app-side per building by dereferencing it). Skips the LIDS call entity. Pure (network-free).
+ * nearest-first. Skips the LIDS call entity (`<nearby?…#id>` a geo:Point, which carries the
+ * exact query coordinate and would otherwise always win as "nearest"). Pure (network-free).
  */
 export function parseNearbyBuildings(
   turtle: string,
@@ -409,11 +356,14 @@ function normalizeAddr(s: string | undefined | null): string | undefined {
 }
 
 /** Dereference a LoD2-BY building document; null when the fetch fails. */
-async function fetchLod2Doc(iri: string): Promise<string | null> {
+async function fetchLod2Doc(
+  iri: string,
+  label = "rooftop-PV geometry detail (LoD2-BY)",
+): Promise<string | null> {
   const res = await getSourceGateway().fetch(
     iri,
     { headers: { Accept: "text/turtle" } },
-    "rooftop-PV geometry detail (LoD2-BY)",
+    label,
   );
   return res.ok ? await res.text() : null;
 }
@@ -519,22 +469,32 @@ export async function fetchOpenBuilding(
   };
 }
 
+/** A nearby building plus its drawable roof footprints — kWp and roofs from ONE deref. */
+export interface NearbyRooftopGeometry extends NearbyRooftop {
+  /** Roof-surface footprints (WKT rings, [lon, lat]); may lack polygons when the
+   *  building's document served none (the map falls back to a dot). */
+  roofs: RoofSurface[];
+}
+
+/** How many of the nearest buildings to deref for footprints — each is one request, so this
+ *  is smaller than {@link NEARBY_ROOFTOP_LIMIT} (the points-only cap). */
+export const NEARBY_ROOFTOP_GEOM_LIMIT = 24;
+/** Concurrency cap for the per-building derefs — be polite to the wrapper. */
+const NEARBY_GEOM_CONCURRENCY = 6;
+
 /**
- * Fetch the rooftop-PV potential of buildings NEAR (`lat`, `long`): a `nearby` summary query for
- * the nearby buildings, then a per-building deref to compute each one's installable kWp **app-side**
- * ({@link computePotential} over its roof surfaces). Nearest first, capped at `limit`. `[]` outside
- * the dump's coverage (404 / no match).
- *
- * Was summary-only (the wrapper served `lod2:installableCapacity` per building), but the PV-calc
- * untangle moved that figure into the app, so the geometry-only wrapper no longer carries it — the
- * kWp must be computed here, like {@link fetchNearbyRooftopGeometry} derefs for footprints.
+ * The single fetch path both nearby-rooftop surfaces share: a `nearby` summary query, then ONE
+ * deref per building computing its kWp ({@link computePotential}) AND collecting its roof
+ * surfaces from the same document — never a second pass (2N requests where N suffice, against
+ * a wrapper this module is polite to). Nearest first, capped at `limit`; a building whose
+ * deref fails or has no suitable roof is dropped. `[]` outside the dump's coverage (404).
  */
-export async function fetchNearbyRooftops(
+async function fetchRatedRooftops(
   lat: number,
   long: number,
-  radiusM = NEARBY_ROOFTOP_RADIUS_M,
-  limit = NEARBY_ROOFTOP_LIMIT,
-): Promise<NearbyRooftop[]> {
+  radiusM: number,
+  limit: number,
+): Promise<NearbyRooftopGeometry[]> {
   const pointUrl = rooftopPointUrl(lat, long, radiusM);
   const res = await getSourceGateway().fetch(
     pointUrl,
@@ -545,15 +505,11 @@ export async function fetchNearbyRooftops(
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching nearby rooftops`);
   const buildings = parseNearbyBuildings(await res.text(), pointUrl, lat, long)
     .slice(0, limit);
-  const rated = await mapLimit(buildings, NEARBY_GEOM_CONCURRENCY, async (b) => {
+  const rated = await mapPooled(buildings, NEARBY_GEOM_CONCURRENCY, async (b) => {
     try {
-      const detail = await getSourceGateway().fetch(
-        b.iri,
-        { headers: { Accept: "text/turtle" } },
-        "nearby rooftop potential (LoD2-BY)",
-      );
-      if (!detail.ok) return null;
-      const parsed = parseBuildingRoofs(await detail.text(), b.iri);
+      const text = await fetchLod2Doc(b.iri, "nearby rooftop potential (LoD2-BY)");
+      if (!text) return null;
+      const parsed = parseBuildingRoofs(text, b.iri);
       const pv = parsed && computePotential(parsed.roofs);
       if (!pv) return null;
       return {
@@ -562,71 +518,45 @@ export async function fetchNearbyRooftops(
         lat: b.lat,
         long: b.long,
         distanceKm: b.distanceKm,
+        roofs: parsed.roofs,
       };
     } catch {
       return null;
     }
   });
-  return rated.filter((r): r is NearbyRooftop => r !== null);
-}
-
-/** A nearby building plus its drawable roof footprints (derefed from its document). */
-export interface NearbyRooftopGeometry extends NearbyRooftop {
-  /** Roof-surface footprints (WKT rings, [lon, lat]); `[]` when the building served none. */
-  roofs: RoofSurface[];
-}
-
-/** How many of the nearest buildings to deref for footprints — each is one request, so this
- *  is smaller than {@link NEARBY_ROOFTOP_LIMIT} (the cheap points-only cap). */
-export const NEARBY_ROOFTOP_GEOM_LIMIT = 24;
-/** Concurrency cap for the per-building geometry derefs — be polite to the wrapper. */
-const NEARBY_GEOM_CONCURRENCY = 6;
-
-/** Run `fn` over `items` with at most `limit` in flight at once (order preserved). */
-async function mapLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  const worker = async () => {
-    while (next < items.length) {
-      const idx = next++;
-      out[idx] = await fn(items[idx]);
-    }
-  };
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, worker),
-  );
-  return out;
+  return rated.filter((r): r is NearbyRooftopGeometry => r !== null);
 }
 
 /**
- * Nearby rooftops WITH footprint geometry: the cheap `point` summary, then a per-building deref
- * of the {@link NEARBY_ROOFTOP_GEOM_LIMIT} nearest for their WKT roof surfaces (the same deref
- * {@link fetchRooftopPotential} does, looped + concurrency-capped). A building whose deref fails
- * or serves no geometry comes back with `roofs: []` (the map falls back to a dot for it).
+ * Fetch the rooftop-PV potential of buildings NEAR (`lat`, `long`) — the points-only surface
+ * of {@link fetchRatedRooftops} (kWp computed app-side per building). Nearest first, capped
+ * at `limit`. `[]` outside the dump's coverage (404 / no match).
  */
-export async function fetchNearbyRooftopGeometry(
+export async function fetchNearbyRooftops(
+  lat: number,
+  long: number,
+  radiusM = NEARBY_ROOFTOP_RADIUS_M,
+  limit = NEARBY_ROOFTOP_LIMIT,
+): Promise<NearbyRooftop[]> {
+  return (await fetchRatedRooftops(lat, long, radiusM, limit))
+    .map(({ iri, installableKwp, lat: bLat, long: bLong, distanceKm }) => ({
+      iri,
+      installableKwp,
+      lat: bLat,
+      long: bLong,
+      distanceKm,
+    }));
+}
+
+/**
+ * Nearby rooftops WITH footprint geometry — {@link fetchRatedRooftops} verbatim (each
+ * building's kWp and WKT roof surfaces come from its one dereferenced document).
+ */
+export function fetchNearbyRooftopGeometry(
   lat: number,
   long: number,
   radiusM = NEARBY_ROOFTOP_RADIUS_M,
   limit = NEARBY_ROOFTOP_GEOM_LIMIT,
 ): Promise<NearbyRooftopGeometry[]> {
-  const summary = await fetchNearbyRooftops(lat, long, radiusM, limit);
-  return mapLimit(summary, NEARBY_GEOM_CONCURRENCY, async (r) => {
-    try {
-      const res = await getSourceGateway().fetch(
-        r.iri,
-        { headers: { Accept: "text/turtle" } },
-        "nearby rooftop geometry (LoD2-BY)",
-      );
-      if (!res.ok) return { ...r, roofs: [] };
-      const parsed = parseBuildingRoofs(await res.text(), r.iri);
-      return { ...r, roofs: parsed?.roofs ?? [] };
-    } catch {
-      return { ...r, roofs: [] };
-    }
-  });
+  return fetchRatedRooftops(lat, long, radiusM, limit);
 }

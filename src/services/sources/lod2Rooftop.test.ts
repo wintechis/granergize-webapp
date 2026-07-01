@@ -1,13 +1,13 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
+  fetchNearbyRooftopGeometry,
   fetchRooftopPotential,
   isOpenBuildingIri,
   parseBuilding3dSurfaces,
   parseLod2Address,
   parseBuildingRoofs,
   parseNearbyBuildings,
-  parseNearbyRooftops,
   parseNearestBuilding,
 } from "./lod2Rooftop.ts";
 import { computePotential } from "./rooftopPv.ts";
@@ -114,34 +114,6 @@ Deno.test("parseNearestBuilding picks the building closest to the query point", 
 
 Deno.test("parseNearestBuilding returns null for an empty document", () => {
   assert.equal(parseNearestBuilding("", POINT_BASE, 49, 11), null);
-});
-
-Deno.test("parseNearbyRooftops returns ALL buildings with capacity, nearest first", () => {
-  const near = parseNearbyRooftops(POINT_TTL, POINT_BASE, 49.609711, 11.130988);
-  assert.equal(near.length, 2);
-  // A is at the query point, B is ~2 km away → A first.
-  assert.equal(near[0].iri, "https://wunderfacts.com/lod2-by/building/A");
-  assert.equal(near[0].installableKwp, 40.39);
-  assert.equal(near[1].iri, "https://wunderfacts.com/lod2-by/building/B");
-  assert.ok(near[0].distanceKm < near[1].distanceKm);
-});
-
-Deno.test("parseNearbyRooftops skips buildings without an installable-capacity figure", () => {
-  const ttl = `
-@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
-@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
-<https://wunderfacts.com/lod2-by/building/A> a lod2:RoofPotential ;
-  geo:lat 49.61 ; geo:long 11.13 ; lod2:installableCapacity 22.38 .
-<https://wunderfacts.com/lod2-by/building/X> a lod2:RoofPotential ;
-  geo:lat 49.62 ; geo:long 11.15 .
-`;
-  const near = parseNearbyRooftops(ttl, POINT_BASE, 49.61, 11.13);
-  assert.equal(near.length, 1);
-  assert.equal(near[0].iri, "https://wunderfacts.com/lod2-by/building/A");
-});
-
-Deno.test("parseNearbyRooftops returns [] for an empty document", () => {
-  assert.deepEqual(parseNearbyRooftops("", POINT_BASE, 49, 11), []);
 });
 
 Deno.test("parseNearbyBuildings lists ALL nearby buildings (no capacity needed), nearest first", () => {
@@ -305,4 +277,32 @@ Deno.test("parseNearestBuilding skips the /nearby LIDS query-point entity (picks
   const n = parseNearestBuilding(ttl, url, 49.61, 11.13);
   assert.ok(n);
   assert.equal(n.iri, "https://wunderfacts.com/lod2-by/building/A");
+});
+
+// ── fetchNearbyRooftopGeometry: one deref per building ─────────────────────────
+
+Deno.test("fetchNearbyRooftopGeometry derefs each building ONCE (kWp + roofs from one document)", async () => {
+  // The kWp rating and the roof footprints live in the SAME dereferenced
+  // building document. Deriving them in two passes (rate first, then re-fetch
+  // for geometry) cost 2N wrapper requests where N suffice — against a wrapper
+  // the module itself says to be polite to.
+  const { gateway, calls } = fakeLod2Gateway();
+  _setSourceGatewayForTesting(gateway);
+  try {
+    const out = await fetchNearbyRooftopGeometry(49.4826, 11.1265);
+    assert.equal(out.length, 2, "both nearby buildings rated");
+    assert.ok(
+      out.every((r) => r.installableKwp > 0 && r.roofs.length > 0),
+      "each entry carries the kWp AND its roof surfaces",
+    );
+    for (const b of ["NEAR", "FAR"]) {
+      assert.equal(
+        calls.filter((c) => c.url.includes(`/building/${b}`)).length,
+        1,
+        `building ${b} dereferenced exactly once, not twice`,
+      );
+    }
+  } finally {
+    _setSourceGatewayForTesting(null);
+  }
 });

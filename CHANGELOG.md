@@ -2,6 +2,15 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — LoD2 nearby rooftops: one deref per building
+
+The kWp rating and the roof footprints live in the same dereferenced building
+document, but the two nearby-rooftop surfaces fetched it in two passes — 2N
+wrapper requests where N suffice. Both now share one `fetchRatedRooftops` path.
+Also swept: the dead post-untangle `parseNearbyRooftops` (+ predicate),
+`parseNearestBuilding` de-triplicated onto `parseNearbyBuildings`, and the local
+pool helper replaced by `lib/pool`'s `mapPooled`.
+
 ## [2026-07-02] — LLM translate: fail loudly without an API key
 
 An unset `VITE_LLM_API_KEY` used to fall back to a placeholder bearer key baked
