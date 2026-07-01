@@ -84,7 +84,17 @@ the Pod. They are the backend's second, independent part, and **each kind makes 
   fulfills fixed Turtle/GeoJSON — per-spec, no rebuild, deterministic. (A global guard
   that *fails* on un-stubbed external hosts was considered and declined — stubbing stays
   per-spec, so a spec that opens an external surface and forgets a stub silently hits the
-  real host.)
+  real host.) The **open-data** specs register those stubs through `stubWhenLocal`
+  (`helpers/lane.ts`), which is a **no-op on `e2e:remote`** — so remote falls through to
+  the LIVE wrapper and the spec's assertions split on `E2E_LOCAL` (exact fixture figures
+  local; "populates / ≥ N / distinct shading" remote). This is what exercises the real
+  wrapper contract end-to-end through the UI (a stub can silently drift from the live
+  shape — the `point → nearby` LoD2 rename left two stubs matching a dead path, green
+  against themselves). Two open-data specs stay stubbed in BOTH lanes on purpose, because
+  their subject is app LOGIC over controlled inputs, not "does the live source populate":
+  `regional-context.spec.ts` (decoy-carrier exclusion, reverse-geocode-to-Kreis, codelist
+  truncation fallback) and the outage block of `map-region-choropleth.spec.ts` (forces a
+  `/geojson` 404 to prove silent degradation).
 - **`headless:local`** — **the gap.** No browser → no `page.route`, and the base
   resolvers (`linkedWeatherBase`, `mastrNearby`, `lod2Rooftop`, `regionGeometry`,
   `regionalCube`) read `import.meta.env` only, which is `undefined` under Deno → they

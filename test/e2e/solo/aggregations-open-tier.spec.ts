@@ -10,18 +10,19 @@ import {
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { E2E_LOCAL, stubWhenLocal } from "../helpers/lane.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
  * The Aggregations finder's `open` source tier (public regionalstatistik
- * datasets, keyed to the regions of the user's buildings). The wrapper is an
- * EXTERNAL host, so this STUBS its `…/regionalstatistik/data/{table}` response
- * (mirroring regional-context.spec). A building in "Bayern" (the addBuilding
- * helper fills that region + Nürnberg coords) seeds one open dataset — renewable
- * electricity share for Bayern (table 86251-Z-02 → ags 09). The test asserts the
- * `open` tier toggle adds/removes the open row, and that opening it navigates to
- * the standalone read-only dataset page with the stubbed figure. Self-cleaning;
- * Alice (account A).
+ * datasets, keyed to the regions of the user's buildings). A building in "Bayern" (the
+ * addBuilding helper fills that region + Nürnberg coords) seeds one open dataset —
+ * renewable electricity share for Bayern (table 86251-Z-02 → ags 09). The open row's
+ * label ("… — Bayern") is derived from the region, so the tier toggle add/remove is
+ * lane-agnostic; only the dataset's figures differ. LOCAL stubs the wrapper's
+ * `…/regionalstatistik/data/{table}` response → a fixed 2023 → 61.5 % cell; REMOTE lets
+ * it reach the LIVE wrapper, so we assert only that a year + percentage cell render.
+ * Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/solo/aggregations-open-tier.spec.ts
  */
@@ -55,9 +56,9 @@ test.describe("aggregations open tier (regionalstatistik)", () => {
     test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "aggregations-open-tier");
     page.on("dialog", (d) => d.accept().catch(() => {}));
-    // Stub the external regionalstatistik wrapper: serve the Bayern cube for the
-    // land table, 404 everything else (no live cross-origin call escapes).
-    await page.route(/\/regionalstatistik\//, (route) => {
+    // LOCAL only: stub the external regionalstatistik wrapper — serve the Bayern cube
+    // for the land table, 404 everything else. REMOTE reaches the live wrapper.
+    await stubWhenLocal(page, /\/regionalstatistik\//, (route) => {
       const url = route.request().url();
       return url.includes("/data/86251-Z-02")
         ? route.fulfill({
@@ -121,8 +122,16 @@ test.describe("aggregations open tier (regionalstatistik)", () => {
     await expect(
       page.getByRole("heading", { name: `${t("regRenewableShare")} — Bayern` }),
     ).toBeVisible({ timeout: T.action });
-    await expect(page.getByRole("cell", { name: "2023" })).toBeVisible();
-    await expect(page.getByRole("cell", { name: /61\.5\s*%/ })).toBeVisible();
+    if (E2E_LOCAL) {
+      // The stubbed Bayern figure: 2023 → 61.5 %.
+      await expect(page.getByRole("cell", { name: "2023" })).toBeVisible();
+      await expect(page.getByRole("cell", { name: /61\.5\s*%/ })).toBeVisible();
+    } else {
+      // Live: some year + some percentage figure renders (values are nondeterministic).
+      await expect(page.getByRole("cell", { name: /^\d{4}$/ }).first())
+        .toBeVisible({ timeout: T.action });
+      await expect(page.getByRole("cell", { name: /%/ }).first()).toBeVisible();
+    }
     await expect(page.getByText(t("regDataSource"))).toBeVisible();
 
     // Cleanup: delete the throwaway building.

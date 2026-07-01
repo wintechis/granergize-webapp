@@ -10,6 +10,7 @@ import {
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { E2E_LOCAL, stubWhenLocal } from "../helpers/lane.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -17,10 +18,14 @@ import { T } from "../helpers/timeouts.ts";
  * `NeighbourhoodEnergyMap`) e2e. For a Bavarian building it renders a small map of
  * the neighbour **Gemeinden** (from `linked-lau`, by viewport bbox) shaded by each
  * municipality's real rooftop-PV build-out (Ausbaugrad) from `linked-energieatlas`.
- * Both are EXTERNAL wrappers, so — like `regional-context.spec.ts` — this STUBS
- * them; the building is added with Nürnberg (Bavaria) coordinates. The widget lives
- * on the building's `/observation` page (which bootstraps cleanly), so this avoids
- * the standalone-route cold-load issue. Self-cleaning; Alice (account A).
+ * The building is added with Nürnberg (Bavaria) coordinates. LOCAL stubs both wrappers
+ * → exactly two neighbour Gemeinden; REMOTE lets them reach the LIVE wrappers (the seed
+ * sits on real coverage), so the neighbour count is nondeterministic and we assert only
+ * that ≥2 polygons draw with distinct build-out shading. The page's OTHER external layers
+ * (regionalstatistik, MaStR, weather, the regional NUTS map) are 404'd/emptied in BOTH
+ * lanes — they aren't this test's subject, and suppressing them keeps the page-wide
+ * polygon count attributable to the neighbourhood map. The widget lives on the building's
+ * `/observation` page (which bootstraps cleanly). Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/solo/neighbourhood-energy.spec.ts
  */
@@ -78,23 +83,24 @@ test.describe("neighbourhood energy choropleth", () => {
     test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "neighbourhood-energy");
     page.on("dialog", (d) => d.accept().catch(() => {}));
-    // Stub the external wrappers (the Tier-3 build points at the absolute wunderfacts
-    // hosts). The widget needs linked-lau + linked-energieatlas; the rest of the
-    // observation page's external layers (regionalstatistik, MaStR, weather) are
-    // 404'd so they degrade silently and the test stays hermetic.
-    await page.route(/\/lau\/geojson/, (route) =>
+    // LOCAL only: stub the widget's OWN wrappers — linked-lau (neighbour geometry) +
+    // linked-energieatlas (per-Gemeinde build-out). REMOTE lets both reach the live
+    // hosts (the Tier-3/remote build points at the absolute wunderfacts hosts).
+    await stubWhenLocal(page, /\/lau\/geojson/, (route) =>
       route.fulfill({ status: 200, contentType: "application/geo+json", headers: CORS, body: LAU_FC }));
-    await page.route(/\/energieatlas\/area\/(\d+)/, (route) => {
+    await stubWhenLocal(page, /\/energieatlas\/area\/(\d+)/, (route) => {
       const ags = route.request().url().match(/\/area\/(\d+)/)?.[1] ?? "";
       const body = EA[ags];
       return body
         ? route.fulfill({ status: 200, contentType: "text/turtle", headers: CORS, body })
         : route.fulfill({ status: 404, headers: CORS, body: "" });
     });
+    // Suppress the observation page's OTHER external layers in BOTH lanes — they aren't
+    // this test's subject, and 404'ing/emptying them keeps the page-wide interactive-path
+    // count attributable to the neighbourhood map (regionalstatistik/MaStR/weather degrade
+    // silently; the regional NUTS map draws no polygons).
     await page.route(/\/(regionalstatistik|mastr|wetterdienst)\//, (route) =>
       route.fulfill({ status: 404, headers: CORS, body: "" }));
-    // The building page also carries the regional-metrics map (NUTS geometry); stub
-    // it empty so it adds no interactive polygons to the neighbourhood count.
     await page.route(/\/nuts\/geojson/, (route) =>
       route.fulfill({
         status: 200,
@@ -129,10 +135,17 @@ test.describe("neighbourhood energy choropleth", () => {
 
     // The widget renders its section title + a Leaflet map of the neighbour Gemeinden.
     await expect(page.getByText(t("neighbourhoodTitle"))).toBeVisible({ timeout: T.action });
-    // The Gemeinde polygons (the building's location marker is non-interactive).
+    // The Gemeinde polygons (the building's location marker is non-interactive). LOCAL
+    // stubs exactly two neighbours; REMOTE hits live linked-lau (nondeterministic count).
     const regions = page.locator("path.leaflet-interactive");
     await expect(regions.first()).toBeVisible({ timeout: T.action });
-    await expect(regions).toHaveCount(2, { timeout: T.action });
+    if (E2E_LOCAL) {
+      await expect(regions).toHaveCount(2, { timeout: T.action });
+    } else {
+      await expect(async () => {
+        expect(await regions.count()).toBeGreaterThanOrEqual(2);
+      }).toPass({ timeout: T.action });
+    }
 
     // The polygons are SHADED by each Gemeinde's Energie-Atlas build-out: the two
     // municipalities have different Ausbaugrad (18.2 % vs 24.3 %), so they get

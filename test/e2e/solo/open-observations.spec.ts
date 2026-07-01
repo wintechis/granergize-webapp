@@ -4,17 +4,21 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { E2E_LOCAL, stubWhenLocal } from "../helpers/lane.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
  * The Observations finder's `open` source tier — actually-settled generation of nearby
  * renewable installations (netztransparenz, joined to MaStR via the unit's EEG number).
- * EXTERNAL hosts, so this STUBS the three-step join: `mastr/within` (a nearby solar unit) →
+ * LOCAL stubs the three-step join: `mastr/within` (a nearby solar unit) →
  * `mastr/see/{id}` (its `EegMaStRNummer`) → `netztransparenz/eeg/{number}` (the settled
- * kWh/year). The open tier is **context around your own buildings** (`ownDataAnchor`), so
- * an owned building with coordinates near the stubbed plant anchors the open fetch once
- * the tier is ticked. Asserts the "Open generation (nearby)" row surfaces the
- * plant + its settled kWh. Self-cleaning; Alice (account A).
+ * kWh/year), asserting the specific "E2E Solar Plant" row + 156.33 kW detail. REMOTE lets
+ * the join reach the LIVE wrappers (the seed sits on real MaStR coverage in central
+ * Nürnberg), so the plant name/figures are nondeterministic and we assert only that the
+ * open section populates with a settled-generation row (year + kWh) that drills to a
+ * read-only detail page. The open tier is **context around your own buildings**
+ * (`ownDataAnchor`), so an owned building with coordinates anchors the open fetch once the
+ * tier is ticked. Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/solo/open-observations.spec.ts
  */
@@ -78,15 +82,16 @@ test.describe("open observations (netztransparenz)", () => {
     test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "open-observations");
     page.on("dialog", (d) => d.accept().catch(() => {}));
-    // Stub the join: `/mastr/` serves the bbox listing or a `/see/` unit by path;
-    // `/netztransparenz/` serves the plant. No live cross-origin call escapes.
-    await page.route(/\/mastr\//, (route) => {
+    // LOCAL only: stub the join — `/mastr/` serves the bbox listing or a `/see/` unit by
+    // path; `/netztransparenz/` serves the plant. REMOTE reaches the live wrappers.
+    await stubWhenLocal(page, /\/mastr\//, (route) => {
       const url = route.request().url();
       if (url.includes("/mastr/within")) return route.fulfill(turtle(MASTR_BBOX));
       if (url.includes("/see/")) return route.fulfill(turtle(MASTR_SEE));
       return route.fulfill({ status: 404, headers: CORS, body: "" });
     });
-    await page.route(
+    await stubWhenLocal(
+      page,
       /\/netztransparenz\//,
       (route) => route.fulfill(turtle(NETZ_PLANT)),
     );
@@ -118,18 +123,32 @@ test.describe("open observations (netztransparenz)", () => {
 
     await expect(page.getByRole("heading", { name: t("obsOpenSection") }))
       .toBeVisible({ timeout: T.poll });
-    const openRow = page.locator("li", { hasText: "E2E Solar Plant" }).first();
+
+    // LOCAL: the specific stubbed plant. REMOTE: any settled-generation row (a nearby
+    // unit joined to a netztransparenz settlement — "{year} · {kWh}").
+    const openRow = E2E_LOCAL
+      ? page.locator("li", { hasText: "E2E Solar Plant" }).first()
+      : page.locator("li").filter({ hasText: /\d{4}/ }).filter({ hasText: "kWh" })
+        .first();
     await expect(openRow).toBeVisible({ timeout: T.action });
-    await expect(openRow).toContainText("2024");
     await expect(openRow).toContainText("kWh");
+    if (E2E_LOCAL) await expect(openRow).toContainText("2024");
 
     // Drilling the row opens the in-app READ-ONLY plant detail (not the upstream doc):
     // the unit master data + the settled-generation chart, no edit/share.
-    await openRow.getByText("E2E Solar Plant").click();
+    if (E2E_LOCAL) await openRow.getByText("E2E Solar Plant").click();
+    else await openRow.getByRole("link").first().click();
     await expect(page).toHaveURL(/\/observation\?uri=/, { timeout: T.action });
-    await expect(page.getByRole("heading", { name: "E2E Solar Plant" }))
-      .toBeVisible({ timeout: T.action });
-    await expect(page.getByText("156.33 kW")).toBeVisible({ timeout: T.action });
+    if (E2E_LOCAL) {
+      await expect(page.getByRole("heading", { name: "E2E Solar Plant" }))
+        .toBeVisible({ timeout: T.action });
+      await expect(page.getByText("156.33 kW")).toBeVisible({ timeout: T.action });
+    } else {
+      // Live: the detail page renders a heading + the unit's rated power ("… kW").
+      await expect(page.getByRole("heading").first())
+        .toBeVisible({ timeout: T.action });
+      await expect(page.getByText(/\bkW\b/).first()).toBeVisible({ timeout: T.action });
+    }
     await expect(page.getByRole("button", { name: /share|edit/i })).toHaveCount(0);
   });
 });

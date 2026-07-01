@@ -8,12 +8,14 @@ import {
   verifyAndReset,
 } from "../helpers/cleanSlate.ts";
 import { watchAppErrors } from "../helpers/errorGuard.ts";
+import { stubWhenLocal } from "../helpers/lane.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
  * The Buildings map's region level-of-detail (#2): below `CHOROPLETH_BELOW` zoom it shades
  * region polygons instead of drawing markers/clusters; zooming back in restores the pins.
- * STUBS the `linked-nuts` `/geojson` geometry (an EXTERNAL host) with one Bavaria polygon.
+ * LOCAL stubs the `linked-nuts` `/geojson` geometry with one Bavaria polygon; REMOTE lets
+ * it reach the LIVE wrapper (the assertions only need "≥1 polygon draws", true either way).
  * Asserts the swap both ways. Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/solo/map-region-choropleth.spec.ts
@@ -51,7 +53,7 @@ test.describe("map region choropleth (LOD)", () => {
     test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "map-region-choropleth");
     page.on("dialog", (d) => d.accept().catch(() => {}));
-    await page.route(/\/nuts\/geojson/, (route) =>
+    await stubWhenLocal(page, /\/nuts\/geojson/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/geo+json",
@@ -119,6 +121,8 @@ test.describe("map region choropleth — geometry outage degrades silently", () 
     page.on("dialog", (d) => d.accept().catch(() => {}));
     ({ assertNoAppErrors } = watchAppErrors(page));
     // The geo wrapper is down: every region-geometry read (nuts/lau `/geojson`) 404s.
+    // Stubbed in BOTH lanes on purpose — this exercises the OUTAGE/degrade path, not the
+    // live wrapper, so it must force the 404 even on remote (where the wrapper is up).
     await page.route(/\/(nuts|lau)\/geojson/, (route) =>
       route.fulfill({ status: 404, headers: CORS, body: "" }));
     await login(page, ACC);

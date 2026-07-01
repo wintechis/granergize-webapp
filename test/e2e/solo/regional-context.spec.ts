@@ -30,6 +30,14 @@ import { T } from "../helpers/timeouts.ts";
  * the bare AGS — proving the section degrades gracefully rather than breaking.
  * Self-cleaning; Alice (account A).
  *
+ * STUBBED in BOTH lanes on purpose (unlike the other open-data specs, which fall
+ * through to the live wrapper on `e2e:remote`): this spec's subject is app LOGIC over
+ * CONTROLLED inputs — the decoy-carrier exclusion, the reverse-geocode-to-Kreis join,
+ * and the second test's codelist-TRUNCATION fallback (which can't be forced against a
+ * live wrapper that simply serves the Kreis). The live regionalstatistik contract is
+ * covered on remote by `aggregations-open-tier.spec.ts` + the `regionalCube` contract
+ * test, so nothing is lost by keeping this deterministic.
+ *
  *   deno task e2e:local test/e2e/solo/regional-context.spec.ts
  */
 

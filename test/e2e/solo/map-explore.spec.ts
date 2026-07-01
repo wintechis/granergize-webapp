@@ -8,13 +8,16 @@ import {
   clearFinderMemory,
   verifyAndReset,
 } from "../helpers/cleanSlate.ts";
+import { stubWhenLocal } from "../helpers/lane.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
  * The open tier's opt-in **exploration** mode. With NO own building the open tier is empty
  * (the concentric default — nothing to anchor to). Toggling "Explore this area" + searching
  * a place anchors the open layers to the map viewport, so open data appears for that place.
- * STUBS the LoD2 `/point` rooftops + Nominatim geocode. Self-cleaning; Alice (account A).
+ * LOCAL stubs the LoD2 `/nearby` summary + per-building roof deref and the Nominatim
+ * geocode; REMOTE lets both fall through to the live hosts (Nürnberg sits on real LoD2
+ * coverage). Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/solo/map-explore.spec.ts
  */
@@ -22,14 +25,24 @@ import { T } from "../helpers/timeouts.ts";
 const ACC = account("A");
 const CORS = { "access-control-allow-origin": "*" };
 
-// Two open rooftops near Nürnberg — served for any LoD2 `/point` query.
-const LOD2_TTL = `
+// Two LoD2 buildings near Nürnberg — the geometry-only `/nearby` summary the parser reads
+// (post-`point→nearby` rename; kWp is computed app-side from a per-building deref).
+const LOD2_NEARBY = `
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
-@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
-<https://wunderfacts.com/lod2-by/see/DEBY1#it>
-  geo:lat 49.451 ; geo:long 11.081 ; lod2:installableCapacity 42.5 .
-<https://wunderfacts.com/lod2-by/see/DEBY2#it>
-  geo:lat 49.452 ; geo:long 11.082 ; lod2:installableCapacity 18.0 .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
+<https://wunderfacts.com/lod2-by/building/DEBY1> a lod2:Building ;
+  geo:lat 49.451 ; geo:long 11.081 .
+<https://wunderfacts.com/lod2-by/building/DEBY2> a lod2:Building ;
+  geo:lat 49.452 ; geo:long 11.082 .
+`;
+
+// A per-building deref: one south-facing roof surface → a positive installable kWp.
+const LOD2_ROOF = `
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
+<#roof-0> a lod2:RoofSurface ; lod2:area 300 ; lod2:azimuth 180 ; lod2:tilt 35 .
+<> a lod2:Building ; geo:lat 49.451 ; geo:long 11.081 ; lod2:buildingHeight 10 ;
+  lod2:hasRoofSurface <#roof-0> .
 `;
 
 test.describe.configure({ mode: "serial" });
@@ -46,13 +59,21 @@ test.describe("open-data exploration mode", () => {
     test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "map-explore");
     page.on("dialog", (d) => d.accept().catch(() => {}));
-    // LoD2 rooftops for any `/point`; 404 anything else under the base.
-    await page.route(/\/lod2-by\//, (route) =>
-      route.request().url().includes("/point")
-        ? route.fulfill({ status: 200, contentType: "text/turtle", headers: CORS, body: LOD2_TTL })
-        : route.fulfill({ status: 404, headers: CORS, body: "" }));
-    // Nominatim geocode → Nürnberg (the keyword "search a place" hit).
-    await page.route(/nominatim\.openstreetmap\.org/, (route) =>
+    // LOCAL only: LoD2 `/nearby` summary + per-building roof deref; 404 anything else
+    // under the base. REMOTE falls through to the live wrapper.
+    await stubWhenLocal(page, /\/lod2-by\//, (route) => {
+      const url = route.request().url();
+      if (url.includes("/nearby")) {
+        return route.fulfill({ status: 200, contentType: "text/turtle", headers: CORS, body: LOD2_NEARBY });
+      }
+      if (url.includes("/building/")) {
+        return route.fulfill({ status: 200, contentType: "text/turtle", headers: CORS, body: LOD2_ROOF });
+      }
+      return route.fulfill({ status: 404, headers: CORS, body: "" });
+    });
+    // Nominatim geocode → Nürnberg (the keyword "search a place" hit). REMOTE hits live
+    // Nominatim, which resolves "Nürnberg" to the same ~49.45/11.07 the `?c` check expects.
+    await stubWhenLocal(page, /nominatim\.openstreetmap\.org/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",

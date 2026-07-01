@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { t } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -10,16 +10,19 @@ import {
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { E2E_LOCAL, stubWhenLocal } from "../helpers/lane.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
  * Nearby-installations section (linked-mastr) e2e — the finest-grain place layer.
- * The wrapper is an EXTERNAL host, so this STUBS its `…/mastr/within` response (the
- * way regional-context stubs the cube) with a mix of renewable + non-renewable
- * units around the building's coordinates, and asserts the section keeps the
- * renewables (solar/wind), drops combustion, and renders the per-kind summary +
- * the nearest-first list. The regionalstatistik wrapper is stubbed to 404 so its
- * section stays absent and no live call escapes. Self-cleaning; Alice (account A).
+ * LOCAL stubs the wrapper's `…/mastr/within` response with a mix of renewable +
+ * non-renewable units around the building's coordinates and asserts the section keeps
+ * the renewables (solar/wind), drops combustion, and renders the per-kind summary + the
+ * nearest-first list; the regionalstatistik wrapper is stubbed to 404 so its sibling
+ * section stays absent. REMOTE lets both fall through to the LIVE wrappers (the seed sits
+ * on real MaStR coverage in central Nürnberg), so labels/counts are nondeterministic and
+ * we assert only that the section populates and the List ⇄ Map toggle works.
+ * Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/solo/nearby-installations.spec.ts
  */
@@ -64,16 +67,16 @@ test.describe("nearby installations (linked-mastr)", () => {
     test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "nearby-installations");
     page.on("dialog", (d) => d.accept().catch(() => {}));
-    // Stub MaStR with the fixture; stub regionalstatistik to 404 so its (sibling)
-    // section stays hidden and no live cross-origin call escapes the test.
-    await page.route(/\/mastr\/within/, (route) =>
+    // LOCAL only: stub MaStR with the fixture; stub regionalstatistik to 404 so its
+    // (sibling) section stays hidden. REMOTE lets both reach the live wrappers.
+    await stubWhenLocal(page, /\/mastr\/within/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "text/turtle",
         headers: CORS,
         body: MASTR_TTL,
       }));
-    await page.route(/\/regionalstatistik\//, (route) =>
+    await stubWhenLocal(page, /\/regionalstatistik\//, (route) =>
       route.fulfill({ status: 404, headers: CORS, body: "" }));
     await login(page, ACC);
     await assertCleanStart(page);
@@ -95,18 +98,29 @@ test.describe("nearby installations (linked-mastr)", () => {
 
     await page.goto(buildingRoute("observation", id));
 
-    // The section renders with its title and the per-kind summary (3 renewables —
-    // the combustion unit is dropped — "within 3 km").
+    // The section renders with its title, the per-kind summary, and its data-source
+    // line — lane-agnostic (present whenever ≥1 renewable is nearby).
     await expect(page.getByText(t("niTitle"))).toBeVisible({ timeout: T.action });
-    await expect(page.getByText(t("niSummary", { count: 3, radius: 3 })))
-      .toBeVisible();
-
-    // The list shows each renewable by "{kind} — {label}"; the combustion unit is
-    // absent. (Nearest first, but the list is short enough to assert membership.)
-    await expect(page.getByText(`${t("niKindSolar")} — Solardach Nah`)).toBeVisible();
-    await expect(page.getByText(`${t("niKindWind")} — Windrad Weit`)).toBeVisible();
-    await expect(page.getByText(/Heizkraftwerk Müll/)).toHaveCount(0);
+    await expect(page.getByText(tPattern("niSummary")).first()).toBeVisible();
     await expect(page.getByText(t("niDataSource"))).toBeVisible();
+
+    // A stable per-row marker (LOCAL: our fixture's "Solardach Nah"; REMOTE: any live
+    // row shows "{kind} — {label}") — the first solar-kind row is the map-toggle probe.
+    const sampleRow = E2E_LOCAL
+      ? page.getByText(`${t("niKindSolar")} — Solardach Nah`)
+      : page.getByText(new RegExp(`${t("niKindSolar")} — `)).first();
+
+    if (E2E_LOCAL) {
+      // The list shows each renewable by "{kind} — {label}"; the combustion unit
+      // (carrier 2413) is dropped. (Nearest first; the fixture is short enough to
+      // assert membership.)
+      await expect(sampleRow).toBeVisible();
+      await expect(page.getByText(`${t("niKindWind")} — Windrad Weit`)).toBeVisible();
+      await expect(page.getByText(/Heizkraftwerk Müll/)).toHaveCount(0);
+    } else {
+      // Live: at least one solar installation is nearby in central Nürnberg.
+      await expect(sampleRow).toBeVisible({ timeout: T.action });
+    }
 
     // Map guise: the section's List ⇄ Map toggle swaps the list for a Leaflet map
     // of the same set; switching back restores the list.
@@ -117,11 +131,9 @@ test.describe("nearby installations (linked-mastr)", () => {
     await expect(page.locator(".leaflet-container").last()).toBeVisible({
       timeout: T.action,
     });
-    await expect(page.getByText(`${t("niKindSolar")} — Solardach Nah`))
-      .toHaveCount(0); // the list rows are gone in map view
+    await expect(sampleRow).toHaveCount(0); // the list rows are gone in map view
     await viewToggle.getByRole("button", { name: t("btnList") }).click();
-    await expect(page.getByText(`${t("niKindSolar")} — Solardach Nah`))
-      .toBeVisible();
+    await expect(sampleRow.first()).toBeVisible();
 
     // Cleanup: delete the throwaway building.
     await page.goto("/");
