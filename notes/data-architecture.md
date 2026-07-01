@@ -3,7 +3,9 @@
 The app's data is organised by **provenance** — *where it comes from and who controls
 it* — as three **concentric rings** around the user's Pod: `mine` (the centre), `shared`
 (the middle), `open` (the outer). This note is the entry point to that model and routes
-out to the deep note for each ring. The orthogonal axis — *how* data translates between
+out to the deep note for each ring; it also carries the **vocabulary story** — which
+vocabulary represents each ring, and the app's own typed object model beside them
+(§Vocabularies). The orthogonal axis — *how* data translates between
 storage, typed objects, and the UI (the read/write pipeline) — is owned by
 [`architecture.md`](./architecture.md) §"The data-shape pipeline"; the two are
 complementary lenses on the same data.
@@ -118,6 +120,69 @@ OWN building — incl. a building's technical-system operator — is `mine`; one
 only in a building shared WITH the user is `shared` (an agent can be both). `open` is empty
 for now (operators of open/public buildings could populate it once the open ring is scanned
 for agents).
+
+## Vocabularies — how each ring is represented
+
+The rings also sort the *representation* question: which RDF vocabulary describes the
+data. The vocabulary boundary does **not** coincide with the ring boundaries — it
+coincides with the **write-authority** boundary, so it falls between the inner two rings
+and the outer one.
+
+- **Inner two rings (`mine` + `shared`): one vocabulary, ours.** Both are described by
+  the three authored Granergize vocabularies (`vocab/` — `building.ttl#` a
+  RealEstateCore extension profile, `consumption.ttl#` a SOSA profile, `vocab.ttl#`
+  app/interop plumbing) plus the directly reused spine (`rec:Building`, `rec:ownedBy`,
+  geo, vCard, SOSA, PROV, FOAF, schema.org). The shared ring needs no vocabulary of its
+  own because shared data *is* another user's mine ring — written by the same app under
+  the same terms; only the WAC gate differs. Because the app is the writer here, the
+  contract is enforceable: `vocab.test.ts` asserts every term the code references is
+  defined in `vocab/`, so code and vocabulary can't drift. The deep notes:
+  [`data-schema.md`](./data-schema.md) §"Vocabulary namespaces" (the namespaces and the
+  field-schema derivation), [`storage-layout.md`](./storage-layout.md) §"Schema and
+  profiles" (the schema at the centre, the app's profiles around it), and
+  [`../vocab/README.md`](../vocab/README.md) (the files as source of truth, publishing).
+- **Outer ring (`open`): many vocabularies, foreign, one per source.** Here the app is
+  read-only and takes each source's model as given. The correspondence to our model is
+  documented one note per source in [`../sources/`](../sources/README.md), and
+  implemented as one client module per source (`mastrNearby.ts`, `regionalCube.ts`,
+  `standortEnergieprofil.ts`, `linkedWeather.ts`, …). The inner and outer rings meet on
+  a shared **standards layer** rather than ad-hoc mappings: our consumption vocabulary
+  is a SOSA profile and linked-wetterdienst serves SOSA/QUDT; regionalstatistik and
+  energieatlas serve RDF Data Cube (`qb:`); NUTS/LAU serve SKOS + GeoSPARQL; building
+  master data aligns to REC 4 / Brick. So the per-source correspondence is mostly
+  *instance* modelling (which codes, which dimensions), not incompatible class
+  hierarchies. A tail of the open ring is not RDF at all (Nominatim/Overpass JSON,
+  Commons images, raster tiles, the bundled PVGIS grid, the LLM gateway) and sits
+  outside the vocabulary question.
+
+### The app's own vocabulary — the typed object model
+
+Beside the RDF vocabularies sits a third, app-side one: the **TS object model** — the
+typed middle layer of the data-shape pipeline ([`object-model.md`](./object-model.md)),
+plain `interface`/`type` nouns with the intent/query/mutation verbs on them. Its
+relation to the RDF vocabularies is asymmetric:
+
+- **Against the inner-ring vocabulary it is a bidirectional mirror.** `Building` ⇄
+  building file, `EnergyDataset` ⇄ dataset file; parse and serialize are both driven
+  from one table — the field schema in `buildingConfig.ts`, where each field carries
+  its predicate *and* its `rdfs:range`. That table is the zip between the TS and RDF
+  vocabularies ([`data-schema.md`](./data-schema.md)'s four-artifacts-must-agree), with
+  `vocab.test.ts` guarding the seam.
+- **Against the outer-ring vocabularies it is the interlingua.** Cross-vocabulary
+  alignment is deliberately done in the object model, not at the RDF level:
+  [`observation-cube.md`](./observation-cube.md) rejects an RDF-level `qb:`↔SOSA
+  alignment in favour of one small adapter per foreign vocabulary, all converging on
+  the same app-level series shape. Most open sources get their own read-only types
+  (`RooftopPotential`, `NearbyInstallation`, `RegionalObservation`, `AreaProfile`, …);
+  where an open thing must flow through app machinery it converts into the core type
+  (an open LoD2 building becomes a `Building` with `isOpen`).
+- **The rings surface in it as data.** Provenance is carried into the object model as
+  the derived tier flags `isShared` / `isOpen` on `Building`.
+
+The RDF vocabularies are open-world and shared; the TS vocabulary is closed-world and
+private to the app. The parse is where the open world is projected into closed shapes —
+safe on the inner rings only because each resource has a single writer (the app), so a
+GET → object → PUT round-trip can't drop a foreign writer's triples.
 
 ## The mine ring — your own Pod
 
