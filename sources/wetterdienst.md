@@ -1,7 +1,7 @@
 # Weather (linked-wetterdienst) ↔ our model
 
 `linked-wetterdienst` (`~/projects/linked-wetterdienst`, served at
-`wunderfacts.com/wetterdienst/`, `VITE_WEATHER_API_URI`) publishes Deutscher
+`wunderfacts.com/wetterdienst/`, `VITE_WETTERDIENST_API_URI`) publishes Deutscher
 Wetterdienst (DWD) observations as Linked Data (Turtle). The app reads it through
 `src/services/linkedWeather.ts` and aligns it to a building's energy in
 `src/services/energy/energyWeather.ts`. It shares the LDP/RDF patterns catalogued

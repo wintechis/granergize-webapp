@@ -111,7 +111,7 @@ Grouped by how the app consumes them. Each lists: what it provides · the client
   wrapper also offers `/filter` (attribute selection), unused by the app.
 - **Weather / DWD** (`wetterdienst.md`, `linked-wetterdienst`) — DWD observations
   (SOSA/QUDT), aligned to a building's energy. `linkedWeather.ts`. Render-only context.
-  Deref only; CORS-enabled (`VITE_WEATHER_API_URI`).
+  Deref only; CORS-enabled (`VITE_WETTERDIENST_API_URI`).
 - **Regionalstatistik** (`regionalstatistik.md`, `linked-regionalstatistik`) — GENESIS
   tables as RDF Data Cube at Land/Kreis grain. `regionalCube.ts`. `open`. Deref +
   `/sparql`.

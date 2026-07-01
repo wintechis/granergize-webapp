@@ -3,7 +3,7 @@
  * REMOTE contract test for `linked-energieatlas` — the live per-Gemeinde energy-profile source.
  *
  * Network-only (no Pod, no actors): hits the real wrapper host (`wunderfacts.com/energieatlas`,
- * override `VITE_LINKED_ENERGIEATLAS_API_URI`) and drives the app's OWN parser. Run with
+ * override `VITE_ENERGIEATLAS_API_URI`) and drives the app's OWN parser. Run with
  * `deno task headless:remote:contract`; the hermetic unit tests at
  * `src/services/sources/standortEnergieprofil.test.ts` use fixtures.
  *

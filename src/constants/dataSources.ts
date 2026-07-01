@@ -129,7 +129,7 @@ export const SOURCES = {
     license: "GeoNutzV",
     licenseHref: "https://www.dwd.de/EN/service/copyright/copyright_node.html",
     note: "Weather observations (via linked-wetterdienst).",
-    envKey: "VITE_WEATHER_API_URI",
+    envKey: "VITE_WETTERDIENST_API_URI",
     base: "https://wunderfacts.com/wetterdienst/",
     // near/values are custom endpoints, not standard verbs — see linkedWeather.ts.
     capabilities: ["deref"],
@@ -152,7 +152,7 @@ export const SOURCES = {
     license: "dl-de/by-2.0",
     licenseHref: DL_DE_BY,
     note: "Municipal energy potential, Bavaria (via linked-energieatlas).",
-    envKey: "VITE_LINKED_ENERGIEATLAS_API_URI",
+    envKey: "VITE_ENERGIEATLAS_API_URI",
     base: "https://wunderfacts.com/energieatlas/",
     capabilities: ["deref"],
   },

@@ -19,7 +19,7 @@ a Java/Jena SOSA/QUDT RDF wrapper over the **wetterdienst** service (which serve
 The app **dereferences its Turtle** (`Accept: text/turtle`, parsed with n3 via
 `parseRdfText`), not a JSON RPC. It is fetched **directly** from
 `https://wunderfacts.com/wetterdienst/` — the wrapper is CORS-enabled, so no dev proxy
-is needed — overridable via `VITE_WEATHER_API_URI` (`.env.development` /
+is needed — overridable via `VITE_WETTERDIENST_API_URI` (`.env.development` /
 `.env.production`); see
 [external wrapper endpoints](./data-deref.md#external-wrapper-endpoints). The base
 backs a dev-mode `RdfSourceLink`, so the service is inspectable like a Pod resource.

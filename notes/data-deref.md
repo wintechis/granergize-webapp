@@ -164,7 +164,7 @@ roster of `open`-tier public sources (LoD2 rooftop-PV, MaStR, netztransparenz,
 Energie-Atlas, NUTS/LAU) and how they surface is owned by
 [`data-architecture.md`](./data-architecture.md):
 
-- **`linked-wetterdienst`** — weather (SOSA/QUDT). `VITE_WEATHER_API_URI`, default
+- **`linked-wetterdienst`** — weather (SOSA/QUDT). `VITE_WETTERDIENST_API_URI`, default
   `https://wunderfacts.com/wetterdienst/`. Dereferenced as Turtle by
   `linkedWeather.ts` (see [`weather.md`](./weather.md)).
 - **`linked-regionalstatistik`** — regional statistics (RDF Data Cube).

@@ -1,7 +1,7 @@
 # Energie-Atlas Bayern (linked-energieatlas) ↔ our model
 
 `linked-energieatlas` (`~/projects/linked-energieatlas`, served at
-`wunderfacts.com/energieatlas/`, `VITE_LINKED_ENERGIEATLAS_API_URI`) publishes
+`wunderfacts.com/energieatlas/`, `VITE_ENERGIEATLAS_API_URI`) publishes
 the Bavarian Energie-Atlas as RDF — **Bavaria-only** (pilot scope). The app reads
 it through `src/services/standortEnergieprofil.ts` (`area/{ags}`) to fill the
 "Standort-Energieprofil" panel. Shares the LDP/RDF patterns catalogued in

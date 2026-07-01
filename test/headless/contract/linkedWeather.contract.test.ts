@@ -3,7 +3,7 @@
  * REMOTE contract test for `linked-wetterdienst` — the live weather source.
  *
  * Network-only (no Pod, no actors): hits the real wrapper host (`wunderfacts.com/wetterdienst`,
- * override `VITE_WEATHER_API_URI`) and drives the app's OWN parsers + station picker. Run with
+ * override `VITE_WETTERDIENST_API_URI`) and drives the app's OWN parsers + station picker. Run with
  * `deno task headless:remote:contract`; the hermetic unit tests at
  * `src/services/sources/linkedWeather.test.ts` use fixtures.
  *
