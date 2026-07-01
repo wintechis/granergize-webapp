@@ -1,9 +1,10 @@
 import { msg } from "../lib/messages.ts";
+import IconAction from "./IconAction.tsx";
+import { useT } from "../context/I18nProvider.tsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
-  IconButton,
   MenuItem,
   Paper,
   Stack,
@@ -14,7 +15,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -106,6 +106,7 @@ interface EnergyYearEditorProps {
 export default function EnergyYearEditor(
   { open, session, onClose, building, createFrom, inline }: EnergyYearEditorProps,
 ) {
+  const t = useT();
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
   const qc = useQueryClient();
@@ -137,15 +138,15 @@ export default function EnergyYearEditor(
     : "";
   const kindLabel = (kind: SystemKind) =>
     kind === "battery"
-      ? msg("mdBatteryStorage")
+      ? t("mdBatteryStorage")
       : kind === "chp"
-      ? msg("mdChpSystem")
-      : msg("mdPvSystem");
+      ? t("mdChpSystem")
+      : t("mdPvSystem");
   // One option per energy unit (its actual node IRI), so an observation can attach to
   // exactly the unit the user picks — several of a kind disambiguated by the summary.
   const units = (selectedBuilding?.systems ?? []) as TechnicalSystem[];
   const foiOptions: Array<{ label: string; iri: string }> = [
-    { label: msg("eyFoiBuilding"), iri: "" },
+    { label: t("eyFoiBuilding"), iri: "" },
     ...units.map((s) => ({
       label: s.capacityKW != null || s.storageCapacityKWh != null
         ? `${kindLabel(s.kind)} (${s.capacityKW ?? s.storageCapacityKWh} ${
@@ -279,7 +280,7 @@ export default function EnergyYearEditor(
   const handleSave = async () => {
     const y = parseInt(year);
     if (!Number.isInteger(y) || y < 1900 || y > 2100) {
-      showNotification(msg("enterValidYear"), "error");
+      showNotification(t("enterValidYear"), "error");
       return;
     }
     const metrics: AnnualMetrics = {};
@@ -293,7 +294,7 @@ export default function EnergyYearEditor(
         // DELETE that metric from the PUT.
         if (isNaN(n)) {
           showNotification(
-            msg("energyValueNotANumber", { raw, label }),
+            t("energyValueNotANumber", { raw, label }),
             "error",
           );
           return;
@@ -302,7 +303,7 @@ export default function EnergyYearEditor(
       }
     }
     if (Object.keys(metrics).length === 0) {
-      showNotification(msg("enterFigure"), "error");
+      showNotification(t("enterFigure"), "error");
       return;
     }
     // Building-less: write an UNBOUND observation (no building → no FoI). It surfaces
@@ -312,7 +313,7 @@ export default function EnergyYearEditor(
         { dataset: { building: "", year: y, granularity: "P1Y", scenario, metrics } },
         {
           onSuccess: () => {
-            showNotification(msg("energySaved"), "success");
+            showNotification(t("energySaved"), "success");
             const keep = scenario;
             reset();
             setScenario(keep);
@@ -346,7 +347,7 @@ export default function EnergyYearEditor(
             );
             return [...rest, dataset];
           });
-          showNotification(msg("energySaved"), "success");
+          showNotification(t("energySaved"), "success");
           // Clear year/figures but KEEP the scenario: entering several planned
           // (Soll) years in a row shouldn't need re-selecting "Planned" each time.
           const keep = scenario;
@@ -360,12 +361,12 @@ export default function EnergyYearEditor(
   const handleDelete = async (d: EnergyDataset) => {
     if (
       !await confirm({
-        title: msg("dlgDeleteEnergy"),
-        message: msg("eyDeleteConfirm", {
+        title: t("dlgDeleteEnergy"),
+        message: t("eyDeleteConfirm", {
           scenario: scenarioLabel(d.scenario),
           year: d.year,
         }),
-        confirmLabel: msg("btnDelete"),
+        confirmLabel: t("btnDelete"),
       })
     ) return;
     if (!selectedBuilding) return;
@@ -392,7 +393,7 @@ export default function EnergyYearEditor(
           );
           // If the deleted year was loaded in the form, clear it.
           if (loadedKey.current === dsKey(d.year, d.scenario)) reset();
-          showNotification(msg("energyYearDeleted"), "success");
+          showNotification(t("energyYearDeleted"), "success");
         },
       },
     );
@@ -419,15 +420,15 @@ export default function EnergyYearEditor(
 
   const actions = (
     <>
-      <Button variant="text" onClick={close} disabled={busy}>{msg("btnClose")}</Button>
+      <Button variant="text" onClick={close} disabled={busy}>{t("btnClose")}</Button>
       <Button variant="contained" onClick={handleSave} disabled={busy}>
-        {busy ? msg("btnSaving") : msg("btnSave")}
+        {busy ? t("btnSaving") : t("btnSave")}
       </Button>
     </>
   );
   const titleNode = selectedBuilding
-    ? <BuildingDialogTitle building={selectedBuilding} action={msg("eyAction")} />
-    : msg("eyAction");
+    ? <BuildingDialogTitle building={selectedBuilding} action={t("eyAction")} />
+    : t("eyAction");
   const content = (
       <Stack spacing={3} sx={{ mt: 1 }}>
         {/* Finder create mode: OPTIONALLY bind the new series to a building (then a
@@ -437,7 +438,7 @@ export default function EnergyYearEditor(
         {createFrom && createFrom.length > 0 && (
           <BuildingPicker
             buildings={createFrom}
-            label={msg("eyBuildingLabel")}
+            label={t("eyBuildingLabel")}
             value={pickedUri}
             onChange={changeBuilding}
             disabled={busy}
@@ -447,7 +448,7 @@ export default function EnergyYearEditor(
             linked to a building later. */}
         {createFrom && !selectedBuilding && (
           <Typography variant="body2" color="text.secondary">
-            {msg("eyBuildinglessHint")}
+            {t("eyBuildinglessHint")}
           </Typography>
         )}
         {/* Feature of interest — the building or one of its energy units; only when a
@@ -455,7 +456,7 @@ export default function EnergyYearEditor(
         {selectedBuilding && foiOptions.length > 1 && (
           <TextField
             select
-            label={msg("eyObserveFor")}
+            label={t("eyObserveFor")}
             size="small"
             value={foi}
             onChange={(e) => changeFoi(e.target.value)}
@@ -470,13 +471,13 @@ export default function EnergyYearEditor(
             observation has no prior years to list). */}
         {selectedBuilding && (
           <section>
-            <Typography variant="h6" sx={{ mb: 1 }}>{msg("eyStoredYears")}</Typography>
+            <Typography variant="h6" sx={{ mb: 1 }}>{t("eyStoredYears")}</Typography>
           {listLoading
-            ? <Typography color="text.secondary">{msg("loadingEllipsis")}</Typography>
+            ? <Typography color="text.secondary">{t("loadingEllipsis")}</Typography>
             : sorted.length === 0
             ? (
               <Typography color="text.secondary">
-                {msg("eyNoneYet")}
+                {t("eyNoneYet")}
               </Typography>
             )
             : (
@@ -484,8 +485,8 @@ export default function EnergyYearEditor(
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>{msg("lblYear")}</strong></TableCell>
-                      <TableCell><strong>{msg("lblScenario")}</strong></TableCell>
+                      <TableCell><strong>{t("lblYear")}</strong></TableCell>
+                      <TableCell><strong>{t("lblScenario")}</strong></TableCell>
                       {metricFields().map((m) => (
                         <TableCell key={m.key} align="right">
                           <strong>{m.short}</strong>
@@ -508,27 +509,19 @@ export default function EnergyYearEditor(
                           );
                         })}
                         <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-                          <Tooltip title={msg("eyEditYear")}>
-                            <IconButton
-                              size="small"
-                              aria-label={msg("eyEditYear")}
-                              onClick={() => editYear(d)}
-                              disabled={busy}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title={msg("eyDeleteYear")}>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              aria-label={msg("eyDeleteYear")}
-                              onClick={() => handleDelete(d)}
-                              disabled={busy}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          <IconAction
+  label={t("eyEditYear")}
+  icon={<EditIcon fontSize="small" />}
+  disabled={busy}
+  onClick={() => editYear(d)}
+/>
+                          <IconAction
+  label={t("eyDeleteYear")}
+  icon={<DeleteIcon fontSize="small" />}
+  color="error"
+  disabled={busy}
+  onClick={() => handleDelete(d)}
+/>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -542,11 +535,11 @@ export default function EnergyYearEditor(
         {/* Add / edit one year. */}
         <section>
           <Typography variant="h6" sx={{ mb: 1 }}>
-            {editingExisting ? msg("eyEditHeading") : msg("eyAddHeading")}
+            {editingExisting ? t("eyEditHeading") : t("eyAddHeading")}
           </Typography>
           <Stack spacing={2}>
             <TextField
-              label={msg("lblYear")}
+              label={t("lblYear")}
               type="number"
               size="small"
               value={year}
@@ -554,17 +547,17 @@ export default function EnergyYearEditor(
             />
             <TextField
               select
-              label={msg("lblScenario")}
+              label={t("lblScenario")}
               size="small"
               value={scenario}
               onChange={(e) => setScenario(e.target.value as Scenario)}
             >
-              <MenuItem value="actual">{msg("scenarioActual")}</MenuItem>
-              <MenuItem value="planned">{msg("scenarioPlanned")}</MenuItem>
+              <MenuItem value="actual">{t("scenarioActual")}</MenuItem>
+              <MenuItem value="planned">{t("scenarioPlanned")}</MenuItem>
             </TextField>
             {editingExisting && (
               <Typography variant="body2" color="text.secondary">
-                {msg("eyEditingNote")}
+                {t("eyEditingNote")}
               </Typography>
             )}
             {metricFields().map(({ key, label }) => (

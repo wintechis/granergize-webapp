@@ -2,6 +2,17 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — Dialogs: conventions sweep
+
+- The five big dialogs render through `useT()` — an open dialog now follows a
+  locale switch (BuildingDialogs' role options were even frozen at module load).
+- ShareAggregationDialog's primary/confirm buttons live in the Modal actions
+  slot; the share dialogs' identical success/preview blocks share
+  `components/ShareFlow.tsx`.
+- `IconAction` adopted at the hand-rolled Tooltip+IconButton sites (tooltips
+  survive `disabled` again); CreateAggregationDialog resets mode/extent on
+  close and its Select-all is a real, keyboard-reachable button.
+
 ## [2026-07-02] — Consistency sweep: one way to do each thing
 
 - Gateway composition happens in one place: components call `getGateway()`

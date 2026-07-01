@@ -1,11 +1,10 @@
 import { useState } from "react";
+import IconAction from "../components/IconAction.tsx";
 import { getGateway } from "../hooks/session.ts";
 import {
   Box,
   Button,
-  IconButton,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -211,29 +210,21 @@ export default function AgentsFinder({ session }: AgentsFinderProps) {
                 subtitle={!a.saved ? t("agentReferencedHint") : undefined}
                 actions={a.saved
                   ? (
-                    <Tooltip title={t("agentRemoveAria")}>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        aria-label={t("agentRemoveAria")}
-                        onClick={() => handleRemove(a.webId)}
-                        disabled={removeAgentMut.isPending}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    <IconAction
+  label={t("agentRemoveAria")}
+  icon={<DeleteIcon fontSize="small" />}
+  color="error"
+  disabled={removeAgentMut.isPending}
+  onClick={() => handleRemove(a.webId)}
+/>
                   )
                   : (
-                    <Tooltip title={t("agentSaveToBookAria")}>
-                      <IconButton
-                        size="small"
-                        aria-label={t("agentSaveToBookAria")}
-                        onClick={() => handleSaveReferenced(a.webId)}
-                        disabled={saveAgentMut.isPending}
-                      >
-                        <PersonAddAlt1Icon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    <IconAction
+                      label={t("agentSaveToBookAria")}
+                      icon={<PersonAddAlt1Icon fontSize="small" />}
+                      disabled={saveAgentMut.isPending}
+                      onClick={() => handleSaveReferenced(a.webId)}
+                    />
                   )}
               />
             ))}

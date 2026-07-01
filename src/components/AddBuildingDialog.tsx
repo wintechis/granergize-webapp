@@ -1,4 +1,5 @@
-import { msg, type MessageId } from "../lib/messages.ts";
+import type { MessageId } from "../lib/messages.ts";
+import { useT } from "../context/I18nProvider.tsx";
 import { useEffect, useRef, useState } from "react";
 import {
   Box,
@@ -77,6 +78,7 @@ function tabLabel(b: Record<string, string>, idx: number): string {
 export default function AddBuildingDialog(
   { open, autostartImport, onClose }: AddBuildingDialogProps,
 ) {
+  const t = useT();
   const { showNotification } = useNotification();
   const { buildings } = useSolidData();
   // The write goes through the mutation hook: busy state, the central error
@@ -195,7 +197,7 @@ export default function AddBuildingDialog(
       setFormat(format);
       const parsed = await parseCsvToFields(file, format);
       if (parsed.length === 0) {
-        showNotification(msg("noBuildingsInFile"), "warning");
+        showNotification(t("noBuildingsInFile"), "warning");
         return;
       }
 
@@ -213,7 +215,7 @@ export default function AddBuildingDialog(
       ];
       if (ignored.length > 0) {
         showNotification(
-          msg("importIgnoredColumns", { columns: ignored.join(", ") }),
+          t("importIgnoredColumns", { columns: ignored.join(", ") }),
           "warning",
         );
       }
@@ -258,11 +260,11 @@ export default function AddBuildingDialog(
       setActiveIdx(0);
 
       const loaded = readings
-        ? msg("loadedWithReadings", {
+        ? t("loadedWithReadings", {
           readings: readings.length,
           days: new Set(readings.map((r) => r.date)).size,
         })
-        : msg("loadedBuildings", { count: parsed.length });
+        : t("loadedBuildings", { count: parsed.length });
       showNotification(loaded, "success");
     } catch (err) {
       showNotification(formatError("actionParseFile", err), "error");
@@ -275,7 +277,7 @@ export default function AddBuildingDialog(
   const { onGeocode, busy: geocoding } = useGeocodeFields(
     fields,
     setField,
-    msg("coordinatesUpdated"),
+    t("coordinatesUpdated"),
   );
 
   const handleSubmit = () => {
@@ -293,11 +295,11 @@ export default function AddBuildingDialog(
           if (aborted) {
             // A user cancel is an outcome, not an error: the buildings written
             // before the cancel are kept (and already invalidated).
-            showNotification(msg("addImportCancelled"), "warning");
+            showNotification(t("addImportCancelled"), "warning");
             return;
           }
           showNotification(
-            msg("addBuildingAddedCount", { count: added.length }),
+            t("addBuildingAddedCount", { count: added.length }),
             "success",
           );
           handleClose();
@@ -326,7 +328,7 @@ export default function AddBuildingDialog(
         Object.values(b).some((v) => v && String(v).trim())
       ) || lastgangReadings != null}
       busy={isProcessing}
-      title={autostartImport ? msg("addTitleAutofill") : msg("addBuildingBtn")}
+      title={autostartImport ? t("addTitleAutofill") : t("addBuildingBtn")}
       overlay={isProcessing && (
         <Box
           sx={{
@@ -344,27 +346,27 @@ export default function AddBuildingDialog(
         >
           <Typography variant="body2" color="text.secondary">
             {parsing
-              ? msg("addProcessingFile")
+              ? t("addProcessingFile")
               : uploadProgress
-              ? msg("addUploadingEnergyDays", {
+              ? t("addUploadingEnergyDays", {
                 done: uploadProgress.done,
                 total: uploadProgress.total,
               })
               : lastgangReadings
-              ? msg("addUploadingBoth")
-              : msg("addAddingCount", { count: buildingsList.length })}
+              ? t("addUploadingBoth")
+              : t("addAddingCount", { count: buildingsList.length })}
           </Typography>
           {uploading && (
             <>
               <Box
                 sx={{ width: "100%", maxWidth: 480, maxHeight: "40vh", overflowY: "auto" }}
               >
-                <RequestActivityList emptyText={msg("addStarting")} />
+                <RequestActivityList emptyText={t("addStarting")} />
               </Box>
               {/* The overlay covers the action row, so the cancel control lives
                   here, on top of the curtain. */}
               <Button variant="outlined" onClick={handleCancelUpload}>
-                {msg("addCancelUpload")}
+                {t("addCancelUpload")}
               </Button>
             </>
           )}
@@ -372,15 +374,15 @@ export default function AddBuildingDialog(
       )}
       actions={
         <>
-          <Button onClick={handleClose} disabled={isProcessing}>{msg("btnCancel")}</Button>
+          <Button onClick={handleClose} disabled={isProcessing}>{t("btnCancel")}</Button>
           <Button
             variant="contained"
             onClick={handleSubmit}
             disabled={isProcessing || !isValid || isDuplicate}
           >
             {buildingsList.length === 1
-              ? msg("addBuildingBtn")
-              : msg("addBuildingsCount", { count: buildingsList.length })}
+              ? t("addBuildingBtn")
+              : t("addBuildingsCount", { count: buildingsList.length })}
           </Button>
         </>
       }
@@ -405,25 +407,25 @@ export default function AddBuildingDialog(
             onClick={() => fileInputRef.current?.click()}
             sx={{ mb: 1 }}
           >
-            {msg("addChooseFile")}
+            {t("addChooseFile")}
           </Button>
           {/* File format — auto-detected on upload; override here if a sheet's layout
               isn't recognised. A format, not a role. */}
           <FormControl size="small" fullWidth sx={{ mt: 1, mb: 1 }}>
-            <InputLabel id="add-building-format-label">{msg("addFileFormat")}</InputLabel>
+            <InputLabel id="add-building-format-label">{t("addFileFormat")}</InputLabel>
             <Select
               labelId="add-building-format-label"
-              label={msg("addFileFormat")}
+              label={t("addFileFormat")}
               value={format}
               onChange={handleFormatChange}
             >
-              {FORMAT_OPTIONS.map((t) => (
-                <MenuItem key={t} value={t}>{msg(FORMAT_LABEL[t])}</MenuItem>
+              {FORMAT_OPTIONS.map((f) => (
+                <MenuItem key={f} value={f}>{t(FORMAT_LABEL[f])}</MenuItem>
               ))}
             </Select>
           </FormControl>
           <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">
-            {msg(CSV_HINT[format])}
+            {t(CSV_HINT[format])}
           </Typography>
         </Box>
         )}
@@ -436,7 +438,7 @@ export default function AddBuildingDialog(
             sx={{ display: "block", mb: 2 }}
             color="success.main"
           >
-            {msg("addReadingsReady", {
+            {t("addReadingsReady", {
               count: lastgangReadings.length,
               days: new Set(lastgangReadings.map((r) => r.date)).size,
             })}
@@ -448,7 +450,7 @@ export default function AddBuildingDialog(
             sx={{ display: "block", mb: 2 }}
             color="success.main"
           >
-            {msg("addAnnualDetected", { years: importedAnnualYears.join(", ") })}
+            {t("addAnnualDetected", { years: importedAnnualYears.join(", ") })}
           </Typography>
         )}
 
@@ -467,11 +469,11 @@ export default function AddBuildingDialog(
                   label={
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       {tabLabel(b, i)}
-                      <Tooltip title={msg("addRemoveBuilding")}>
+                      <Tooltip title={t("addRemoveBuilding")}>
                         <IconButton
                           size="small"
                           component="span"
-                          aria-label={msg("addRemoveBuilding")}
+                          aria-label={t("addRemoveBuilding")}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             removeBuilding(i);
@@ -516,7 +518,7 @@ export default function AddBuildingDialog(
             busy: geocoding,
             disabled: !["streetAddress", "postalCode", "locality", "region"]
               .some((f) => fields[f]?.trim()),
-            label: msg("addGetCoordinates"),
+            label: t("addGetCoordinates"),
           }}
         />
       </Box>

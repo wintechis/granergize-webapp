@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
+import IconAction from "../components/IconAction.tsx";
 import { getGateway } from "../hooks/session.ts";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Button,
-  IconButton,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -166,30 +165,22 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const deleteOrRemove = (r: string) =>
     ownsRoom(r, getGateway())
       ? (
-        <Tooltip title={t("roomDeleteTooltip")}>
-          <IconButton
-            size="small"
-            color="error"
-            aria-label={t("roomDeleteAria")}
-            onClick={() => handleDeleteRoom(r)}
-            disabled={busy}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <IconAction
+  label={t("roomDeleteTooltip")}
+  icon={<DeleteIcon fontSize="small" />}
+  color="error"
+  disabled={busy}
+  onClick={() => handleDeleteRoom(r)}
+/>
       )
       : (
-        <Tooltip title={t("roomRemoveTooltip")}>
-          <IconButton
-            size="small"
-            color="error"
-            aria-label={t("roomRemoveAria")}
-            onClick={() => handleRemoveBookmark(r)}
-            disabled={busy}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <IconAction
+  label={t("roomRemoveTooltip")}
+  icon={<DeleteIcon fontSize="small" />}
+  color="error"
+  disabled={busy}
+  onClick={() => handleRemoveBookmark(r)}
+/>
       );
 
   /** The "Hosted by …" / "active" sub-line shared by every room row (rendered as

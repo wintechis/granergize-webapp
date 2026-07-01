@@ -1,12 +1,11 @@
 import { lazy, Suspense, useState } from "react";
+import IconAction from "../components/IconAction.tsx";
 import {
   Box,
   Button,
   CircularProgress,
-  IconButton,
   MenuItem,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -393,17 +392,13 @@ export default function ObservationsFinder() {
                     }
                     subtitle={datasetSummary(b, t)}
                     actions={b.isShared ? undefined : (
-                      <Tooltip title={t("obsClearAria")}>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          aria-label={t("obsClearAria")}
-                          disabled={del.isPending}
-                          onClick={() => void handleClearObservations(b)}
-                        >
-                          <DeleteSweepIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
+                      <IconAction
+  label={t("obsClearAria")}
+  icon={<DeleteSweepIcon fontSize="small" />}
+  color="error"
+  disabled={del.isPending}
+  onClick={() => void handleClearObservations(b)}
+/>
                     )}
                   />
                   );
@@ -444,17 +439,13 @@ export default function ObservationsFinder() {
                             {t("obsLinkToBuilding")}
                           </Button>
                         )}
-                        <Tooltip title={t("btnDelete")}>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            aria-label={t("btnDelete")}
-                            disabled={del.isPending}
-                            onClick={() => void handleDeleteLoose(o)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        <IconAction
+  label={t("btnDelete")}
+  icon={<DeleteIcon fontSize="small" />}
+  color="error"
+  disabled={del.isPending}
+  onClick={() => void handleDeleteLoose(o)}
+/>
                       </Box>
                     }
                   />

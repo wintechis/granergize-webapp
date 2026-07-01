@@ -1,9 +1,8 @@
-import { msg } from "../lib/messages.ts";
+import { useT } from "../context/I18nProvider.tsx";
 import { getGateway } from "../hooks/session.ts";
 import { useMemo, useState } from "react";
 import {
   Alert,
-  Box,
   Button,
   Checkbox,
   FormControl,
@@ -27,17 +26,10 @@ import { useShareBuilding } from "../hooks/mutations.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
 import type { AttachmentRef, Building, UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { AgentChip } from "./AgentLabel.tsx";
 import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
+import { ShareRecipientsPreview, ShareSuccessAlert } from "./ShareFlow.tsx";
 import { roleLabel, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 
-/**
- * Roles selectable as a sharing target (resolved to member WebIDs via the data
- * room). Derived from the central role lists so new roles surface here
- * automatically and can't drift.
- */
-const SHARE_ROLE_OPTIONS: { value: UserRole; label: string }[] = ROOM_ROLE_OPTIONS
-  .map((value) => ({ value, label: roleLabel(value) }));
 
 /** What energy a share grants alongside the always-shared static building data. */
 type ShareScope = "static" | "all" | "years";
@@ -58,7 +50,13 @@ export function ShareBuildingDialog({
   session,
   onClose,
 }: ShareBuildingDialogProps) {
+  const t = useT();
   const { showNotification } = useNotification();
+  // Roles selectable as a sharing target (resolved to member WebIDs via the
+  // data room). Labelled per render so a locale switch re-labels them (a
+  // module-level list froze the labels at first load).
+  const shareRoleOptions: { value: UserRole; label: string }[] = ROOM_ROLE_OPTIONS
+    .map((value) => ({ value, label: roleLabel(value) }));
   const [shareMode, setShareMode] = useState<"webid" | "role">("webid");
   const [webIds, setWebIds] = useState<string[]>([]);
   const [targetRole, setTargetRole] = useState<UserRole | "">("");
@@ -104,7 +102,7 @@ export function ShareBuildingDialog({
   const handleProceedToConfirm = async () => {
     if (shareMode === "webid") {
       if (webIds.length === 0) {
-        setWebIdError(msg("shareEnterOneWebId"));
+        setWebIdError(t("shareEnterOneWebId"));
         return;
       }
       const err = webIdsError(webIds);
@@ -117,7 +115,7 @@ export function ShareBuildingDialog({
       // the pair can never fold away) and posts a pointless self-notification.
       // The role path already excludes self (getMembersByRole).
       if (webIds.includes(session.info.webId ?? "")) {
-        setWebIdError(msg("shareSelfError"));
+        setWebIdError(t("shareSelfError"));
         return;
       }
       setWebIdError("");
@@ -128,7 +126,7 @@ export function ShareBuildingDialog({
 
     // Role mode: resolve the chosen role to member WebIDs via the data room.
     if (!targetRole) {
-      setWebIdError(msg("shareSelectRole"));
+      setWebIdError(t("shareSelectRole"));
       return;
     }
     setResolving(true);
@@ -140,14 +138,14 @@ export function ShareBuildingDialog({
         getGateway(),
       );
       if (resolved.length === 0) {
-        setWebIdError(msg("shareNoRoleMembers"));
+        setWebIdError(t("shareNoRoleMembers"));
         return;
       }
       setRecipients(resolved);
       setConfirmStep(true);
     } catch (error) {
       setWebIdError(
-        msg("shareRoleLoadError", {
+        t("shareRoleLoadError", {
           error: error instanceof Error ? error.message : String(error),
         }),
       );
@@ -170,7 +168,7 @@ export function ShareBuildingDialog({
       },
       {
         onSuccess: () =>
-          showNotification(msg("buildingShared"), "success"),
+          showNotification(t("buildingShared"), "success"),
         // Back to the form step, where the inline error Alert renders.
         onError: () => setConfirmStep(false),
       },
@@ -182,15 +180,15 @@ export function ShareBuildingDialog({
       onClose={onClose}
       dirty={webIds.length > 0 || recipients.length > 0 || targetRole !== ""}
       busy={sharing}
-      title={msg("shareBuildingTitle")}
+      title={t("shareBuildingTitle")}
       actions={sharing
         ? undefined
         : shareSuccess
-        ? <Button onClick={onClose} variant="contained">{msg("btnDone")}</Button>
+        ? <Button onClick={onClose} variant="contained">{t("btnDone")}</Button>
         : !confirmStep
         ? (
           <>
-            <Button onClick={onClose}>{msg("btnCancel")}</Button>
+            <Button onClick={onClose}>{t("btnCancel")}</Button>
             <Button
               onClick={handleProceedToConfirm}
               variant="contained"
@@ -198,39 +196,25 @@ export function ShareBuildingDialog({
                 (shareMode === "webid" ? webIds.length === 0 : !targetRole) ||
                 (shareScope === "years" && selectedYears.length === 0)}
             >
-              {resolving ? msg("shareResolving") : msg("shareReviewAndShare")}
+              {resolving ? t("shareResolving") : t("shareReviewAndShare")}
             </Button>
           </>
         )
         : (
           <>
-            <Button onClick={() => setConfirmStep(false)}>{msg("btnBack")}</Button>
+            <Button onClick={() => setConfirmStep(false)}>{t("btnBack")}</Button>
             <Button onClick={handleShare} variant="contained">
-              {msg("shareConfirmShare")}
+              {t("shareConfirmShare")}
             </Button>
           </>
         )}
     >
       {sharing && (
-        <Typography variant="body2" color="text.secondary">{msg("shareInProgress")}</Typography>
+        <Typography variant="body2" color="text.secondary">{t("shareInProgress")}</Typography>
       )}
 
       {!sharing && shareSuccess && (
-        <Alert severity="success">
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 0.5,
-            }}
-          >
-            {msg("shareSuccessWith")}{" "}
-            {recipients.map((r) => (
-              <AgentChip key={r} value={r} size="small" variant="outlined" />
-            ))}
-          </Box>
-        </Alert>
+        <ShareSuccessAlert label={t("shareSuccessWith")} recipients={recipients} />
       )}
 
       {!sharing && !shareSuccess && !confirmStep && (
@@ -254,8 +238,8 @@ export function ShareBuildingDialog({
                 }
               }}
             >
-              <ToggleButton value="webid">{msg("shareByWebId")}</ToggleButton>
-              <ToggleButton value="role">{msg("shareByRole")}</ToggleButton>
+              <ToggleButton value="webid">{t("shareByWebId")}</ToggleButton>
+              <ToggleButton value="role">{t("shareByRole")}</ToggleButton>
             </ToggleButtonGroup>
 
             {shareMode === "webid"
@@ -266,7 +250,7 @@ export function ShareBuildingDialog({
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    {msg("shareWebIdHint")}
+                    {t("shareWebIdHint")}
                   </Typography>
                   <RecipientAutocomplete
                     value={webIds}
@@ -286,20 +270,20 @@ export function ShareBuildingDialog({
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    {msg("shareRoleHint")}
+                    {t("shareRoleHint")}
                   </Typography>
                   <FormControl fullWidth error={!!webIdError}>
-                    <InputLabel id="share-role-label">{msg("lblRole")}</InputLabel>
+                    <InputLabel id="share-role-label">{t("lblRole")}</InputLabel>
                     <Select
                       labelId="share-role-label"
-                      label={msg("lblRole")}
+                      label={t("lblRole")}
                       value={targetRole}
                       onChange={(e) => {
                         setTargetRole(e.target.value as UserRole);
                         if (webIdError) setWebIdError("");
                       }}
                     >
-                      {SHARE_ROLE_OPTIONS.map((opt) => (
+                      {shareRoleOptions.map((opt) => (
                         <MenuItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </MenuItem>
@@ -314,7 +298,7 @@ export function ShareBuildingDialog({
                 </>
               )}
             <FormControl component="fieldset" sx={{ mt: 3 }}>
-              <FormLabel component="legend">{msg("shareWhatToShare")}</FormLabel>
+              <FormLabel component="legend">{t("shareWhatToShare")}</FormLabel>
               <RadioGroup
                 value={shareScope}
                 onChange={(e) =>
@@ -323,17 +307,17 @@ export function ShareBuildingDialog({
                 <FormControlLabel
                   value="static"
                   control={<Radio />}
-                  label={msg("shareScopeStatic")}
+                  label={t("shareScopeStatic")}
                 />
                 <FormControlLabel
                   value="all"
                   control={<Radio />}
-                  label={msg("shareScopeAll")}
+                  label={t("shareScopeAll")}
                 />
                 <FormControlLabel
                   value="years"
                   control={<Radio />}
-                  label={msg("shareScopeYears")}
+                  label={t("shareScopeYears")}
                   disabled={availableYears.length === 0}
                 />
               </RadioGroup>
@@ -341,7 +325,7 @@ export function ShareBuildingDialog({
                 availableYears.length === 0
                   ? (
                     <Alert severity="info" sx={{ mt: 1 }}>
-                      {msg("shareNoYearDatasets")}
+                      {t("shareNoYearDatasets")}
                     </Alert>
                   )
                   : (
@@ -370,14 +354,14 @@ export function ShareBuildingDialog({
             {attachments.length > 0 && (
               <FormControl component="fieldset" sx={{ mt: 3 }}>
                 <FormLabel component="legend">
-                  {msg("shareAttachmentsLabel")}
+                  {t("shareAttachmentsLabel")}
                 </FormLabel>
                 <Typography
                   variant="body2"
                   color="text.secondary"
                   sx={{ mt: 0.5 }}
                 >
-                  {msg("shareAttachmentsHint")}
+                  {t("shareAttachmentsHint")}
                 </Typography>
                 <FormGroup sx={{ mt: 1 }}>
                   {attachments.map((a) => (
@@ -405,33 +389,33 @@ export function ShareBuildingDialog({
 
       {!sharing && !shareSuccess && confirmStep && (
         <>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              {shareMode === "role"
-                ? msg("shareConfirmWithRoleCount", { count: recipients.length })
-                : msg("shareConfirmWith")}
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
-              {recipients.map((r) => (
-                <AgentChip key={r} value={r} size="small" variant="outlined" />
-              ))}
-            </Box>
+            <ShareRecipientsPreview
+              label={
+                <Typography variant="body2" color="text.secondary">
+                  {shareMode === "role"
+                    ? t("shareConfirmWithRoleCount", { count: recipients.length })
+                    : t("shareConfirmWith")}
+                </Typography>
+              }
+              recipients={recipients}
+            />
             <Typography variant="body2">
-              <strong>{msg("shareIncludes")}</strong> {shareScope === "static"
-                ? msg("shareScopeStatic")
+              <strong>{t("shareIncludes")}</strong> {shareScope === "static"
+                ? t("shareScopeStatic")
                 : shareScope === "all"
-                ? msg("shareScopeAll")
-                : msg("shareScopeYearsSummary", {
+                ? t("shareScopeAll")
+                : t("shareScopeYearsSummary", {
                   years: [...selectedYears].sort((a, b) => a - b).join(", "),
                 })}
             </Typography>
             {attachments.length > 0 && (
               <Typography variant="body2" sx={{ mt: 1 }}>
-                <strong>{msg("shareAttachmentsLabel")}:</strong>{" "}
+                <strong>{t("shareAttachmentsLabel")}:</strong>{" "}
                 {allAttachmentsSelected
-                  ? msg("shareAttachmentsAllSummary")
+                  ? t("shareAttachmentsAllSummary")
                   : selectedAttachments.length === 0
-                  ? msg("shareAttachmentsSubsetSummary", { names: "—" })
-                  : msg("shareAttachmentsSubsetSummary", {
+                  ? t("shareAttachmentsSubsetSummary", { names: "—" })
+                  : t("shareAttachmentsSubsetSummary", {
                     names: attachments
                       .filter((a) => selectedAttachments.includes(a.uri))
                       .map((a) => a.filename)
