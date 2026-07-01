@@ -2,7 +2,12 @@
 import { strict as assert } from "node:assert";
 import { parseRdfText } from "../rdf/rdfHelpers.ts";
 const store = (ttl: string, base: string) => parseRdfText(ttl, base);
-import { areaUrl, parseAreaProfile } from "./standortEnergieprofil.ts";
+import {
+  type AreaProfile,
+  areaUrl,
+  computePvBenchmark,
+  parseAreaProfile,
+} from "./standortEnergieprofil.ts";
 import { gemeindeFromInstallations, type NearbyInstallation } from "./mastrNearby.ts";
 
 // The URL builder backs BOTH the fetch and the Developer-mode source link, which
@@ -18,6 +23,7 @@ Deno.test("areaUrl builds an absolute wrapper IRI", () => {
 // Wind/geothermal mix shares are a genuine 0.
 const AREA_BASE = "https://wunderfacts.com/energieatlas/area/09564000";
 const AREA_INDICATORS: ReadonlyArray<[string, number]> = [
+  ["installationCount", 10628],
   ["pvPotentialCapacityMWp", 1394.0],
   ["installedCapacityMWp", 131.0],
   ["remainingPotentialMWp", 1264.0],
@@ -53,6 +59,7 @@ Deno.test("parseAreaProfile assembles every served card", () => {
   const p = parseAreaProfile(store(AREA_TTL, AREA_BASE));
   assert.ok(p);
   assert.equal(p!.name, "Nürnberg");
+  assert.equal(p!.pvInstallationCount, 10628);
 
   // Rooftop — pre-computed headroom/degree kept verbatim.
   assert.equal(p!.rooftop?.potentialMWp, 1394);
@@ -92,4 +99,35 @@ Deno.test("gemeindeFromInstallations picks the most frequent 8-digit AGS", () =>
   );
   assert.equal(gemeindeFromInstallations([]), null);
   assert.equal(gemeindeFromInstallations([u("09564")]), null); // Kreis-only ignored
+});
+
+// --- computePvBenchmark: the read-time building↔Gemeinde rooftop-PV comparison ---
+const NBG_AREA: AreaProfile = {
+  name: "Nürnberg",
+  rooftop: { potentialMWp: 1394, installedMWp: 131, remainingMWp: 1264, degreePct: 9.4 },
+  pvInstallationCount: 10628,
+};
+
+Deno.test("computePvBenchmark: #1 realization, #2 headroom, #3 per-installation average", () => {
+  // This building: 30 kWp installed of 40 kWp potential → 75% realized.
+  const b = computePvBenchmark(30, 40, NBG_AREA);
+  assert.ok(b);
+  assert.equal(b!.buildingRealizationPct, 75); // #1 building
+  assert.equal(b!.regionRealizationPct, 9.4); // #1 region (pre-computed upstream)
+  assert.equal(b!.regionRemainingMWp, 1264); // #2 headroom this roof adds into
+  // #3 typical local installation = 131 MWp × 1000 / 10628 installations.
+  assert.ok(Math.abs((b!.avgInstallationKwp ?? 0) - (131000 / 10628)) < 1e-9);
+});
+
+Deno.test("computePvBenchmark: null without a rooftop card or a positive building potential", () => {
+  assert.equal(computePvBenchmark(10, 40, { name: "X" }), null); // no region rooftop
+  assert.equal(computePvBenchmark(10, 0, NBG_AREA), null); // nothing to compare against
+});
+
+Deno.test("computePvBenchmark: avgInstallationKwp is null without an installation count", () => {
+  const noCount: AreaProfile = {
+    name: "X",
+    rooftop: { potentialMWp: 100, installedMWp: 10, remainingMWp: 90, degreePct: 10 },
+  };
+  assert.equal(computePvBenchmark(5, 50, noCount)!.avgInstallationKwp, null);
 });

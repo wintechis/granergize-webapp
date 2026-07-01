@@ -2,6 +2,34 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — Rooftop-PV benchmark: this building vs. its Gemeinde
+
+Sets a building's own rooftop PV against its Gemeinde's Energie-Atlas figures in the
+Standort-Energieprofil panel — a **read-time comparison**, not stored data (both inputs
+are fetched/computed; nothing persisted). Because the Gemeinde aggregate is
+non-decomposable it is contextualisation, never a percentile ranking (see
+`notes/detail-vs-statistics.md`). Three framings:
+
+1. **Realization** — this building's installed ÷ potential vs. the Gemeinde's
+   `developmentDegreePct` (a dimensionless ratio, so scale-safe).
+2. **Headroom** — this roof's installable kWp against the Gemeinde's remaining rooftop
+   potential (MWp).
+3. **Typical size** — this building's installed kWp against the Gemeinde's mean
+   installation (installed ÷ `installationCount`).
+
+- `services/sources/standortEnergieprofil.ts`: add `computePvBenchmark(...)` (pure;
+  reconciles MWp→kWp) + the `PvBenchmark` shape; parse the Gemeinde
+  `pvInstallationCount` onto `AreaProfile`.
+- `components/building/StandortEnergieprofil.tsx`: a `PvBenchmarkView` after the rooftop
+  card; building inputs = the sum of its `<#pv>` `capacityKW` (installed) and its
+  LoD2-computed `installableKwp` (potential, via `useLod2Rooftop`). Renders only when
+  both a Gemeinde rooftop figure and a building potential exist (Bavaria pilot).
+- Messages (`lib/messages/navFinders.ts`, de/en/fr) for the block.
+
+check + lint clean; unit suite green (1130, +3 pure benchmark tests); verified against
+the live `area/09564000` cube (Nürnberg: this building 0% vs. area 9.4%, remaining
+1264 MWp, typical ≈ 12.3 kWp).
+
 ## [2026-07-01] — Read the Energie-Atlas as an RDF Data Cube (qb)
 
 The `linked-energieatlas` wrapper was re-modelled to serve each Gemeinde as an RDF Data

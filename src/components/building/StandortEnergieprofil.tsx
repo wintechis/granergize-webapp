@@ -3,13 +3,16 @@ import SolarPowerIcon from "@mui/icons-material/SolarPower";
 import type { Building } from "../../types.ts";
 import { msg, type MessageId } from "../../lib/messages.ts";
 import { useStandortEnergieprofil } from "../../hooks/standortEnergieprofil.ts";
+import { useLod2Rooftop } from "../../hooks/lod2Rooftop.ts";
 import type { RooftopPotential } from "../../services/sources/lod2Rooftop.ts";
 import {
   areaUrl,
   type BiomassCard as BiomassCardData,
+  computePvBenchmark,
   type GreenCard as GreenCardData,
   type MixEntry,
   type PotentialCard as PotentialCardData,
+  type PvBenchmark,
 } from "../../services/sources/standortEnergieprofil.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import SourceNote from "../SourceNote.tsx";
@@ -96,6 +99,49 @@ export function RooftopBuildingCardView({ data }: { data: RooftopPotential }) {
   );
 }
 
+/**
+ * The rooftop-PV benchmark: this building's own installed/potential set against its
+ * Gemeinde's (a read-time comparison, not stored data). Three framings — #1 the
+ * realization gap (this building's built-out % vs the area's), #2 the headroom this
+ * roof adds into, #3 this building against the typical local installation size.
+ */
+function PvBenchmarkView(
+  { data, areaName }: { data: PvBenchmark; areaName: string },
+) {
+  return (
+    <Stack spacing={0.5}>
+      <Typography variant="subtitle2">{msg("sepBmTitle")}</Typography>
+      <Stack direction="row" spacing={4} useFlexGap sx={{ flexWrap: "wrap" }}>
+        <Figure
+          label={msg("sepBmThisBuilding")}
+          value={`${fmt0(data.buildingRealizationPct)}%`}
+        />
+        <Figure
+          label={areaName || msg("sepBmArea")}
+          value={`${fmt0(data.regionRealizationPct)}%`}
+        />
+      </Stack>
+      <Typography variant="body2" color="text.secondary">
+        {msg("sepBmRealizedCaption")}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {msg("sepBmShare", {
+          self: fmt1(data.buildingPotentialKwp),
+          remaining: fmt0(data.regionRemainingMWp),
+        })}
+      </Typography>
+      {data.avgInstallationKwp != null && (
+        <Typography variant="body2" color="text.secondary">
+          {msg("sepBmVsAvg", {
+            typical: fmt1(data.avgInstallationKwp),
+            self: fmt1(data.buildingInstalledKwp),
+          })}
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
 /** The green-electricity card: renewable share of consumption + the carrier mix. */
 function GreenCardView({ data }: { data: GreenCardData }) {
   const mix = data.mix
@@ -147,8 +193,17 @@ export default function StandortEnergieprofil(
   { building }: { building: Building },
 ) {
   const { query, ags } = useStandortEnergieprofil(building);
+  const rooftop = useLod2Rooftop(building).data ?? null;
   const p = query.data ?? null;
   if (!p) return null;
+  // Benchmark this building's rooftop PV against the Gemeinde: installed = the sum of
+  // its own `<#pv>` system capacities; potential = its LoD2-computed installable kWp.
+  const installedKwp = (building.systems ?? [])
+    .filter((s) => s.kind === "pv")
+    .reduce((sum, s) => sum + (s.capacityKW ?? 0), 0);
+  const benchmark = rooftop
+    ? computePvBenchmark(installedKwp, rooftop.installableKwp, p)
+    : null;
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
@@ -160,6 +215,7 @@ export default function StandortEnergieprofil(
       )}
       <Stack spacing={2}>
         {p.rooftop && <PotentialCardView title={msg("sepRooftopPv")} data={p.rooftop} />}
+        {benchmark && <PvBenchmarkView data={benchmark} areaName={p.name} />}
         {p.ground && <PotentialCardView title={msg("sepGroundPv")} data={p.ground} />}
         {p.green && <GreenCardView data={p.green} />}
         {p.biomass && <BiomassCardView data={p.biomass} />}

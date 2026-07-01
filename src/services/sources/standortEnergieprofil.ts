@@ -66,6 +66,32 @@ export interface AreaProfile {
   ground?: PotentialCard;
   green?: GreenCard;
   biomass?: BiomassCard;
+  /** Number of rooftop-PV installations in the Gemeinde (for the per-installation
+   *  average in {@link computePvBenchmark}); absent when the wrapper omits it. */
+  pvInstallationCount?: number;
+}
+
+/**
+ * The building's rooftop PV set against its Gemeinde's — a **read-time benchmark**,
+ * not stored data: the building's own cell (installed + LoD2-computed potential) held
+ * against the Gemeinde aggregate cell (`linked-energieatlas`), joined by AGS. Because
+ * the aggregate is non-decomposable (one figure, members dropped) this is
+ * contextualisation, never a percentile ranking — see `notes/detail-vs-statistics.md`.
+ */
+export interface PvBenchmark {
+  /** This building's installed PV (kWp) — the sum of its `<#pv>` system capacities. */
+  buildingInstalledKwp: number;
+  /** This building's installable rooftop PV (kWp), computed in-app from LoD2 geometry. */
+  buildingPotentialKwp: number;
+  /** #1 realization — this building's installed ÷ potential (%). */
+  buildingRealizationPct: number;
+  /** #1 realization — the Gemeinde's installed ÷ potential (%), pre-computed upstream. */
+  regionRealizationPct: number;
+  /** #2 headroom — the Gemeinde's remaining rooftop potential (MWp) this roof adds into. */
+  regionRemainingMWp: number;
+  /** #3 typical size — the Gemeinde's mean installed PV per installation (kWp), or
+   *  `null` when the installation count is unavailable. */
+  avgInstallationKwp: number | null;
 }
 
 /**
@@ -169,7 +195,34 @@ export function parseAreaProfile(store: Store): AreaProfile | null {
   }
 
   if (!rooftop && !ground && !green && !biomass) return null;
-  return { name, rooftop, ground, green, biomass };
+  return { name, rooftop, ground, green, biomass, pvInstallationCount: g("installationCount") };
+}
+
+/**
+ * Derive the rooftop-PV benchmark for one building against its Gemeinde. Pure. The
+ * building supplies its installed capacity (kWp, summed over its `<#pv>` systems) and
+ * its LoD2-computed potential (kWp); the region half comes from the Gemeinde's rooftop
+ * card. Returns `null` when the region has no rooftop figure or the building has no
+ * positive potential (nothing to compare). Units are reconciled here (Gemeinde MWp →
+ * kWp) so the caller renders raw numbers.
+ */
+export function computePvBenchmark(
+  buildingInstalledKwp: number,
+  buildingPotentialKwp: number,
+  area: AreaProfile,
+): PvBenchmark | null {
+  const r = area.rooftop;
+  if (!r || buildingPotentialKwp <= 0) return null;
+  return {
+    buildingInstalledKwp,
+    buildingPotentialKwp,
+    buildingRealizationPct: (buildingInstalledKwp / buildingPotentialKwp) * 100,
+    regionRealizationPct: r.degreePct,
+    regionRemainingMWp: r.remainingMWp,
+    avgInstallationKwp: area.pvInstallationCount && area.pvInstallationCount > 0
+      ? (r.installedMWp * 1000) / area.pvInstallationCount
+      : null,
+  };
 }
 
 /**

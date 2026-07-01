@@ -259,6 +259,33 @@ export const navFinders = {
   sepInstalled: { en: "Installed", de: "Installiert", fr: "Installé" },
   sepHeadroom: { en: "Untapped", de: "Ausbaulücke", fr: "Inexploité" },
   sepBuiltOut: { en: "built out", de: "erschlossen", fr: "exploité" },
+  // Rooftop-PV benchmark: this building's own installed/potential against its Gemeinde.
+  sepBmTitle: {
+    en: "Rooftop PV in context",
+    de: "Dach-PV im Vergleich",
+    fr: "PV en toiture en contexte",
+  },
+  sepBmThisBuilding: {
+    en: "This building",
+    de: "Dieses Gebäude",
+    fr: "Ce bâtiment",
+  },
+  sepBmArea: { en: "This area", de: "Diese Gemeinde", fr: "Cette commune" },
+  sepBmRealizedCaption: {
+    en: "share of rooftop potential already installed",
+    de: "Anteil des Dach-Potenzials, bereits installiert",
+    fr: "part du potentiel en toiture déjà installée",
+  },
+  sepBmShare: {
+    en: "This roof's {self} kWp add to the area's {remaining} MWp of remaining rooftop potential.",
+    de: "Die {self} kWp dieses Dachs zählen zu den {remaining} MWp verbleibendem Dach-Potenzial der Gemeinde.",
+    fr: "Les {self} kWp de ce toit s'ajoutent aux {remaining} MWp de potentiel en toiture restant de la commune.",
+  },
+  sepBmVsAvg: {
+    en: "Typical local PV installation ≈ {typical} kWp; this building {self} kWp.",
+    de: "Typische PV-Anlage vor Ort ≈ {typical} kWp; dieses Gebäude {self} kWp.",
+    fr: "Installation PV locale typique ≈ {typical} kWp ; ce bâtiment {self} kWp.",
+  },
   sepGroundPv: {
     en: "Ground-mounted PV",
     de: "Freiflächen-Photovoltaik",
