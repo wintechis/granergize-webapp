@@ -41,6 +41,14 @@ const GEO_NS = "http://www.opengis.net/ont/geosparql#";
 const HAS_GEOMETRY = `${GEO_NS}hasGeometry`;
 const AS_WKT = `${GEO_NS}asWKT`;
 
+// W3C Core Location Vocabulary — the building's postal address (bldg:address, INSPIRE-aligned).
+const LOCN_NS = "http://www.w3.org/ns/locn#";
+const LOCN_ADDRESS = `${LOCN_NS}address`;
+const LOCN_THOROUGHFARE = `${LOCN_NS}thoroughfare`;
+const LOCN_POSTNAME = `${LOCN_NS}postName`;
+const LOCN_ADMINUNITL1 = `${LOCN_NS}adminUnitL1`;
+const LOCN_FULLADDRESS = `${LOCN_NS}fullAddress`;
+
 /** One building's rooftop-PV potential (computed in-app over its LoD2 roof geometry). */
 export interface RooftopPotential {
   /** The lod2-by building IRI (deref / the `building/{id}.html` view). */
@@ -279,10 +287,39 @@ export interface Surface3d {
   ring: [number, number, number][];
 }
 
-/** A building's full 3D solid + the lod2-by resource IRI it came from (for the dev-mode link). */
+/** A building's authoritative postal address from LoD2-BY (`bldg:address`, xAL → `locn:Address`).
+ *  `thoroughfare` bundles street + house number as the source does; there is no postal code. */
+export interface Lod2Address {
+  thoroughfare?: string;
+  postName?: string;
+  adminUnitL1?: string;
+  fullAddress?: string;
+}
+
+/** A building's full 3D solid + its LoD2 postal address + the lod2-by resource IRI it came from. */
 export interface Building3d {
   iri: string;
   surfaces: Surface3d[];
+  address: Lod2Address | null;
+}
+
+/**
+ * Parse the building's postal address (the `locn:Address` node linked by `locn:address`) from its
+ * dereferenced LoD2-BY document. Pure. `null` when the building carries no address (~59% of them —
+ * outbuildings — have none).
+ */
+export function parseLod2Address(turtle: string, baseIri: string): Lod2Address | null {
+  const store = parseRdfText(turtle, baseIri);
+  const node = store.getQuads(null, LOCN_ADDRESS, null, null)[0]?.object;
+  if (!node) return null;
+  const lit = (p: string) => store.getQuads(node, p, null, null)[0]?.object.value || undefined;
+  const address: Lod2Address = {
+    thoroughfare: lit(LOCN_THOROUGHFARE),
+    postName: lit(LOCN_POSTNAME),
+    adminUnitL1: lit(LOCN_ADMINUNITL1),
+    fullAddress: lit(LOCN_FULLADDRESS),
+  };
+  return address.thoroughfare || address.postName || address.fullAddress ? address : null;
 }
 
 /**
@@ -338,8 +375,12 @@ export async function fetchBuilding3d(
     "building 3D geometry detail (LoD2-BY)",
   );
   if (!detail.ok) return null;
-  const surfaces = parseBuilding3dSurfaces(await detail.text(), nearest.iri);
-  return surfaces.length ? { iri: nearest.iri, surfaces } : null;
+  const ttl = await detail.text();
+  const surfaces = parseBuilding3dSurfaces(ttl, nearest.iri);
+  const address = parseLod2Address(ttl, nearest.iri);
+  return surfaces.length || address
+    ? { iri: nearest.iri, surfaces, address }
+    : null;
 }
 
 /**
@@ -348,10 +389,30 @@ export async function fetchBuilding3d(
  * the in-app {@link computePotential}. `null` when the area is outside the dump's coverage
  * (no match / 404) or the building has no suitable roof.
  */
+/** Normalized street address for the LoD2 shared-key match: lowercased,
+ *  whitespace-collapsed, trimmed. Undefined for an empty/absent value. */
+function normalizeAddr(s: string | undefined | null): string | undefined {
+  const t = s?.toLowerCase().replace(/\s+/g, " ").trim();
+  return t || undefined;
+}
+
+/** Dereference a LoD2-BY building document; null when the fetch fails. */
+async function fetchLod2Doc(iri: string): Promise<string | null> {
+  const res = await getSourceGateway().fetch(
+    iri,
+    { headers: { Accept: "text/turtle" } },
+    "rooftop-PV geometry detail (LoD2-BY)",
+  );
+  return res.ok ? await res.text() : null;
+}
+
 export async function fetchRooftopPotential(
   lat: number,
   long: number,
   radiusM = DEFAULT_RADIUS_M,
+  /** The building's own street address (e.g. "Neumeyerstraße 17"). Used as the
+   *  shared key: an exact `locn:thoroughfare` match beats mere proximity. */
+  wantAddress?: string,
 ): Promise<RooftopPotential | null> {
   const pointUrl = rooftopPointUrl(lat, long, radiusM);
   const res = await getSourceGateway().fetch(
@@ -363,16 +424,37 @@ export async function fetchRooftopPotential(
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} fetching rooftop-PV geometry`);
   }
-  const nearest = parseNearestBuilding(await res.text(), pointUrl, lat, long);
-  if (!nearest) return null;
+  const candidates = parseNearbyBuildings(await res.text(), pointUrl, lat, long);
+  if (candidates.length === 0) return null;
 
-  const detail = await getSourceGateway().fetch(
-    nearest.iri,
-    { headers: { Accept: "text/turtle" } },
-    "rooftop-PV geometry detail (LoD2-BY)",
-  );
-  if (!detail.ok) return null;
-  const parsed = parseBuildingRoofs(await detail.text(), nearest.iri);
+  // Choose the LoD2 building. Default: the nearest (candidates are distance-sorted).
+  // But prefer the ADDRESS SHARED KEY — when the building has a street address and
+  // the nearest's OWN `locn:thoroughfare` CONFLICTS with it, a merely-nearer
+  // neighbour isn't the building; look for a candidate whose address matches. This
+  // is cost-neutral when the nearest is correct or carries no address (one deref);
+  // only an actual conflict derefs further candidates. (lod2-by address coverage is
+  // partial, so the key only fires where served — the "wrong lod2-by building" fix.)
+  let chosen = candidates[0];
+  let detailText = await fetchLod2Doc(chosen.iri);
+  if (!detailText) return null;
+  const want = normalizeAddr(wantAddress);
+  if (want) {
+    const nearestAddr = normalizeAddr(
+      parseLod2Address(detailText, chosen.iri)?.thoroughfare,
+    );
+    if (nearestAddr && nearestAddr !== want) {
+      for (const c of candidates.slice(1)) {
+        const text = await fetchLod2Doc(c.iri);
+        if (!text) continue;
+        if (normalizeAddr(parseLod2Address(text, c.iri)?.thoroughfare) === want) {
+          chosen = c;
+          detailText = text;
+          break;
+        }
+      }
+    }
+  }
+  const parsed = parseBuildingRoofs(detailText, chosen.iri);
   if (!parsed) return null;
   const potential = computePotential(parsed.roofs);
   if (!potential) return null;
@@ -382,7 +464,7 @@ export async function fetchRooftopPotential(
     buildingHeightM: parsed.buildingHeightM,
     lat: parsed.lat,
     long: parsed.long,
-    distanceKm: nearest.distanceKm,
+    distanceKm: chosen.distanceKm,
     roofs: parsed.roofs,
   };
 }

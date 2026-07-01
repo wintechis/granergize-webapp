@@ -1,14 +1,77 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
+  fetchRooftopPotential,
   isOpenBuildingIri,
   parseBuilding3dSurfaces,
+  parseLod2Address,
   parseBuildingRoofs,
   parseNearbyBuildings,
   parseNearbyRooftops,
   parseNearestBuilding,
 } from "./lod2Rooftop.ts";
 import { computePotential } from "./rooftopPv.ts";
+import { _setSourceGatewayForTesting } from "./sourceGateway.ts";
+import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
+
+// ── fetchRooftopPotential: the address shared key beats mere proximity ──────────
+const NEARBY_SUMMARY = `
+@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+<building/NEAR> a lod2:Building ; geo:lat 49.48261 ; geo:long 11.12655 .
+<building/FAR>  a lod2:Building ; geo:lat 49.48200 ; geo:long 11.12600 .`;
+const roofDoc = (thoroughfare: string) => `
+@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix locn: <http://www.w3.org/ns/locn#> .
+<#roof-0> a lod2:RoofSurface ; lod2:area 300 ; lod2:azimuth 180 ; lod2:tilt 35 .
+<> a lod2:Building ; geo:lat 49.482 ; geo:long 11.126 ; lod2:buildingHeight 10 ;
+  lod2:hasRoofSurface <#roof-0> ; locn:address <#address> .
+<#address> a locn:Address ; locn:thoroughfare "${thoroughfare}" .`;
+
+function fakeLod2Gateway() {
+  return makeFakeSourceGateway({
+    respond: (url) => {
+      const body = url.includes("/nearby")
+        ? NEARBY_SUMMARY
+        : url.includes("/building/NEAR")
+        ? roofDoc("Andere Straße 1") // nearest, but a CONFLICTING address
+        : url.includes("/building/FAR")
+        ? roofDoc("Neumeyerstraße 17") // farther, but the MATCHING address
+        : undefined;
+      return Promise.resolve(
+        body === undefined
+          ? undefined
+          : new Response(body, {
+            status: 200,
+            headers: { "Content-Type": "text/turtle" },
+          }),
+      );
+    },
+  });
+}
+
+Deno.test("fetchRooftopPotential prefers the address shared key over the nearest LoD2 building", async () => {
+  _setSourceGatewayForTesting(fakeLod2Gateway().gateway);
+  try {
+    const r = await fetchRooftopPotential(49.4826, 11.1265, undefined, "Neumeyerstraße 17");
+    assert.ok(r, "a rooftop potential resolved");
+    assert.match(r.iri, /\/building\/FAR$/); // the address match, not the nearer NEAR
+  } finally {
+    _setSourceGatewayForTesting(null);
+  }
+});
+
+Deno.test("fetchRooftopPotential falls back to the nearest when no address key is given", async () => {
+  _setSourceGatewayForTesting(fakeLod2Gateway().gateway);
+  try {
+    const r = await fetchRooftopPotential(49.4826, 11.1265); // no wantAddress
+    assert.ok(r);
+    assert.match(r.iri, /\/building\/NEAR$/); // proximity wins (backward compatible)
+  } finally {
+    _setSourceGatewayForTesting(null);
+  }
+});
 
 Deno.test("isOpenBuildingIri: a lod2-by building IRI vs anything else", () => {
   assert.equal(
@@ -199,6 +262,32 @@ Deno.test("parseBuilding3dSurfaces: all surface kinds with native-UTM 3D rings",
     parseBuilding3dSurfaces("@prefix x: <urn:x#> . <#b> a x:Other .", base)
       .length,
     0,
+  );
+});
+
+Deno.test("parseLod2Address: reads the locn:Address (street + locality), null when absent", () => {
+  const base = "https://wunderfacts.com/lod2-by/building/DEBY_LOD2_550";
+  const ttl = `
+@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix locn: <http://www.w3.org/ns/locn#> .
+<building/DEBY_LOD2_550> a lod2:Building ; locn:address <building/DEBY_LOD2_550#address> .
+<building/DEBY_LOD2_550#address> a locn:Address ;
+  locn:thoroughfare "Fischbacher Hauptstraße 170a" ;
+  locn:postName "Nürnberg" ;
+  locn:adminUnitL1 "Germany" ;
+  locn:fullAddress "Fischbacher Hauptstraße 170a, Nürnberg, Germany" .`;
+  const a = parseLod2Address(ttl, base);
+  assert.ok(a);
+  assert.equal(a.thoroughfare, "Fischbacher Hauptstraße 170a");
+  assert.equal(a.postName, "Nürnberg");
+  assert.equal(a.fullAddress, "Fischbacher Hauptstraße 170a, Nürnberg, Germany");
+  // An unaddressed building (~59% of them) → null.
+  assert.equal(
+    parseLod2Address(
+      "@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> . <#b> a lod2:Building .",
+      base,
+    ),
+    null,
   );
 });
 

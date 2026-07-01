@@ -28,6 +28,20 @@ import type { Store } from "n3";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { type Box, deref, filter, within } from "./capabilities.ts";
+import type { MastrRoute } from "../../generated/mastr.routes.ts";
+
+/**
+ * The mastr endpoints this module depends on, checked at COMPILE TIME against the wrapper's
+ * DEPLOYED route set (`src/generated/mastr.routes.ts`, regenerated from the live `/routes` manifest
+ * — `deno task gen:routes:mastr`). If the wrapper renames or removes one (as `/bbox`→`/within` did),
+ * its literal here stops being assignable to {@link MastrRoute}, so `deno task check` fails HERE —
+ * instead of the app silently 404ing and the drift only showing up in the remote contract lane.
+ * See `explore/explore-wrapper-contract-drift.md`.
+ */
+export const MASTR_ROUTES = {
+  within: "within",
+  filter: "filter",
+} as const satisfies Record<string, MastrRoute>;
 
 const RDFS_LABEL = `${RDFS_NS}label`;
 const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
@@ -173,7 +187,7 @@ export function nearbyInstallationsUrl(
   radiusKm = DEFAULT_RADIUS_KM,
 ): string {
   const b = boxAround(lat, long, radiusKm);
-  return `${sourceBase("mastr")}within?bbox=${b.w},${b.s},${b.e},${b.n}&count=${FETCH_CAP}`;
+  return `${sourceBase("mastr")}${MASTR_ROUTES.within}?bbox=${b.w},${b.s},${b.e},${b.n}&count=${FETCH_CAP}`;
 }
 
 /**

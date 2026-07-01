@@ -2,6 +2,7 @@ import { Box, Divider, Link, Stack, Typography } from "@mui/material";
 import { msg } from "../lib/messages.ts";
 import { BackLink } from "../components/detail/DetailView.tsx";
 import { DATA_SOURCES } from "../constants/dataSources.ts";
+import { SourceStatusChip } from "../components/SourceStatusChip.tsx";
 import { HOME } from "../routes.ts";
 
 /**
@@ -24,7 +25,10 @@ export default function DataSources() {
       <Stack spacing={2} divider={<Divider />}>
         {DATA_SOURCES.map((s) => (
           <Box key={s.id}>
-            <Typography variant="subtitle2">
+            <Typography
+              variant="subtitle2"
+              sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}
+            >
               {s.homepage
                 ? (
                   <Link
@@ -36,6 +40,8 @@ export default function DataSources() {
                   </Link>
                 )
                 : s.name}
+              {/* Live wrapper health (down / available / schema-conformant) — mastr for now. */}
+              <SourceStatusChip id={s.id} />
               {s.license && (
                 <>
                   {" · "}

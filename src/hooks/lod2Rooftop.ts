@@ -56,16 +56,18 @@ export function useOpenBuildingDetail(
 export function useLod2Rooftop(
   building: Building,
 ): UseQueryResult<RooftopPotential | null> {
-  const { lat, long } = building;
+  const { lat, long, streetAddress } = building;
   const located = lat != null && long != null;
   return useQuery<RooftopPotential | null>({
-    queryKey: ["lod2Rooftop", lat, long],
+    queryKey: ["lod2Rooftop", lat, long, streetAddress],
     enabled: located,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
       if (lat == null || long == null) return null;
       try {
-        return await fetchRooftopPotential(lat, long);
+        // Pass the building's street address as the LoD2 shared key (prefer an
+        // address match over the merely-nearest building).
+        return await fetchRooftopPotential(lat, long, undefined, streetAddress);
       } catch (err) {
         // Best-effort: a down/partial wrapper must not sink the page or toast.
         logError("fetch rooftop-PV potential", err);
