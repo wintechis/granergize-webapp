@@ -46,13 +46,23 @@ export const WEATHER_PARAMETERS = {
   PRECIPITATION_ANNUAL: "annual/climate_summary/precipitation_height",
 } as const;
 
-/** A weather station as surfaced in the UI. `distance` (km) is present on ranked results. */
+/** A weather station as surfaced in the UI. `distance` (km) is present on ranked results;
+ *  `startYear`/`endYear` (from `dwd:start_date`/`dwd:end_date`) bound the station's recording
+ *  period — a discontinued station has an `endYear` in the past. */
 export interface WeatherStation {
   station_id: string;
   name: string;
   latitude: number;
   longitude: number;
   distance?: number;
+  startYear?: number;
+  endYear?: number;
+}
+
+/** The 4-digit year at the start of an ISO date/instant, or undefined. */
+function yearOf(iso: string): number | undefined {
+  const y = Number.parseInt(iso.slice(0, 4), 10);
+  return Number.isFinite(y) && y >= 1700 && y <= 2200 ? y : undefined;
 }
 
 /** One annual observation: an ISO date + value (already unit-converted), with quality flag. */
@@ -88,6 +98,8 @@ export function parseStations(turtle: string, baseIri: string): WeatherStation[]
     let latitude = NaN;
     let longitude = NaN;
     let distance: number | undefined;
+    let startYear: number | undefined;
+    let endYear: number | undefined;
     for (const q of store.getQuads(subject, null, null, null)) {
       const p = q.predicate.value;
       if (p === `${DWD_NS}station_id`) stationId = q.object.value;
@@ -96,9 +108,19 @@ export function parseStations(turtle: string, baseIri: string): WeatherStation[]
       else if (p === GEO_LAT) latitude = Number.parseFloat(q.object.value);
       else if (p === GEO_LONG) longitude = Number.parseFloat(q.object.value);
       else if (p === `${SCHEMA_NS}distance`) distance = Number.parseFloat(q.object.value);
+      else if (p === `${DWD_NS}start_date`) startYear = yearOf(q.object.value);
+      else if (p === `${DWD_NS}end_date`) endYear = yearOf(q.object.value);
     }
     if (stationId) {
-      out.push({ station_id: stationId, name: name || label, latitude, longitude, distance });
+      out.push({
+        station_id: stationId,
+        name: name || label,
+        latitude,
+        longitude,
+        distance,
+        startYear,
+        endYear,
+      });
     }
   }
   return out.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
@@ -150,20 +172,50 @@ export function parseObservations(turtle: string, baseIri: string): WeatherObser
 }
 
 /** The dereferenceable `near?…` query IRI (and the Developer-mode source link)
- *  for the nearest stations to a coordinate. Absolute (the CORS-enabled host). */
+ *  for the nearest stations to a coordinate. Absolute (the CORS-enabled host).
+ *  `active` adds `&active=true` — the wrapper then drops discontinued stations before the
+ *  `rank` cut (a graceful no-op on an older wrapper: the unknown param is ignored, and the
+ *  client-side {@link pickStationForYears} overlap filter still excludes stale stations). */
 export function weatherStationsUrl(
   latitude: number,
   longitude: number,
   rank: number,
   parameters: string,
+  active = false,
 ): string {
-  return `${linkedWeatherBase()}near?` +
-    new URLSearchParams({
-      latitude: String(latitude),
-      longitude: String(longitude),
-      rank: String(rank),
-      parameters,
-    });
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    rank: String(rank),
+    parameters,
+  });
+  if (active) params.set("active", "true");
+  return `${linkedWeatherBase()}near?${params}`;
+}
+
+/**
+ * Choose the station whose recording period best fits the years we need to overlay. Given
+ * candidates **nearest-first** (as {@link parseStations} returns) and the `energyYears` the
+ * overlay will plot against, returns the NEAREST station whose `[startYear, endYear]` overlaps the
+ * energy year range — so a discontinued nearest station (e.g. one that stopped in 1974) is skipped
+ * for a farther one that actually covers the building's energy years. Pure.
+ *
+ * Falls back to the nearest candidate when no `energyYears` are known yet, or when none overlap
+ * (better a station than none — the chart then simply shows no aligned points). A candidate with
+ * no `startYear`/`endYear` is treated as open-ended (always overlaps).
+ */
+export function pickStationForYears(
+  stations: readonly WeatherStation[],
+  energyYears: readonly number[],
+): WeatherStation | null {
+  if (stations.length === 0) return null;
+  if (energyYears.length === 0) return stations[0]; // nearest (already nearest-first)
+  const eMin = Math.min(...energyYears);
+  const eMax = Math.max(...energyYears);
+  const overlapping = stations.find((s) =>
+    (s.startYear ?? -Infinity) <= eMax && (s.endYear ?? Infinity) >= eMin
+  );
+  return overlapping ?? stations[0];
 }
 
 /** The dereferenceable `values?…` query IRI (and the Developer-mode source link)
@@ -179,14 +231,16 @@ export function weatherValuesUrl(stationId: string, parameters: string): string 
     new URLSearchParams({ station: stationId, parameters, periods: "historical,recent" });
 }
 
-/** Fetch + parse the nearest `rank` stations to a coordinate for a parameter dataset. */
+/** Fetch + parse the nearest `rank` stations to a coordinate for a parameter dataset.
+ *  `active` asks the wrapper to drop discontinued stations (see {@link weatherStationsUrl}). */
 export async function fetchNearestStations(
   latitude: number,
   longitude: number,
   rank: number,
   parameters: string,
+  active = false,
 ): Promise<WeatherStation[]> {
-  const url = weatherStationsUrl(latitude, longitude, rank, parameters);
+  const url = weatherStationsUrl(latitude, longitude, rank, parameters, active);
   const res = await getSourceGateway().fetch(
     url,
     { headers: { Accept: "text/turtle" } },

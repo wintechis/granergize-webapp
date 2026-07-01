@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchNearestStations,
   fetchStationValues,
+  pickStationForYears,
   WEATHER_PARAMETERS,
 } from "../services/sources/linkedWeather.ts";
 import Box from "@mui/material/Box";
@@ -59,21 +60,23 @@ const TEMP_COLOR = "#d95f02"; // warm orange — the weather axis, distinct from
  * `WeatherData.useWeatherStations` but takes only the closest, since the overlay
  * needs a single reference series. Opts into the activity store (the adapter fetch
  * isn't auto-instrumented like the Solid session). */
-function useNearestStation(building: Building) {
+function useNearestStations(building: Building) {
   const lat = building?.lat;
   const long = building?.long;
   return useQuery({
     queryKey: [...sourceKeys.overlayWeatherStation, lat, long],
     enabled: Boolean(lat) && Boolean(long),
-    queryFn: async () => {
-      const stations = await fetchNearestStations(
+    // A small ranked set of ACTIVE stations (not just the single nearest, which is often a
+    // discontinued station whose series doesn't reach the building's energy years). The final
+    // pick is by year-overlap in the component (pickStationForYears).
+    queryFn: () =>
+      fetchNearestStations(
         lat as number,
         long as number,
-        1,
+        5,
         WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL,
-      );
-      return stations[0] ?? null;
-    },
+        true, // active=true: drop discontinued (graceful no-op on an un-redeployed wrapper)
+      ),
   });
 }
 
@@ -108,8 +111,12 @@ export default function EnergyWeatherOverlay({
   // fetched once the overlay is switched on (and the building is located).
   const located = building.lat != null && building.long != null;
   const annual = useAnnualEnergyByYear([building], on);
-  const stationQuery = useNearestStation(building);
-  const station = stationQuery.data ?? null;
+  const stationsQuery = useNearestStations(building);
+  // Pick the nearest ACTIVE station whose recording period overlaps the building's energy years,
+  // so the overlaid temperature series actually lines up with the energy series (a discontinued
+  // nearest station is skipped). Falls back to the nearest candidate before the energy loads.
+  const energyYears = [...(annual.data?.get(building.id)?.keys() ?? [])];
+  const station = pickStationForYears(stationsQuery.data ?? [], energyYears);
   const valuesQuery = useStationTemperatures(on ? (station?.station_id ?? null) : null);
 
   const toggle = (
@@ -159,7 +166,7 @@ export default function EnergyWeatherOverlay({
 
   // While a layer's data is still loading the region stays as plain text (the
   // header indicator is the single spinner).
-  const loading = annual.isFetching || stationQuery.isFetching ||
+  const loading = annual.isFetching || stationsQuery.isFetching ||
     valuesQuery.isFetching;
 
   const km = station?.distance != null ? Math.round(station.distance) : null;

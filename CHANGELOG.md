@@ -19,10 +19,17 @@ fixtures (and `tsc`) cannot. Swept all live/pipeline sources; three had regressi
   (bbox query param kept), so the app's `bbox` capability 404'd. Fix: renamed the capability
   `bbox` → `within` end-to-end (`SourceCapability` type, registry, `capabilities.ts` helper,
   `mastrNearby` call + dev-link) and updated the affected e2e stub routes. `mastrNearby.contract.test.ts`.
-- **wetterdienst — weather overlay empty.** `weatherValuesUrl` hard-coded `periods=recent`, which for
-  the ANNUAL climate datasets is empty at the (often discontinued) nearest station. Fix: query
-  `periods=historical,recent`. `linkedWeather.contract.test.ts`. (Follow-up: `EnergyWeatherOverlay`
-  still picks the single nearest station via `rank=1`, which can be discontinued → stale series.)
+- **wetterdienst — weather overlay empty / stale.** Two problems: (a) `weatherValuesUrl` hard-coded
+  `periods=recent`, empty for the ANNUAL datasets → fixed to `periods=historical,recent`; and (b)
+  `EnergyWeatherOverlay` took the single geographically nearest station (`rank=1`), which in Nürnberg
+  is the **discontinued** 03666 (series ends 1974) → the overlay had no years overlapping the
+  building's energy data. Fixed with **overlap-aware station selection**: fetch a small ranked set of
+  ACTIVE stations (`fetchNearestStations(..., active=true)` → the wrapper's new `/near&active=true`)
+  and choose the nearest whose recording period (`dwd:start_date`/`end_date`, now parsed onto
+  `WeatherStation.startYear`/`endYear`) overlaps the energy years (`pickStationForYears`). Degrades
+  gracefully on an un-redeployed wrapper (the `active` param is ignored; the overlap filter still
+  excludes stale stations). `linkedWeather.contract.test.ts` now asserts the chosen station reaches
+  the present. **Requires the linked-wetterdienst wrapper redeploy for the server-side `active` filter.**
 
 Clean (no fix, contract added): **nuts**, **lau** (region choropleth + `/contains` + `/search`;
 `#point`→`#id` confirmed harmless), **netztransparenz** (per-plant deref), **energieatlas**,

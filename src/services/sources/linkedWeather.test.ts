@@ -3,7 +3,9 @@ import { strict as assert } from "node:assert";
 import {
   parseObservations,
   parseStations,
+  pickStationForYears,
   weatherStationsUrl,
+  type WeatherStation,
   weatherValuesUrl,
 } from "./linkedWeather.ts";
 
@@ -19,6 +21,10 @@ Deno.test("weatherStationsUrl / weatherValuesUrl build absolute wrapper IRIs", (
   const values = weatherValuesUrl("03668", "annual/x/temp");
   assert.match(values, /^https:\/\/[^/]+\/wetterdienst\/values\?/);
   assert.ok(values.includes("station=03668") && values.includes("periods=historical%2Crecent"));
+
+  // active=true adds &active=true (wrapper drops discontinued stations); default omits it.
+  assert.ok(!near.includes("active="));
+  assert.ok(weatherStationsUrl(49.45, 11.08, 5, "annual/x/temp", true).includes("active=true"));
 });
 
 // A faithful slice of a `near` station collection from linked-wetterdienst: each
@@ -37,10 +43,14 @@ const STATIONS_TTL = `
 <station/01234#it> a dwd:WeatherStation, sosa:Sensor ;
   dwd:station_id "01234" ; rdfs:label "Erlangen" ;
   geo:lat "49.6"^^xsd:float ; geo:long "11.0"^^xsd:float ;
+  dwd:start_date "1990-01-01T00:00:00Z"^^xsd:dateTime ;
+  dwd:end_date "1999-12-31T00:00:00Z"^^xsd:dateTime ;
   schema:distance 12.0 .
 <station/03668#it> a dwd:WeatherStation, sosa:Sensor ;
   dwd:station_id "03668" ; dwd:station_name "Nürnberg" ;
   geo:lat "49.503"^^xsd:float ; geo:long "11.0549"^^xsd:float ;
+  dwd:start_date "1950-01-01T00:00:00Z"^^xsd:dateTime ;
+  dwd:end_date "2025-12-31T00:00:00Z"^^xsd:dateTime ;
   schema:distance 2.5 .
 `;
 
@@ -83,6 +93,8 @@ Deno.test("parseStations: id/name (label fallback)/coords/distance, sorted neare
       latitude: 49.503,
       longitude: 11.0549,
       distance: 2.5,
+      startYear: 1950,
+      endYear: 2025,
     },
     {
       station_id: "01234",
@@ -90,8 +102,42 @@ Deno.test("parseStations: id/name (label fallback)/coords/distance, sorted neare
       latitude: 49.6,
       longitude: 11.0,
       distance: 12.0,
+      startYear: 1990,
+      endYear: 1999,
     },
   ]);
+});
+
+// ── pickStationForYears: overlap-aware selection (option 2) ──────────────────────────
+const NEAR_OLD: WeatherStation = {
+  station_id: "old", name: "Old", latitude: 0, longitude: 0,
+  distance: 2, startYear: 1950, endYear: 1974, // discontinued but NEAREST
+};
+const FAR_ACTIVE: WeatherStation = {
+  station_id: "active", name: "Active", latitude: 0, longitude: 0,
+  distance: 8, startYear: 1975, endYear: 2025, // farther but covers recent years
+};
+
+Deno.test("pickStationForYears: overlap skips the nearer discontinued station", () => {
+  // nearest-first order; 2020s energy overlaps only the active station.
+  assert.equal(
+    pickStationForYears([NEAR_OLD, FAR_ACTIVE], [2021, 2022, 2023])?.station_id,
+    "active",
+  );
+});
+
+Deno.test("pickStationForYears: no energy years yet → the nearest candidate", () => {
+  assert.equal(pickStationForYears([NEAR_OLD, FAR_ACTIVE], [])?.station_id, "old");
+});
+
+Deno.test("pickStationForYears: none overlap → nearest candidate (a station beats none)", () => {
+  assert.equal(pickStationForYears([NEAR_OLD], [2021])?.station_id, "old");
+});
+
+Deno.test("pickStationForYears: open-ended (no years) station always overlaps; empty → null", () => {
+  const openEnded: WeatherStation = { station_id: "x", name: "", latitude: 0, longitude: 0, distance: 1 };
+  assert.equal(pickStationForYears([openEnded], [2021])?.station_id, "x");
+  assert.equal(pickStationForYears([], [2021]), null);
 });
 
 Deno.test("parseObservations: date/value/quality from QUDT result, sorted ascending by date", () => {
