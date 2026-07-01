@@ -37,6 +37,7 @@ import {
   type ViewerContext,
 } from "./applicable.ts";
 import { parseBuildings } from "../services/rdf/building/buildingParser.ts";
+import { isSharedSource } from "../services/building/buildingSource.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { fetchFresh } from "../services/pod/podFetch.ts";
 import { getStorageRoot } from "../services/pod/solidUtils.ts";
@@ -88,12 +89,9 @@ async function resolveBuilding(
   }
   if (!match) return undefined;
 
-  // Ownership = whether the source file lives under the viewer's storage root
-  // (mirrors `loadBuildings`). With no resolved root we cannot claim ownership,
-  // so the building is treated as not-own (shared) — the conservative default for
-  // owner-only affordance guards.
-  const source = match.sourceUri || match.uri;
-  match.isShared = storageRoot ? !source.startsWith(storageRoot) : true;
+  // Ownership: the ONE shared predicate (isSharedSource) — no mirrored copy of
+  // the load path's derivation that could drift.
+  match.isShared = isSharedSource(match.sourceUri || match.uri, storageRoot);
   return match;
 }
 

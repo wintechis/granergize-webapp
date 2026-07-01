@@ -123,10 +123,16 @@ Deno.test("DeleteAggregation applies to any aggregation definition, not a buildi
 
 // ── Guards: developer-mode exposure ──────────────────────────────────────────
 
-Deno.test("developer-gated verbs apply only with devMode on (affordance guard)", () => {
+Deno.test("developer-gated verbs are offered only with devMode on (the exposure gate)", () => {
+  // The gate lives in the catalog's `exposure` and is applied ONCE here in
+  // applicableIntents — the affordance guards themselves are dev-agnostic.
   for (const v of ["DeleteAppData", "ExportArchive", "DrainInbox"]) {
-    assert.ok(!applies(v, { kind: "Account" }, false), `${v} hidden without dev`);
-    assert.ok(applies(v, { kind: "Account" }, true), `${v} shown with dev`);
+    const withoutDev = applicableIntents({ kind: "Account" }, { devMode: false })
+      .map((e) => e.name);
+    const withDev = applicableIntents({ kind: "Account" }, { devMode: true })
+      .map((e) => e.name);
+    assert.ok(!withoutDev.includes(v), `${v} hidden without dev`);
+    assert.ok(withDev.includes(v), `${v} offered with dev`);
   }
 });
 

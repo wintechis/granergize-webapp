@@ -25,6 +25,7 @@ import { deleteBuildingCore } from "./cores/building/DeleteBuilding.ts";
 import { toggleVisibilityCore } from "./cores/building/ToggleVisibility.ts";
 import { saveObservationCore } from "./cores/observation/SaveObservation.ts";
 import { deleteObservationCore } from "./cores/observation/DeleteObservation.ts";
+import { clearObservationsCore } from "./cores/observation/ClearObservations.ts";
 import { linkObservationToBuildingCore } from "./cores/observation/LinkObservationToBuilding.ts";
 import { uploadAttachmentsCore } from "./cores/attachment/UploadAttachments.ts";
 import { deleteAttachmentCore } from "./cores/attachment/DeleteAttachment.ts";
@@ -51,6 +52,7 @@ import { seedDemoAgentsCore } from "./cores/agent/SeedDemoAgents.ts";
 import { saveOrganisationCore } from "./cores/organisation/SaveOrganisation.ts";
 import { seedDemoBuildingsCore } from "./cores/building/SeedDemoBuildings.ts";
 import { deleteAppDataCore } from "./cores/appData/DeleteAppData.ts";
+import { declineDemoOfferCore } from "./cores/appData/DeclineDemoOffer.ts";
 import { restoreArchiveCore } from "./cores/appData/RestoreArchive.ts";
 
 /**
@@ -66,6 +68,7 @@ export const WRITE_CORES = {
   ShareBuilding: shareBuildingCore,
   SaveObservation: saveObservationCore,
   DeleteObservation: deleteObservationCore,
+  ClearObservations: clearObservationsCore,
   LinkObservationToBuilding: linkObservationToBuildingCore,
   UploadAttachments: uploadAttachmentsCore,
   DeleteAttachment: deleteAttachmentCore,
@@ -112,6 +115,10 @@ export const WRITE_CORES = {
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: saveOrganisationCore,
   // ── Account ──────────────────────────────────────────────────────────────────
+  DeclineDemoOffer: (s: PodGateway, p: Record<never, never>) => {
+    void p;
+    return declineDemoOfferCore(s);
+  },
   SeedDemoBuildings: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return seedDemoBuildingsCore(s);

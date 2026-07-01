@@ -8,9 +8,11 @@
  *
  * - dispatch through {@link invokeByName} (the headless entry the deep links and the
  *   bench seeder also use);
- * - on success, a **blanket** `invalidateQueries` (the form/palette bypasses the
- *   hooks that would own their invalidations, and these run rarely — a manual ⌘K
- *   action, not a hot path) + a brief success toast;
+ * - on success, the shared cache settlement ({@link settlePaletteInvoke}): a room
+ *   verb patches the never-invalidated rooms registry exactly like its hook
+ *   adapter would, then a **blanket** `invalidateQueries` of everything else (the
+ *   form/palette bypasses the hooks that would own their invalidations, and these
+ *   run rarely — a manual ⌘K action, not a hot path) + a brief success toast;
  * - on error, honour the catalog's `silentError`: a silent verb surfaces its error
  *   inline (the caller renders the returned message through an `<Alert>`); every
  *   other verb routes it to the central toast (`formatError`/`classifyQueryError`).
@@ -26,6 +28,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { getGateway } from "./session.ts";
 import { findIntent } from "../intents/applicable.ts";
 import { invokeByName } from "../intents/registry.ts";
+import { settlePaletteInvoke } from "./roomRegistry.ts";
 import { classifyQueryError } from "./queryErrors.ts";
 import { formatError } from "../lib/formatError.ts";
 import type { MessageId } from "../lib/messages.ts";
@@ -50,8 +53,8 @@ export function useInvokeIntent(): (
   return async (name, params) => {
     const entry = findIntent(name);
     try {
-      await invokeByName(name, params, getGateway());
-      await qc.invalidateQueries();
+      const result = await invokeByName(name, params, getGateway());
+      await settlePaletteInvoke(qc, name, result);
       showNotification(t("paramFormSuccess"), "success");
       return { ok: true };
     } catch (err) {

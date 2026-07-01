@@ -100,6 +100,8 @@ export const FORM_EXCLUDED: ReadonlySet<string> = new Set<string>([
   "SetEnergyCertificate",
   "DeleteAttachment",
   "DeleteObservation",
+  "ClearObservations",
+  "LinkObservationToBuilding",
   // Controlled-vocab text: `roles` is a UserRole vocab; set on the room page, a
   // proper role multi-select is a later refinement.
   "SaveRoles",

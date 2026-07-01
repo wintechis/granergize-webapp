@@ -186,6 +186,13 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useDeleteEnergyYear",
   },
   {
+    name: "ClearObservations", // delete ALL of a building's observation datasets
+    action: "actionClearObservations",
+    effect: "write",
+    entity: "observation",
+    hook: "useClearObservations",
+  },
+  {
     name: "LinkObservationToBuilding", // bind a building-less observation to a building
     action: "actionLinkObservation",
     effect: "write",
@@ -396,6 +403,13 @@ export const INTENTS: readonly IntentEntry[] = [
     entity: "building",
     exposure: "developer",
     hook: "useSeedDemoBuildings",
+  },
+  {
+    name: "DeclineDemoOffer", // dismiss the fresh-Pod demo-buildings offer (persisted)
+    action: "actionDeclineDemos",
+    effect: "write",
+    entity: "appData",
+    hook: "useDeclineDemoOffer",
   },
   {
     name: "DeleteAppData",

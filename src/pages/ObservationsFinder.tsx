@@ -26,6 +26,7 @@ import {
   useSolidData,
 } from "../hooks/queries.ts";
 import {
+  useClearObservations,
   useDeleteEnergyYear,
   useLinkObservationToBuilding,
 } from "../hooks/mutations.ts";
@@ -34,8 +35,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { getSession } from "../hooks/session.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
-import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
-import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.ts";
+import { datasetSummary, buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.ts";
 import { filterByText } from "../lib/textSearch.ts";
 import { RefLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
@@ -74,18 +74,6 @@ import { metricLabel } from "../constants/annualMetrics.ts";
 // the Buildings finder mounts it for ownership.
 const BuildingsMap = lazy(() => import("../components/building/BuildingsMap.tsx"));
 
-/** A short read-out of the years (and resolution) a building has observations for. */
-function datasetSummary(b: Building): string {
-  const refs = b.energyDatasets ?? [];
-  const years = [...new Set(refs.map((d) => d.year))].sort((a, c) => a - c);
-  if (years.length === 0) return "";
-  const range = years.length === 1
-    ? String(years[0])
-    : `${years[0]}–${years[years.length - 1]}`;
-  const hasSeries = refs.some((d) => isSeriesGranularity(d.granularity));
-  const kind = hasSeries ? "annual + time series" : "annual";
-  return `${years.length} year${years.length === 1 ? "" : "s"} (${range}) · ${kind}`;
-}
 
 /**
  * The Observations finder (`/observations`): the **energy cube** over the
@@ -174,9 +162,11 @@ export default function ObservationsFinder() {
   const visibleIds = new Set(filtered.map((b) => b.id));
 
   // "Clear data" — delete ALL of an owned building's observations (every dataset),
-  // keeping the building. No bulk intent exists, so loop the per-dataset delete over
-  // the building's links; once empty, the building drops out of this finder.
+  // keeping the building; once empty, the building drops out of this finder. The
+  // bulk loop lives in the ClearObservations core (best-effort per dataset); its
+  // Tally outcome drives an honest success/partial toast below.
   const del = useDeleteEnergyYear();
+  const clearObs = useClearObservations();
   const linkMut = useLinkObservationToBuilding();
   const closeLink = () => {
     setLinkObs(null);
@@ -195,19 +185,33 @@ export default function ObservationsFinder() {
       })
     ) return;
     const fileUri = (b.sourceUri ?? buildingFileUri(b.uri)) as string;
-    for (const r of refs) {
-      await del.mutateAsync({
+    let tally;
+    try {
+      tally = await clearObs.mutateAsync({
         fileUri,
         subjectUri: b.uri as string,
-        dataset: {
+        datasets: refs.map((r) => ({
           year: r.year,
           granularity: r.granularity,
           scenario: r.scenario,
           featureOfInterest: r.featureOfInterest,
-        },
-      }).catch(() => {});
+        })),
+      });
+    } catch {
+      return; // the central mutation toast already reported the failure
     }
-    showNotification(t("obsCleared", { name: buildingDisplayName(b) }), "success");
+    if (tally.done === tally.total) {
+      showNotification(t("obsCleared", { name: buildingDisplayName(b) }), "success");
+    } else {
+      showNotification(
+        t("obsClearedPartial", {
+          done: tally.done,
+          total: tally.total,
+          name: buildingDisplayName(b),
+        }),
+        "error",
+      );
+    }
   };
 
   // Delete a single building-less observation (it's the user's own, unbound data).
@@ -387,7 +391,7 @@ export default function ObservationsFinder() {
                         ))}
                       </>
                     }
-                    subtitle={datasetSummary(b)}
+                    subtitle={datasetSummary(b, t)}
                     actions={b.isShared ? undefined : (
                       <Tooltip title={t("obsClearAria")}>
                         <IconButton

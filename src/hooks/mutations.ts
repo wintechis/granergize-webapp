@@ -4,7 +4,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { getGateway } from "./session.ts";
-import { queryKeys } from "./queries.ts";
+import { queryKeys } from "../lib/queryKeys.ts";
+import { patchRooms, ROOM_REGISTRY_FOLDS } from "./roomRegistry.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import type { ShareBuildingParams } from "../intents/cores/building/ShareBuilding.ts";
 import type { FindNearbyInstallationsParams } from "../intents/cores/installation/FindNearbyInstallations.ts";
@@ -308,6 +309,27 @@ export function useDeleteEnergyYear() {
   });
 }
 
+/**
+ * Clear ALL of a building's observations (every dataset), keeping the building.
+ * Best-effort per dataset in the core; the {@link Tally} outcome reports how
+ * many committed, so the caller can toast a partial failure honestly.
+ */
+export function useClearObservations() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "actionClearObservations" },
+    mutationFn: (vars: {
+      fileUri: string;
+      subjectUri: string;
+      datasets: Pick<
+        EnergyDataset,
+        "year" | "granularity" | "scenario" | "featureOfInterest"
+      >[];
+    }) => invoke("ClearObservations", vars, getGateway()),
+    onSettled: () => invalidateBuildingData(qc),
+  });
+}
+
 /** Bind a building-less observation to a building (late FoI binding, in place). */
 export function useLinkObservationToBuilding() {
   const qc = useQueryClient();
@@ -487,43 +509,29 @@ export function useSeedDemoAgents() {
 }
 
 // ── Data room mutations ──────────────────────────────────────────────────────
-// The registry (current + known) is OWNED here: each mutation patches the
-// ["rooms", webId] cache authoritatively via setQueryData and never invalidates
-// it, so a slow or stale read-back can't revert the change (diagnosed on
-// solidcommunity.net — see queries.ts useRooms + project memory). The members/
-// roles log (["roomLog", …, current]) refetches on its own because its key
-// includes the current room; role saves invalidate it explicitly. Each mutationFn
-// returns the canonical room URL it acted on, which onSuccess folds into the cache.
-
-type RoomRegistry = { known: string[]; current: string | null };
-
-/** Patch the logged-in user's room-registry cache. */
-function patchRooms(
-  qc: ReturnType<typeof useQueryClient>,
-  fn: (reg: RoomRegistry) => RoomRegistry,
-): void {
-  const webId = getGateway().webId;
-  qc.setQueryData<RoomRegistry>(
-    [...queryKeys.rooms, webId],
-    (old) => old ? fn(old) : old,
-  );
-}
-
-const withRoom = (known: string[], room: string) =>
-  known.includes(room) ? known : [...known, room];
+// The registry (current + known) is OWNED by setQueryData folds and never
+// invalidated, so a slow or stale read-back can't revert the change (diagnosed
+// on solidcommunity.net — see queries.ts useRooms + project memory). The
+// per-verb folds live in roomRegistry.ts, SHARED with the palette's direct
+// invoke path (settlePaletteInvoke), so the two surfaces cannot drift. The
+// members/roles log (["roomLog", …, current]) refetches on its own because its
+// key includes the current room; role saves invalidate it explicitly. Each
+// mutationFn returns the canonical room URL it acted on, which onSuccess folds
+// into the cache.
 
 // Each adapter routes its Pod write through the React-free core via invoke()
 // (one path for UI + headless): the core does the Pod write + reachability/
 // existence check and returns the normalized room URI (`{ room }`), which the
-// adapter's `patchRooms` race-guard folds into the cache. The return shape MUST
-// match what each `onSuccess` patch consumes (the silent break-mode — the query
-// cache is browser-only, so Tier-1 can't catch a mismatch).
+// adapter's `patchRooms` race-guard folds into the cache through the verb's
+// entry in the SHARED fold table (roomRegistry.ts — the palette applies the
+// same fold). The return shape MUST match what each fold consumes (the silent
+// break-mode — the query cache is browser-only, so Tier-1 can't catch a
+// mismatch).
 export function useCreateRoom() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (name?: string) => invoke("CreateRoom", { name }, getGateway()),
-    onSuccess: ({ room }) =>
-      patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
+    onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.CreateRoom(res)),
   });
 }
 
@@ -533,11 +541,7 @@ export function useSeedDemoRooms() {
   return useMutation({
     mutationFn: () => invoke("SeedDemoRooms", {}, getGateway()),
     meta: { action: "actionAddDemoRooms" },
-    onSuccess: ({ rooms }) =>
-      patchRooms(qc, (reg) => ({
-        known: rooms.reduce(withRoom, reg.known),
-        current: rooms[rooms.length - 1] ?? reg.current,
-      })),
+    onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.SeedDemoRooms(res)),
   });
 }
 
@@ -546,8 +550,7 @@ export function useEnterRoom() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (roomUri: string) => invoke("EnterRoom", { roomUri }, getGateway()),
-    onSuccess: ({ room }) =>
-      patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
+    onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.EnterRoom(res)),
   });
 }
 
@@ -555,11 +558,7 @@ export function useExitRoom() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (roomUri: string) => invoke("ExitRoom", { roomUri }, getGateway()),
-    onSuccess: ({ room }) =>
-      patchRooms(qc, (reg) => ({
-        ...reg,
-        current: reg.current === room ? null : reg.current,
-      })),
+    onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.ExitRoom(res)),
   });
 }
 
@@ -568,11 +567,7 @@ export function useDeleteRoom() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (roomUri: string) => invoke("DeleteRoom", { roomUri }, getGateway()),
-    onSuccess: ({ room }) =>
-      patchRooms(qc, (reg) => ({
-        known: reg.known.filter((r) => r !== room),
-        current: reg.current === room ? null : reg.current,
-      })),
+    onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.DeleteRoom(res)),
   });
 }
 
@@ -581,8 +576,7 @@ export function useAddRoom() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: string) => invoke("AddBookmark", { input }, getGateway()),
-    onSuccess: ({ room }) =>
-      patchRooms(qc, (reg) => ({ ...reg, known: withRoom(reg.known, room) })),
+    onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.AddBookmark(res)),
   });
 }
 
@@ -591,11 +585,7 @@ export function useRemoveBookmark() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (roomUri: string) => invoke("RemoveBookmark", { roomUri }, getGateway()),
-    onSuccess: ({ room }) =>
-      patchRooms(qc, (reg) => ({
-        known: reg.known.filter((r) => r !== room),
-        current: reg.current === room ? null : reg.current,
-      })),
+    onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.RemoveBookmark(res)),
   });
 }
 
@@ -616,6 +606,24 @@ export function useSaveRoles() {
 // computed-preview confirms, the full-page activity screen, and outcome
 // rendering (tally toasts) — while the hook owns execution, busy state, the
 // central error toast, and the invalidations.
+
+/**
+ * Onboarding banner: persist that the user declined the demo-buildings offer.
+ * The write goes through the mutation hook like every user-intent Pod write —
+ * central error toast, and the invalidation stands the cached offer down
+ * without a reload (the old direct component write left `demoOffer` stale).
+ */
+export function useDeclineDemoOffer() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "actionDeclineDemos" },
+    mutationFn: () => invoke("DeclineDemoOffer", {}, getGateway()),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.prefs });
+      qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
+    },
+  });
+}
 
 /**
  * Dev-mode/banner: seed the fixed demo building set

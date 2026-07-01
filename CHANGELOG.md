@@ -2,6 +2,21 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — Intents: palette settlement, honest bulk clear, one dev gate
+
+- The ⌘K palette's post-invoke settlement shares the room-registry folds with
+  the mutation hooks (`hooks/roomRegistry.ts`) and no longer blanket-invalidates
+  the never-refetched registry — a palette room switch can't revert or vanish.
+- "Clear data" on a building's observations is a real `ClearObservations` intent
+  returning a tally: a half-failed bulk delete now toasts "cleared N of M" as an
+  error instead of claiming success.
+- Dismissing the demo offer is a `DeclineDemoOffer` intent — central error toast
+  and the cached offer stands down without a reload.
+- Dev-gating is encoded ONCE (catalog `exposure`); the affordance guards are
+  dev-agnostic and every non-navigate verb now declares an explicit applies
+  stance (guarded by new invariants). Ownership checks use the shared
+  `isSharedSource` instead of a mirrored derivation.
+
 ## [2026-07-02] — i18n: the hardcoded English strings join the catalog
 
 A dozen user-facing strings bypassed the trilingual message catalog (login

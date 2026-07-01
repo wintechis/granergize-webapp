@@ -11,9 +11,12 @@
  * `AggregationDefinition` types:
  *
  * - **`applies(object, viewer)`** — the state-filter: does the object's current
- *   state plus the viewer's relationship (own vs shared, snapshot-exists, dev
- *   mode) permit this verb? Pure; these were the per-surface conditionals
+ *   state plus the viewer's relationship (own vs shared, snapshot-exists)
+ *   permit this verb? Pure; these were the per-surface conditionals
  *   (`!building.isShared`, `lastComputedAt != null`), made explicit and reusable.
+ *   Deliberately NOT the dev gate: `exposure: "developer"` lives in the catalog
+ *   and is applied ONCE in `applicableIntents`, so the same fact is never
+ *   encoded twice (they once disagreed).
  *
  * The verb's parameter shape is NOT recorded here — it lives in the modelled RDF
  * schema {@link INTENT_PARAMS} (`params.ts`), bound to the core signature by the
@@ -39,7 +42,8 @@ import type { AggregationDefinition, Building } from "../types.ts";
  * context an `applies` guard consults beyond the object's own state.
  */
 export interface ViewerContext {
-  /** Is developer mode on? Gates `exposure: "developer"` affordances. */
+  /** Is developer mode on? Consulted by `applicableIntents`' catalog-exposure
+   * gate — never by an `applies` guard (dev-gating is encoded once). */
   devMode?: boolean;
 }
 
@@ -111,7 +115,6 @@ function hasSnapshot(o: IntentObject): boolean {
 const always: AppliesGuard = () => true;
 
 /** Applicable only with developer mode on (account/dev-only verbs). */
-const devOnly: AppliesGuard = (_o, v) => v.devMode === true;
 
 /** Never applies to a per-object affordance surface (no menu surfaces it yet). */
 const never: AppliesGuard = () => false;
@@ -140,6 +143,10 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   },
   DeleteObservation: {
     // Own building AND at least one dataset to delete.
+    applies: (o) => isOwnBuilding(o) && hasEnergy(o),
+  },
+  ClearObservations: {
+    // Same gate as the per-dataset delete: own building with data to clear.
     applies: (o) => isOwnBuilding(o) && hasEnergy(o),
   },
   // ── Attachments ──────────────────────────────────────────────────────────────
@@ -174,9 +181,26 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
     // Revoking is owner-only (you can only revoke a grant you made).
     applies: isOwnBuilding,
   },
-  DrainInbox: { applies: devOnly },
-  ReissueGrants: { applies: devOnly },
-  AuditGrants: { applies: devOnly },
+  // Dev-gating is NOT re-encoded here: these verbs are `exposure: "developer"`
+  // in the catalog, and applicableIntents applies that gate once. The guards
+  // below answer only object applicability (account-scope → always).
+  DrainInbox: { applies: always },
+  ReissueGrants: { applies: always },
+  AuditGrants: { applies: always },
+  CheckObservationLinks: { applies: always },
+  // ── Read verbs ───────────────────────────────────────────────────────────────
+  // Reached through the launcher's JSON/NL path (see paramForm.ts FORM_EXCLUDED),
+  // not a per-object menu — explicitly no menu affordance.
+  FindBuildings: { applies: never },
+  FindNearbyInstallations: { applies: never },
+  FindRegionalStatistics: { applies: never },
+  GetBuilding: { applies: never },
+  GetObservationYear: { applies: never },
+  WhoHasAccess: { applies: never },
+  SharedWithMe: { applies: never },
+  // Offered by the Observations finder's loose-observations list directly (a
+  // building-less observation isn't an IntentObject) — no per-object menu.
+  LinkObservationToBuilding: { applies: never },
   // ── Rooms ────────────────────────────────────────────────────────────────────
   // No per-object building menu surfaces a room verb (they live in the rooms
   // finder / room page), so `applies: never`.
@@ -187,18 +211,21 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   AddBookmark: { applies: never },
   RemoveBookmark: { applies: never },
   SaveRoles: { applies: never },
-  SeedDemoRooms: { applies: devOnly },
+  SeedDemoRooms: { applies: always },
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: { applies: always },
   // ── Contacts ─────────────────────────────────────────────────────────────────
   SaveAgent: { applies: always },
   RemoveAgent: { applies: always },
-  SeedDemoAgents: { applies: devOnly },
+  SeedDemoAgents: { applies: always },
   // ── Account-scope ────────────────────────────────────────────────────────────
   SeedDemoBuildings: { applies: always },
-  DeleteAppData: { applies: devOnly },
-  RestoreArchive: { applies: devOnly },
-  ExportArchive: { applies: devOnly },
+  // Fired by the onboarding banner directly — no per-object menu or palette
+  // surface offers "decline the demo offer" as a verb.
+  DeclineDemoOffer: { applies: never },
+  DeleteAppData: { applies: always },
+  RestoreArchive: { applies: always },
+  ExportArchive: { applies: always },
 };
 
 /** The affordance facts for an intent, defaulting to "never applies". */

@@ -12,8 +12,9 @@ import {
   useExitRoom,
   useRefreshAggregation,
   useRemoveBookmark,
+  useDeclineDemoOffer,
 } from "./mutations.ts";
-import { queryKeys } from "./queries.ts";
+import { queryKeys } from "../lib/queryKeys.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { resetActiveRoom } from "../services/interop/dataRoom.ts";
@@ -691,6 +692,42 @@ Deno.test("useReissueGrants replays an empty log to zero counts without invalida
     const res = await result.current.mutateAsync();
     assert.equal(res.buildings + res.aggregations, 0);
     assert.deepEqual(invalidated, [], "the ACL projection is not a query");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useDeclineDemoOffer persists the decline and stands the cached offer down (invalidations)", async () => {
+  // Was a direct component write (AppShell → setDemoSeedDeclined) with NO
+  // invalidation: prefs.ttl gained gran:demoSeedDeclined but the cached
+  // ["demoOffer"] probe stayed true until a reload. The hook owns both the
+  // write path and the prefs + demoOffer invalidations.
+  const pod = new FakePod();
+  _setSessionForTesting(sessionFor(pod));
+  const { client, wrapper } = makeWrapper({ known: [], current: null });
+  client.setQueryData([...queryKeys.prefs, WEBID], { hiddenBuildings: new Set() });
+  client.setQueryData([...queryKeys.demoOffer, WEBID], true);
+  try {
+    const { result } = renderHook(() => useDeclineDemoOffer(), { wrapper });
+    await result.current.mutateAsync();
+
+    const prefs = pod.resources.get(`${ORIGIN}granergize/prefs.ttl`) ?? "";
+    assert.ok(
+      prefs.includes("demoSeedDeclined"),
+      "the decline is persisted to prefs.ttl",
+    );
+    await waitFor(() => {
+      assert.equal(
+        client.getQueryState([...queryKeys.demoOffer, WEBID])?.isInvalidated,
+        true,
+        "the cached demo-offer probe is invalidated (no reload needed)",
+      );
+      assert.equal(
+        client.getQueryState([...queryKeys.prefs, WEBID])?.isInvalidated,
+        true,
+        "prefs is invalidated",
+      );
+    });
   } finally {
     _setSessionForTesting(null);
   }

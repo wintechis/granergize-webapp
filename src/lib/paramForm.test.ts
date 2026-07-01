@@ -57,7 +57,15 @@ Deno.test("opaque / rich-dialog verbs are excluded", () => {
 });
 
 Deno.test("fileUri+subjectUri bundle verbs are excluded", () => {
-  for (const name of ["SetEnergyCertificate", "DeleteAttachment", "DeleteObservation"]) {
+  for (
+    const name of [
+      "SetEnergyCertificate",
+      "DeleteAttachment",
+      "DeleteObservation",
+      "ClearObservations",
+      "LinkObservationToBuilding",
+    ]
+  ) {
     assert.equal(isFormEligible(name), false, `${name} must be excluded`);
   }
 });

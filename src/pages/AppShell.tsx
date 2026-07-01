@@ -24,7 +24,6 @@ import { getAvatarObjectUrl } from "../services/organisation/logo.ts";
 import { getOrgLogoObjectUrl } from "../services/organisation/organisation.ts";
 import { useAvatarRefresh } from "../lib/avatarRefresh.ts";
 import { useDemoOffer, useSharedWithMe } from "../hooks/queries.ts";
-import { setDemoSeedDeclined } from "../services/prefs.ts";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
 import { type MessageId, msg } from "../lib/messages.ts";
@@ -32,6 +31,7 @@ import { DETAIL_PATTERNS, FINDERS } from "../routes.ts";
 import {
   useSeedDemoBuildings,
   useSeedDemoAgents,
+  useDeclineDemoOffer,
   useSeedDemoRooms,
 } from "../hooks/mutations.ts";
 import { useAccountActions } from "../hooks/useAccountActions.ts";
@@ -211,11 +211,10 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
         ),
     });
 
+  const declineDemo = useDeclineDemoOffer();
   const declineDemos = () => {
-    setDemoDismissed(true);
-    setDemoSeedDeclined(sessionGateway(session), true).catch((err) =>
-      logError("persist demo-seed declined", err)
-    );
+    setDemoDismissed(true); // optimistic: the banner hides immediately
+    declineDemo.mutate();
   };
 
   const handleOrganisation = () => {

@@ -139,6 +139,21 @@ export const INTENT_PARAMS = {
     // Opaque (year, granularity, scenario) selector; not an IRI to resolve.
     dataset: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
   },
+  LinkObservationToBuilding: {
+    // observationUri is runtime-provided (RuntimeOnlyKey), like the
+    // building-less delete's selector — not modelled here.
+    buildingFileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    buildingSubjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    // Opaque link-ref facets of the dataset being bound; not IRIs to resolve.
+    granularity: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+    scenario: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  ClearObservations: {
+    fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    // Opaque (year, granularity, scenario, FoI) selectors; not IRIs to resolve.
+    datasets: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
+  },
   // ── Attachments ──────────────────────────────────────────────────────────────
   UploadAttachments: {
     fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
@@ -229,6 +244,7 @@ export const INTENT_PARAMS = {
   // the gateway). DeleteAppData's only param is the runtime-only `signal` → empty.
   // RestoreArchive's `bytes` is an opaque Uint8Array → placeholder.
   SeedDemoBuildings: {},
+  DeclineDemoOffer: {},
   DeleteAppData: {},
   RestoreArchive: {
     bytes: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
@@ -293,6 +309,8 @@ const _paramKeysMatch: {
   ReissueGrants: true,
   SaveObservation: true,
   DeleteObservation: true,
+  ClearObservations: true,
+  LinkObservationToBuilding: true,
   UploadAttachments: true,
   DeleteAttachment: true,
   SetEnergyCertificate: true,
@@ -313,6 +331,7 @@ const _paramKeysMatch: {
   SeedDemoAgents: true,
   SaveOrganisation: true,
   SeedDemoBuildings: true,
+  DeclineDemoOffer: true,
   DeleteAppData: true,
   RestoreArchive: true,
   ExportArchive: true,
