@@ -1,5 +1,5 @@
-import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useState } from "react";
+import { getGateway } from "../hooks/session.ts";
 import { Box, Button, Switch, Tooltip, Typography } from "@mui/material";
 import FinderHeader from "../components/FinderHeader.tsx";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -107,7 +107,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
       const built: Building[] = [];
       for (const entry of sharedWithMe) {
         try {
-          const b = await loadSharedBuilding(entry, sessionGateway(session));
+          const b = await loadSharedBuilding(entry, getGateway());
           if (b) built.push(b);
         } catch (err) {
           logError("read shared building for bundle", err);
@@ -117,7 +117,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
       if (built.length === 0) {
         throw new Error("none of the shared buildings could be read");
       }
-      const enriched = await attachAnnualData(built, sessionGateway(session));
+      const enriched = await attachAnnualData(built, getGateway());
       downloadXlsx(await buildingsToXlsx(enriched), "buildings-shared.xlsx");
       if (built.length < sharedWithMe.length) {
         showNotification(

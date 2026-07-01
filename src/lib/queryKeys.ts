@@ -73,6 +73,9 @@ export const queryKeys = {
   rooms: ["rooms"] as const,
   /** A room's log (members + roles), keyed by room. Invalidated on role saves. */
   roomLog: ["roomLog"] as const,
+  /** Room display names (`rdfs:label`), keyed by the room-URI set. An ordinary
+   * read — its own key, NOT a suffix of the never-invalidated `rooms` registry. */
+  roomNames: ["roomNames"] as const,
   /** The saved-agents address book. Invalidated on save/remove. */
   agents: ["savedAgents"] as const,
   /** A single resolved agent (name/avatar), keyed by WebID. */

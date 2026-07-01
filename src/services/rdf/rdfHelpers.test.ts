@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { DataFactory, Store } from "n3";
-import { mintLocalIri, quadsToJsonLd } from "./rdfHelpers.ts";
+import { localName, mintLocalIri, quadsToJsonLd } from "./rdfHelpers.ts";
 
 const { namedNode, literal } = DataFactory;
 const ACL = "http://www.w3.org/ns/auth/acl#";
@@ -67,4 +67,10 @@ Deno.test("mintLocalIri: an IRI-unsafe local name throws (with the caller's hint
     () => mintLocalIri("http://ex/", "x y", "use a known system"),
     /use a known system/,
   );
+});
+
+Deno.test("localName: the fragment after the LAST # or /", () => {
+  assert.equal(localName("https://ex.org/vocab#Token"), "Token");
+  assert.equal(localName("https://ex.org/path/token"), "token");
+  assert.equal(localName("plain"), "plain");
 });

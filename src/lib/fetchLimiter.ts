@@ -1,3 +1,5 @@
+import { createLimiter } from "./pool.ts";
+
 /**
  * Wrap a `fetch` so at most `max` calls are in flight at once; excess calls
  * queue (FIFO) and dispatch as slots free up.
@@ -21,33 +23,9 @@ export function withConcurrencyLimit(
   fetchFn: typeof fetch,
   max: number = MAX_CONCURRENT_POD_REQUESTS,
 ): typeof fetch {
-  let inFlight = 0;
-  const waiting: Array<() => void> = [];
-
-  const acquire = (): Promise<void> =>
-    new Promise((resolve) => {
-      if (inFlight < max) {
-        inFlight++;
-        resolve();
-      } else {
-        waiting.push(() => {
-          inFlight++;
-          resolve();
-        });
-      }
-    });
-
-  const release = (): void => {
-    inFlight--;
-    waiting.shift()?.();
-  };
-
-  return (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-    await acquire();
-    try {
-      return await fetchFn(input, init);
-    } finally {
-      release();
-    }
-  }) as typeof fetch;
+  // One shared gate for the wrapped fetch's lifetime — the same acquire/release
+  // queue as every other bounded fan-out (lib/pool), not a re-implementation.
+  const limit = createLimiter(max);
+  return ((input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+    limit(() => fetchFn(input, init))) as typeof fetch;
 }

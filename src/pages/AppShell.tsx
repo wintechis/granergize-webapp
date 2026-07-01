@@ -1,4 +1,5 @@
-import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
+import { type PodGateway } from "../services/pod/podGateway.ts";
+import { getGateway } from "../hooks/session.ts";
 import { useEffect, useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
@@ -77,7 +78,7 @@ function useProfileImageUrl(
   useEffect(() => {
     let cancelled = false;
     let current: string | null = null;
-    load(sessionGateway(session))
+    load(getGateway())
       .then((loaded) => {
         if (cancelled) {
           if (loaded) URL.revokeObjectURL(loaded);
@@ -225,7 +226,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   // Load the current-room pointer from the Pod into memory once after login, so
   // the sharing dialogs (which read it synchronously) know the room app-wide.
   useEffect(() => {
-    hydrateActiveRoom(sessionGateway(session)).catch((err) =>
+    hydrateActiveRoom(getGateway()).catch((err) =>
       logError("hydrate active data room on login", err)
     );
   }, [session]);

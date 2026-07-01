@@ -103,6 +103,27 @@ async function requiredRoutesOk(
 }
 
 /**
+ * The shared probe TAIL: after a probe's data-shape check passed, verify the
+ * wrapper's `/routes` manifest still lists the routes the app calls and fold
+ * the result into the verdict — `conformant`, or `available` with the missing
+ * routes named. One home for the phrasing (it was copy-pasted per probe).
+ */
+async function verdictWithRoutes(
+  id: Parameters<typeof requiredRoutesOk>[0],
+  requiredRoutes: string[],
+  exampleEntity?: string,
+): Promise<WrapperStatus> {
+  const routes = await requiredRoutesOk(id, requiredRoutes);
+  return routes.checked && routes.missing.length > 0
+    ? {
+      health: "available",
+      detail: `missing route(s): ${routes.missing.join(", ")}`,
+      ...(exampleEntity ? { exampleEntity } : {}),
+    }
+    : { health: "conformant", ...(exampleEntity ? { exampleEntity } : {}) };
+}
+
+/**
  * Probe **linked-mastr** in two steps, tied to the SAME contract as the compile-time route check:
  *  1. **route manifest** (`/routes.json`, the option-C source) — must still list the routes the app
  *     depends on ({@link MASTR_ROUTES}); a missing one is a route drift → `available`.
@@ -123,10 +144,7 @@ async function probeMastr(): Promise<WrapperStatus> {
     return { health: "available", detail: "reachable, but no installation matched the expected shape" };
   }
   // 2. Interface: the deployed /routes must still list the routes the app calls (best-effort).
-  const routes = await requiredRoutesOk("mastr", Object.values(MASTR_ROUTES));
-  return routes.checked && routes.missing.length > 0
-    ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}`, exampleEntity: u.iri }
-    : { health: "conformant", exampleEntity: u.iri };
+  return await verdictWithRoutes("mastr", Object.values(MASTR_ROUTES), u.iri);
 }
 
 /**
@@ -154,10 +172,7 @@ async function probeNuts(): Promise<WrapperStatus> {
     return { health: "available", detail: "reachable, but no region features parsed" };
   }
   const example = `${base}${NUTS_ROUTES.concept}/${f.properties.code}#it`;
-  const routes = await requiredRoutesOk("nuts", Object.values(NUTS_ROUTES));
-  return routes.checked && routes.missing.length > 0
-    ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}`, exampleEntity: example }
-    : { health: "conformant", exampleEntity: example };
+  return await verdictWithRoutes("nuts", Object.values(NUTS_ROUTES), example);
 }
 
 /**
@@ -179,10 +194,7 @@ async function probeLau(): Promise<WrapperStatus> {
     return { health: "available", detail: "reachable, but no containing Gemeinde resolved" };
   }
   const example = `${base}${LAU_ROUTES.concept}/DE_${ags}#it`;
-  const routes = await requiredRoutesOk("lau", Object.values(LAU_ROUTES));
-  return routes.checked && routes.missing.length > 0
-    ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}`, exampleEntity: example }
-    : { health: "conformant", exampleEntity: example };
+  return await verdictWithRoutes("lau", Object.values(LAU_ROUTES), example);
 }
 
 /**
@@ -210,10 +222,7 @@ async function probeLod2(): Promise<WrapperStatus> {
   if (!b) {
     return { health: "available", detail: "reachable, but no building parsed" };
   }
-  const routes = await requiredRoutesOk("lod2-by", Object.values(LOD2_ROUTES));
-  return routes.checked && routes.missing.length > 0
-    ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}`, exampleEntity: b.iri }
-    : { health: "conformant", exampleEntity: b.iri };
+  return await verdictWithRoutes("lod2-by", Object.values(LOD2_ROUTES), b.iri);
 }
 
 /**
@@ -246,10 +255,7 @@ async function probeNetztransparenz(): Promise<WrapperStatus> {
   for (const n of numbers) {
     const byYear = await fetchPlantGenerationByYear(n);
     if (byYear.size > 0) {
-      const routes = await requiredRoutesOk("netztransparenz", Object.values(NETZTRANSPARENZ_ROUTES));
-      return routes.checked && routes.missing.length > 0
-        ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}`, exampleEntity: plantUrl(n) }
-        : { health: "conformant", exampleEntity: plantUrl(n) };
+      return await verdictWithRoutes("netztransparenz", Object.values(NETZTRANSPARENZ_ROUTES), plantUrl(n));
     }
   }
   return { health: "available", detail: "reachable, but no plant carried settled generation" };
@@ -276,10 +282,7 @@ async function probeWetterdienst(): Promise<WrapperStatus> {
     return { health: "available", detail: "reachable, but no station matched the expected shape" };
   }
   const example = `${linkedWeatherBase()}station/${s.station_id}`;
-  const routes = await requiredRoutesOk("wetterdienst", Object.values(WETTERDIENST_ROUTES));
-  return routes.checked && routes.missing.length > 0
-    ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}`, exampleEntity: example }
-    : { health: "conformant", exampleEntity: example };
+  return await verdictWithRoutes("wetterdienst", Object.values(WETTERDIENST_ROUTES), example);
 }
 
 /**
@@ -303,10 +306,7 @@ async function probeEnergieatlas(): Promise<WrapperStatus> {
   if (!profile) {
     return { health: "available", detail: "reachable, but no area profile parsed" };
   }
-  const routes = await requiredRoutesOk("energieatlas", Object.values(ENERGIEATLAS_ROUTES));
-  return routes.checked && routes.missing.length > 0
-    ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}`, exampleEntity: areaUrl(ags) }
-    : { health: "conformant", exampleEntity: areaUrl(ags) };
+  return await verdictWithRoutes("energieatlas", Object.values(ENERGIEATLAS_ROUTES), areaUrl(ags));
 }
 
 /**
@@ -328,10 +328,7 @@ async function probeRegionalstatistik(): Promise<WrapperStatus> {
     return { health: "available", detail: "reachable, but no observation matched the expected shape" };
   }
   const example = regionalTableDataUrl(table.tableId);
-  const routes = await requiredRoutesOk("regionalstatistik", Object.values(REGIONALSTATISTIK_ROUTES));
-  return routes.checked && routes.missing.length > 0
-    ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}`, exampleEntity: example }
-    : { health: "conformant", exampleEntity: example };
+  return await verdictWithRoutes("regionalstatistik", Object.values(REGIONALSTATISTIK_ROUTES), example);
 }
 
 /**
@@ -359,10 +356,7 @@ async function probeOsm(): Promise<WrapperStatus> {
   if (!coords || coords.length < 2 || !Number.isFinite(coords[0]) || !Number.isFinite(coords[1])) {
     return { health: "available", detail: "reachable, but no geocode feature matched the shape" };
   }
-  const routes = await requiredRoutesOk("osm", Object.values(OSM_ROUTES));
-  return routes.checked && routes.missing.length > 0
-    ? { health: "available", detail: `missing route(s): ${routes.missing.join(", ")}` }
-    : { health: "conformant" };
+  return await verdictWithRoutes("osm", Object.values(OSM_ROUTES));
 }
 
 /** Per-source probes. Extend as sources are added (starting with mastr). */

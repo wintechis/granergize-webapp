@@ -124,3 +124,14 @@ export function getQuadValues(
     q.object.value
   );
 }
+
+/**
+ * The local-name fragment of an IRI: everything after the LAST `#` or `/`.
+ * The one home for this (it was duplicated with subtly different first-`#`
+ * semantics in the building parser); for well-formed vocab IRIs
+ * (`…#Token`, `…/token`) the two agreed — this keeps the stricter reading.
+ */
+export function localName(iri: string): string {
+  const cut = Math.max(iri.lastIndexOf("#"), iri.lastIndexOf("/"));
+  return cut >= 0 ? iri.slice(cut + 1) : iri;
+}

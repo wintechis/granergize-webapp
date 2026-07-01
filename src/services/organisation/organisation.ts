@@ -8,13 +8,15 @@ import { logError } from "../../lib/logError.ts";
 import {
   DCTERMS_SOURCE,
   FOAF_LOGO,
-  FOAF_NS,
   ORG_MEMBER_OF,
   ORG_NS,
-  OWL_NS,
   PROV_ENTITY,
   PROV_WAS_DERIVED_FROM,
   RDF_TYPE,
+  FOAF_ORGANIZATION,
+  FOAF_NAME,
+  FOAF_HOMEPAGE,
+  OWL_SAME_AS,
 } from "../rdf/vocabularies.ts";
 import { fetchWikidataLogo, wikidataEntityId } from "../agents/wikidataLogo.ts";
 import { EXT_BY_MIME, uploadPublicLogo } from "../pod/logoImage.ts";
@@ -47,10 +49,7 @@ export { isSupportedLogoType } from "../pod/logoImage.ts";
  */
 
 const ORG_ORGANIZATION = `${ORG_NS}Organization`;
-const FOAF_ORGANIZATION = `${FOAF_NS}Organization`;
-const FOAF_NAME = `${FOAF_NS}name`;
-const FOAF_HOMEPAGE = `${FOAF_NS}homepage`;
-const OWL_SAME_AS = `${OWL_NS}sameAs`;
+
 // W3C Org membership — the role-free person↔org link (no org:role). A user's role
 // lives only in a data room and is the role of this org, held via the user.
 const ORG_HAS_MEMBERSHIP = `${ORG_NS}hasMembership`;

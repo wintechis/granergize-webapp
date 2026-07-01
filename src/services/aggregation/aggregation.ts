@@ -98,9 +98,7 @@ function getAggregationDefinitionUri(webId: string, aggregationId: string): stri
 }
 
 /** A single computed snapshot resource: `aggregations/snapshots/<aggregationId>.ttl`. */
-function getComputedSnapshotUri(webId: string, aggregationId: string): string {
-  return `${snapshotsContainerUri(webId)}${aggregationId}.ttl`;
-}
+
 
 /** The definition's subject node (a fragment of its own resource). */
 function aggregationNodeFor(webId: string, aggregationId: string) {
@@ -374,7 +372,7 @@ export async function storeComputedSnapshot(
 
   await ensureAggregationsDirectoryExists(gateway);
 
-  const snapshotUri = getComputedSnapshotUri(gateway.webId, snapshot.id);
+  const snapshotUri = getSnapshotUri(gateway.webId, snapshot.id);
   const snapshotNode = namedNode(`${snapshotUri}#snapshot`);
 
   const store = new Store();
@@ -727,7 +725,7 @@ export async function getComputedSnapshotByAggregationId(
   aggregationId: string,
 ): Promise<AggregationSnapshot | null> {
   if (!gateway.webId) return null;
-  const snapshotUri = getComputedSnapshotUri(gateway.webId, aggregationId);
+  const snapshotUri = getSnapshotUri(gateway.webId, aggregationId);
   return loadComputedSnapshot(gateway, snapshotUri);
 }
 
@@ -747,7 +745,7 @@ export async function deleteAggregation(
   // Container-native: deleting the definition resource de-registers the aggregation
   // (it's discovered by listing); also drop its snapshot and any ACLs.
   const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
-  const snapshotUri = getComputedSnapshotUri(webId, aggregationId);
+  const snapshotUri = getSnapshotUri(webId, aggregationId);
   for (const url of [definitionUri, snapshotUri]) {
     // Resource FIRST, then its auxiliary .acl — never the reverse: removing the
     // .acl while the resource still exists briefly falls it back to the
@@ -762,9 +760,7 @@ export async function deleteAggregation(
   }
 }
 
-/**
- * Get the snapshot URL for an aggregation
- */
+/** The computed snapshot's IRI for an aggregation (`aggregations/snapshots/{id}.ttl`). */
 export function getSnapshotUri(webId: string, aggregationId: string): string {
-  return getComputedSnapshotUri(webId, aggregationId);
+  return `${snapshotsContainerUri(webId)}${aggregationId}.ttl`;
 }

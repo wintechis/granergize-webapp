@@ -1,5 +1,5 @@
-import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useEffect, useState } from "react";
+import { getGateway } from "../hooks/session.ts";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -164,7 +164,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   // The trailing destructive action for a room row: delete it (if you own it,
   // for everyone) or just drop the bookmark (if someone else hosts it).
   const deleteOrRemove = (r: string) =>
-    ownsRoom(r, sessionGateway(session))
+    ownsRoom(r, getGateway())
       ? (
         <Tooltip title={t("roomDeleteTooltip")}>
           <IconButton
@@ -196,7 +196,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
    * ResourceRow's caption subtitle). */
   const roomMeta = (r: string) => (
     <>
-      {ownsRoom(r, sessionGateway(session))
+      {ownsRoom(r, getGateway())
         ? t("roomHostedByYou")
         : t("roomHostedBy", { host: roomHost(r) })}
       {r === activeRoom && (

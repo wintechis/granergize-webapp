@@ -242,7 +242,7 @@ function AgentWrapper() {
  * `?uri=`. `?ref=` is accepted as a fallback and passed through — `Room` /
  * `useEnterRoom` apply `extractRoomUri`/`normalizeRoomUri` to whatever arrives.
  */
-function RoomWrapper({ session }: { session: Session }) {
+function RoomWrapper() {
   const [sp] = useSearchParams();
   const roomUri = sp.get("uri") ?? sp.get("ref") ?? "";
   if (!roomUri) {
@@ -250,7 +250,7 @@ function RoomWrapper({ session }: { session: Session }) {
   }
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <RoomDetail roomUri={roomUri} session={session} />
+      <RoomDetail roomUri={roomUri} />
     </Container>
   );
 }
@@ -342,7 +342,7 @@ function App({ onLogout, session }: AppProps) {
     { path: DETAIL_PATTERNS.observation, element: <EnergyWrapper /> },
     { path: DETAIL_PATTERNS.aggregation, element: <AggregationWrapper session={session} /> },
     { path: DETAIL_PATTERNS.agent, element: <AgentWrapper /> },
-    { path: DETAIL_PATTERNS.room, element: <RoomWrapper session={session} /> },
+    { path: DETAIL_PATTERNS.room, element: <RoomWrapper /> },
     { path: DETAIL_PATTERNS.regional, element: <RegionalWrapper /> },
     { path: DETAIL_PATTERNS.dataSources, element: <DataSourcesWrapper /> },
     { path: DETAIL_PATTERNS.organisation, element: <Organisation /> },

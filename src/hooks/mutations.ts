@@ -750,34 +750,6 @@ export function useFindRegionalStatistics() {
   });
 }
 
-// Single-entity + relationship read adapters (§8): thin wrappers over the read
-// cores via query(); no meta.action, no invalidation (reads return a value).
-export function useGetBuilding() {
-  return useMutation({
-    mutationFn: (id: string) => query("GetBuilding", { id }, getGateway()),
-  });
-}
-
-export function useGetObservationYear() {
-  return useMutation({
-    mutationFn: (p: { building: string; year: number }) =>
-      query("GetObservationYear", p, getGateway()),
-  });
-}
-
-export function useWhoHasAccess() {
-  return useMutation({
-    mutationFn: (buildingUri: string) =>
-      query("WhoHasAccess", { buildingUri }, getGateway()),
-  });
-}
-
-export function useSharedWithMe() {
-  return useMutation({
-    mutationFn: () => query("SharedWithMe", {}, getGateway()),
-  });
-}
-
 export function useAuditGrants() {
   return useMutation({
     meta: { action: "actionCheckSharing" },

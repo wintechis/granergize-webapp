@@ -24,10 +24,11 @@ export function _setSessionForTesting(session: Session | null): void {
 /**
  * The composition root: the active session adapted into the {@link PodGateway}
  * port the data layer depends on. This is where the @inrupt `Session` is unwrapped
- * — the React hooks call `getGateway()` (not `getSession()`) when handing the
- * transport to a query/mutation/intent, so the framework type never crosses into
- * the data layer. Only auth-flow code (`Login`/`main.tsx`) and the WebID read
- * (`webIdOf`) still touch the raw `Session`.
+ * — hooks AND components call `getGateway()` (never `sessionGateway(session)`
+ * by hand) when handing the transport to a query/mutation/intent/service, so
+ * the framework type never crosses into the data layer and the composition
+ * happens in exactly one place. Only auth-flow code (`Login`/`main.tsx`) and
+ * the WebID read (`webIdOf`) still touch the raw `Session`.
  */
 export function getGateway(): PodGateway {
   return sessionGateway(getSession());

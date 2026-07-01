@@ -58,16 +58,10 @@ import {
   IRI_TO_SYSTEM_KIND,
 } from "../vocabularies.ts";
 import { Store } from "n3";
+import { localName } from "../rdfHelpers.ts";
 import { parseDatasetLink } from "../../energy/energyDataset.ts";
 import { buildingIdFor } from "./buildingId.ts";
 
-/** Get the local name (after # or last /) from an IRI */
-function localName(iri: string): string {
-  const hash = iri.split("#")[1];
-  if (hash) return hash;
-  const parts = iri.split("/");
-  return parts[parts.length - 1];
-}
 
 /**
  * Parse buildings out of a quad set. Detection is TYPE-driven: a named-node

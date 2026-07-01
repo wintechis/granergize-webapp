@@ -1,7 +1,7 @@
 import { type RefObject, useRef } from "react";
+import { getGateway } from "./session.ts";
 import { useNavigate } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
@@ -137,7 +137,7 @@ export function useAccountActions(
     }
     restoreMut.mutate({ bytes }, {
       onSuccess: ({ restored, rebasedTo, rebasedWebId, reissued }) => {
-        hydrateActiveRoom(sessionGateway(session)).catch((err) =>
+        hydrateActiveRoom(getGateway()).catch((err) =>
           logError("hydrate active data room", err)
         );
         const rebased = rebasedTo || rebasedWebId ? msg("devRebased") : "";
@@ -235,7 +235,7 @@ export function useAccountActions(
     let resources: string[] = [];
     try {
       if (root) {
-        resources = await listContainedResources(`${root}${APP_DIR}/`, sessionGateway(session));
+        resources = await listContainedResources(`${root}${APP_DIR}/`, getGateway());
       }
     } catch (err) {
       logError("list app-data resources for wipe preview", err);
@@ -277,7 +277,7 @@ export function useAccountActions(
       // were reset by the mutation). Re-hydrate the (now absent) active room
       // and re-offer the demo buildings — startup no longer re-seeds silently,
       // so there's nothing to "log out to avoid" any more.
-      hydrateActiveRoom(sessionGateway(session)).catch((err) =>
+      hydrateActiveRoom(getGateway()).catch((err) =>
         logError("hydrate active data room", err)
       );
       // Re-offer the demo buildings now the collection is empty again: the wipe

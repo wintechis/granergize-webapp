@@ -2,6 +2,23 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — Consistency sweep: one way to do each thing
+
+- Gateway composition happens in one place: components call `getGateway()`
+  instead of hand-composing `sessionGateway(session)` (the `session` prop is
+  unthreaded where that was its last use).
+- Dead palette-read adapters deleted (incl. the `useSharedWithMe` that shadowed
+  the reactive one by name); catalog reads may be hook-less.
+- One `localName` (rdfHelpers), one concurrency limiter (`lib/pool`), one
+  snapshot-uri builder, central FOAF/OWL constants, `roomNames` on its own query
+  key, and the wrapper-status/regional-cube copy-paste loops share helpers.
+
+## [2026-07-02] — Docs: CLAUDE.md catches up with the code
+
+Stale paths fixed (`turtleParsing.ts`, `sharing.ts`/`sharingLog.ts`,
+`src/constants/listStyles.ts`) and the query-key registry pointer now names
+`src/lib/queryKeys.ts`.
+
 ## [2026-07-02] — Intents: palette settlement, honest bulk clear, one dev gate
 
 - The ⌘K palette's post-invoke settlement shares the room-registry folds with

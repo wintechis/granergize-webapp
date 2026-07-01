@@ -1,5 +1,5 @@
-import { sessionGateway } from "../services/pod/podGateway.ts";
 import { msg } from "../lib/messages.ts";
+import { getGateway } from "../hooks/session.ts";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -137,7 +137,7 @@ export function ShareBuildingDialog({
       const resolved = await getMembersByRole(
         getActiveRoom(),
         targetRole,
-        sessionGateway(session),
+        getGateway(),
       );
       if (resolved.length === 0) {
         setWebIdError(msg("shareNoRoleMembers"));

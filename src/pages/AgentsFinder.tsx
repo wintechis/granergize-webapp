@@ -1,5 +1,5 @@
-import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useState } from "react";
+import { getGateway } from "../hooks/session.ts";
 import {
   Box,
   Button,
@@ -101,7 +101,7 @@ export default function AgentsFinder({ session }: AgentsFinderProps) {
   const addToBook = async (webId: string) => {
     await saveAgentMut.mutateAsync({ webId, name: webIdFragment(webId) });
     showNotification(t("agentAdded"), "success");
-    void resolveAgent(webId, sessionGateway(session))
+    void resolveAgent(webId, getGateway())
       .then((agent) => saveAgentMut.mutateAsync(agent))
       .catch((e) => logError("upgrade added agent profile", e));
   };

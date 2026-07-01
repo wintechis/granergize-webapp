@@ -1,9 +1,8 @@
-import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useEffect, useRef } from "react";
+import { getGateway } from "../hooks/session.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
-import { Session } from "@inrupt/solid-client-authn-browser";
 import { normalizeRoomUri, ownsRoom } from "../services/interop/dataRoom.ts";
 import { useRoomState } from "../hooks/queries.ts";
 import { queryKeys } from "../lib/queryKeys.ts";
@@ -42,7 +41,7 @@ function roomHost(roomUri: string): string {
  * renders detail in place.
  */
 export default function RoomDetail(
-  { roomUri, session }: { roomUri: string; session: Session },
+  { roomUri }: { roomUri: string },
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
@@ -60,7 +59,7 @@ export default function RoomDetail(
   };
 
   const room = normalizeRoomUri(roomUri);
-  const owned = ownsRoom(room, sessionGateway(session));
+  const owned = ownsRoom(room, getGateway());
 
   // Enter (join + bookmark + make current) on mount — preserves invite links.
   // useEnterRoom patches the registry cache, so `current` updates and the room

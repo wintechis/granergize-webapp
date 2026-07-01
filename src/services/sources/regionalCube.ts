@@ -17,6 +17,7 @@
  * pure for offline unit-testing.
  */
 import type { Store } from "n3";
+import type { Quad_Subject } from "@rdfjs/types";
 import { QB_NS, RDF_TYPE, SKOS_NS, SKOS_PREF_LABEL } from "../rdf/vocabularies.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
@@ -161,6 +162,51 @@ export const REGIONALSTATISTIK_ROUTES = {
   cl: "cl",
 } as const satisfies Record<string, RegionalstatistikRoute>;
 
+/** One qb:Observation's extracted cells: the geo IRI, year, value, unit and
+ * per-selector auxiliary dimensions — the inner loop `parseRegionalObservations`
+ * and `parseRegionalChoropleth` share (only their keep/keying differs). */
+interface ObservationCells {
+  geo: string;
+  year: number | null;
+  value: number | null;
+  unit: string;
+  aux: Map<string, string>;
+}
+
+function extractCells(
+  store: Store,
+  subject: Quad_Subject,
+  geoDimSuffix: string,
+  selectors: readonly { dimSuffix: string; valueFrag: string }[],
+): ObservationCells {
+  let geo = "";
+  let year: number | null = null;
+  let value: number | null = null;
+  let unit = "";
+  const aux = new Map<string, string>();
+  for (const q of store.getQuads(subject, null, null, null)) {
+    const p = q.predicate.value;
+    if (p.endsWith(geoDimSuffix)) geo = q.object.value;
+    else if (p.endsWith("#dim-TIME_PERIOD")) year = Number.parseInt(q.object.value, 10);
+    else if (p.endsWith("#measure-OBS_VALUE")) value = Number.parseFloat(q.object.value);
+    else if (p.endsWith("#unit")) unit = q.object.value;
+    else {
+      for (const s of selectors) if (p.endsWith(s.dimSuffix)) aux.set(s.dimSuffix, q.object.value);
+    }
+  }
+  return { geo, year, value, unit, aux };
+}
+
+/** Do the observation's auxiliary dimensions match every configured selector? */
+function selectorsMatch(
+  cells: ObservationCells,
+  selectors: readonly { dimSuffix: string; valueFrag: string }[],
+): boolean {
+  return selectors.every((s) =>
+    (cells.aux.get(s.dimSuffix) ?? "").endsWith(`#${s.valueFrag}`)
+  );
+}
+
 /**
  * Parse a Data Cube Turtle document into the observations for one region
  * (`agsCode`), sorted by year. Pure — the network-free half, unit-tested with a
@@ -185,33 +231,16 @@ export function parseRegionalObservations(
 
   const out: RegionalObservation[] = [];
   for (const { subject } of observations) {
-    let geo = "";
-    let year: number | null = null;
-    let value: number | null = null;
-    let unit = "";
-    const aux = new Map<string, string>();
-    for (const q of store.getQuads(subject, null, null, null)) {
-      const p = q.predicate.value;
-      if (p.endsWith(geoDimSuffix)) geo = q.object.value;
-      else if (p.endsWith("#dim-TIME_PERIOD")) year = Number.parseInt(q.object.value, 10);
-      else if (p.endsWith("#measure-OBS_VALUE")) value = Number.parseFloat(q.object.value);
-      else if (p.endsWith("#unit")) unit = q.object.value;
-      else {
-        for (const s of selectors) if (p.endsWith(s.dimSuffix)) aux.set(s.dimSuffix, q.object.value);
-      }
-    }
+    const c = extractCells(store, subject, geoDimSuffix, selectors);
     const geoMatch = geoCodeStyle === "ags"
-      ? geo.endsWith(`/ags/${agsCode}`)
-      : geo.endsWith(`#${agsCode}`);
-    const selMatch = selectors.every((s) =>
-      (aux.get(s.dimSuffix) ?? "").endsWith(`#${s.valueFrag}`)
-    );
+      ? c.geo.endsWith(`/ags/${agsCode}`)
+      : c.geo.endsWith(`#${agsCode}`);
     if (
-      geoMatch && selMatch &&
-      year != null && !Number.isNaN(year) &&
-      value != null && !Number.isNaN(value)
+      geoMatch && selectorsMatch(c, selectors) &&
+      c.year != null && !Number.isNaN(c.year) &&
+      c.value != null && !Number.isNaN(c.value)
     ) {
-      out.push({ year, value, unit });
+      out.push({ year: c.year, value: c.value, unit: c.unit });
     }
   }
   return out.sort((a, b) => a.year - b.year);
@@ -285,35 +314,22 @@ export function parseRegionalChoropleth(
 
   const byAgs = new Map<string, RegionalObservation>();
   for (const { subject } of observations) {
-    let geo = "";
-    let year: number | null = null;
-    let value: number | null = null;
-    let unit = "";
-    const aux = new Map<string, string>();
-    for (const q of store.getQuads(subject, null, null, null)) {
-      const p = q.predicate.value;
-      if (p.endsWith(geoDimSuffix)) geo = q.object.value;
-      else if (p.endsWith("#dim-TIME_PERIOD")) year = Number.parseInt(q.object.value, 10);
-      else if (p.endsWith("#measure-OBS_VALUE")) value = Number.parseFloat(q.object.value);
-      else if (p.endsWith("#unit")) unit = q.object.value;
-      else for (const s of selectors) if (p.endsWith(s.dimSuffix)) aux.set(s.dimSuffix, q.object.value);
-    }
-    const selMatch = selectors.every((s) =>
-      (aux.get(s.dimSuffix) ?? "").endsWith(`#${s.valueFrag}`)
-    );
+    const c = extractCells(store, subject, geoDimSuffix, selectors);
     if (
-      !selMatch || year == null || Number.isNaN(year) ||
-      value == null || Number.isNaN(value)
+      !selectorsMatch(c, selectors) || c.year == null || Number.isNaN(c.year) ||
+      c.value == null || Number.isNaN(c.value)
     ) continue;
-    if (maxYear != null && year > maxYear) continue;
+    if (maxYear != null && c.year > maxYear) continue;
     // Extract the AGS code from the geo dimension's object IRI (inverse of the
     // per-style suffix match in parseRegionalObservations).
     const ags = geoCodeStyle === "ags"
-      ? (geo.match(/\/ags\/([^/]+)$/)?.[1] ?? "")
-      : (geo.includes("#") ? geo.slice(geo.lastIndexOf("#") + 1) : "");
+      ? (c.geo.match(/\/ags\/([^/]+)$/)?.[1] ?? "")
+      : (c.geo.includes("#") ? c.geo.slice(c.geo.lastIndexOf("#") + 1) : "");
     if (!ags) continue;
     const prev = byAgs.get(ags);
-    if (!prev || year > prev.year) byAgs.set(ags, { year, value, unit });
+    if (!prev || c.year > prev.year) {
+      byAgs.set(ags, { year: c.year, value: c.value, unit: c.unit });
+    }
   }
   return byAgs;
 }

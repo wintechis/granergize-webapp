@@ -78,7 +78,7 @@ export default function BuildingDetail({ building }: BuildingProps) {
       <SystemListSection building={building} group="energy" />
       <SystemListSection building={building} group="heat" />
       <ObservationsLink building={building} />
-      <BuildingFilesSection building={building} session={session} />
+      <BuildingFilesSection building={building} />
       <SharingSection
         building={building}
         session={session}

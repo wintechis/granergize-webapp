@@ -1,8 +1,7 @@
-import { sessionGateway } from "../../services/pod/podGateway.ts";
 import { msg } from "../../lib/messages.ts";
+import { getGateway } from "../../hooks/session.ts";
 import { useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
-import { Session } from "@inrupt/solid-client-authn-browser";
 import type { AttachmentRef, Building } from "../../types.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { useConfirm } from "../../context/ConfirmContext.tsx";
@@ -29,7 +28,7 @@ const MAX_FILES = 20;
  * building is read-only (download only); the recipient can't write the owner's container.
  */
 export default function BuildingFilesSection(
-  { building, session }: { building: Building; session: Session },
+  { building }: { building: Building },
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
@@ -46,7 +45,7 @@ export default function BuildingFilesSection(
   const upload = useUploadAttachments();
   const del = useDeleteAttachment();
   const cert = useSetEnergyCertificate();
-  const { download, downloadingUrl } = useAttachmentDownload(sessionGateway(session));
+  const { download, downloadingUrl } = useAttachmentDownload(getGateway());
   const busy = upload.isPending || del.isPending || cert.isPending ||
     downloadingUrl !== null;
 

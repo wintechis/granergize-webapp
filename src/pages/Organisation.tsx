@@ -3,8 +3,7 @@ import { Box, Button, Stack, Typography } from "@mui/material";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import EditIcon from "@mui/icons-material/Edit";
 import { msg } from "../lib/messages.ts";
-import { getSession } from "../hooks/session.ts";
-import { sessionGateway } from "../services/pod/podGateway.ts";
+import { getGateway, getSession } from "../hooks/session.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useSaveOrganisation } from "../hooks/mutations.ts";
 import {
@@ -102,7 +101,7 @@ export default function Organisation() {
   // render rule). `loading` is derived from the not-yet-resolved null.
   useEffect(() => {
     let cancelled = false;
-    getOrganisation(sessionGateway(session))
+    getOrganisation(getGateway())
       .then((o) => {
         if (!cancelled) setOrg(o ?? {});
       })

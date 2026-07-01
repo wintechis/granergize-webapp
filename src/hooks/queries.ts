@@ -706,9 +706,9 @@ export function useRooms() {
  */
 export function useRoomNames(roomUris: readonly string[]) {
   return useWebIdQuery(
-    queryKeys.rooms,
+    queryKeys.roomNames,
     (gateway) => readRoomNames(roomUris, gateway),
-    { extraKey: ["names", ...[...roomUris].sort()], staleTime: Infinity },
+    { extraKey: [...roomUris].sort(), staleTime: Infinity },
   );
 }
 

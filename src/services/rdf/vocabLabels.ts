@@ -9,17 +9,11 @@
  */
 
 import { type Lang, VOCAB_COMMENTS, VOCAB_LABELS } from "./vocabLabels.generated.ts";
+import { localName } from "./rdfHelpers.ts";
 import { getLanguage } from "../../lib/language.ts";
 import { BUILDING_FIELDS } from "./building/buildingConfig.ts";
 import type { Building } from "../../types.ts";
 
-/** The local-name fragment of an IRI: after the last `#` or `/`. */
-function localName(iri: string): string {
-  const hash = iri.lastIndexOf("#");
-  const slash = iri.lastIndexOf("/");
-  const cut = Math.max(hash, slash);
-  return cut >= 0 ? iri.slice(cut + 1) : iri;
-}
 
 /**
  * Human-readable label for a term IRI in the active (or given) language.

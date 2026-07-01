@@ -142,33 +142,33 @@ export const INTENTS: readonly IntentEntry[] = [
     entity: "aggregation",
     hook: "useFindRegionalStatistics",
   },
+  // The four single-entity/relationship reads are PALETTE-ONLY: the launcher
+  // reaches them through invokeByName/query(), so they carry no hook adapter
+  // (dead per-verb useMutation wrappers were deleted — one of them also
+  // shadowed queries.ts' reactive useSharedWithMe by name).
   {
     name: "GetBuilding",
     action: "",
     effect: "read",
     entity: "building",
-    hook: "useGetBuilding",
   },
   {
     name: "GetObservationYear",
     action: "",
     effect: "read",
     entity: "observation",
-    hook: "useGetObservationYear",
   },
   {
     name: "WhoHasAccess",
     action: "",
     effect: "read",
     entity: "sharing",
-    hook: "useWhoHasAccess",
   },
   {
     name: "SharedWithMe",
     action: "",
     effect: "read",
     entity: "sharing",
-    hook: "useSharedWithMe",
   },
   // ── Energy (observations) ────────────────────────────────────────────────────
   {
