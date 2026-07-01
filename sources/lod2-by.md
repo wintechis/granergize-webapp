@@ -2,8 +2,8 @@
 
 `linked-lod2-by` (`~/projects/linked-lod2-by`) publishes the LDBV LoD2-BY 3D
 building model (CityGML LoD2, **Bavaria-only** pilot) as RDF. The app reads it
-through `src/services/lod2Rooftop.ts` and computes rooftop-PV potential in
-`src/services/rooftopPv.ts` (with `pvgis.md`). Shares the LDP/RDF patterns
+through `src/services/sources/lod2Rooftop.ts` and computes rooftop-PV potential in
+`src/services/sources/rooftopPv.ts` (with `pvgis.md`). Shares the LDP/RDF patterns
 catalogued in `mastr.md`.
 
 ## Entities and vocabulary

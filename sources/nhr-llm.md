@@ -2,7 +2,7 @@
 
 The **FAU NHR LLM gateway** (`hub.nhr.fau.de/api/llmgw/v1`, `VITE_LLM_API_URI` /
 `VITE_LLM_API_KEY` / `VITE_LLM_MODEL`) is the language-model backend the app calls
-in `src/services/llm/intentTranslate.ts` to turn a natural-language query into a
+in `src/intents/llm/intentTranslate.ts` to turn a natural-language query into a
 structured app intent. An OpenAI-compatible chat API — **not RDF, not a data
 source** — its own source id, distinct in kind from every other entry here.
 

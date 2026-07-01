@@ -2,7 +2,7 @@
 
 `linked-netztransparenz` (`~/projects/linked-netztransparenz`) publishes the German
 TSOs' EEG-Jahresabrechnung — a plant's **actually-settled** renewable generation in kWh
-per year. The app reads it through `src/services/netztransparenz.ts`
+per year. The app reads it through `src/services/sources/netztransparenz.ts`
 (`fetchPlantGenerationByYear` / `parsePlantSettlements`) and shows it as an annual
 bar chart on the open observation detail. Shares the LDP/RDF patterns catalogued in
 `mastr.md`; CORS-enabled, fetched directly. The app reaches it purely by **deref** of

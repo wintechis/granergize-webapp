@@ -2,8 +2,8 @@
 
 `linked-regionalstatistik` (`~/projects/linked-regionalstatistik`) publishes
 the German Regionalstatistik / GENESIS tables as an **RDF Data Cube** (`qb:`,
-Turtle). The app reads it through `src/services/regionalCube.ts` (with
-`src/services/openRegional.ts` / `src/hooks/regional.ts` picking the region). It
+Turtle). The app reads it through `src/services/sources/regionalCube.ts` (with
+`src/services/sources/openRegional.ts` / `src/hooks/regional.ts` picking the region). It
 shares the LDP/RDF patterns catalogued in `mastr.md`; this note records the
 cube-specific part and the convergence with our SOSA model.
 

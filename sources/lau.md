@@ -3,7 +3,7 @@
 `linked-lau` (`~/projects/linked-lau`) publishes the EU LAU level — German
 Gemeinden — as SKOS
 Linked Data with GeoSPARQL geometry. The app reads it through
-`src/services/regionGeometry.ts`: `/geojson?parent={nuts3}` or `?bbox=…` (scoped,
+`src/services/sources/regionGeometry.ts`: `/geojson?parent={nuts3}` or `?bbox=…` (scoped,
 since the whole Gemeinde layer is ~149 MB), and `/contains?lat=&lon=` to resolve
 a coordinate to its Gemeinde. Companion to `nuts.md` (same family, finer level);
 shares the LDP/RDF patterns catalogued in `mastr.md`.

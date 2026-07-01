@@ -1,18 +1,24 @@
 # Nominatim geocoding ↔ our model
 
-OpenStreetMap **Nominatim** (`nominatim.openstreetmap.org`) is the geocoder the
-app calls in `src/services/geocode.ts` to fill a building's missing coordinates
-from its address. A plain HTTP/JSON service — **not RDF / Linked Data** — so it
-sits outside the vocabulary-correspondence frame; documented here as its own
-source id.
+OpenStreetMap **Nominatim** is the geocoder the app calls in
+`src/services/sources/geocode.ts` to fill a building's missing coordinates from
+its address — reached **through the `linked-osm` proxy** (`nominatim/search`, via
+`sourceBase("osm")`), not the public `nominatim.openstreetmap.org` host directly.
+So it is the geocoding half of the `osm` source id (`osm.md`) and its transport
+(base + `VITE_OSM_API_URI`) lives in the registry under `osm`; `nominatim.openstreetmap.org`
+survives only as the upstream origin recorded in provenance (below). A plain
+HTTP/JSON service — **not RDF / Linked Data** — so it sits outside the
+vocabulary-correspondence frame; documented here as its own source id.
 
 ## What it is
 
-`GET /search?q={query}&format=json&limit=1`, with a `User-Agent` identifying the
-app (Nominatim policy), throttled to ≤1 req/s. The app runs a **progressive
-fallback**: full street address → postcode + city → city, and tags the result
-with the precision it succeeded at (`address` / `postcode` / `city`). Response is
-a JSON array; the app reads `lat` / `lon`.
+`GET nominatim/search.json?q={query}&limit=1` on the `linked-osm` base, with a
+`User-Agent` identifying the app (Nominatim policy) and a ≤1 req/s throttle paid
+**only on a miss** (a first-try hit adds no delay). The app runs a **progressive
+fallback**: full street address → postcode + city → city, tagging the result with
+the precision it succeeded at (`Address` / `Postcode` / `City`). The proxy returns
+a **GeoJSON `FeatureCollection`**; the app reads `features[0].geometry.coordinates`
+(`[lon, lat]`).
 
 ## Relation to our model
 

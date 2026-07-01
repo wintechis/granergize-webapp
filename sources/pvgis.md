@@ -3,7 +3,7 @@
 PVGIS v5.2 (EU JRC, `re.jrc.ec.europa.eu`) is the source of the photovoltaic
 specific-yield grid the app uses to turn roof geometry into expected kWh. **Not a
 live external fetch** — a single pre-computed cell is *baked into the repo* as
-`src/services/pvgisGridData.ts` and read through `src/services/pvgisGrid.ts`.
+`src/services/sources/pvgisGridData.ts` and read through `src/services/sources/pvgisGrid.ts`.
 Listed here as its own source id for provenance, though it ships as static data.
 
 ## What it is

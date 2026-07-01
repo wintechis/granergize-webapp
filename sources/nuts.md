@@ -3,7 +3,7 @@
 `linked-nuts` (`~/projects/linked-nuts`) publishes the EU NUTS statistical
 regions as SKOS Linked
 Data with GeoSPARQL geometry. The app reads it through
-`src/services/regionGeometry.ts`: `/geojson?level={1|3}&parent=DE` for choropleth
+`src/services/sources/regionGeometry.ts`: `/geojson?level={1|3}&parent=DE` for choropleth
 polygons, and `/contains?lat=&lon=` to resolve a coordinate to its containing
 region. Shares the LDP/RDF patterns catalogued in `mastr.md`; this note records
 the NUTS-specific part.

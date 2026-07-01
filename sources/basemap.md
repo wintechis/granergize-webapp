@@ -2,7 +2,7 @@
 
 **basemap.de** (BKG — Bundesamt für Kartographie und Geodäsie), served via WMS at
 `sgx.geodatenzentrum.de/wms_basemapde`, is the default base map under the Leaflet
-maps (`ExplorePage.tsx`, `RegionalMetricsMap.tsx`, the locator/neighbourhood maps,
+maps (`BuildingsMap.tsx`, `RegionalMetricsMap.tsx`, the locator/neighbourhood maps,
 `src/lib/orthophoto.ts`). A WMS raster tile service — **not RDF** — documented
 here as its own source id.
 
