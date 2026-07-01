@@ -488,6 +488,20 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "map-tabs.png");
 
+    // --- Command palette (command-palette.png): ⌘K / Ctrl+K opens the global
+    //     action + query launcher; capture it open with its default command list. ---
+    await page.keyboard.press("Control+k");
+    const palette = page.getByRole("dialog");
+    const paletteShown = await palette
+      .waitFor({ state: "visible", timeout: 10_000 })
+      .then(() => true).catch(() => false);
+    if (paletteShown) {
+      await page.waitForTimeout(600);
+      await shot(page, "command-palette.png");
+      await page.keyboard.press("Escape").catch(() => {});
+      await palette.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
+    }
+
     // --- Energy map (energy-lens.png): energy moved out of Buildings into the
     //     Observations finder; its Map view IS the energy map — markers tinted by
     //     energy intensity, the legend showing the efficiency categories. The annual
@@ -551,6 +565,21 @@ test.describe("handbuch screenshots", () => {
       await page.waitForLoadState("networkidle").catch(() => {});
       await page.waitForTimeout(800);
       await shot(page, "energy-detail.png");
+
+      // --- Regional statistics (regional-context.png): the observation page also
+      //     shows the building's official regional figures (renewable share,
+      //     primary energy …) for its Bundesland/Kreis — the open-data benchmark
+      //     backdrop, as a table or an inset choropleth. Best-effort: depends on
+      //     the external Regionalstatistik service being reachable. ---
+      const regionalSection = page.getByText(/Regional (context|statistics)/i).first();
+      const regionalShown = await regionalSection
+        .waitFor({ state: "visible", timeout: 20_000 })
+        .then(() => true).catch(() => false);
+      if (regionalShown) {
+        await regionalSection.scrollIntoViewIfNeeded().catch(() => {});
+        await page.waitForTimeout(1_500);
+        await shot(page, "regional-context.png");
+      }
 
       // --- The Energieverbrauchsbenchmark walkthrough punchline
       //     (benchmark-payoff.png): a focused
