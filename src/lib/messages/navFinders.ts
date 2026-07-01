@@ -71,6 +71,40 @@ export const navFinders = {
     de: "Beobachtungen für {name} gelöscht",
     fr: "Observations effacées pour {name}",
   },
+  obsClearedPartial: {
+    en: "Cleared {done} of {total} observation datasets for {name} — the rest could not be deleted",
+    de: "{done} von {total} Beobachtungs-Datensätzen für {name} gelöscht — der Rest konnte nicht gelöscht werden",
+    fr: "{done} des {total} jeux d'observations de {name} effacés — le reste n'a pas pu être supprimé",
+  },
+  exportedBuildingsPartial: {
+    en: "Exported {done} of {total} buildings; the rest could not be read.",
+    de: "{done} von {total} Gebäuden exportiert; der Rest konnte nicht gelesen werden.",
+    fr: "{done} des {total} bâtiments exportés ; le reste n’a pas pu être lu.",
+  },
+  obsDatasetSummary: {
+    en: {
+      one: "1 year ({range}) · {kind}",
+      other: "{count} years ({range}) · {kind}",
+    },
+    de: {
+      one: "1 Jahr ({range}) · {kind}",
+      other: "{count} Jahre ({range}) · {kind}",
+    },
+    fr: {
+      one: "1 an ({range}) · {kind}",
+      other: "{count} ans ({range}) · {kind}",
+    },
+  },
+  obsKindAnnual: {
+    en: "annual",
+    de: "jährlich",
+    fr: "annuel",
+  },
+  obsKindAnnualPlusSeries: {
+    en: "annual + time series",
+    de: "jährlich + Zeitreihe",
+    fr: "annuel + série temporelle",
+  },
   aggregationsEmpty: {
     en:
       "No aggregations yet. Create one to aggregate energy values across buildings.",

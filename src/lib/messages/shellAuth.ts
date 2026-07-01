@@ -370,6 +370,41 @@ export const shellAuth = {
     de: "Anmeldung fehlgeschlagen.",
     fr: "Échec de la connexion.",
   },
+  loginInvalidWebAddress: {
+    en: "That doesn’t look like a web address.",
+    de: "Das sieht nicht wie eine Web-Adresse aus.",
+    fr: "Cela ne ressemble pas à une adresse web.",
+  },
+  loginRedirectingTo: {
+    en: "Redirecting to {idp}…",
+    de: "Weiterleitung zu {idp}…",
+    fr: "Redirection vers {idp}…",
+  },
+  loginErrorDetails: {
+    en: "Details:",
+    de: "Details:",
+    fr: "Détails :",
+  },
+  noAgentSpecified: {
+    en: "No agent specified.",
+    de: "Kein Akteur angegeben.",
+    fr: "Aucun acteur indiqué.",
+  },
+  noRoomSpecified: {
+    en: "No data room specified.",
+    de: "Kein Datenraum angegeben.",
+    fr: "Aucune salle de données indiquée.",
+  },
+  podStorageError: {
+    en: "Could not locate your Pod storage: {error}",
+    de: "Der Pod-Speicher konnte nicht gefunden werden: {error}",
+    fr: "Impossible de localiser le stockage du Pod : {error}",
+  },
+  backToLogin: {
+    en: "Back to login",
+    de: "Zurück zur Anmeldung",
+    fr: "Retour à la connexion",
+  },
   loginEnterIdpHint: {
     en:
       "Enter your identity provider’s web address — for example https://login.inrupt.com or https://solidcommunity.net — not your email or WebID.",

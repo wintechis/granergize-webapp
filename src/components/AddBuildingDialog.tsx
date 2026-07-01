@@ -213,7 +213,7 @@ export default function AddBuildingDialog(
       ];
       if (ignored.length > 0) {
         showNotification(
-          `Ignored unrecognised column(s): ${ignored.join(", ")}`,
+          msg("importIgnoredColumns", { columns: ignored.join(", ") }),
           "warning",
         );
       }

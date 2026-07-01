@@ -2,6 +2,14 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — i18n: the hardcoded English strings join the catalog
+
+A dozen user-facing strings bypassed the trilingual message catalog (login
+errors, App-shell wrappers, import/validation/export toasts). All are catalog
+keys now (en/de/fr), and the observations summary's hand-rolled `"year"+"s"`
+pluralization is a locale-driven `datasetSummary` helper in `buildingDisplay`
+using the catalog's plural entries.
+
 ## [2026-07-02] — LoD2 nearby rooftops: one deref per building
 
 The kWp rating and the roof footprints live in the same dereferenced building

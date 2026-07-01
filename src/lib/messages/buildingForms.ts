@@ -5,6 +5,16 @@
 import type { Message } from "./messageTypes.ts";
 
 export const buildingForms = {
+  importIgnoredColumns: {
+    en: "Ignored unrecognised column(s): {columns}",
+    de: "Unbekannte Spalte(n) ignoriert: {columns}",
+    fr: "Colonne(s) non reconnue(s) ignorée(s) : {columns}",
+  },
+  energyValueNotANumber: {
+    en: '"{raw}" is not a number ({label}) — use a dot as the decimal separator',
+    de: "„{raw}“ ist keine Zahl ({label}) — bitte einen Punkt als Dezimaltrennzeichen verwenden",
+    fr: "« {raw} » n’est pas un nombre ({label}) — utilisez un point comme séparateur décimal",
+  },
   // Building master-data section headers (read view + Add/Edit form).
   secAddress: { en: "Address", de: "Adresse", fr: "Adresse" },
   secLocationPhysical: {

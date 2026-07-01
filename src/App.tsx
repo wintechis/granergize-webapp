@@ -222,7 +222,7 @@ function AgentWrapper() {
   const [sp] = useSearchParams();
   const webId = sp.get("uri") ?? "";
   if (!webId) {
-    return <Typography>No agent specified.</Typography>;
+    return <Typography>{msg("noAgentSpecified")}</Typography>;
   }
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
@@ -246,7 +246,7 @@ function RoomWrapper({ session }: { session: Session }) {
   const [sp] = useSearchParams();
   const roomUri = sp.get("uri") ?? sp.get("ref") ?? "";
   if (!roomUri) {
-    return <Typography>No data room specified.</Typography>;
+    return <Typography>{msg("noRoomSpecified")}</Typography>;
   }
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
@@ -311,7 +311,7 @@ function App({ onLogout, session }: AppProps) {
     return (
       <Box sx={{ p: 4 }}>
         <Typography color="error" sx={{ mb: 2 }}>
-          Could not locate your Pod storage: {rootError}
+          {msg("podStorageError", { error: rootError })}
         </Typography>
         {
           /* This screen is otherwise a dead end (the app shell, and its logout
@@ -323,7 +323,7 @@ function App({ onLogout, session }: AppProps) {
           variant="contained"
           onClick={() => onLogout({ suppressAutoLogin: true })}
         >
-          Back to login
+          {msg("backToLogin")}
         </Button>
       </Box>
     );

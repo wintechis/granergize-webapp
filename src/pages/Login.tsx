@@ -444,7 +444,7 @@ export const Login: React.FC<LoginProps> = ({
     } catch {
       setInvalidIDP(true);
       setAttemptedIdp(login || enteredIdp);
-      setLoginErrorDetail("That doesn’t look like a web address.");
+      setLoginErrorDetail(msg("loginInvalidWebAddress"));
       return;
     }
     submitCallback(enteredIdp);
@@ -465,7 +465,7 @@ export const Login: React.FC<LoginProps> = ({
   if (redirectingTo) {
     return (
       <ActivityScreen
-        title={`Redirecting to ${redirectingTo}…`}
+        title={msg("loginRedirectingTo", { idp: redirectingTo })}
         onCancel={() => setRedirectingTo(null)}
       />
     );
@@ -637,7 +637,7 @@ export const Login: React.FC<LoginProps> = ({
                         color="text.secondary"
                         sx={{ mt: 0.5 }}
                       >
-                        Details: {loginErrorDetail}
+                        {msg("loginErrorDetails")} {loginErrorDetail}
                       </Typography>
                     )}
                   </Alert>

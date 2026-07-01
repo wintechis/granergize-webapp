@@ -304,6 +304,16 @@ export const notifications = {
     de: "Löschen der Energiedaten",
     fr: "la suppression des données énergétiques",
   },
+  actionDeclineDemos: {
+    en: "dismiss the demo-data offer",
+    de: "Ablehnen des Demodaten-Angebots",
+    fr: "le refus de l'offre de données de démonstration",
+  },
+  actionClearObservations: {
+    en: "clear the building's observations",
+    de: "Löschen der Beobachtungen des Gebäudes",
+    fr: "l'effacement des observations du bâtiment",
+  },
   actionLinkObservation: {
     en: "link the observation to a building",
     de: "Verknüpfen der Beobachtung mit einem Gebäude",

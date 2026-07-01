@@ -38,7 +38,8 @@ import {
   useDeleteEnergyYear,
   useWriteEnergyYear,
 } from "../hooks/mutations.ts";
-import { queryKeys, useAnnualDatasets } from "../hooks/queries.ts";
+import { useAnnualDatasets } from "../hooks/queries.ts";
+import { queryKeys } from "../lib/queryKeys.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import Modal from "./Modal.tsx";
@@ -292,7 +293,7 @@ export default function EnergyYearEditor(
         // DELETE that metric from the PUT.
         if (isNaN(n)) {
           showNotification(
-            `"${raw}" is not a number (${label}) — use a dot as the decimal separator`,
+            msg("energyValueNotANumber", { raw, label }),
             "error",
           );
           return;

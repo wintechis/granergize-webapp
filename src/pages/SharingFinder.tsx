@@ -121,7 +121,10 @@ export default function SharingFinder({ session }: SharingFinderProps) {
       downloadXlsx(await buildingsToXlsx(enriched), "buildings-shared.xlsx");
       if (built.length < sharedWithMe.length) {
         showNotification(
-          `Exported ${built.length} of ${sharedWithMe.length} buildings; the rest could not be read.`,
+          msg("exportedBuildingsPartial", {
+            done: built.length,
+            total: sharedWithMe.length,
+          }),
           "info",
         );
       }

@@ -35,3 +35,43 @@ Deno.test("buildingAddressLine joins street and city parts, omitting unset ones"
   assert.equal(buildingAddressLine(building({ locality: "Nürnberg" })), "Nürnberg");
   assert.equal(buildingAddressLine(building({})), "");
 });
+
+// ── datasetSummary — locale-driven (was a hand-rolled English `"year"+"s"`) ────
+
+import type { Building as B2 } from "../types.ts";
+import { datasetSummary } from "./buildingDisplay.ts";
+import { type MessageId, type MessageParams, translate } from "./messages.ts";
+
+const withDatasets = (years: number[], granularity = "P1Y"): B2 =>
+  ({
+    energyDatasets: years.map((year) => ({ year, granularity })),
+  }) as unknown as B2;
+
+const tEn = (id: MessageId, p?: MessageParams) => translate("en", id, p);
+const tDe = (id: MessageId, p?: MessageParams) => translate("de", id, p);
+
+Deno.test("datasetSummary pluralizes and localizes through the catalog", () => {
+  // One year — singular form, no hand-rolled "+s".
+  assert.equal(
+    datasetSummary(withDatasets([2024]), tEn),
+    "1 year (2024) · annual",
+  );
+  // Several years — plural + range.
+  assert.equal(
+    datasetSummary(withDatasets([2022, 2023, 2024]), tEn),
+    "3 years (2022–2024) · annual",
+  );
+  // German — the old inline English string structurally couldn't do this.
+  assert.equal(
+    datasetSummary(withDatasets([2022, 2024]), tDe),
+    "2 Jahre (2022–2024) · jährlich",
+  );
+});
+
+Deno.test("datasetSummary flags a sub-hourly series and handles the empty case", () => {
+  assert.equal(
+    datasetSummary(withDatasets([2024], "PT15M"), tEn),
+    "1 year (2024) · annual + time series",
+  );
+  assert.equal(datasetSummary(withDatasets([]), tEn), "");
+});
