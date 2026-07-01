@@ -20,6 +20,7 @@ import {
 } from "../services/sources/openObservations.ts";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { logError } from "../lib/logError.ts";
+import { sourceKeys } from "../services/sources/sourceKeys.ts";
 
 /**
  * Resolve a single open observation BY ITS MaStR unit IRI — the in-app detail drilled to
@@ -30,7 +31,7 @@ export function useOpenObservationDetail(
   iri: string,
 ): UseQueryResult<OpenObservationDetail | null> {
   return useQuery<OpenObservationDetail | null>({
-    queryKey: ["openObservationDetail", iri],
+    queryKey: [...sourceKeys.openObservationDetail, iri],
     enabled: Boolean(iri),
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
@@ -53,7 +54,7 @@ export function useOpenObservations(
   const lat = centre?.lat ?? null;
   const long = centre?.long ?? null;
   return useQuery<OpenObservation[]>({
-    queryKey: ["openObservations", lat, long, radiusM],
+    queryKey: [...sourceKeys.openObservations, lat, long, radiusM],
     enabled: enabled && lat != null && long != null,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
@@ -79,7 +80,7 @@ export function useNearbyGeneration(installationIris: readonly string[]) {
   // freshly-allocated array each render is a stable key (and the fetch's own dep).
   const sample = installationIris.slice(0, OPEN_OBSERVATIONS_LIMIT);
   return useQuery({
-    queryKey: ["nearbyGeneration", sample],
+    queryKey: [...sourceKeys.nearbyGeneration, sample],
     enabled: sample.length > 0,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {

@@ -3,7 +3,7 @@ import { getDefaultSession, Session } from "@inrupt/solid-client-authn-browser";
 import { useQueryClient } from "@tanstack/react-query";
 import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { queryKeys } from "./queries.ts";
+import { queryKeys } from "../lib/queryKeys.ts";
 import { sessionExpiredMessage } from "./queryErrors.ts";
 import { msg } from "../lib/messages.ts";
 import { drainInbox, ensureOwnInbox } from "../services/interop/inbox.ts";

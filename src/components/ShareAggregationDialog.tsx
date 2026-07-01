@@ -24,11 +24,11 @@ import {
   useShareAggregationSnapshot,
 } from "../hooks/mutations.ts";
 import {
-  queryKeys,
   useRoomState,
   useSharedAggregations,
   useSharedWithMe,
 } from "../hooks/queries.ts";
+import { queryKeys } from "../lib/queryKeys.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
 import { getSnapshotUri } from "../services/aggregation/aggregation.ts";
 import { summarizeContributors } from "../services/aggregation/aggregationComputer.ts";

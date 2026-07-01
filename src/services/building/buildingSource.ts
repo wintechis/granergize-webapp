@@ -3,6 +3,7 @@ import type { Quad } from "@rdfjs/types";
 import type { Building } from "../../types.ts";
 import type { PodGateway } from "../pod/podGateway.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
+import { queryKeys } from "../../lib/queryKeys.ts";
 import { fetchFresh } from "../pod/podFetch.ts";
 import { parseBuildings } from "../rdf/building/buildingParser.ts";
 import { buildingFileUri } from "../rdf/building/buildingId.ts";
@@ -45,12 +46,28 @@ export function parseBuildingSource(
     .parse(ttl)
     .map((q) => DataFactory.quad(q.subject, q.predicate, q.object, graph));
   const buildings = [...parseBuildings(quads, storageRoot).values()];
-  // Ownership = whether the source file lives under the user's storage root.
   if (storageRoot !== undefined) {
-    const isShared = !sourceUri.startsWith(storageRoot);
+    const isShared = isSharedSource(sourceUri, storageRoot);
     for (const b of buildings) b.isShared = isShared;
   }
   return buildings;
+}
+
+/**
+ * Ownership, derived from WHERE the source document lives: a source outside the
+ * viewer's storage root is shared-with-me; under it, their own. The ONE
+ * predicate every ownership derivation goes through (this per-source parse, the
+ * headless {@link import("../../intents/entityQuery.ts").resolveEntity}
+ * resolver), so the app load path and the resolvers cannot disagree about which
+ * buildings are own — the distinction that gates every owner-only verb. With no
+ * resolved root, ownership cannot be claimed → shared (the conservative default
+ * for owner-only affordance guards).
+ */
+export function isSharedSource(
+  sourceUri: string,
+  storageRoot: string | undefined,
+): boolean {
+  return storageRoot ? !sourceUri.startsWith(storageRoot) : true;
 }
 
 /**
@@ -79,7 +96,7 @@ export async function loadBuildingSource(
  * invalidates the `["buildingSource"]` prefix.
  */
 export function buildingSourceKey(webId: string, sourceUri: string) {
-  return ["buildingSource", webId, sourceUri] as const;
+  return [...queryKeys.buildingSource, webId, sourceUri] as const;
 }
 
 /**
@@ -119,7 +136,7 @@ export function cachedBuilding(buildingUri: string): Building | null {
   const qc = getAppQueryClient();
   if (!qc) return null;
   const entries = qc.getQueriesData<Building[]>({
-    predicate: (q) => q.queryKey[0] === "buildingSource",
+    predicate: (q) => q.queryKey[0] === queryKeys.buildingSource[0],
   });
   for (const [, data] of entries) {
     const b = data?.find((x) => x.uri === buildingUri);
@@ -155,7 +172,7 @@ export function visibleBuildings(
 export function cachedHiddenBuildings(webId: string): Set<string> | null {
   const qc = getAppQueryClient();
   if (!qc) return null;
-  const prefs = qc.getQueryData<{ hiddenBuildings: Set<string> }>(["prefs", webId]);
+  const prefs = qc.getQueryData<{ hiddenBuildings: Set<string> }>([...queryKeys.prefs, webId]);
   return prefs ? prefs.hiddenBuildings : null;
 }
 
@@ -171,14 +188,14 @@ export function cachedVisibleBuildings(gateway: PodGateway): Building[] | null {
   if (!qc) return null;
   // Cold cache: the buildings fan-out never ran → don't trust a partial set of sources.
   const containers = qc.getQueriesData<string[]>({
-    predicate: (q) => q.queryKey[0] === "buildingsContainer",
+    predicate: (q) => q.queryKey[0] === queryKeys.buildingsContainer[0],
   });
   if (!containers.some(([, data]) => data !== undefined)) return null;
   const hidden = cachedHiddenBuildings(gateway.webId);
   if (hidden === null) return null; // prefs not warm → fall back (don't show a hidden one)
 
   const entries = qc.getQueriesData<Building[]>({
-    predicate: (q) => q.queryKey[0] === "buildingSource",
+    predicate: (q) => q.queryKey[0] === queryKeys.buildingSource[0],
   });
   return visibleBuildings(entries.map(([, data]) => data), hidden);
 }

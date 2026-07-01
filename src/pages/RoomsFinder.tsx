@@ -16,7 +16,8 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
 import { roomRoute } from "../routes.ts";
 import { useTrailState } from "../hooks/navTrail.ts";
-import { queryKeys, useRoomNames, useRoomState } from "../hooks/queries.ts";
+import { useRoomNames, useRoomState } from "../hooks/queries.ts";
+import { queryKeys } from "../lib/queryKeys.ts";
 import {
   useAddRoom,
   useCreateRoom,

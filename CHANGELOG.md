@@ -2,6 +2,18 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — One query-key registry across layers
+
+React Query keys were maintained in three places (hooks `queryKeys`, hardcoded
+service-side literals, inline open-tier keys) — a rename would silently break the
+cache the layers share.
+
+- `queryKeys` → leaf `src/lib/queryKeys.ts`; the service-side cache accessors
+  (buildingSource, energyDatasetCache) now derive keys and predicates from it.
+- Open-tier inline keys folded into `services/sources/sourceKeys.ts`.
+- New cross-layer contract spec (`src/lib/queryKeys.test.ts`); `isSharedSource()`
+  extracted as the one ownership predicate.
+
 ## [2026-07-01] — E2E: archive-driven UI coverage + live open-data enrichment
 
 Rounds out the coverage for the logistics dataset's pipeline → archive → upload → render

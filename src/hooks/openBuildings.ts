@@ -18,6 +18,7 @@ import {
   openRooftopToBuilding,
 } from "../services/sources/openBuildings.ts";
 import { logError } from "../lib/logError.ts";
+import { sourceKeys } from "../services/sources/sourceKeys.ts";
 
 export function useOpenBuildings(
   centre: MapCentre | null,
@@ -28,7 +29,7 @@ export function useOpenBuildings(
   const lat = centre?.lat ?? null;
   const long = centre?.long ?? null;
   return useQuery<Building[]>({
-    queryKey: ["openBuildings", lat, long, radiusM],
+    queryKey: [...sourceKeys.openBuildings, lat, long, radiusM],
     enabled: enabled && lat != null && long != null,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {

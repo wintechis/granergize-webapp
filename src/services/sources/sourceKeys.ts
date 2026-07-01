@@ -31,4 +31,26 @@ export const sourceKeys = {
   overlayWeatherStation: ["overlayWeatherStation"] as const,
   /** The overlay station's annual temperature values, keyed by station id. */
   overlayWeatherValues: ["overlayWeatherValues"] as const,
+
+  // ─── Open-tier building/installation reads (MaStR / OSM / LoD2 wrappers) ───
+  /** MaStR installations near a point, keyed by coords. */
+  mastrNearby: ["mastrNearby"] as const,
+  /** Open (OSM/INSPIRE) buildings near a point, keyed by coords + radius. */
+  openBuildings: ["openBuildings"] as const,
+  /** One open building's detail, keyed by its IRI. */
+  openBuildingDetail: ["openBuildingDetail"] as const,
+  /** One open observation's detail (a MaStR unit deref), keyed by its IRI. */
+  openObservationDetail: ["openObservationDetail"] as const,
+  /** Open observations (MaStR units) near a point, keyed by coords + radius. */
+  openObservations: ["openObservations"] as const,
+  /** Nearby generation summary for a building sample. */
+  nearbyGeneration: ["nearbyGeneration"] as const,
+  /** A building's rooftop-PV potential (LoD2 + PVGIS), keyed by coords + address. */
+  lod2Rooftop: ["lod2Rooftop"] as const,
+  /** A building's LoD2 3D geometry, keyed by coords. */
+  building3d: ["building3d"] as const,
+  /** Nearby rooftop-PV potentials, keyed by coords. */
+  lod2NearbyRooftops: ["lod2NearbyRooftops"] as const,
+  /** Nearby rooftop roof-ring geometries, keyed by coords. */
+  lod2NearbyRooftopGeom: ["lod2NearbyRooftopGeom"] as const,
 } as const;

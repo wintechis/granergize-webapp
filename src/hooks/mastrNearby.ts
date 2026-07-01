@@ -22,6 +22,7 @@ import {
   type NearbyInstallation,
 } from "../services/sources/mastrNearby.ts";
 import { logError } from "../lib/logError.ts";
+import { sourceKeys } from "../services/sources/sourceKeys.ts";
 
 export interface NearbyContext {
   installations: NearbyInstallation[];
@@ -38,7 +39,7 @@ export function useNearbyInstallations(building: Building) {
   const { lat, long } = building;
   const located = lat != null && long != null;
   return useQuery<NearbyContext | null>({
-    queryKey: ["mastrNearby", lat, long],
+    queryKey: [...sourceKeys.mastrNearby, lat, long],
     enabled: located,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {

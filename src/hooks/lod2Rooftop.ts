@@ -23,6 +23,7 @@ import {
   type RooftopPotential,
 } from "../services/sources/lod2Rooftop.ts";
 import { logError } from "../lib/logError.ts";
+import { sourceKeys } from "../services/sources/sourceKeys.ts";
 
 /**
  * The building's rooftop-PV potential. `data` is `null` when the building has no coordinates
@@ -39,7 +40,7 @@ export function useOpenBuildingDetail(
   iri: string,
 ): UseQueryResult<RooftopPotential | null> {
   return useQuery<RooftopPotential | null>({
-    queryKey: ["openBuildingDetail", iri],
+    queryKey: [...sourceKeys.openBuildingDetail, iri],
     enabled: Boolean(iri),
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
@@ -59,7 +60,7 @@ export function useLod2Rooftop(
   const { lat, long, streetAddress } = building;
   const located = lat != null && long != null;
   return useQuery<RooftopPotential | null>({
-    queryKey: ["lod2Rooftop", lat, long, streetAddress],
+    queryKey: [...sourceKeys.lod2Rooftop, lat, long, streetAddress],
     enabled: located,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
@@ -89,7 +90,7 @@ export function useBuilding3d(
   const { lat, long } = building;
   const located = lat != null && long != null;
   return useQuery<Building3d | null>({
-    queryKey: ["building3d", lat, long],
+    queryKey: [...sourceKeys.building3d, lat, long],
     enabled: located,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
@@ -116,7 +117,7 @@ export function useNearbyRooftops(
   const { lat, long } = building;
   const located = lat != null && long != null;
   return useQuery<NearbyRooftop[]>({
-    queryKey: ["lod2NearbyRooftops", lat, long],
+    queryKey: [...sourceKeys.lod2NearbyRooftops, lat, long],
     enabled: located,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
@@ -144,7 +145,7 @@ export function useNearbyRooftopGeometry(
   const { lat, long } = building;
   const located = lat != null && long != null;
   return useQuery<NearbyRooftopGeometry[]>({
-    queryKey: ["lod2NearbyRooftopGeom", lat, long],
+    queryKey: [...sourceKeys.lod2NearbyRooftopGeom, lat, long],
     enabled: enabled && located,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {

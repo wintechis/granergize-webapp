@@ -1,5 +1,6 @@
 import type { PodGateway } from "../pod/podGateway.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
+import { queryKeys } from "../../lib/queryKeys.ts";
 import { fetchFresh } from "../pod/podFetch.ts";
 import {
   type EnergyDataset,
@@ -15,7 +16,7 @@ import {
  * `["energyDataset"]` prefix through `invalidateBuildingData` (`hooks/mutations.ts`).
  */
 export function energyDatasetKey(webId: string, datasetUri: string) {
-  return ["energyDataset", webId, datasetUri] as const;
+  return [...queryKeys.energyDataset, webId, datasetUri] as const;
 }
 
 /**
