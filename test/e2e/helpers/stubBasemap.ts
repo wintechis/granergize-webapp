@@ -1,4 +1,5 @@
 import { type Page } from "@playwright/test";
+import { E2E_LOCAL } from "./lane.ts";
 
 /** A 1×1 transparent PNG — a valid image body for a stubbed map tile. */
 const PNG_1x1 = Buffer.from(
@@ -48,7 +49,15 @@ const CORS = {
  * seed geocode the address to coordinates, and a building with no coords paints no map
  * marker. So Nominatim is stubbed with deterministic FAKE coords (Nuremberg area, spread
  * by a hash of the query so distinct addresses don't stack), keeping the lane hermetic
- * *and* giving every seeded/added building a point.
+ * *and* giving every seeded/added building a point. (Kept faked in BOTH lanes: live
+ * Nominatim rate-limits to ~1 req/s and geocoding is infra, not an open-data source a
+ * remote spec asserts — see the per-spec open-data stubs' `stubWhenLocal`.)
+ *
+ * The wrapper 404 catch-all is applied **only in the LOCAL lane**: `e2e:remote` is meant
+ * to exercise the LIVE wrappers end-to-end (the open-data specs gate their own fixtures on
+ * `stubWhenLocal`, so without lane-gating this global 404 would win in remote and silently
+ * empty every wrapper read — masking the very live behaviour the remote lane exists to
+ * check). Basemap tiles + Nominatim stay stubbed in both lanes (infra noise).
  *
  * Applied at page creation alongside {@link stubBasemapTiles}. A spec that asserts a
  * specific source (e.g. the open-tier specs stubbing `/lod2-by/` or `/regionalstatistik/`,
@@ -77,14 +86,20 @@ export async function stubExternalData(page: Page): Promise<void> {
   // real DWD adapter's outcome), and per-spec stubs (`/mastr/`, `/lod2-by/`, …) register
   // later and win where a spec wants fixture data.
   //
+  // LOCAL ONLY: on `e2e:remote` the wrappers are left LIVE (the open-data specs assert
+  // real wrapper behaviour there; their per-spec `stubWhenLocal` fixtures are no-ops in
+  // remote, so this catch-all must not 404 the live reads out from under them).
+  //
   // NB: `*.example` (seed/demo WebIDs like `operator.example` / `contact-page-e2e.example`)
   // is deliberately NOT stubbed here. Stubbing it 404 broke contact-page (the agent
   // name-resolution falls back to the IRI fragment on a network error but NOT on a 404),
   // and it didn't reduce the JSS crashes anyway. So the `*.example` DNS-fail retry noise
   // is left as-is (documented in plans/flakes.md); fixing it cleanly would mean the app
   // falling back to the fragment on a 404 too — out of scope here.
-  await page.route(
-    /wunderfacts\.com\/(mastr|lod2-by|energieatlas|regionalstatistik|nuts|lau|netztransparenz)\/|wikidata\.org|commons\.wikimedia\.org/,
-    (route) => route.fulfill({ status: 404, headers: CORS, body: "" }),
-  );
+  if (E2E_LOCAL) {
+    await page.route(
+      /wunderfacts\.com\/(mastr|lod2-by|energieatlas|regionalstatistik|nuts|lau|netztransparenz)\/|wikidata\.org|commons\.wikimedia\.org/,
+      (route) => route.fulfill({ status: 404, headers: CORS, body: "" }),
+    );
+  }
 }

@@ -23,10 +23,12 @@ import { readZip } from "../../../src/lib/zip.ts";
  * survives a regen without touching hardcoded counts/ids.
  *
  * Heavy + slow: a single Import drives ~1k sequential PUTs. It is gated to Tier 3
- * (skipped unless E2E_LOCAL — a real Pod would be throttled to death) and skipped
- * when the archive file is absent. Point it at a specific file with
- * `LOGISTICS_ARCHIVE=<path>`; otherwise it picks the newest
- * `../logistikimmobilien/logistik-*archive-*.zip`.
+ * (skipped unless E2E_LOCAL — a real Pod would be throttled to death). By default it
+ * imports the committed snapshot `test/e2e/fixtures/logistik-nuernberg-archive.zip` (so
+ * the spec is self-contained and runs in CI); override with `LOGISTICS_ARCHIVE=<path>`
+ * (e.g. a freshly generated archive), and it falls back to the newest
+ * `../logistikimmobilien/logistik-*archive-*.zip` if the snapshot is absent. Re-snapshot
+ * by copying a fresh generator archive over the fixture.
  *
  *   deno task e2e:local test/e2e/solo/archive-full-load.spec.ts
  *
@@ -44,8 +46,10 @@ const ACC = account("A");
 // imported at `<root>/<appDir>/buildings/<stem>.ttl#it` is keyed `<appDir>/buildings/<stem>.ttl#it`.
 const APP_DIR = ENV?.VITE_POD_APP_DIR ?? "granergize";
 
-/** Newest `logistik-*archive-*.zip` under ../logistikimmobilien, or the explicit
- *  LOGISTICS_ARCHIVE override; null when none is found (→ the test self-skips). */
+/** The archive to import, by precedence: an explicit `LOGISTICS_ARCHIVE` override → the
+ *  committed snapshot in `test/e2e/fixtures/` (so the spec is self-contained and runs in
+ *  CI without the sibling generator repo) → the newest `logistik-*archive-*.zip` under
+ *  ../logistikimmobilien (a dev's fresh regen). `null` when none is found (→ self-skip). */
 function locateArchive(): string | null {
   const explicit = ENV?.LOGISTICS_ARCHIVE;
   if (explicit) {
@@ -55,6 +59,15 @@ function locateArchive(): string | null {
     } catch {
       return null;
     }
+  }
+  // Committed snapshot — the default. Re-snapshot by copying a fresh
+  // `../logistikimmobilien/logistik-*archive-*.zip` over this file.
+  const snapshot = "test/e2e/fixtures/logistik-nuernberg-archive.zip";
+  try {
+    statSync(snapshot);
+    return snapshot;
+  } catch {
+    // Fall through to the sibling generator repo.
   }
   const dir = "../logistikimmobilien";
   try {

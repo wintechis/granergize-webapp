@@ -71,14 +71,24 @@ test.describe("open-data exploration mode", () => {
       }
       return route.fulfill({ status: 404, headers: CORS, body: "" });
     });
-    // Nominatim geocode → Nürnberg (the keyword "search a place" hit). REMOTE hits live
-    // Nominatim, which resolves "Nürnberg" to the same ~49.45/11.07 the `?c` check expects.
-    await stubWhenLocal(page, /nominatim\.openstreetmap\.org/, (route) =>
+    // The place-search geocode → Nürnberg. The app geocodes via the linked-osm Nominatim
+    // proxy (`sourceBase("osm")` = osmwrap.ontologycentral.com/nominatim/search.json,
+    // returning a GeoJSON FeatureCollection with `geometry.coordinates` = [lon, lat]) —
+    // NOT nominatim.openstreetmap.org. Stubbed in BOTH lanes: geocoding is rate-limited
+    // infra (the live proxy takes ~60 s, past the URL-recentre timeout), not the open-data
+    // source this spec asserts — that's the LIVE LoD2 rooftop layer above (`stubWhenLocal`).
+    await page.route(/\/nominatim\/search/, (route) =>
       route.fulfill({
         status: 200,
-        contentType: "application/json",
+        contentType: "application/geo+json",
         headers: CORS,
-        body: JSON.stringify([{ lat: "49.4521", lon: "11.0767" }]),
+        body: JSON.stringify({
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [11.0767, 49.4521] },
+          }],
+        }),
       }));
     await login(page, ACC);
     await assertCleanStart(page);
@@ -86,7 +96,7 @@ test.describe("open-data exploration mode", () => {
 
   test.afterAll(async () => {
     await page.unroute(/\/lod2-by\//).catch(() => {});
-    await page.unroute(/nominatim\.openstreetmap\.org/).catch(() => {});
+    await page.unroute(/\/nominatim\/search/).catch(() => {});
     await verifyAndReset(page, "map-explore");
     await page.close();
   });
@@ -108,13 +118,16 @@ test.describe("open-data exploration mode", () => {
     await expect(openRows).toHaveCount(0);
 
     // Turn on exploration, then search a place → the map recentres there (`?c`/`?z`) and
-    // the open layers fetch the viewport, so the stubbed rooftops appear.
+    // the open layers fetch the viewport, so the open rooftops appear.
     await page.getByRole("button", { name: t("exploreToggle") }).click();
     await page.getByPlaceholder(t("explorePlacePlaceholder")).fill("Nürnberg");
     await page.getByRole("button", { name: t("exploreSearchBtn"), exact: true }).click();
 
     await expect(page).toHaveURL(/[?&]explore=1/, { timeout: T.action });
-    await expect(page).toHaveURL(/[?&]c=49\.45/, { timeout: T.action });
+    // Recentred to the Nürnberg area (`49.4x`) — matches both the LOCAL per-spec geocode
+    // stub (49.4521) and the REMOTE global Nominatim fake (hash-based 49.40–49.49; live
+    // Nominatim stays stubbed as rate-limited infra, not the open-data source under test).
+    await expect(page).toHaveURL(/[?&]c=49\.4/, { timeout: T.action });
     await expect(openRows.first()).toBeVisible({ timeout: T.poll });
     expect(await openRows.count()).toBeGreaterThan(0);
   });
