@@ -46,7 +46,11 @@ export class SessionExpiredError extends Error {
  * Prune shared building sources that 403/404'd — append a self-revocation to the
  * `shared-in/` log so the fold drops them next load. A grant revoked on the
  * owner's side thus self-heals (and converges: once revoked, the source isn't
- * folded back in, so it isn't re-fetched).
+ * folded back in, so it isn't re-fetched). System-initiated (reconciliation),
+ * but the event still honours the schema: `owner` is the SHARER, looked up from
+ * the folded grant being pruned (recording the pruning recipient there would
+ * falsify the history for any owner-keyed derivation), and the kind is recorded
+ * like every other event.
  */
 export async function removeInaccessibleBuildingSources(
   failedSources: Array<{ uri: string; status: number }>,
@@ -55,14 +59,19 @@ export async function removeInaccessibleBuildingSources(
   const webId = gateway.webId;
   if (!webId) return;
   const sharedIn = sharedInUri(webId);
+  // The grants being pruned — the source of each event's true owner (the
+  // per-event parses are gateway-cached, so this re-fold is mostly free).
+  const grants = await foldSharingLog(sharedIn, gateway).catch(() => []);
   const at = new Date().toISOString();
   for (const failed of failedSources) {
+    const grant = grants.find((g) => g.resource === failed.uri);
     try {
       await appendSharingEvent(sharedIn, gateway, {
         type: "revocation",
-        owner: webId,
+        owner: grant?.owner || webId,
         grantee: webId,
         resource: failed.uri,
+        kind: "Building",
         at,
       });
       console.log(`Pruned inaccessible shared building source: ${failed.uri}`);

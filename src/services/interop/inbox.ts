@@ -87,6 +87,17 @@ export async function drainInbox(gateway: PodGateway) {
       new Parser({ baseIRI: messageUri }).parse(await msgResponse.text()),
     );
     for (const event of parseSharingEvents(msgStore)) {
+      // Integrity floor: the inbox grants ANY authenticated agent append, so
+      // only archive events granted TO this inbox's owner — a foreign-grantee
+      // grant/revocation has no business in the owner's shared-in fold. (Real
+      // sender authentication is an LDN-protocol matter; the claimed sharer
+      // is verified no further here.) The junk message is still deleted below.
+      if (event.grantee !== myWebId) {
+        console.warn(
+          `Discarding inbox event for foreign grantee ${event.grantee} (${messageUri})`,
+        );
+        continue;
+      }
       await appendSharingEvent(sharedIn, gateway, event);
     }
     await removeMessageFromInbox(gateway, messageUri, podInbox);
@@ -225,40 +236,58 @@ export async function postSharingEventToInbox(
  * the `inbox/` convention path, which is exactly where we provision. The app
  * never relocates the inbox, so the convention path always resolves it.
  *
- * Returns `true` only when it actually created the inbox this call (it didn't
- * exist yet) — so the caller can show the user a one-time setup notice. When the
- * inbox already exists it's a no-op and returns `false`.
+ * The container and its ACL are checked INDEPENDENTLY: the ACL is a
+ * materialized projection with no other rebuild path, and an archive restore
+ * re-creates the container bodies but transfers no `.acl` — if "container
+ * exists" skipped the ACL, every inbound share would 403 until the Pod was
+ * re-provisioned by hand. Only a MISSING ACL is (re-)written; an existing one
+ * (possibly hand-edited) is left alone.
+ *
+ * Returns `true` only when it actually created the inbox container this call
+ * (it didn't exist yet) — so the caller can show the user a one-time setup
+ * notice. An ACL-only repair returns `false`.
  * @operation mutation
  */
 export async function ensureOwnInbox(gateway: PodGateway): Promise<boolean> {
   const webId = gateway.webId;
   if (!webId) return false;
   const { inbox } = podResources(webId);
-  // Provision (and notify) only on a bare Pod: a HEAD that doesn't 404 means the
-  // inbox is already set up, so there's nothing to create.
+  // A HEAD that doesn't 404 means the container is already there.
   const existing = await gateway.fetch(inbox, { method: "HEAD" }).catch((err) => {
     logError("HEAD own inbox to check provisioning", err);
     return null;
   });
-  if (existing?.ok) return false;
-  await gateway.fetch(inbox, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "text/turtle",
-      Link: '<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"',
-    },
-    body: "",
-  }).catch((err) => logError("provision own inbox container", err));
-  const acl = `@prefix acl: <http://www.w3.org/ns/auth/acl#>.
+  const createdContainer = !existing?.ok;
+  if (createdContainer) {
+    await gateway.fetch(inbox, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "text/turtle",
+        Link: '<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"',
+      },
+      body: "",
+    }).catch((err) => logError("provision own inbox container", err));
+  }
+  // A just-created container has no ACL yet; behind an existing container the
+  // ACL gets its own existence check (the restore shape — see the doc above).
+  const aclExists = createdContainer ? false : (
+    await gateway.fetch(`${inbox}.acl`, { method: "HEAD" }).catch((err) => {
+      logError("HEAD own inbox ACL to check provisioning", err);
+      return null;
+    })
+  )?.ok ?? false;
+  if (!aclExists) {
+    const acl = `@prefix acl: <http://www.w3.org/ns/auth/acl#>.
 <#owner> a acl:Authorization; acl:agent <${webId}>;
   acl:accessTo <${inbox}>; acl:default <${inbox}>;
   acl:mode acl:Read, acl:Write, acl:Control.
 <#append> a acl:Authorization; acl:agentClass acl:AuthenticatedAgent;
   acl:accessTo <${inbox}>; acl:mode acl:Read, acl:Append.
 `;
-  await putAcl(`${inbox}.acl`, acl, gateway)
-    .catch((err) => logError("provision own inbox ACL", err));
-  return true;
+    await putAcl(`${inbox}.acl`, acl, gateway)
+      .catch((err) => logError("provision own inbox ACL", err));
+  }
+  return createdContainer;
 }
 
 /**

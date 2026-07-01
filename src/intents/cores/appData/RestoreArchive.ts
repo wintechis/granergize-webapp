@@ -1,12 +1,16 @@
 // Intent core (React-free) for RestoreArchive. See ./README.md. The restore
-// composition is two steps that belong to one intent: import the archive bodies,
-// then rebuild the WAC `.acl` projection by replaying the shared-out log (the
-// archive carries the log/ground truth but not the derived ACLs). A bespoke
-// outcome `{...importResult, reissued}`. The adapter owns the whole-cache
+// composition belongs to one intent: import the archive bodies, then rebuild
+// EVERY derived `.acl` projection the archive doesn't carry — the sharing
+// grants by replaying the shared-out log (the ground truth), and the two
+// log-less projections (the inbox ACL's sender-append grant, each owned room's
+// member ACL) by re-provisioning them where missing. A bespoke outcome
+// `{...importResult, reissued}`. The adapter owns the whole-cache
 // `qc.invalidateQueries()`.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import { type ImportResult, importArchive } from "../../../services/pod/podArchive.ts";
 import { reissueGrants } from "../../../services/interop/share.ts";
+import { ensureOwnInbox } from "../../../services/interop/inbox.ts";
+import { ensureRoomAcls } from "../../../services/interop/dataRoom.ts";
 
 /**
  * RestoreArchive outcome — the import result plus the number of grants reissued
@@ -39,5 +43,10 @@ export async function restoreArchiveCore(
 ): Promise<RestoreArchiveOutcome> {
   const restore = await importArchive(gateway, params.bytes);
   const reissue = await reissueGrants(gateway);
+  // The two ACL projections with no log to replay: the inbox's sender-append
+  // grant and each owned room's member ACL. Both converge only-if-missing, so
+  // they are safe to run on every restore (idempotent reconciliation).
+  await ensureOwnInbox(gateway);
+  await ensureRoomAcls(gateway);
   return { ...restore, reissued: reissue.buildings + reissue.aggregations };
 }

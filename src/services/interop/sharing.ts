@@ -171,6 +171,7 @@ export async function revokeAccess(
     owner: userWebId,
     grantee: webId,
     resource: buildingUri,
+    kind: "Building",
     at: new Date().toISOString(),
   });
 
@@ -196,7 +197,7 @@ export async function revokeAccess(
 
   // Notify the user that access has been revoked
   try {
-    await notifyAccessRevoked(buildingUri, webId, gateway);
+    await notifyAccessRevoked(buildingUri, webId, gateway, "Building");
   } catch (error) {
     console.warn("Could not send revocation notification:", error);
     // Don't throw - revocation succeeded even if notification failed
@@ -365,20 +366,22 @@ export async function recordSharing(
 /**
  * Notify the recipient that their access to a resource (a building file or an aggregation
  * snapshot) was revoked — a revocation event (the shared-event shape) posted to
- * their inbox, which they archive into shared-in/. Resource-neutral: the message
- * is `interop:forResource <resource>` with no kind, so it folds out a grant of
- * either kind on the recipient's side.
+ * their inbox, which they archive into shared-in/. The recipient's fold keys on
+ * (grantee, resource) alone, but the event still records the resource's `kind`
+ * like every other event, so the archived history stays self-sufficient.
  */
 async function notifyAccessRevoked(
   resource: string,
   webId: string,
   gateway: PodGateway,
+  kind: "Building" | "Aggregation",
 ): Promise<void> {
   await postSharingEventToInbox(webId, gateway, {
     type: "revocation",
     owner: gateway.webId!,
     grantee: webId,
     resource,
+    kind,
     at: new Date().toISOString(),
   });
 }
@@ -483,13 +486,14 @@ export async function revokeAggregationAccess(
     owner: userWebId,
     grantee: webId,
     resource: snapshotUri,
+    kind: "Aggregation",
     at: new Date().toISOString(),
   });
   await removeFromACL(snapshotUri, webId, gateway);
   // Best-effort: the ACL withdrawal is the source of truth; the inbox notice is a
   // courtesy that lets the recipient's shared-in/ fold the grant out (same as
   // building revocation). Never let a notify failure fail the revocation.
-  await notifyAccessRevoked(snapshotUri, webId, gateway).catch((err) =>
+  await notifyAccessRevoked(snapshotUri, webId, gateway, "Aggregation").catch((err) =>
     logError("notify recipient of aggregation-access revocation", err)
   );
 }

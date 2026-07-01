@@ -1,5 +1,9 @@
 import { DataFactory, type Store } from "n3";
-import { CONSUMPTION_NS, GRAN_HAS_ENERGY_CERTIFICATE } from "../rdf/vocabularies.ts";
+import {
+  CONSUMPTION_NS,
+  GRAN_HAS_ATTACHMENT,
+  GRAN_HAS_ENERGY_CERTIFICATE,
+} from "../rdf/vocabularies.ts";
 import {
   observationsRootForObservation,
   parseDatasetLink,
@@ -121,4 +125,34 @@ export function buildingTargetsFromStore(
   // (a doubled grant would race one read-modify-write against itself).
   const seen = new Set<string>();
   return targets.filter((t) => !seen.has(t.uri) && !!seen.add(t.uri));
+}
+
+/**
+ * Every resource ANY scoping of a grant on this building could cover: the
+ * unrestricted enumeration (building file, `files/` container, legacy cert,
+ * every energy dataset + series container) plus each individually-grantable
+ * attachment (`bldg:hasAttachment` — a per-attachment share grants those files
+ * instead of the container). Deduped by IRI.
+ *
+ * This is the convergence side of the ACL projection: the fold keeps only the
+ * LATEST grant per (grantee, resource), so `applyBuildingGrant` withdraws the
+ * grantee from `universe − granted` and `auditGrants` reports a read grant in
+ * that difference as `lingering-grant`. Without it a re-share with a NARROWER
+ * scope (fewer years, an attachment subset, energy dropped) would leave the
+ * previous grant's extra targets readable forever. Pure — same store the
+ * caller already fetched for {@link buildingTargetsFromStore}.
+ */
+export function buildingGrantUniverseFromStore(
+  store: Store,
+  buildingFile: string,
+): GrantTarget[] {
+  const attachments: GrantTarget[] = store
+    .getObjects(null, DataFactory.namedNode(GRAN_HAS_ATTACHMENT), null)
+    .map((o) => ({ uri: o.value, isContainer: false }));
+  const all = [
+    ...buildingTargetsFromStore(store, buildingFile, { includeEnergyData: true }),
+    ...attachments,
+  ];
+  const seen = new Set<string>();
+  return all.filter((t) => !seen.has(t.uri) && !!seen.add(t.uri));
 }

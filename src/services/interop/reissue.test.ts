@@ -2,9 +2,15 @@
 import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { auditGrants, reconcileBuildingGrants, reissueGrants } from "./share.ts";
+import {
+  applyBuildingGrant,
+  auditGrants,
+  reconcileBuildingGrants,
+  reissueGrants,
+} from "./share.ts";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 import {
+  BUILDING_NS,
   CONSUMPTION_NS,
   GRAN_NS,
   REC_BUILDING,
@@ -153,16 +159,25 @@ Deno.test("reissueGrants throws when not logged in", async () => {
   await assert.rejects(() => reissueGrants(session), /not logged in/i);
 });
 
-/** One shared-out revocation event resource (no kind/mode — matches revokeAccess). */
-function revocationTtl(grantee: string, resource: string, at: string): string {
+/** One shared-out revocation event resource (kind optional — a kind-less one is legacy). */
+function revocationTtl(
+  grantee: string,
+  resource: string,
+  at: string,
+  kind?: "Building" | "Aggregation",
+): string {
+  const kindTriple = kind
+    ? `   gran:kind <${kind === "Building" ? REC_BUILDING : `${CONSUMPTION_NS}Aggregation`}> ;\n`
+    : "";
   return `@prefix interop: <http://www.w3.org/ns/solid/interop#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix gran: <${GRAN_NS}> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 <> a interop:AccessRevocation ;
    prov:wasAssociatedWith <${WEBID}> ;
    interop:grantee <${grantee}> ;
    interop:forResource <${resource}> ;
-   prov:generatedAtTime "${at}"^^xsd:dateTime .
+${kindTriple}   prov:generatedAtTime "${at}"^^xsd:dateTime .
 `;
 }
 
@@ -410,5 +425,192 @@ Deno.test("reissueGrants skips a grant whose resource was deleted (no ghost cont
   assert.ok(
     !calls.some((c) => c.method === "PUT" && c.url.startsWith(goneDir)),
     "no container resurrected under the deleted building",
+  );
+});
+
+// ── Narrowed re-shares — the projection must CONVERGE, not only widen ──────────
+// The fold keeps the LATEST event per (grantee, resource) pair, so a re-share
+// with a smaller scope makes the narrow scope the log's whole truth. The ACL
+// projection must follow: targets only the previous, wider grant covered have
+// to be withdrawn — by the apply itself, by the log replay, and visibly in the
+// audit.
+
+const FILES = `${ROOT}granergize/buildings/b-1/files/`;
+const ATT_A = `${FILES}a.pdf`;
+const ATT_B = `${FILES}b.pdf`;
+
+const BUILDING_WITH_ATTACHMENTS_TTL = `
+@prefix cons: <${CONSUMPTION_NS}> .
+@prefix bldg: <${BUILDING_NS}> .
+<${BUILDING}#b-1>
+  cons:hasEnergyDataset <${DS_2024}#ds> ,
+                        <${DS_2023}#ds> ;
+  bldg:hasAttachment <${ATT_A}> , <${ATT_B}> .
+<${DS_2024}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+<${DS_2023}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+`;
+
+/** A dataset .acl left by an earlier, wider share: the owner (Control) + Bob (Read). */
+function staleAcl(resource: string): string {
+  return `@prefix acl: <http://www.w3.org/ns/auth/acl#> .
+<#owner> a acl:Authorization ;
+  acl:agent <${WEBID}> ;
+  acl:accessTo <${resource}> ;
+  acl:mode acl:Read, acl:Write, acl:Control .
+<#bob> a acl:Authorization ;
+  acl:agent <${BOB}> ;
+  acl:accessTo <${resource}> ;
+  acl:mode acl:Read .
+`;
+}
+
+Deno.test("applyBuildingGrant withdraws the years a narrowed re-share dropped", async () => {
+  const { session, store } = makePodWith({}, { [BUILDING]: BUILDING_TTL });
+  await applyBuildingGrant(BUILDING, BOB, session); // all years
+  assert.ok(store[`${DS_2024}.acl`]?.includes(BOB), "wide share granted 2024");
+  assert.ok(store[`${DS_2023}.acl`]?.includes(BOB), "wide share granted 2023");
+
+  await applyBuildingGrant(BUILDING, BOB, session, {
+    includeEnergyData: true,
+    years: [2023],
+  });
+  assert.ok(
+    !store[`${DS_2024}.acl`]?.includes(BOB),
+    "the dropped year's ACL is withdrawn",
+  );
+  assert.ok(
+    store[`${DS_2024}.acl`]?.includes(WEBID),
+    "the owner's Control authorization survives the withdrawal",
+  );
+  assert.ok(store[`${DS_2023}.acl`]?.includes(BOB), "the kept year stays granted");
+  assert.ok(store[`${BUILDING}.acl`]?.includes(BOB), "the building file stays granted");
+});
+
+Deno.test("applyBuildingGrant narrowing to an attachment subset withdraws the files/ container default", async () => {
+  const { session, store } = makePodWith(
+    {},
+    { [BUILDING]: BUILDING_WITH_ATTACHMENTS_TTL },
+  );
+  await applyBuildingGrant(BUILDING, BOB, session); // all attachments (container default)
+  assert.ok(store[`${FILES}.acl`]?.includes(BOB), "wide share granted the container");
+
+  await applyBuildingGrant(BUILDING, BOB, session, {
+    includeEnergyData: true,
+    attachmentUris: [ATT_A],
+  });
+  assert.ok(
+    !store[`${FILES}.acl`]?.includes(BOB),
+    "the container default is withdrawn — unselected binaries unreadable again",
+  );
+  assert.ok(store[`${ATT_A}.acl`]?.includes(BOB), "the selected file granted individually");
+  assert.ok(!store[`${ATT_B}.acl`]?.includes(BOB), "the unselected file is not granted");
+
+  // Widening back to all folds the individual grant into the container default.
+  await applyBuildingGrant(BUILDING, BOB, session);
+  assert.ok(store[`${FILES}.acl`]?.includes(BOB), "the container default is re-granted");
+  assert.ok(
+    !store[`${ATT_A}.acl`]?.includes(BOB),
+    "the stale individual grant is withdrawn (covered by the container)",
+  );
+});
+
+Deno.test("applyBuildingGrant withdraws every dataset when a re-share drops energy", async () => {
+  const { session, store } = makePodWith({}, { [BUILDING]: BUILDING_TTL });
+  await applyBuildingGrant(BUILDING, BOB, session);
+  await applyBuildingGrant(BUILDING, BOB, session, { includeEnergyData: false });
+
+  assert.ok(!store[`${DS_2024}.acl`]?.includes(BOB), "2024 dataset withdrawn");
+  assert.ok(!store[`${DS_2023}.acl`]?.includes(BOB), "2023 dataset withdrawn");
+  assert.ok(
+    store[`${BUILDING}.acl`]?.includes(BOB),
+    "the master-data grant itself stays",
+  );
+});
+
+Deno.test("reissueGrants converges a narrowed grant: the dropped year's lingering ACL is withdrawn", async () => {
+  // The wide share's ACL write succeeded, then the owner re-shared 2023-only.
+  // The fold's latest event IS the narrow scope, so replay must withdraw 2024.
+  const { session, store } = makePodWith(
+    {
+      [`${SHARED_OUT}e1`]: grantTtl(BOB, BUILDING, "Building", "2026-06-04T10:00:00Z"),
+      [`${SHARED_OUT}e2`]: grantTtl(BOB, BUILDING, "Building", "2026-06-05T10:00:00Z", [2023]),
+    },
+    { [BUILDING]: BUILDING_TTL, [`${DS_2024}.acl`]: staleAcl(DS_2024) },
+  );
+  await reissueGrants(session);
+
+  assert.ok(
+    !store[`${DS_2024}.acl`]?.includes(BOB),
+    "the lingering out-of-scope year is withdrawn on replay",
+  );
+  assert.ok(store[`${DS_2023}.acl`]?.includes(BOB), "the recorded scope is granted");
+});
+
+Deno.test("auditGrants reports lingering-grant for a target outside a narrowed ACTIVE grant", async () => {
+  // Same drift, observed instead of repaired: the log's latest grant says 2023
+  // only, the 2024 .acl still grants Bob. That must be visible as
+  // lingering-grant (not only for revocations), and clean after the repair.
+  const { session, calls } = makePodWith(
+    {
+      [`${SHARED_OUT}e1`]: grantTtl(BOB, BUILDING, "Building", "2026-06-04T10:00:00Z"),
+      [`${SHARED_OUT}e2`]: grantTtl(BOB, BUILDING, "Building", "2026-06-05T10:00:00Z", [2023]),
+    },
+    { [BUILDING]: BUILDING_TTL, [`${DS_2024}.acl`]: staleAcl(DS_2024) },
+  );
+  const before = await auditGrants(session);
+  assert.ok(
+    before.drift.some((d) =>
+      d.kind === "lingering-grant" && d.grantee === BOB && d.resource === DS_2024
+    ),
+    `2024 lingers outside the active grant's scope — drift=${JSON.stringify(before.drift)}`,
+  );
+  assert.ok(
+    !calls.some((c) => c.method === "PUT" || c.method === "POST" || c.method === "DELETE"),
+    "auditGrants performs no writes",
+  );
+
+  await reissueGrants(session);
+  const after = await auditGrants(session);
+  assert.equal(after.drift.length, 0, "projection matches the log after the repair");
+});
+
+Deno.test("revocation replay dispatches by KIND: an aggregation revocation fabricates no building targets", async () => {
+  // The event records what was revoked. Without the kind, the replay (and the
+  // audit twin) sent every revocation down the building path — deriving a
+  // building-shaped files/ container for a snapshot file and probing ACLs that
+  // can't exist. With the kind on the event, only the snapshot's own ACL is
+  // withdrawn.
+  const CAROL_ACL = `@prefix acl: <http://www.w3.org/ns/auth/acl#> .
+<#owner> a acl:Authorization ;
+  acl:agent <${WEBID}> ;
+  acl:accessTo <${SNAPSHOT}> ;
+  acl:mode acl:Read, acl:Write, acl:Control .
+<#carol> a acl:Authorization ;
+  acl:agent <${CAROL}> ;
+  acl:accessTo <${SNAPSHOT}> ;
+  acl:mode acl:Read .
+`;
+  const { session, store, calls } = makePodWith(
+    {
+      [`${SHARED_OUT}e1`]: grantTtl(CAROL, SNAPSHOT, "Aggregation", "2026-06-04T10:00:00Z"),
+      [`${SHARED_OUT}e2`]: revocationTtl(CAROL, SNAPSHOT, "2026-06-05T10:00:00Z", "Aggregation"),
+    },
+    {
+      [SNAPSHOT]: `<${SNAPSHOT}#snapshot> a <${CONSUMPTION_NS}AggregationSnapshot> .`,
+      [`${SNAPSHOT}.acl`]: CAROL_ACL,
+    },
+  );
+  const result = await reissueGrants(session);
+  assert.equal(result.revoked, 1, "the aggregation revocation is replayed");
+  assert.ok(!store[`${SNAPSHOT}.acl`]?.includes(CAROL), "Carol withdrawn from the snapshot");
+
+  await auditGrants(session);
+  // The snapshot is `…/snapshots/v-1.ttl`; a building-dispatched revocation
+  // would derive and probe `…/snapshots/v-1/files/` (+ its .acl).
+  const fabricated = calls.filter((c) => c.url.includes("/snapshots/v-1/"));
+  assert.deepEqual(
+    fabricated,
+    [],
+    "neither replay nor audit fabricates building-shaped sub-resources for a snapshot",
   );
 });

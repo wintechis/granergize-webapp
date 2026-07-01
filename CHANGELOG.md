@@ -2,6 +2,23 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — Sharing/room event-log integrity, restorable ACL projections
+
+The shared-out log is the ground truth of sharing; three gaps let the derived
+WAC `.acl` state drift from it (found in an architecture review):
+
+- Re-sharing with a NARROWER scope (fewer years, an attachment subset, energy
+  dropped) never withdrew the recipient from the dropped targets. The grant
+  projection now converges (`universe − granted` is withdrawn), and
+  `auditGrants` reports out-of-scope read grants as `lingering-grant`.
+- After an archive restore, the inbox and room ACLs (log-less projections) were
+  never rebuilt — inbound shares 403'd, restored rooms were unjoinable.
+  `ensureOwnInbox` now repairs a missing ACL behind an existing container, and
+  the new `ensureRoomAcls` rebuilds owned rooms' ACLs; the restore runs both.
+- Every event now records `gran:kind` (revocations too), so log replay
+  dispatches without guessing; the inbox drain discards events granted to
+  someone else; the self-prune revocation records the true granting owner.
+
 ## [2026-07-02] — One query-key registry across layers
 
 React Query keys were maintained in three places (hooks `queryKeys`, hardcoded

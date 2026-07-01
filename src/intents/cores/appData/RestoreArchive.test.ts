@@ -54,6 +54,28 @@ function makePod(
     const hit = store[url];
     if (!hit) return Promise.resolve(new Response("Not found", { status: 404 }));
     if (method === "HEAD") return Promise.resolve(new Response("", { status: 200 }));
+    // A container PUT with an empty body reads back as a synthesized listing of
+    // its direct children (what a real LDP server serves) — the restored-Pod
+    // reconciliation walks containers the import provisioned that way.
+    if (url.endsWith("/") && hit.bytes.length === 0) {
+      const children = [
+        ...new Set(
+          Object.keys(store)
+            .filter((k) => k !== url && k.startsWith(url))
+            .map((k) => {
+              const rest = k.slice(url.length);
+              const slash = rest.indexOf("/");
+              return slash === -1 ? k : url + rest.slice(0, slash + 1);
+            }),
+        ),
+      ];
+      return Promise.resolve(
+        new Response(listing(url, children).bytes as unknown as BodyInit, {
+          status: 200,
+          headers: { "Content-Type": "text/turtle" },
+        }),
+      );
+    }
     return Promise.resolve(
       new Response(hit.bytes as unknown as BodyInit, {
         status: 200,
@@ -107,5 +129,44 @@ Deno.test("restoreArchiveCore (headless): composes import + reissue → combined
   assert.ok(
     target.calls.some((c) => c.method === "PUT" && c.url === `${ROOT}granergize/buildings/b1.ttl`),
     "building resource restored via PUT",
+  );
+});
+
+Deno.test("restoreArchiveCore rebuilds the inbox + room ACL projections the archive doesn't carry", async () => {
+  // The archive transfers resource bodies but NO `.acl` files. The sharing side
+  // is replayed from the shared-out log (reissueGrants); the inbox ACL (senders'
+  // append grant) and each owned room's ACL (members' read/append) have no log
+  // to replay — the restore must re-provision them, or every inbound share 403s
+  // and restored rooms are unjoinable.
+  const dec = new TextDecoder();
+  const G = `${ROOT}granergize/`;
+  const room = `${G}rooms/r1/`;
+  const source = makePod({
+    [G]: listing(G, [`${G}prefs.ttl`, `${G}rooms/`]),
+    [`${G}prefs.ttl`]: ttl("# prefs"),
+    [`${G}rooms/`]: listing(`${G}rooms/`, [room]),
+    [room]: listing(room, [`${room}e1`]),
+    [`${room}e1`]: ttl(
+      `<#it> a <https://www.w3.org/ns/activitystreams#Join> .`,
+    ),
+  });
+  const { bytes } = await exportArchive(source.session);
+
+  const target = makePod();
+  await restoreArchiveCore(target.session, { bytes });
+
+  const inboxAcl = target.store[`${G}inbox/.acl`];
+  assert.ok(inboxAcl, "the inbox ACL is (re-)provisioned by the restore");
+  assert.ok(
+    dec.decode(inboxAcl.bytes).includes("AuthenticatedAgent"),
+    "the inbox ACL restores the senders' append grant",
+  );
+
+  const roomAcl = target.store[`${room}.acl`];
+  assert.ok(roomAcl, "the restored room's ACL is rebuilt");
+  const roomAclBody = dec.decode(roomAcl.bytes);
+  assert.ok(
+    roomAclBody.includes("AuthenticatedAgent") && roomAclBody.includes(WEBID),
+    "the room ACL restores owner control + members' self-join",
   );
 });

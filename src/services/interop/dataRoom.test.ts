@@ -7,6 +7,7 @@ import {
   addKnownRoom,
   createRoom,
   deleteRoom,
+  ensureRoomAcls,
   enterRoom,
   exitRoom,
   extractRoomUri,
@@ -61,6 +62,13 @@ class FakePod {
     const url = input.toString().split("?")[0];
     const method = init?.method ?? "GET";
     const turtle = { "Content-Type": "text/turtle" };
+
+    if (method === "HEAD") {
+      const exists = url.endsWith("/")
+        ? this.containers.has(url)
+        : this.resources.has(url);
+      return this.res("", exists ? 200 : 404);
+    }
 
     if (method === "GET") {
       if (url.endsWith("/")) {
@@ -499,4 +507,51 @@ Deno.test("a forbidden write surfaces a permission error, not a raw 403", async 
   } as unknown as Session);
 
   await assertRejects(() => joinRoom(ROOM, session), Error, "permission");
+});
+
+// ── ensureRoomAcls — rebuild the log-less room-ACL projection ───────────────────
+
+Deno.test("ensureRoomAcls rebuilds a missing owned-room ACL and leaves existing ones alone", async () => {
+  // The archive-restore shape: the room containers and their event resources
+  // survived (bodies transfer), the `.acl`s did not (ACLs never do). The room
+  // ACL has no log to replay from, so the rebuild re-provisions the canonical
+  // ACL — but only where it is MISSING (an existing, possibly hand-edited ACL
+  // stays untouched, mirroring reissueGrants' out-of-band rule).
+  const pod = new FakePod();
+  const session = sessionFor(pod, ALICE);
+  const root = "https://alice.example/granergize/rooms/";
+  const restored = `${root}r-restored/`;
+  const intact = `${root}r-intact/`;
+  pod.containers.add(root);
+  pod.containers.add(restored);
+  pod.containers.add(intact);
+  pod.resources.set(`${restored}evt-1`, "# a membership event that survived");
+  pod.resources.set(`${intact}.acl`, "# hand-edited acl");
+
+  const rebuilt = await ensureRoomAcls(session);
+
+  assertEquals(rebuilt, 1, "exactly the ACL-less room is repaired");
+  const acl = pod.resources.get(`${restored}.acl`) ?? "";
+  assert(
+    acl.includes("AuthenticatedAgent") && acl.includes(ALICE),
+    "the canonical room ACL (owner control + members' self-join) is restored",
+  );
+  assertEquals(
+    pod.resources.get(`${intact}.acl`),
+    "# hand-edited acl",
+    "an existing ACL is left alone",
+  );
+});
+
+Deno.test("ensureRoomAcls with no rooms/ container rebuilds nothing", async () => {
+  const pod = new FakePod();
+  assertEquals(await ensureRoomAcls(sessionFor(pod, ALICE)), 0);
+  assertEquals(pod.puts.length, 0, "no writes on a room-less Pod");
+});
+
+Deno.test("ensureRoomAcls throws when not logged in", async () => {
+  const session = sessionGateway(
+    { info: { isLoggedIn: false, webId: undefined } } as unknown as Session,
+  );
+  await assertRejects(() => ensureRoomAcls(session), Error, "Not logged in");
 });

@@ -625,28 +625,8 @@ export async function createRoom(
 
   await ensureContainer(roomUri, gateway);
 
-  // Write the room ACL the same way the rest of the app does (a direct
-  // <container>.acl PUT with full-IRI triples — see share.ts grantReadAccess):
-  // owner gets control; any authenticated agent may read the log and append
-  // events, so anyone can self-join. acl:default propagates to the child events.
   const aclUri = `${roomUri}.acl`;
-  const aclBody = [
-    `<${aclUri}#owner> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
-    `<${aclUri}#owner> <${ACL_NS}agent> <${webId}> .`,
-    `<${aclUri}#owner> <${ACL_NS}accessTo> <${roomUri}> .`,
-    `<${aclUri}#owner> <${ACL_NS}default> <${roomUri}> .`,
-    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Read> .`,
-    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Write> .`,
-    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Control> .`,
-    `<${aclUri}#members> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
-    `<${aclUri}#members> <${ACL_NS}agentClass> <${ACL_NS}AuthenticatedAgent> .`,
-    `<${aclUri}#members> <${ACL_NS}accessTo> <${roomUri}> .`,
-    `<${aclUri}#members> <${ACL_NS}default> <${roomUri}> .`,
-    `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Read> .`,
-    `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Append> .`,
-  ].join("\n") + "\n";
-
-  const res = await putAcl(aclUri, aclBody, gateway);
+  const res = await putAcl(aclUri, roomAclTurtle(roomUri, webId), gateway);
   if (!res.ok) {
     throw new Error(
       `Created the room but failed to set its permissions (HTTP ${res.status}). ` +
@@ -664,6 +644,73 @@ export async function createRoom(
   if (trimmed) await writeRoomName(roomUri, trimmed, gateway);
 
   return roomUri;
+}
+
+/**
+ * The canonical room ACL, written the same way the rest of the app writes ACLs
+ * (a direct `<container>.acl` PUT with full-IRI triples — see share.ts
+ * grantReadAccess): the owner gets control; any authenticated agent may read
+ * the log and append events, so anyone can self-join. `acl:default` propagates
+ * to the child events. One producer for createRoom AND the rebuild
+ * ({@link ensureRoomAcls}), so provision and repair cannot drift.
+ */
+function roomAclTurtle(roomUri: string, webId: string): string {
+  const aclUri = `${roomUri}.acl`;
+  return [
+    `<${aclUri}#owner> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
+    `<${aclUri}#owner> <${ACL_NS}agent> <${webId}> .`,
+    `<${aclUri}#owner> <${ACL_NS}accessTo> <${roomUri}> .`,
+    `<${aclUri}#owner> <${ACL_NS}default> <${roomUri}> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Read> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Write> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Control> .`,
+    `<${aclUri}#members> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
+    `<${aclUri}#members> <${ACL_NS}agentClass> <${ACL_NS}AuthenticatedAgent> .`,
+    `<${aclUri}#members> <${ACL_NS}accessTo> <${roomUri}> .`,
+    `<${aclUri}#members> <${ACL_NS}default> <${roomUri}> .`,
+    `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Read> .`,
+    `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Append> .`,
+  ].join("\n") + "\n";
+}
+
+/**
+ * Reconciliation: re-provision the ACL of every room the user OWNS whose `.acl`
+ * is missing. A room ACL is a materialized projection written once at
+ * {@link createRoom} with no log to replay it from; an archive restore
+ * re-creates the room containers and their event resources but transfers no
+ * `.acl`, leaving restored rooms unreadable and unjoinable for members. Owned
+ * rooms are discovered by listing `rooms/` (the same discovery the room UI
+ * uses); only a MISSING ACL is written — an existing (possibly hand-edited)
+ * one is left alone, mirroring reissueGrants' out-of-band rule. Returns the
+ * number of ACLs rebuilt.
+ * @operation mutation
+ */
+export async function ensureRoomAcls(gateway: PodGateway): Promise<number> {
+  const webId = gateway.webId;
+  if (!webId) throw new Error("Not logged in");
+  const roomsRoot = `${appRoot(webId)}rooms/`;
+  const listing = await readStoreOrEmpty(roomsRoot, gateway);
+  const rooms = listing.getObjects(namedNode(roomsRoot), LDP_CONTAINS, null)
+    .map((o) => o.value)
+    // Only the room containers: some servers (JSS) also list auxiliary
+    // sidecars (`rooms/.acl`) in ldp:contains — a child that isn't a
+    // container is never a room.
+    .filter((uri) => uri.endsWith("/"));
+  let rebuilt = 0;
+  for (const room of rooms) {
+    const aclUri = `${room}.acl`;
+    const head = await gateway.fetch(aclUri, { method: "HEAD" });
+    if (head.ok) continue;
+    const res = await putAcl(aclUri, roomAclTurtle(room, webId), gateway);
+    if (!res.ok) {
+      throw new Error(
+        `Failed to rebuild the room permissions at ${aclUri} (HTTP ${res.status}). ` +
+          `Others may be unable to join until it grants append access.`,
+      );
+    }
+    rebuilt++;
+  }
+  return rebuilt;
 }
 
 /** The room's name resource — holds `<room> rdfs:label "name"`. */

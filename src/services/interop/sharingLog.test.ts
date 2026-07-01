@@ -7,6 +7,7 @@ import { Parser, Store } from "n3";
 import { QueryClient } from "@tanstack/react-query";
 import { _setAppQueryClient } from "../../lib/appQueryClient.ts";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
+import { removeInaccessibleBuildingSources } from "../turtleParsing.ts";
 import {
   appendSharingEvent,
   buildSharingEventTurtle,
@@ -325,4 +326,55 @@ Deno.test("cachedSharingGrants folds the warm cache (listing + per-event entries
 Deno.test("cachedSharingGrants: no app client / cold listing → null", () => {
   _setAppQueryClient(null);
   assert.equal(cachedSharingGrants(WEBID, "sharedInContainer"), null);
+});
+
+Deno.test("buildSharingEventTurtle round-trips a revocation's kind (every dimension IN the event)", () => {
+  // A revocation must record WHAT was revoked, or the log replay
+  // (reissueGrants/auditGrants) has to guess and dispatches an aggregation
+  // revocation down the building path — fabricating building-shaped
+  // sub-resource targets for a snapshot file.
+  const e: SharingEvent = {
+    type: "revocation",
+    owner: OWNER,
+    grantee: BOB,
+    resource: "https://alice.example/granergize/aggregations/snapshots/v-1.ttl",
+    kind: "Aggregation",
+    at: "2026-06-05T10:00:00Z",
+  };
+  const ttl = buildSharingEventTurtle(e);
+  const events = parseSharingEvents(new Store(new Parser({ baseIRI: B1 }).parse(ttl)));
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, "revocation");
+  assert.equal(events[0].kind, "Aggregation", "the revocation's kind survives the round-trip");
+});
+
+Deno.test("removeInaccessibleBuildingSources records the GRANTING owner + kind on the prune revocation", async () => {
+  // The prune is a self-revocation on the RECIPIENT side, but the event schema
+  // says `owner` is the sharer — recording the pruning recipient there
+  // falsifies the history for any future owner-keyed derivation. The pruner
+  // must look the owner up from the folded grant it is revoking (and record
+  // the kind, like every other event).
+  const { session, store } = makePod();
+  const log = sharedInUri(WEBID);
+  await appendSharingEvent(log, session, {
+    type: "grant",
+    owner: OWNER,
+    grantee: WEBID,
+    resource: B1,
+    kind: "Building",
+    at: "2026-06-04T10:00:00Z",
+  });
+
+  await removeInaccessibleBuildingSources([{ uri: B1, status: 403 }], session);
+
+  const events = Object.entries(store)
+    .filter(([u]) => u.startsWith(log) && u !== log)
+    .flatMap(([u, body]) =>
+      parseSharingEvents(new Store(new Parser({ baseIRI: u }).parse(body)))
+    );
+  const rev = events.find((e) => e.type === "revocation");
+  assert.ok(rev, "a prune revocation was appended");
+  assert.equal(rev!.resource, B1);
+  assert.equal(rev!.owner, OWNER, "the event records the sharer, not the pruning recipient");
+  assert.equal(rev!.kind, "Building", "the pruned grant's kind is recorded");
 });

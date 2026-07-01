@@ -136,7 +136,7 @@ Deno.test("drainInbox creates shared-in/ once when draining multiple messages (n
     `@prefix interop: <${INTEROP_NS}> .\n@prefix acl: <${ACL_NS}> .\n` +
     `@prefix prov: <http://www.w3.org/ns/prov#> .\n` +
     `@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n` +
-    `<> a interop:AccessGrant ; interop:grantee <https://a.example/card#me> ; ` +
+    `<> a interop:AccessGrant ; interop:grantee <${WEBID}> ; ` +
     `interop:forResource <${resource}> ; interop:accessMode acl:Read ; ` +
     `prov:generatedAtTime "2026-06-08T00:00:00Z"^^xsd:dateTime .`;
   const ttl = (body: string, status = 200) =>
@@ -208,6 +208,114 @@ Deno.test("ensureOwnInbox: no writes and no creation notice when the inbox alrea
   assert.deepEqual(writes, []);
 });
 
+/**
+ * Fake Pod in the archive-restore shape: the inbox CONTAINER survived (restore
+ * re-creates resource bodies) but its `.acl` did not (the archive transfers no
+ * ACLs). Records every write with its body.
+ */
+function restoredSession(): {
+  session: PodGateway;
+  writes: { url: string; method: string; body: string }[];
+} {
+  const inbox = "https://b.example/granergize/inbox/";
+  const writes: { url: string; method: string; body: string }[] = [];
+  const session = sessionGateway({
+    info: { isLoggedIn: true, webId: WEBID },
+    fetch: (input: string | URL | Request, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString())
+        .split("?")[0];
+      const method = init?.method ?? "GET";
+      if (method === "HEAD") {
+        return Promise.resolve(
+          new Response(null, { status: url === inbox ? 200 : 404 }),
+        );
+      }
+      writes.push({ url, method, body: String(init?.body ?? "") });
+      return Promise.resolve(new Response("", { status: 201 }));
+    },
+  } as unknown as Session);
+  return { session, writes };
+}
+
+Deno.test("ensureOwnInbox: re-provisions a missing ACL behind an existing container (restore shape)", async () => {
+  // The ACL is a materialized projection with no other rebuild path: after an
+  // archive restore the container exists but the append grant is gone, so every
+  // inbound share would 403. "Container exists" must NOT skip the ACL check.
+  _setStorageRootForTesting(WEBID, "https://b.example/");
+  const { session, writes } = restoredSession();
+  const created = await ensureOwnInbox(session);
+  assert.equal(created, false, "the container was not created this call");
+  assert.deepEqual(
+    writes.map((w) => w.url),
+    ["https://b.example/granergize/inbox/.acl"],
+    "exactly the missing ACL is re-provisioned",
+  );
+  assert.ok(
+    writes[0].body.includes("AuthenticatedAgent") &&
+      writes[0].body.includes("Append"),
+    "the rebuilt ACL restores the senders' append grant",
+  );
+});
+
 // Keep the storage-root cache clean for other suites (resolveStorageRootForWebId
 // doesn't cache, but be tidy in case a future test relies on it).
 _setStorageRootForTesting(WEBID, "https://b.example/");
+
+Deno.test("drainInbox archives only events granted TO the inbox owner; foreign-grantee junk is discarded", async () => {
+  // The inbox grants any authenticated agent append, so anything can land in
+  // it. An event whose grantee is NOT the inbox owner has no business in the
+  // owner's shared-in log (it could fold someone's forged pair in or out) —
+  // it must be dropped, and the junk message still deleted. (Full sender
+  // authentication is an LDN-protocol matter; this is the app-side integrity
+  // floor.)
+  _setStorageRootForTesting(WEBID, "https://b.example/");
+  const appRoot = "https://b.example/granergize/";
+  const inbox = `${appRoot}inbox/`;
+  const sharedIn = `${appRoot}shared-in/`;
+  const legit = `${inbox}m-legit`;
+  const junk = `${inbox}m-junk`;
+  const eventTtl = (grantee: string, resource: string) =>
+    `@prefix interop: <${INTEROP_NS}> .\n@prefix acl: <http://www.w3.org/ns/auth/acl#> .\n` +
+    `@prefix prov: <http://www.w3.org/ns/prov#> .\n` +
+    `@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n` +
+    `<> a interop:AccessGrant ; interop:grantee <${grantee}> ; ` +
+    `interop:forResource <${resource}> ; interop:accessMode acl:Read ; ` +
+    `prov:wasAssociatedWith <https://a.example/card#me> ; ` +
+    `prov:generatedAtTime "2026-06-08T00:00:00Z"^^xsd:dateTime .`;
+  const ttl = (body: string, status = 200) =>
+    Promise.resolve(
+      new Response(body, { status, headers: { "Content-Type": "text/turtle" } }),
+    );
+
+  const calls: { method: string; url: string; body?: string }[] = [];
+  const session = sessionGateway({
+    info: { isLoggedIn: true, webId: WEBID },
+    fetch: (input: string | URL | Request, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
+      const method = (init?.method ?? "GET").toUpperCase();
+      calls.push({ method, url, body: init?.body ? String(init.body) : undefined });
+      if (url === appRoot && method === "GET") return ttl("");
+      if (url === inbox && method === "GET") {
+        return ttl(`<${inbox}> <${LDP_CONTAINS}> <${legit}>, <${junk}> .`);
+      }
+      if (url === legit && method === "GET") {
+        return ttl(eventTtl(WEBID, "https://a.example/b1.ttl"));
+      }
+      if (url === junk && method === "GET") {
+        return ttl(eventTtl("https://victim.example/card#me", "https://a.example/b1.ttl"));
+      }
+      if ((url === legit || url === junk) && method === "DELETE") return ttl("");
+      if (url === sharedIn && (method === "GET" || method === "HEAD")) return ttl("");
+      if (url === sharedIn && (method === "PUT" || method === "POST")) return ttl("", 201);
+      return ttl("Not found", 404);
+    },
+  } as unknown as Session);
+
+  await drainInbox(session);
+
+  const posts = calls.filter((c) => c.method === "POST" && c.url === sharedIn);
+  assert.equal(posts.length, 1, "only the owner-granted event is archived");
+  assert.ok(posts[0].body?.includes(WEBID), "the archived event names the inbox owner as grantee");
+  const deletes = calls.filter((c) => c.method === "DELETE").map((c) => c.url).sort();
+  assert.deepEqual(deletes, [junk, legit].sort(), "both messages removed — junk is not reprocessed forever");
+});

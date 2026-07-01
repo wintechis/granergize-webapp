@@ -17,6 +17,7 @@ import {
   RDF_TYPE,
 } from "../rdf/vocabularies.ts";
 import {
+  buildingGrantUniverseFromStore,
   buildingTargetsFromStore,
   energyTargetsFromStore,
   type GrantTarget,
@@ -91,6 +92,12 @@ export async function shareBuildingData(
  * with `acl:default`), a legacy cert outside `files/`, and — when energy is
  * included — each `cons:EnergyDataset` (restricted to `options.years` if given)
  * plus a series' daily-files container.
+ *
+ * Convergent, not just additive: the fold keeps only the LATEST grant per
+ * (grantee, resource), so this scope is the log's whole truth for the pair —
+ * targets only a previous, wider grant covered (a dropped year, the `files/`
+ * container default behind an attachment subset, energy removed entirely) are
+ * withdrawn from the recipient, not left lingering.
  * @operation mutation
  */
 export async function applyBuildingGrant(
@@ -107,7 +114,7 @@ export async function applyBuildingGrant(
   await ensureContainer(filesContainer, gateway);
 
   // The target set comes from the ONE enumeration shared with auditGrants
-  // (buildingGrantTargets), so the applied projection and the audited
+  // (buildingTargetsFromStore), so the applied projection and the audited
   // expectation cannot disagree about what a grant covers.
   // Each target has its OWN .acl, so the grants are independent and can run
   // concurrently (bounded, like every other Pod fan-out). Error semantics: the
@@ -116,11 +123,44 @@ export async function applyBuildingGrant(
   // which is fine here — each grant is an idempotent projection of the
   // already-appended log event, so any extra successes only reduce log↔ACL
   // drift (reissueGrants would re-apply exactly those grants anyway).
-  const targets = await buildingGrantTargets(buildingFile, gateway, options);
+  const store = await fetchBuildingStore(buildingFile, gateway);
+  const targets = buildingTargetsFromStore(store, buildingFile, {
+    includeEnergyData: options.includeEnergyData,
+    years: options.years,
+    attachmentUris: options.attachmentUris,
+  });
   await mapPooled(
     targets,
     4,
     (t) => grantReadAccess(t.uri, webId, gateway, t.isContainer),
+  );
+
+  // Withdraw the grantee from every target OUTSIDE this scope (the convergence
+  // note above). removeFromACL is idempotent and owner-lockout-safe, so
+  // withdrawing a never-granted target skips its PUT; withdrawal runs AFTER the
+  // grants so a narrowed re-share never interrupts the targets that stay.
+  const granted = new Set(targets.map((t) => t.uri));
+  const stale = buildingGrantUniverseFromStore(store, buildingFile)
+    .filter((t) => !granted.has(t.uri));
+  await mapPooled(stale, 4, (t) => removeFromACL(t.uri, webId, gateway));
+}
+
+/**
+ * Fetch + parse the building file once; the grant targets and the withdrawal
+ * universe both derive from this single store (no second GET).
+ */
+async function fetchBuildingStore(
+  buildingFile: string,
+  gateway: PodGateway,
+): Promise<Store> {
+  const response = await fetchFresh(buildingFile, gateway);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch building data at ${buildingFile}: ${response.statusText}`,
+    );
+  }
+  return new Store(
+    new Parser({ baseIRI: buildingFile }).parse(await response.text()),
   );
 }
 
@@ -142,15 +182,7 @@ export async function buildingGrantTargets(
   gateway: PodGateway,
   options: ShareOptions = { includeEnergyData: true },
 ): Promise<GrantTarget[]> {
-  const response = await fetchFresh(buildingFile, gateway);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch building data at ${buildingFile}: ${response.statusText}`,
-    );
-  }
-  const store = new Store(
-    new Parser({ baseIRI: buildingFile }).parse(await response.text()),
-  );
+  const store = await fetchBuildingStore(buildingFile, gateway);
   return buildingTargetsFromStore(store, buildingFile, {
     includeEnergyData: options.includeEnergyData,
     years: options.years,
@@ -222,12 +254,18 @@ export async function reissueGrants(gateway: PodGateway): Promise<ReissueResult>
       // (and owner-lockout-safe), so replaying an already-withdrawn pair is a
       // no-op; sub-resources of a since-deleted building simply aren't there.
       await removeFromACL(resourceFile, e.grantee, gateway);
-      try {
-        for (const t of await getSubresourceAclTargets(resourceFile, gateway)) {
-          await removeFromACL(t, e.grantee, gateway);
+      // Only a building has sub-resource ACLs to withdraw — an aggregation
+      // revocation covers just the snapshot file. The kind is recorded ON the
+      // event (a missing kind is a legacy building, same default as the grant
+      // branch), so no guessing that fabricates building-shaped targets.
+      if (e.kind !== "Aggregation") {
+        try {
+          for (const t of await getSubresourceAclTargets(resourceFile, gateway)) {
+            await removeFromACL(t, e.grantee, gateway);
+          }
+        } catch {
+          // The resource is gone — nothing underneath to withdraw.
         }
-      } catch {
-        // The resource is gone — nothing underneath to withdraw.
       }
       result.revoked++;
       continue;
@@ -305,7 +343,8 @@ export async function reconcileBuildingGrants(
 /** One disagreement between the `shared-out/` log and an actual `.acl`. */
 export interface GrantDrift {
   /** `missing-grant`: the log says the grantee may read it, the `.acl` doesn't.
-   *  `lingering-grant`: the log's latest event is a revocation, the `.acl` still grants. */
+   *  `lingering-grant`: the `.acl` still grants something the log's latest event
+   *  no longer covers — a revocation, or a target outside a narrowed grant's scope. */
   kind: "missing-grant" | "lingering-grant";
   grantee: string;
   /** The specific resource whose `.acl` disagrees (not the whole building). */
@@ -337,7 +376,9 @@ export interface GrantAuditResult {
  * Both drift directions are reported: a `missing-grant` (a share whose ACL write
  * failed, or a dataset written AFTER an all-years share — the known
  * `writeEnergyYear` gap, see QUESTIONS.md) and a `lingering-grant` (a revocation
- * whose ACL withdrawal failed). Same scope rules as the repair: off-Pod events
+ * whose ACL withdrawal failed, or a target only a previous, WIDER grant covered
+ * — the fold's latest event is the pair's whole truth, so an active grant is
+ * audited against its scope's universe too). Same scope rules as the repair: off-Pod events
  * are skipped, deleted resources counted `missing`, out-of-band agents (in an
  * `.acl` but never in the log) are not reported, and a self-grantee revocation
  * is not flagged (`removeFromACL` never withdraws the owner). Advisory by
@@ -372,15 +413,19 @@ export async function auditGrants(gateway: PodGateway): Promise<GrantAuditResult
       // lockout guard), so a self-grantee revocation can't be drift.
       if (e.grantee === webId) continue;
       let targets = [resourceFile];
-      try {
-        targets = [
-          ...new Set([
-            resourceFile,
-            ...await getSubresourceAclTargets(resourceFile, gateway),
-          ]),
-        ];
-      } catch {
-        // The resource is gone — only the file-level ACL could linger.
+      // Same kind dispatch as the repair: only a building revocation has
+      // sub-resource ACLs to check.
+      if (e.kind !== "Aggregation") {
+        try {
+          targets = [
+            ...new Set([
+              resourceFile,
+              ...await getSubresourceAclTargets(resourceFile, gateway),
+            ]),
+          ];
+        } catch {
+          // The resource is gone — only the file-level ACL could linger.
+        }
       }
       for (const t of targets) {
         result.checked++;
@@ -402,18 +447,43 @@ export async function auditGrants(gateway: PodGateway): Promise<GrantAuditResult
       continue;
     }
 
-    const targets: GrantTarget[] = e.kind === "Aggregation"
-      ? [{ uri: resourceFile, isContainer: false }]
-      : await buildingGrantTargets(resourceFile, gateway, {
+    let targets: GrantTarget[];
+    // Targets a WIDER previous grant covered but this (latest, authoritative)
+    // scope does not — a read grant here is `lingering-grant` drift, exactly
+    // what applyBuildingGrant's withdrawal converges. An aggregation grant has
+    // no sub-targets, so its universe is its expected set.
+    let outsideScope: GrantTarget[] = [];
+    if (e.kind === "Aggregation") {
+      targets = [{ uri: resourceFile, isContainer: false }];
+    } else {
+      const store = await fetchBuildingStore(resourceFile, gateway);
+      targets = buildingTargetsFromStore(store, resourceFile, {
         includeEnergyData: e.includesEnergy ?? true,
         years: e.years,
         attachmentUris: e.attachmentUris,
       });
+      const expected = new Set(targets.map((t) => t.uri));
+      outsideScope = buildingGrantUniverseFromStore(store, resourceFile)
+        .filter((t) => !expected.has(t.uri));
+    }
     for (const t of targets) {
       result.checked++;
       if (!(await hasReadGrant(t.uri, e.grantee, gateway, t.isContainer))) {
         result.drift.push({
           kind: "missing-grant",
+          grantee: e.grantee,
+          resource: t.uri,
+        });
+      }
+    }
+    // Same self-grantee rule as the revocation branch: removeFromACL never
+    // withdraws the owner, so an owner-as-grantee grant can't be lingering.
+    if (e.grantee === webId) continue;
+    for (const t of outsideScope) {
+      result.checked++;
+      if (await hasReadGrant(t.uri, e.grantee, gateway, t.isContainer)) {
+        result.drift.push({
+          kind: "lingering-grant",
           grantee: e.grantee,
           resource: t.uri,
         });

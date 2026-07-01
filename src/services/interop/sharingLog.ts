@@ -18,6 +18,7 @@ import { appendToContainer, ensureContainer } from "../pod/podWrite.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { mapPooled } from "../../lib/pool.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
+import { queryKeys } from "../../lib/queryKeys.ts";
 
 const { namedNode } = DataFactory;
 
@@ -51,7 +52,7 @@ export interface SharingEvent {
   grantee: string; // the recipient (interop:grantee)
   resource: string; // interop:forResource
   at: string; // prov:generatedAtTime (ISO 8601)
-  kind?: SharingKind; // grant only (routing hint)
+  kind?: SharingKind; // the resource's class (routing hint; on grants AND revocations)
   includesEnergy?: boolean; // grant hint only
   /**
    * The granted energy years (grant only). Absent/empty ⇒ all years (the
@@ -111,9 +112,12 @@ export function buildSharingEventTurtle(e: SharingEvent): string {
     `interop:grantee <${e.grantee}>`,
     `interop:forResource <${e.resource}>`,
   ];
+  // Every dimension lives IN the event — kind included, for revocations too,
+  // so the log replay (reissueGrants/auditGrants) can dispatch a revocation
+  // without guessing the resource's class.
+  if (e.kind) triples.push(`gran:kind <${KIND_TO_IRI[e.kind]}>`);
   if (e.type === "grant") {
     triples.push("interop:accessMode acl:Read");
-    if (e.kind) triples.push(`gran:kind <${KIND_TO_IRI[e.kind]}>`);
     if (e.includesEnergy !== undefined) {
       triples.push(`interop:includesEnergyData "${e.includesEnergy}"^^xsd:boolean`);
     }
@@ -352,7 +356,11 @@ export async function foldSharingLog(
  */
 export function cachedSharingGrants(
   webId: string,
-  containerKey: "sharedInContainer" | "sharedOutContainer",
+  // Derived from the registry so a key rename propagates as a type error at
+  // every call site instead of a silently-missed cache.
+  containerKey:
+    | (typeof queryKeys.sharedInContainer)[0]
+    | (typeof queryKeys.sharedOutContainer)[0],
 ): ActiveGrant[] | null {
   const qc = getAppQueryClient();
   if (!qc) return null;
@@ -360,7 +368,7 @@ export function cachedSharingGrants(
   if (listing === undefined) return null;
   const lists: SharingEvent[][] = [];
   for (const eventUri of listing) {
-    const e = qc.getQueryData<SharingEvent[]>(["sharingEvent", webId, eventUri]);
+    const e = qc.getQueryData<SharingEvent[]>([...queryKeys.sharingEvent, webId, eventUri]);
     if (e === undefined) return null; // an event not cached → don't trust a partial fold
     lists.push(e);
   }
