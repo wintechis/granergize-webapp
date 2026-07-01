@@ -98,8 +98,34 @@ export async function stubExternalData(page: Page): Promise<void> {
   // falling back to the fragment on a 404 too — out of scope here.
   if (E2E_LOCAL) {
     await page.route(
-      /wunderfacts\.com\/(mastr|lod2-by|energieatlas|regionalstatistik|nuts|lau|netztransparenz)\/|wikidata\.org|commons\.wikimedia\.org/,
+      EXTERNAL_STUB_HOSTS,
       (route) => route.fulfill({ status: 404, headers: CORS, body: "" }),
     );
   }
+}
+
+/** The external open-data hosts {@link stubExternalData} 404s in the LOCAL lane — the
+ *  wunderfacts wrappers plus the Wikidata/Commons logo lookups. Exported so a spec can
+ *  lift it (see {@link allowLiveWrappers}); `/wetterdienst/` is deliberately absent (left
+ *  live for cube-calendar-weather). */
+export const EXTERNAL_STUB_HOSTS =
+  /wunderfacts\.com\/(mastr|lod2-by|energieatlas|regionalstatistik|nuts|lau|netztransparenz)\/|wikidata\.org|commons\.wikimedia\.org/;
+
+/** The Wikidata/Commons logo hosts — a subset of {@link EXTERNAL_STUB_HOSTS}. */
+const LOGO_HOSTS = /wikidata\.org|commons\.wikimedia\.org/;
+
+/**
+ * LOCAL-lane escape hatch: drop the wrapper 404 so a spec hits the LIVE wrappers under
+ * `e2e:local` — the throwaway CSS Pod is fast (no rate limit), while the open-data
+ * enrichment is checked against the real sources (the pattern until a scalable online
+ * server exists). The Wikidata/Commons LOGO lookups are RE-stubbed 404, because hundreds
+ * of slow live logo calls across a full archive race teardown (see archive-full-load).
+ * Call AFTER page creation. No-op in the remote lane (nothing was stubbed there).
+ */
+export async function allowLiveWrappers(page: Page): Promise<void> {
+  await page.unroute(EXTERNAL_STUB_HOSTS).catch(() => {});
+  await page.route(
+    LOGO_HOSTS,
+    (route) => route.fulfill({ status: 404, headers: CORS, body: "" }),
+  );
 }

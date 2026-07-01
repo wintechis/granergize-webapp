@@ -2,6 +2,31 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — E2E: archive-driven UI coverage + live open-data enrichment
+
+Rounds out the coverage for the logistics dataset's pipeline → archive → upload → render
+path, and the on-demand wrapper enrichment layered on top of it. Three complementary
+specs now sit on the three axes (baked vs live data; local vs remote Pod):
+
+- **`test/e2e/solo/archive-live-enrichment.spec.ts` (new)** — uploads the REAL generator
+  archive to the throwaway CSS Pod, then for a selection of its buildings asserts the data
+  the app fetches LIVE from the wrappers renders (nearby MaStR installations + the
+  Energie-Atlas Standort profile). Tier-3 only: the Pod is local (fast, unthrottled — so
+  the full ~1.4k-resource archive uploads) while the wrappers stay live — the working
+  pattern until a scalable online Pod server exists. Shape-tolerant: asserts the
+  enrichment sections appear, never the live figures.
+- **`test/e2e/helpers/stubBasemap.ts`** — `allowLiveWrappers(page)` lifts the local
+  wrapper 404 stub so a spec can hit the live wrappers under `e2e:local` (the
+  Wikidata/Commons logo lookups stay stubbed — hundreds of slow live calls across a full
+  archive race teardown); `EXTERNAL_STUB_HOSTS` extracted + exported.
+- **`test/e2e/solo/archive-full-load.spec.ts`** — prefer a dated snapshot under
+  `test/e2e/fixtures/` (falling back to the sibling generator repo, then a
+  `LOGISTICS_ARCHIVE` override), so the real-archive scale test can run self-contained;
+  assertions stay runtime-derived from the zip.
+- **`test/e2e/solo/logistics-visible.spec.ts`** — assert the Standort profile on the
+  observation route (it renders in `EnergyDetail`, not the `/building` master-data page)
+  and scope its heading locator exact (it prefixes the neighbourhood section's heading).
+
 ## [2026-07-01] — Rooftop-PV benchmark: this building vs. its Gemeinde
 
 Sets a building's own rooftop PV against its Gemeinde's Energie-Atlas figures in the

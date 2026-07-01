@@ -13,19 +13,22 @@ import { createZip } from "../../../src/lib/zip.ts";
 /**
  * "Is the wrapper-pulled data visible in the app?" — imports a logistikimmobilien-shaped
  * archive (one logistics building carrying the fields the six `linked-*` wrappers feed into
- * the dataset) and asserts the building detail page renders them:
- *  - PV system + capacity      ← linked-mastr  (`<#pv>` :PVSystem)
- *  - measured building height   ← linked-lod2-by (`bldg:buildingHeight`)
- *  - Standort energy profile    ← linked-lau/-nuts/-energieatlas, reached live from the region
- *                                 concept the building points at via `dcterms:spatial`
- *  - 3D building model           ← linked-lod2-by, fetched live by the building's coordinate
+ * the dataset) and asserts each field renders on the page that owns it:
+ *  - PV system + capacity      ← linked-mastr  (`<#pv>` :PVSystem) — /building
+ *  - measured building height   ← linked-lod2-by (`bldg:buildingHeight`) — /building
+ *  - 3D building model           ← linked-lod2-by, fetched live by the building's coordinate;
+ *                                 renders in the building header, so /building
+ *  - Standort energy profile    ← linked-lau/-nuts/-energieatlas, fetched live from the
+ *                                 building's Gemeinde; renders in EnergyDetail, so /observation
  *
  * The building uses a real Nürnberg coordinate + the real Nürnberg LAU concept so the
- * live-fetched panels (Standort, 3D model) light up against the running wrappers. The archive is
- * the generator's verbatim shape (relative `<#it>`, no base/webId ⇒ PUT as-is).
+ * live-fetched panels (Standort, 3D model) light up against the running wrappers. Because
+ * those panels hit the LIVE wrappers, this is really a REMOTE spec — under `e2e:local` the
+ * wrappers are stubbed, so the 3D/Standort panels don't populate. The archive is the
+ * generator's verbatim shape (relative `<#it>`, no base/webId ⇒ PUT as-is).
  *
- * MUTATES the Pod (adds one building); afterAll resets it. Tier 3 vs a disposable CSS. Alice
- * (account A); skipped without creds.
+ * MUTATES the Pod (adds one building); afterAll resets it. Alice (account A); skipped
+ * without creds.
  *
  *   deno task e2e:local test/e2e/solo/logistics-visible.spec.ts
  */
@@ -119,6 +122,7 @@ test.describe("imported wrapper-derived logistics data is visible on the buildin
       expect(id, "logistics building imported").not.toBe("");
     }).toPass({ timeout: T.poll });
 
+    // ── The BUILDING (master-data) page: archive fields + the 3D model ──
     await page.goto(buildingRoute("building", id));
 
     // ── Wrapper data from the ARCHIVE ──
@@ -128,11 +132,19 @@ test.describe("imported wrapper-derived logistics data is visible on the buildin
     // linked-lod2-by: the measured building height.
     await expect(page.getByText(/11[.,]4/)).toBeVisible({ timeout: T.action });
 
-    // ── Wrapper data fetched LIVE from the region concept / coordinate ──
-    // linked-lau/-nuts/-energieatlas: the Standort energy profile (driven by dcterms:spatial →
-    // regionConceptIri → AGS). linked-lod2-by: the 3D model (by coordinate). Generous timeouts —
-    // these hit the live wrappers.
-    await expect(page.getByText(t("secStandortProfile"))).toBeVisible({ timeout: T.poll });
+    // linked-lod2-by: the 3D model, fetched LIVE by the building's coordinate — it lives
+    // in the building header (BuildingHeader), so it's on this page. Generous timeout.
     await expect(page.getByText(t("b3dTitle"))).toBeVisible({ timeout: T.poll });
+
+    // ── The OBSERVATION page: the Standort energy profile ──
+    // linked-lau/-nuts/-energieatlas, fetched LIVE from the building's Gemeinde (resolved
+    // from its coordinate via the nearby MaStR units). It renders in EnergyDetail, i.e. on
+    // the observation route — NOT the master-data /building page.
+    await page.goto(buildingRoute("observation", id));
+    // Exact heading — "Location energy profile" is a prefix of the sibling
+    // neighbourhood section's "Location energy profile — neighbourhood".
+    await expect(
+      page.getByRole("heading", { name: t("secStandortProfile"), exact: true }),
+    ).toBeVisible({ timeout: T.poll });
   });
 });

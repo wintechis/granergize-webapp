@@ -24,11 +24,11 @@ import { readZip } from "../../../src/lib/zip.ts";
  *
  * Heavy + slow: a single Import drives ~1k sequential PUTs. It is gated to Tier 3
  * (skipped unless E2E_LOCAL — a real Pod would be throttled to death). By default it
- * imports the committed snapshot `test/e2e/fixtures/logistik-nuernberg-archive.zip` (so
- * the spec is self-contained and runs in CI); override with `LOGISTICS_ARCHIVE=<path>`
- * (e.g. a freshly generated archive), and it falls back to the newest
+ * imports the committed dated snapshot under `test/e2e/fixtures/` (so the spec is
+ * self-contained and runs in CI); override with `LOGISTICS_ARCHIVE=<path>` (e.g. a freshly
+ * generated archive), and it falls back to the newest
  * `../logistikimmobilien/logistik-*archive-*.zip` if the snapshot is absent. Re-snapshot
- * by copying a fresh generator archive over the fixture.
+ * by committing a newer dated generator archive and repointing the `snapshot` constant.
  *
  *   deno task e2e:local test/e2e/solo/archive-full-load.spec.ts
  *
@@ -60,9 +60,10 @@ function locateArchive(): string | null {
       return null;
     }
   }
-  // Committed snapshot — the default. Re-snapshot by copying a fresh
-  // `../logistikimmobilien/logistik-*archive-*.zip` over this file.
-  const snapshot = "test/e2e/fixtures/logistik-nuernberg-archive.zip";
+  // Committed snapshot — the default. A dated copy of a generator archive (its filename
+  // kept verbatim); re-snapshot by committing a newer dated archive here and repointing
+  // this constant.
+  const snapshot = "test/e2e/fixtures/logistik-nuernberg-archive-2026-07-01.zip";
   try {
     statSync(snapshot);
     return snapshot;
