@@ -72,6 +72,9 @@ export interface TechnicalSystem extends TechnicalSystemFields {
    * feature-of-interest a per-unit observation attaches to. */
   id: string;
   kind: SystemKind;
+  /** `rdfs:label` — the unit's own name (e.g. the MaStR Anlagenname
+   * "PV-1-Anlage 45,36kWp_Halle2"), when the source carries one. */
+  label?: string;
   operatedBy?: string; // rec:operatedBy — the UNIT operator's WebID/IRI
   sameAs?: string; // owl:sameAs the external MaStR Einheit IRI
   // capacityKW / storageCapacityKWh / thermalCapacityKW / commissioningYear ← TechnicalSystemFields

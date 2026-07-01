@@ -12,6 +12,7 @@ import { setField } from "../../../types.ts";
 /** Raw props collected off one `bldg:hasSystem` node before dispatch on its type. */
 interface SystemRaw {
   type?: string;
+  label?: string;
   capacityKW?: number;
   storageCapacityKWh?: number;
   thermalCapacityKW?: number;
@@ -40,6 +41,7 @@ import {
   PROV_AGENT,
   PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE,
+  RDFS_LABEL,
   REC_BUILDING,
   REC_NS,
   SCHEMA_CONTENT_SIZE,
@@ -372,6 +374,7 @@ export function parseBuildings(
       const pred = quad.predicate.value;
       const v = quad.object.value;
       if (pred === RDF_TYPE) s.type = v;
+      else if (pred === RDFS_LABEL) s.label = v;
       else if (pred === `${BUILDING_NS}capacityKW`) s.capacityKW = parseFloat(v);
       else if (pred === `${BUILDING_NS}storageCapacityKWh`) {
         s.storageCapacityKWh = parseFloat(v);

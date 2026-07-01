@@ -339,7 +339,12 @@ export default function SystemListSection(
           <Stack spacing={1}>
             {systems.map((s) => (
               <Fragment key={s.id}>
-                <DetailRow label={kindLabel(s.kind)} value={systemSummary(s)} />
+                <DetailRow
+                  label={kindLabel(s.kind)}
+                  value={s.label
+                    ? `${s.label} · ${systemSummary(s)}`
+                    : systemSummary(s)}
+                />
                 {s.operatedBy && (
                   <DetailRow
                     label={msg("mdSystemOperator")}

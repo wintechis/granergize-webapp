@@ -184,6 +184,23 @@ Deno.test("serializeBuildingToTurtle round-trips the PV plant as a <#pv> :PVSyst
   assert.equal(b!.operatedBy, buildingOperator, "building operator is NOT the plant operator");
 });
 
+Deno.test("serializeBuildingToTurtle round-trips a system's rdfs:label (the Anlagenname)", () => {
+  const uri = newBuildingUri(WEBID, "b-syslabel");
+  const ttl = serializeBuildingToTurtle({}, uri, undefined, undefined, [
+    {
+      id: "pv-918922634060",
+      kind: "pv",
+      label: "PV-1-Anlage 45,36kWp_Halle2",
+      capacityKW: 45.36,
+    },
+  ]);
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  const pv = b?.systems?.find((s) => s.kind === "pv");
+  assert.ok(pv, "PV unit parsed back");
+  assert.equal(pv!.label, "PV-1-Anlage 45,36kWp_Halle2");
+  assert.equal(pv!.capacityKW, 45.36);
+});
+
 Deno.test("serializeBuildingToTurtle: a bare `_pv_present` writes a PV node with no details (presence ⇒ has PV)", () => {
   const uri = newBuildingUri(WEBID, "b-pvbare");
   const ttl = serializeBuildingToTurtle({ _pv_present: "true" }, uri);

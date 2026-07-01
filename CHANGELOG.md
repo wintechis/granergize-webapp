@@ -2,6 +2,20 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — Show each energy unit's own name (system `rdfs:label`)
+
+A `bldg:hasSystem` node may carry an `rdfs:label` — the unit's own name (e.g. the MaStR
+Anlagenname `"PV-1-Anlage 45,36kWp_Halle2"` the logistics-dataset pipeline now emits one-per-
+Anlage). It is now read, preserved and shown, so the several per-Anlage PV rows a building can
+carry are no longer all the identical "PV system":
+
+- `TechnicalSystem.label` added; `buildingParser` reads a system node's `rdfs:label` into it;
+  `buildingSerializer` writes it back so it round-trips through an edit (`EditView` already
+  spreads `{...s}`).
+- `SystemListSection` renders the name in the unit row (`{label} · {capacity summary}`).
+
+Parser + serializer round-trip tests; `deno task check` / `deno task lint` clean.
+
 ## [2026-07-01] — Live open-data wrapper contract tests + drift fixes
 
 Added **remote contract tests** (`test/headless/contract/*.contract.test.ts`, run with

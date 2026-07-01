@@ -39,6 +39,7 @@ import {
   PROV_QUALIFIED_ATTRIBUTION,
   PROV_WAS_DERIVED_FROM,
   RDF_TYPE as RDF_TYPE_IRI,
+  RDFS_LABEL,
   REC_BUILDING,
   REC_NS,
   SOSA_NS,
@@ -332,6 +333,7 @@ function addSystem(
   const node = namedNode(`${buildingFileUri(subject.value)}#${system.id}`);
   store.addQuad(subject, namedNode(`${BUILDING_NS}hasSystem`), node);
   store.addQuad(node, namedNode(RDF_TYPE_IRI), namedNode(SYSTEM_TYPE_IRI[system.kind]));
+  if (system.label) store.addQuad(node, namedNode(RDFS_LABEL), literal(system.label));
   const decimal = (pred: string, v: number | undefined) => {
     if (v != null) {
       store.addQuad(node, namedNode(pred), literal(String(v), namedNode(XSD_DECIMAL)));

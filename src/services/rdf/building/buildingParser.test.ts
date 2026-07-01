@@ -34,6 +34,24 @@ Deno.test("parseBuildings derives energyDatasets from cons:hasEnergyDataset link
   assert.ok(byGran["2024-PT15M-actual"]);
 });
 
+Deno.test("parseBuildings reads a system node's rdfs:label (the Anlagenname) per unit", () => {
+  const ttl = `@prefix rec: <https://w3id.org/rec#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix bldg: <https://solid.ti.rw.fau.de/gra/building.ttl#> .
+<${B}> a rec:Building ; bldg:hasSystem <${ROOT}granergize/buildings/b1.ttl#pv-1> , <${ROOT}granergize/buildings/b1.ttl#pv-2> .
+<${ROOT}granergize/buildings/b1.ttl#pv-1> a bldg:PVSystem ;
+  rdfs:label "PV-1-Anlage 45,36kWp_Halle2" ; bldg:capacityKW "45.36"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+<${ROOT}granergize/buildings/b1.ttl#pv-2> a bldg:PVSystem ;
+  bldg:capacityKW "75.6"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+`;
+  const building = [...parseBuildings(new Parser().parse(ttl)).values()][0];
+  const pv1 = building.systems?.find((s) => s.id === "pv-1");
+  const pv2 = building.systems?.find((s) => s.id === "pv-2");
+  assert.equal(pv1?.label, "PV-1-Anlage 45,36kWp_Halle2"); // the Anlagenname is read
+  assert.equal(pv1?.capacityKW, 45.36);
+  assert.equal(pv2?.label, undefined); // a node without a label carries none
+});
+
 Deno.test("parseBuildings: identity is the IRI — relative under own root, absolute foreign", () => {
   const foreign = "https://bob.example/granergize/buildings/x.ttl#it";
   const ttl = `@prefix rec: <https://w3id.org/rec#> .
