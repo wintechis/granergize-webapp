@@ -41,9 +41,11 @@ const CONTRACTS: Record<string, () => WrapperContract> = {
         { route: MASTR_ROUTES.within, purpose: "nearby renewable installations in a bounding box" },
         { route: MASTR_ROUTES.filter, purpose: "installations by Gemeinde/Kreis AGS" },
       ],
+      // Bounded with a small `count` so the example derefs are tiny (illustrate the LIDS call
+      // entity, not dump a Gemeinde's ~60k units / all Bavaria's ~300k).
       lidsExamples: [
-        { label: "within → BoundingBox", url: `${b}within?bbox=${box}#id` },
-        { label: "filter → Query", url: `${b}filter?ags=09#id` },
+        { label: "within → BoundingBox", url: `${b}within?bbox=${box}&count=10#id` },
+        { label: "filter → Query", url: `${b}filter?ags=09564000&count=10#id` },
       ],
     };
   },

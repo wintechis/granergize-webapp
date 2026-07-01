@@ -216,3 +216,20 @@ export const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
 export const DCTERMS_IDENTIFIER = `${DCTERMS_NS}identifier`;
 export const DCTERMS_SOURCE = `${DCTERMS_NS}source`;
 export const DCTERMS_LICENSE = `${DCTERMS_NS}license`;
+
+/** LoD2-BY (LDBV) building vocabulary — the authoritative cadastre-derived metadata
+ *  BAKED into each imported building's Turtle (ALKIS id, AdV roof-type code, storeys).
+ *  Read-only: parsed for display beside the app's own master data, never edited/serialized. */
+export const LOD2_NS = "https://w3id.org/linked-lod2-by/vocab#";
+export const LOD2_ALKIS_ID = `${LOD2_NS}alkisId`;
+export const LOD2_ROOF_TYPE = `${LOD2_NS}roofType`;
+export const LOD2_STOREYS_ABOVE_GROUND = `${LOD2_NS}storeysAboveGround`;
+
+/** ISA Core Location Vocabulary — the LoD2 building's postal address node
+ *  (`locn:address` → a `locn:Address`: street+no., town, country, and a full string). */
+export const LOCN_NS = "http://www.w3.org/ns/locn#";
+export const LOCN_ADDRESS = `${LOCN_NS}address`;
+export const LOCN_THOROUGHFARE = `${LOCN_NS}thoroughfare`;
+export const LOCN_POST_NAME = `${LOCN_NS}postName`;
+export const LOCN_ADMIN_UNIT_L1 = `${LOCN_NS}adminUnitL1`;
+export const LOCN_FULL_ADDRESS = `${LOCN_NS}fullAddress`;

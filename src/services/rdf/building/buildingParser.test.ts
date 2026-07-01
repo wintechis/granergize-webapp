@@ -71,6 +71,49 @@ Deno.test("parseBuildings system kind: untyped → pv (legacy), known type → i
   assert.equal(building.systems?.length, 2);
 });
 
+Deno.test("parseBuildings reads the baked LoD2-BY (LDBV) metadata + address", () => {
+  const ttl = `@prefix rec: <https://w3id.org/rec#> .
+@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix locn: <http://www.w3.org/ns/locn#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<${B}> a rec:Building ;
+  lod2:alkisId "DEBYvAAAAABKFAdq" ;
+  lod2:roofType "1000" ;
+  lod2:storeysAboveGround 3 ;
+  dcterms:created "2024-12-03"^^xsd:date ;
+  locn:address <${ROOT}granergize/buildings/b1.ttl#lod2-address> .
+<${ROOT}granergize/buildings/b1.ttl#lod2-address> a locn:Address ;
+  locn:thoroughfare "Neumeyerstraße 17" ;
+  locn:postName "Nürnberg" ;
+  locn:adminUnitL1 "Germany" ;
+  locn:fullAddress "Neumeyerstraße 17, Nürnberg, Germany" .
+`;
+  const building = [...parseBuildings(new Parser().parse(ttl)).values()][0];
+  assert.ok(building, "a building was parsed");
+  assert.equal(building.lod2AlkisId, "DEBYvAAAAABKFAdq");
+  assert.equal(building.lod2RoofType, "1000"); // raw AdV code, verbatim
+  assert.equal(building.lod2Storeys, 3); // xsd:integer → number
+  assert.equal(building.lod2CreationDate, "2024-12-03");
+  assert.equal(building.lod2Address?.thoroughfare, "Neumeyerstraße 17");
+  assert.equal(building.lod2Address?.postName, "Nürnberg");
+  assert.equal(building.lod2Address?.adminUnitL1, "Germany");
+  assert.equal(building.lod2Address?.fullAddress, "Neumeyerstraße 17, Nürnberg, Germany");
+});
+
+Deno.test("parseBuildings: a bare building carries no LoD2-BY fields", () => {
+  const ttl = `@prefix rec: <https://w3id.org/rec#> .
+<${B}> a rec:Building .
+`;
+  const building = [...parseBuildings(new Parser().parse(ttl)).values()][0];
+  assert.ok(building, "a building was parsed");
+  assert.equal(building.lod2AlkisId, undefined);
+  assert.equal(building.lod2RoofType, undefined);
+  assert.equal(building.lod2Storeys, undefined);
+  assert.equal(building.lod2CreationDate, undefined);
+  assert.equal(building.lod2Address, undefined);
+});
+
 Deno.test("parseBuildings: identity is the IRI — relative under own root, absolute foreign", () => {
   const foreign = "https://bob.example/granergize/buildings/x.ttl#it";
   const ttl = `@prefix rec: <https://w3id.org/rec#> .

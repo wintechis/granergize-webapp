@@ -260,6 +260,27 @@ export const energyRegional = {
     de: "Amtliche Adresse:",
     fr: "Adresse officielle :",
   },
+  // Baked LoD2-BY (LDBV) building metadata rows, shown in the master-data section.
+  lod2AlkisIdLabel: {
+    en: "ALKIS building id",
+    de: "ALKIS-Gebäude-ID",
+    fr: "Identifiant de bâtiment ALKIS",
+  },
+  lod2RoofTypeLabel: {
+    en: "Roof type (AdV code)",
+    de: "Dachform (AdV-Code)",
+    fr: "Type de toit (code AdV)",
+  },
+  lod2StoreysLabel: {
+    en: "Storeys above ground",
+    de: "Oberirdische Geschosse",
+    fr: "Étages hors-sol",
+  },
+  lod2CreationDateLabel: {
+    en: "LoD2 record date",
+    de: "LoD2-Erfassungsdatum",
+    fr: "Date d'enregistrement LoD2",
+  },
   // Logo attribution tooltip (org logo resolved from Wikidata → Wikimedia Commons).
   logoViaCommons: {
     en: "Logo via Wikimedia Commons (Wikidata)",

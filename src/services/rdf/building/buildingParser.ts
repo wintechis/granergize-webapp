@@ -37,6 +37,14 @@ import {
   GRAN_GEOCODE_PRECISION,
   GRAN_HAS_ATTACHMENT,
   IRI_TO_GEOCODE_PRECISION,
+  LOCN_ADDRESS,
+  LOCN_ADMIN_UNIT_L1,
+  LOCN_FULL_ADDRESS,
+  LOCN_POST_NAME,
+  LOCN_THOROUGHFARE,
+  LOD2_ALKIS_ID,
+  LOD2_ROOF_TYPE,
+  LOD2_STOREYS_ABOVE_GROUND,
   OWL_SAME_AS,
   PROV_AGENT,
   PROV_QUALIFIED_ATTRIBUTION,
@@ -105,6 +113,9 @@ export function parseBuildings(
   /** PV-system node IRI (`<…#pv>`) → building ID. The node is a NamedNode subject
    * (a hash fragment, not a blank node), so its props are collected separately. */
   const systemNodeBuilding = new Map<string, string>();
+  /** LoD2 `locn:Address` node IRI (`<…#lod2-address>`) → building ID. A NamedNode hash
+   * fragment (not a blank node), so its `locn:*` props are collected in a separate pass. */
+  const lod2AddressNodeBuilding = new Map<string, string>();
 
   // ── Pass 1: Create buildings from the typed roster ────────────────────────
   quads.forEach((quad: Quad) => {
@@ -193,6 +204,36 @@ export function parseBuildings(
     // by dereferencing it (regionGeometry.fetchRegionAgs) — not stored in this file.
     if (pred === DCTERMS_SPATIAL) {
       building.regionConceptIri = obj.value;
+      return;
+    }
+
+    // ── LoD2-BY (LDBV) baked metadata (all optional) ──
+    // The authoritative cadastre-derived scalars written straight onto the building
+    // subject; read-only, shown beside the app's own master data.
+    if (pred === LOD2_ALKIS_ID) {
+      building.lod2AlkisId = obj.value;
+      return;
+    }
+    if (pred === LOD2_ROOF_TYPE) {
+      building.lod2RoofType = obj.value; // raw AdV code (e.g. "1000" = flat)
+      return;
+    }
+    if (pred === LOD2_STOREYS_ABOVE_GROUND) {
+      building.lod2Storeys = parseInt(obj.value, 10);
+      return;
+    }
+    // The LoD2 record date (dcterms:created ON THE BUILDING — the attachment upload
+    // date uses the same predicate, but on the file IRI subject, gathered separately).
+    if (pred === DCTERMS_CREATED) {
+      building.lod2CreationDate = obj.value;
+      return;
+    }
+    // The LoD2 postal address node (`<#lod2-address>`, typed locn:Address) — a NamedNode
+    // hash fragment whose locn:* props are collected in a separate pass below.
+    if (pred === LOCN_ADDRESS) {
+      if (obj.termType === "NamedNode") {
+        lod2AddressNodeBuilding.set(obj.value, buildingId);
+      }
       return;
     }
 
@@ -387,6 +428,25 @@ export function parseBuildings(
     });
   }
 
+  // ── LoD2 address nodes: the `<#lod2-address>` NamedNode's locn:* props hang off the
+  // node subject (which the passes above skip). Gather them here; attach in post-processing. ──
+  const lod2AddressData = new Map<string, NonNullable<Building["lod2Address"]>>();
+  if (lod2AddressNodeBuilding.size > 0) {
+    quads.forEach((quad: Quad) => {
+      if (quad.subject.termType !== "NamedNode") return;
+      const node = quad.subject.value;
+      if (!lod2AddressNodeBuilding.has(node)) return;
+      if (!lod2AddressData.has(node)) lod2AddressData.set(node, {});
+      const a = lod2AddressData.get(node)!;
+      const pred = quad.predicate.value;
+      const v = quad.object.value;
+      if (pred === LOCN_THOROUGHFARE) a.thoroughfare = v;
+      else if (pred === LOCN_POST_NAME) a.postName = v;
+      else if (pred === LOCN_ADMIN_UNIT_L1) a.adminUnitL1 = v;
+      else if (pred === LOCN_FULL_ADDRESS) a.fullAddress = v;
+    });
+  }
+
   // ── Post-processing ────────────────────────────────────────────────────────
 
   // Unified energy model: derive dataset refs from the cons:hasEnergyDataset
@@ -468,6 +528,13 @@ export function parseBuildings(
       if (gd.long !== undefined && !Number.isNaN(gd.long)) building.long = gd.long;
       if (gd.precision) building.geocodePrecision = gd.precision;
     }
+  }
+
+  // LoD2 address: attach the baked `locn:Address` node's parts, when any were read.
+  for (const [node, buildingId] of lod2AddressNodeBuilding.entries()) {
+    const building = buildings.get(buildingId);
+    const a = lod2AddressData.get(node);
+    if (building && a && Object.keys(a).length > 0) building.lod2Address = a;
   }
 
   // Technical-system nodes: collect each into the building's `systems` list, its kind

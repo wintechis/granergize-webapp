@@ -140,6 +140,23 @@ export interface Building extends BuildingFlatFields, GeoPointFields {
   certifications?: InvestorCertification[];
   annualData?: AnnualData[];
   operatingCosts?: InvestorOperatingCosts;
+  /** LoD2-BY (LDBV) authoritative building metadata BAKED into the imported building's
+   *  Turtle (all optional — present only where the pipeline had it). Read-only: shown
+   *  beside the app's own master data, never edited/serialized. `lod2AlkisId` = the ALKIS
+   *  building id, `lod2RoofType` = the raw AdV roof-shape code (e.g. "1000" = flat),
+   *  `lod2Storeys` = storeys above ground, `lod2CreationDate` = the LoD2 record date. */
+  lod2AlkisId?: string;
+  lod2RoofType?: string;
+  lod2Storeys?: number;
+  lod2CreationDate?: string;
+  /** The building's authoritative LoD2-BY postal address (`locn:address` → `locn:Address`).
+   *  Baked into the record so it survives offline / outside the live LoD2 coverage. */
+  lod2Address?: {
+    thoroughfare?: string;
+    postName?: string;
+    adminUnitL1?: string;
+    fullAddress?: string;
+  };
 }
 
 /** Typed dynamic write of a building field — the single place the dynamic-key cast

@@ -145,6 +145,21 @@ function ReadView({ building }: { building: Building }) {
       {/* Heat generators moved out of master data — they're :TechnicalSystem nodes shown +
           edited in the "Heat generation" section (like PV/battery/CHP in Energy systems). */}
 
+      {/* Baked LoD2-BY (LDBV) authoritative metadata — read-only, shown beside the app's
+          own master data. Each row renders only when the imported record carried it. */}
+      {hasValue(building.lod2AlkisId) && (
+        <DetailRow label={msg("lod2AlkisIdLabel")} value={building.lod2AlkisId} />
+      )}
+      {hasValue(building.lod2RoofType) && (
+        <DetailRow label={msg("lod2RoofTypeLabel")} value={building.lod2RoofType} />
+      )}
+      {building.lod2Storeys != null && (
+        <DetailRow label={msg("lod2StoreysLabel")} value={building.lod2Storeys} />
+      )}
+      {hasValue(building.lod2CreationDate) && (
+        <DetailRow label={msg("lod2CreationDateLabel")} value={building.lod2CreationDate} />
+      )}
+
       {Array.isArray(building.certifications) &&
         building.certifications.length > 0 && (
         <>

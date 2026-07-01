@@ -48,8 +48,10 @@ export default function BuildingHeader({ building }: { building: Building }) {
 
   // The authoritative LoD2-BY (LDBV) address for this coordinate, where the dump covers it —
   // shown alongside the building's recorded/OSM-geocoded address. Shares the `useBuilding3d`
-  // query (same key) with the 3D viewer, so there's no extra fetch; `null` outside coverage.
-  const lod2Address = useBuilding3d(building).data?.address ?? null;
+  // query (same key) with the 3D viewer, so there's no extra fetch; the LIVE fetch is `null`
+  // outside coverage, so fall back to the address BAKED into the record (survives offline /
+  // outside live coverage) — one "Official address:" line either way.
+  const lod2Address = useBuilding3d(building).data?.address ?? building.lod2Address ?? null;
   const lod2AddressText = lod2Address
     ? (lod2Address.fullAddress ??
       [lod2Address.thoroughfare, lod2Address.postName, lod2Address.adminUnitL1]

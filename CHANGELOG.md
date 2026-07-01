@@ -2,6 +2,23 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — Read + show the LoD2-BY metadata baked into imported buildings
+
+The logistikimmobilien pipeline now bakes the authoritative LoD2-BY (LDBV) building metadata into
+each building's Turtle in the imported archive. The app reads and displays it:
+
+- **`Building` model** (`types/building.ts`): `lod2AlkisId`, `lod2RoofType`, `lod2Storeys`,
+  `lod2CreationDate`, `lod2Address {thoroughfare, postName, adminUnitL1, fullAddress}` (read-only —
+  never edited/serialized).
+- **Parser** (`buildingParser.ts` + `rdf/vocabularies.ts` `lod2:`/`locn:` constants): reads the
+  `lod2:alkisId`/`roofType`/`storeysAboveGround` scalars, `dcterms:created` (the LoD2 record date,
+  disambiguated from the file-IRI upload date), and the `locn:address` → `locn:Address` node.
+- **Display:** `MasterDataSection` gains rows for ALKIS id, roof type (raw AdV code), storeys and
+  LoD2 record date (each shown only when present). `BuildingHeader`'s "Official address:" line now
+  falls back to the baked `building.lod2Address` when the live `useBuilding3d` fetch has none
+  (offline / outside live coverage) — still one line with the LDBV `SourceNote`.
+- Messages (en/de/fr); 2 new parser tests. `deno task check` / `lint` clean; parser + rdf suites pass.
+
 ## [2026-07-01] — Don't classify an unknown `bldg:hasSystem` type as PV
 
 `buildingParser` computed a system node's kind as `(type && kindByType[type]) || "pv"`,
