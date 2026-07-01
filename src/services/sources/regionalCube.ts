@@ -218,6 +218,36 @@ export function parseRegionalObservations(
 }
 
 /**
+ * Read a **single-region** Data Cube document into a Map keyed by each
+ * observation's `#dim-indicator` fragment → its `#measure-OBS_VALUE`. This is the
+ * shape of the per-Gemeinde `linked-energieatlas` `area/{ags}` cube, where ONE
+ * document holds every indicator for one region (an `#dim-indicator` dimension
+ * distinguishes the metric, `#dim-geo`/`#dim-TIME_PERIOD` are constant within the
+ * document). Pure; the shared cube-cell parse behind the Standort-Energieprofil
+ * ({@link ../standortEnergieprofil.ts}). Contrast {@link parseRegionalObservations},
+ * which reads a regionalstatistik table that holds MANY regions in one document and
+ * filters to one region across years.
+ */
+export function parseCubeIndicatorValues(store: Store): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const { subject } of store.getQuads(null, RDF_TYPE, `${QB_NS}Observation`, null)) {
+    let indicator = "";
+    let value: number | null = null;
+    for (const q of store.getQuads(subject, null, null, null)) {
+      const p = q.predicate.value;
+      if (p.endsWith("#dim-indicator")) {
+        const iri = q.object.value;
+        indicator = iri.includes("#") ? iri.slice(iri.lastIndexOf("#") + 1) : "";
+      } else if (p.endsWith("#measure-OBS_VALUE")) {
+        value = Number.parseFloat(q.object.value);
+      }
+    }
+    if (indicator && value != null && !Number.isNaN(value)) out.set(indicator, value);
+  }
+  return out;
+}
+
+/**
  * Fetch + parse the observations for one table and region. Throws on a non-OK
  * response (the caller's query surfaces it). The geo dimension is matched against
  * `agsCode` — a 2-digit Bundesland or 5-digit Kreis depending on the table's grain.

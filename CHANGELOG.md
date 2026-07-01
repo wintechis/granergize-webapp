@@ -2,6 +2,28 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — Read the Energie-Atlas as an RDF Data Cube (qb)
+
+The `linked-energieatlas` wrapper was re-modelled to serve each Gemeinde as an RDF Data
+Cube — one `qb:Observation` per indicator (the metric on a `#dim-indicator` dimension),
+replacing the flat `vocab:AreaPotential` property-bag — so it shares regionalstatistik's
+`qb:` conventions and, with it, one parser. The webapp follows:
+
+- **One cube parser (`services/sources/regionalCube.ts`):** add
+  `parseCubeIndicatorValues(store)`, reading a single-region cube document into an
+  `indicator → value` map (keyed by each observation's `#dim-indicator` fragment) — the
+  per-Gemeinde `area/{ags}` shape, beside `parseRegionalObservations` (many regions per
+  document, filtered per-region across years).
+- **`standortEnergieprofil.ts`:** `parseAreaProfile` now reads the cube through that
+  primitive (name from the region descriptor's `rdfs:label`), dropping the bespoke
+  flat-`vocab:` walk. The `AreaProfile` shape and the Standort-Energieprofil panel are
+  unchanged — only the source representation moved. This also **fixes the panel against
+  the now-deployed wrapper**, which no longer serves the flat node.
+
+check + lint clean; the full hermetic unit suite passes (1127); `parseAreaProfile` run
+against the live deployed cube (`area/09564000`) reproduces the complete Nürnberg profile
+(rooftop/ground/green-mix/biomass).
+
 ## [2026-07-01] — LoD2-BY vocabulary namespace repointed to the wrapper's self-hosted IRI
 
 The `linked-lod2-by` wrapper moved its vocabulary off `w3id.org` to a self-hosted,

@@ -11,34 +11,43 @@ Deno.test("areaUrl builds an absolute wrapper IRI", () => {
   assert.match(areaUrl("09564000"), /^https:\/\/[^/]+\/energieatlas\/area\/09564000$/);
 });
 
-// A faithful slice of an `area/{ags}` document from linked-energieatlas: ONE
-// `vocab:AreaPotential` thing carries every merged layer (rooftop, Freiflächen,
-// renewable-share + mix, biomass) under the public vocab# namespace, `<#it>`
-// relative to the document URI. Wind/geothermal mix shares are a genuine 0.
+// A faithful slice of an `area/{ags}` RDF Data Cube document from linked-energieatlas:
+// one `qb:Observation` per indicator (the metric on a `#dim-indicator` dimension, the
+// value on `#measure-OBS_VALUE`), plus the region descriptor carrying the Gemeinde name
+// (rdfs:label). IRIs are relative to the document URI, as the wrapper serves them.
+// Wind/geothermal mix shares are a genuine 0.
 const AREA_BASE = "https://wunderfacts.com/energieatlas/area/09564000";
+const AREA_INDICATORS: ReadonlyArray<[string, number]> = [
+  ["pvPotentialCapacityMWp", 1394.0],
+  ["installedCapacityMWp", 131.0],
+  ["remainingPotentialMWp", 1264.0],
+  ["developmentDegreePct", 9.4],
+  ["groundPvPotentialCapacityMWp", 165.0],
+  ["groundPvInstalledCapacityMWp", 0.17],
+  ["renewableElectricitySharePct", 4.0],
+  ["eeSharePvPct", 49.0],
+  ["eeShareBiomassPct", 44.1],
+  ["eeShareHydroPct", 6.9],
+  ["eeShareWindPct", 0.0],
+  ["eeShareGeothermalPct", 0.0],
+  ["biogasPotentialElectricKWhPerYear", 31605587],
+  ["biomassInstalledCapacityMW", 9.1],
+  ["biomassInstallationCount", 12],
+];
 const AREA_TTL = `
-@prefix vocab: <https://wunderfacts.com/energieatlas/vocab#> .
-@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix qb: <http://purl.org/linked-data/cube#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-<#it> a vocab:AreaPotential ;
-  vocab:name "Nürnberg" ;
-  vocab:pvPotentialCapacityMWp 1394.0 ;
-  vocab:installedCapacityMWp 131.0 ;
-  vocab:remainingPotentialMWp 1264.0 ;
-  vocab:developmentDegreePct 9.4 ;
-  vocab:groundPvPotentialCapacityMWp 165.0 ;
-  vocab:groundPvInstalledCapacityMWp 0.17 ;
-  vocab:renewableElectricitySharePct 4.0 ;
-  vocab:eeSharePvPct 49.0 ;
-  vocab:eeShareBiomassPct 44.1 ;
-  vocab:eeShareHydroPct 6.9 ;
-  vocab:eeShareWindPct 0.0 ;
-  vocab:eeShareGeothermalPct 0.0 ;
-  vocab:biogasPotentialElectricKWhPerYear 31605587 ;
-  vocab:biomassInstalledCapacityMW 9.1 ;
-  vocab:biomassInstallationCount 12 ;
-  skos:notation "09564000"^^xsd:token .
-`;
+<../ags/09564000> rdfs:label "Nürnberg" .
+` +
+  AREA_INDICATORS.map(([k, v]) =>
+    `<#obs-${k}> a qb:Observation ;
+  <../ds/area#dim-geo> <../ags/09564000> ;
+  <../ds/area#dim-TIME_PERIOD> "2024"^^xsd:gYear ;
+  <../ds/area#dim-indicator> <../cl/indicator#${k}> ;
+  <../ds/area#measure-OBS_VALUE> ${v} .`
+  ).join("\n");
 
 Deno.test("parseAreaProfile assembles every served card", () => {
   const p = parseAreaProfile(store(AREA_TTL, AREA_BASE));
@@ -66,10 +75,10 @@ Deno.test("parseAreaProfile assembles every served card", () => {
   assert.equal(p!.biomass?.plantCount, 12);
 });
 
-Deno.test("parseAreaProfile returns null without an AreaPotential thing", () => {
+Deno.test("parseAreaProfile returns null without observations", () => {
   const ttl = `
-@prefix vocab: <https://wunderfacts.com/energieatlas/vocab#> .
-<#it> vocab:name "X" ; vocab:pvPotentialCapacityMWp 10.0 .`;
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+<../ags/09564000> rdfs:label "X" .`;
   assert.equal(parseAreaProfile(store(ttl, AREA_BASE)), null);
 });
 

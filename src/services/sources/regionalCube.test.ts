@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 import { parseRdfText } from "../rdf/rdfHelpers.ts";
 const store = (ttl: string, base: string) => parseRdfText(ttl, base);
 import {
+  parseCubeIndicatorValues,
   parseRegionalChoropleth,
   parseRegionalObservations,
   REGIONAL_TABLES,
@@ -137,4 +138,32 @@ Deno.test("choropleth: frag-style geo + selector → AGS-keyed, carrier-filtered
 
 Deno.test("choropleth: no observations → empty map", () => {
   assert.equal(parseRegionalChoropleth(store("@prefix x: <urn:x#> .", LAND_BASE), landTable()).size, 0);
+});
+
+// --- parseCubeIndicatorValues: the single-region (per-Gemeinde energieatlas) cube ---
+// One qb:Observation per indicator (metric on #dim-indicator, value on
+// #measure-OBS_VALUE); keyed by the indicator's IRI fragment. The regionalstatistik
+// tables never hit this path (many regions per doc), so a small focused fixture.
+const EA_BASE = "https://wunderfacts.com/energieatlas/area/09564000";
+const EA_TTL = `
+@prefix qb: <http://purl.org/linked-data/cube#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<#obs-pvPotentialCapacityMWp> a qb:Observation ;
+  <../ds/area#dim-geo> <../ags/09564000> ;
+  <../ds/area#dim-indicator> <../cl/indicator#pvPotentialCapacityMWp> ;
+  <../ds/area#measure-OBS_VALUE> 1394.0 .
+<#obs-eeShareWindPct> a qb:Observation ;
+  <../ds/area#dim-indicator> <../cl/indicator#eeShareWindPct> ;
+  <../ds/area#measure-OBS_VALUE> 0.0 .`;
+
+Deno.test("parseCubeIndicatorValues keys by indicator fragment, keeps genuine 0", () => {
+  const m = parseCubeIndicatorValues(store(EA_TTL, EA_BASE));
+  assert.equal(m.get("pvPotentialCapacityMWp"), 1394);
+  assert.equal(m.get("eeShareWindPct"), 0); // present, a genuine zero (not dropped)
+  assert.equal(m.size, 2);
+});
+
+Deno.test("parseCubeIndicatorValues: no observations → empty map", () => {
+  assert.equal(parseCubeIndicatorValues(store("@prefix x: <urn:x#> .", EA_BASE)).size, 0);
 });

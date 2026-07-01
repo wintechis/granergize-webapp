@@ -1,9 +1,11 @@
 /**
  * Read the per-Gemeinde energy profile from **`linked-energieatlas`**
  * (`https://wunderfacts.com/energieatlas`) — the Bavarian Energie-Atlas
- * re-published as content-negotiated RDF, one `vocab:AreaPotential` resource per
- * municipality keyed by its 8-digit AGS. The follow-your-nose sibling of
- * {@link ./mastrNearby.ts} and {@link ./linkedWeather.ts}.
+ * re-published as content-negotiated RDF, one **`qb:` Data Cube** document per
+ * municipality (`area/{ags}`, keyed by its 8-digit AGS) whose `qb:Observation`s
+ * carry the metrics on a `#dim-indicator` dimension. The follow-your-nose sibling
+ * of {@link ./mastrNearby.ts} and {@link ./linkedWeather.ts}, and a cube read
+ * through the same {@link ./regionalCube.ts} parser as regionalstatistik.
  *
  * Powers the "Standort-Energieprofil" panel: ONE `area/{ags}` document carries all
  * the merged layers, so a single fetch yields every card — rooftop-PV and
@@ -15,11 +17,12 @@
  * {@link trackedFetch}. The parse is split out pure for offline unit-testing.
  */
 import type { Store } from "n3";
-import { RDF_TYPE } from "../rdf/vocabularies.ts";
+import { RDFS_LABEL } from "../rdf/vocabularies.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
 import type { EnergieatlasRoute } from "../../generated/energieatlas.routes.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { deref } from "./capabilities.ts";
+import { parseCubeIndicatorValues } from "./regionalCube.ts";
 
 /** A potential-vs-installed card (rooftop or ground-mounted PV). */
 export interface PotentialCard {
@@ -87,39 +90,28 @@ export function areaUrl(ags: string): string {
   return `${linkedEnergieatlasBase()}${ENERGIEATLAS_ROUTES.area}/${ags}`;
 }
 
-/** The wrapper's coined-vocabulary namespace (served absolute under the host). */
-function vocabNs(): string {
-  return `${linkedEnergieatlasBase()}vocab#`;
-}
-
 /**
  * Parse an `area/{ags}` Turtle document into the Gemeinde's energy profile. Pure
- * (network-free). Reads every numeric `vocab:` metric on the `vocab:AreaPotential`
- * thing into a map, then assembles the cards — each present only when its key
- * metric is served (so a Gemeinde missing a layer just lacks that card). The
- * remaining-headroom / degree of a PV card are derived when not pre-computed.
- * Returns `null` when no `vocab:AreaPotential` thing or no card metric is present.
+ * (network-free). The wrapper serves the region as an **RDF Data Cube**: one
+ * `qb:Observation` per indicator, so the metrics are read through the shared
+ * {@link parseCubeIndicatorValues} into an `indicator → value` map, then assembled
+ * into the cards — each present only when its key metric is served (so a Gemeinde
+ * missing a layer just lacks that card). The remaining-headroom / degree of a PV
+ * card are derived when not pre-computed. Returns `null` when no observations or no
+ * card metric is present.
  */
 export function parseAreaProfile(store: Store): AreaProfile | null {
-  const v = vocabNs();
-  let subject = null;
-  for (const q of store.getQuads(null, RDF_TYPE, `${v}AreaPotential`, null)) {
-    subject = q.subject;
+  const m = parseCubeIndicatorValues(store);
+  if (m.size === 0) return null;
+
+  // The Gemeinde name is the region descriptor's rdfs:label (the only labelled
+  // resource in a single-region cube document).
+  let name = "";
+  for (const q of store.getQuads(null, RDFS_LABEL, null, null)) {
+    name = q.object.value;
     break;
   }
-  if (!subject) return null;
 
-  const m = new Map<string, number>();
-  let name = "";
-  for (const q of store.getQuads(subject, null, null, null)) {
-    const p = q.predicate.value;
-    if (p === `${v}name`) {
-      name = q.object.value;
-    } else if (p.startsWith(v)) {
-      const n = Number.parseFloat(q.object.value);
-      if (!Number.isNaN(n)) m.set(p.slice(v.length), n);
-    }
-  }
   const g = (k: string): number | undefined => m.get(k);
 
   const potentialCard = (
