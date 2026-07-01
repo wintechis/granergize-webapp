@@ -82,15 +82,17 @@ export function SourceContract({ id }: { id: string }) {
           Example entity: <Ext href={example}>{shortIri(example)}</Ext>
         </Typography>
       )}
-      <Typography variant="caption" color="text.secondary" component="div">
-        LIDS examples:{" "}
-        {contract.lidsExamples.map((e, i) => (
-          <span key={e.url}>
-            {i ? " · " : ""}
-            <Ext href={e.url}>{e.label}</Ext>
-          </span>
-        ))}
-      </Typography>
+      {contract.lidsExamples.length > 0 && (
+        <Typography variant="caption" color="text.secondary" component="div">
+          LIDS examples:{" "}
+          {contract.lidsExamples.map((e, i) => (
+            <span key={e.url}>
+              {i ? " · " : ""}
+              <Ext href={e.url}>{e.label}</Ext>
+            </span>
+          ))}
+        </Typography>
+      )}
     </Stack>
   );
 }

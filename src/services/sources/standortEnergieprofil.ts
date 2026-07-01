@@ -17,6 +17,7 @@
 import type { Store } from "n3";
 import { RDF_TYPE } from "../rdf/vocabularies.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
+import type { EnergieatlasRoute } from "../../generated/energieatlas.routes.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { deref } from "./capabilities.ts";
 
@@ -64,6 +65,18 @@ export interface AreaProfile {
   biomass?: BiomassCard;
 }
 
+/**
+ * The linked-energieatlas routes the app calls, checked at COMPILE TIME against the wrapper's
+ * DEPLOYED route set (`src/generated/energieatlas.routes.ts`, regenerated from the live `/routes`
+ * manifest — `deno task gen:routes:energieatlas`). The app only dereferences the per-Gemeinde
+ * `area/{ags}` profile; a rename/removal upstream makes the literal unassignable to
+ * {@link EnergieatlasRoute}, so `deno task check` fails rather than the Standort-Energieprofil panel
+ * silently vanishing. See `explore/explore-wrapper-contract-drift.md`.
+ */
+export const ENERGIEATLAS_ROUTES = {
+  area: "area",
+} as const satisfies Record<string, EnergieatlasRoute>;
+
 /** Base IRI of linked-energieatlas — delegates to the registry resolver (env-overridable). */
 export function linkedEnergieatlasBase(): string {
   return sourceBase("energieatlas");
@@ -71,7 +84,7 @@ export function linkedEnergieatlasBase(): string {
 
 /** The dereferenceable `area/{ags}` IRI (and the Developer-mode source link). */
 export function areaUrl(ags: string): string {
-  return `${linkedEnergieatlasBase()}area/${ags}`;
+  return `${linkedEnergieatlasBase()}${ENERGIEATLAS_ROUTES.area}/${ags}`;
 }
 
 /** The wrapper's coined-vocabulary namespace (served absolute under the host). */

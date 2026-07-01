@@ -3,6 +3,19 @@ import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { fetchContainingGemeindeAgs } from "./regionGeometry.ts";
 import { logError } from "../../lib/logError.ts";
+import type { OsmRoute } from "../../generated/osm.routes.ts";
+
+/**
+ * The linked-osm routes the app calls, checked at COMPILE TIME against the wrapper's DEPLOYED route
+ * set (`src/generated/osm.routes.ts`, regenerated from the live `/routes` manifest — `deno task
+ * gen:routes:osm`). The app only uses the Nominatim geocoding proxy (`nominatim/search`, read as
+ * `.json`); a rename/removal upstream makes the literal unassignable to {@link OsmRoute}, so
+ * `deno task check` fails rather than geocoding silently returning nothing. See
+ * `explore/explore-wrapper-contract-drift.md`.
+ */
+export const OSM_ROUTES = {
+  nominatimSearch: "nominatim/search",
+} as const satisfies Record<string, OsmRoute>;
 
 /**
  * Resolve building address fields to coordinates via Nominatim, returning the
@@ -45,7 +58,7 @@ export async function geocodeFields(
       // non-vocabulary read, so it uses the gateway's bare fetch (env-overridable base via
       // `sourceBase("osm")`). Each feature's geometry.coordinates is `[lon, lat]`.
       const res = await getSourceGateway().fetch(
-        `${sourceBase("osm")}nominatim/search.json?q=${
+        `${sourceBase("osm")}${OSM_ROUTES.nominatimSearch}.json?q=${
           encodeURIComponent(query)
         }&limit=1`,
         { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },

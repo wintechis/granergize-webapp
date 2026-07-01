@@ -33,8 +33,22 @@ import { parseRdfText } from "../rdf/rdfHelpers.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import type { WeatherAnnualValue } from "../energy/energyWeather.ts";
+import type { WetterdienstRoute } from "../../generated/wetterdienst.routes.ts";
 
 const { namedNode } = DataFactory;
+
+/**
+ * The linked-wetterdienst routes the app calls, checked at COMPILE TIME against the wrapper's
+ * DEPLOYED route set (`src/generated/wetterdienst.routes.ts`, regenerated from the live `/routes`
+ * manifest — `deno task gen:routes:wetterdienst`). `near` = nearest-station discovery; `values` =
+ * a station's observations. A rename/removal upstream makes the literal unassignable to
+ * {@link WetterdienstRoute}, so `deno task check` fails rather than the weather overlay silently
+ * emptying. See `explore/explore-wrapper-contract-drift.md`.
+ */
+export const WETTERDIENST_ROUTES = {
+  near: "near",
+  values: "values",
+} as const satisfies Record<string, WetterdienstRoute>;
 
 /**
  * The weather datasets the wrapper/upstream expose, as `{resolution}/{dataset}/{parameter}`
@@ -190,7 +204,7 @@ export function weatherStationsUrl(
     parameters,
   });
   if (active) params.set("active", "true");
-  return `${linkedWeatherBase()}near?${params}`;
+  return `${linkedWeatherBase()}${WETTERDIENST_ROUTES.near}?${params}`;
 }
 
 /**
@@ -227,7 +241,7 @@ export function pickStationForYears(
  *  overlay showed nothing. `historical` carries the finalized annual series; adding `recent` keeps
  *  the latest year for still-active stations. */
 export function weatherValuesUrl(stationId: string, parameters: string): string {
-  return `${linkedWeatherBase()}values?` +
+  return `${linkedWeatherBase()}${WETTERDIENST_ROUTES.values}?` +
     new URLSearchParams({ station: stationId, parameters, periods: "historical,recent" });
 }
 

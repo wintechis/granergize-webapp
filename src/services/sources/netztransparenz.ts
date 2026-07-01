@@ -14,6 +14,19 @@ import type { Store } from "n3";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { deref } from "./capabilities.ts";
+import type { NetztransparenzRoute } from "../../generated/netztransparenz.routes.ts";
+
+/**
+ * The linked-netztransparenz routes the app calls, checked at COMPILE TIME against the wrapper's
+ * DEPLOYED route set (`src/generated/netztransparenz.routes.ts`, regenerated from the live `/routes`
+ * manifest — `deno task gen:routes:netztransparenz`). The app only dereferences per-plant EEG
+ * records; if that route is renamed/removed upstream the literal stops being assignable to
+ * {@link NetztransparenzRoute}, so `deno task check` fails rather than the plant-generation lookup
+ * silently 404ing. See `explore/explore-wrapper-contract-drift.md`.
+ */
+export const NETZTRANSPARENZ_ROUTES = {
+  eeg: "eeg",
+} as const satisfies Record<string, NetztransparenzRoute>;
 
 /** Matched by suffix so they're independent of the (configurable) wrapper base. */
 const STROMMENGE_SUFFIX = "#strommengeKWh";
@@ -21,7 +34,7 @@ const YEAR_SUFFIX = "#year";
 
 /** The per-plant document IRI for an EEG number — dereferenced, and the source link. */
 export function plantUrl(eegNumber: string): string {
-  return `${sourceBase("netztransparenz")}eeg/${eegNumber}`;
+  return `${sourceBase("netztransparenz")}${NETZTRANSPARENZ_ROUTES.eeg}/${eegNumber}`;
 }
 
 /**

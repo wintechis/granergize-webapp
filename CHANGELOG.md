@@ -2,7 +2,128 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
-## [2026-07-01] — Read + show the LoD2-BY metadata baked into imported buildings
+## [2026-07-01] — Consolidate open-data-source config onto one registry + one vocab
+
+The webapp and the sibling `logistikimmobilien` pipeline each had their own copy of the wrapper
+base-URLs and ~40 RDF namespace/predicate constants, which drifted. The webapp is now the single
+canonical home; the pipeline imports from it (`sourceBase` + `rdf/vocabularies.ts`).
+
+- **Registry (`constants/dataSources.ts`):** repoint the `osm` source at **linked-osm**
+  (`osmwrap.ontologycentral.com`, env `VITE_OSM_API_URI`) — it serves both the pipeline's Overpass
+  footprints and the webapp's geocoding, so `geocode.ts` switches to `/nominatim/search.json` and the
+  GeoJSON FeatureCollection shape (`features[].geometry.coordinates` `[lon, lat]`). Add the `inspire`
+  build-tool source (credited on the Data-sources page).
+- **Vocab (`services/rdf/vocabularies.ts`):** add the missing canonical GeoSPARQL block (`GSP_*`,
+  previously triplicated/absent) and the pipeline-shared PROV/RDFS/DCTERMS/FOAF/REC/VCARD/LOD2/LOCN
+  terms. Drop the local re-declarations in `lod2Rooftop.ts` / `mastrNearby.ts` / `regionalCube.ts`,
+  importing the shared constants instead.
+
+check + lint clean; 220 source/rdf tests pass (incl. the reworked geocode GeoJSON parse). The
+pipeline (not tracked in this repo) now resolves every base via `sourceBase(<id>)` and imports
+`vocabularies.ts`, dropping its own `*_BASE` and constant blocks; env overrides unify onto the
+registry's `VITE_*_API_URI` keys (read under `Deno.env`).
+
+## [2026-07-01] — Roll the wrapper route-contract + Data-sources panel out to osm
+
+Extends the mastr drift-tooling to **linked-osm** (see the mastr entry below). `OSM_ROUTES`
+(`nominatim/search` = the Nominatim geocoding proxy, the only route the app calls — read as `.json`)
+in `geocode.ts`, checked at compile time against `src/generated/osm.routes.ts` (regenerated from the
+live `/routes` manifest — `gen:routes:osm[:check]`; note route names carry their path, e.g.
+`nominatim/search`, `overpass/poi`). The geocode URL now builds from `OSM_ROUTES.nominatimSearch`, so
+an upstream rename fails `deno task check` instead of address geocoding silently returning nothing.
+Adds `probeOsm` (live `nominatim/search.json?q=Nürnberg` → the GeoJSON `[lon,lat]` shape `geocodeFields`
+reads; no example entity — the geocode response is a GeoJSON FeatureCollection with no per-result IRI)
+and an `osm` contract descriptor (nominatim/search requires; a Turtle-form sample search as the
+example). check clean; live probe conformant.
+
+## [2026-07-01] — Roll the wrapper route-contract + Data-sources panel out to regionalstatistik
+
+Extends the mastr drift-tooling to **linked-regionalstatistik** (see the mastr entry below).
+`REGIONALSTATISTIK_ROUTES` (`data` = the RDF Data Cube table resource; `cl` = codelists —
+`cl/geo` for AGS→Kreis names, `cl/{scheme}#…` for frag-style geo dimensions — the two routes the
+regional layers dereference) in `regionalCube.ts`, checked at compile time against
+`src/generated/regionalstatistik.routes.ts` (regenerated from the live `/routes` manifest —
+`gen:routes:regionalstatistik[:check]`). `regionalTableDataUrl`, the `cl/geo` codelist fetch, and the
+frag-style branch of `regionalGeoUrl` now build from `REGIONALSTATISTIK_ROUTES`, so an upstream rename
+fails `deno task check` instead of the regional charts/choropleth silently emptying. (`ags/{code}` is
+a reference leaf the app builds but never fetches — not a wrapper route — so it stays out of the map.)
+Adds `probeRegionalstatistik` (live `data/86251-Z-02` cube for Bavaria → the app's own
+`fetchRegionalObservations`; example entity = the `data/{tableId}` resource) and a `regionalstatistik`
+contract descriptor (data/cl requires; no LIDS `#id` examples — a linked-data-cube wrapper, its routes
+are path-addressed cube/codelist resources, not parameterised query services). check clean; live probe
+conformant (`data/86251-Z-02`).
+
+## [2026-07-01] — Roll the wrapper route-contract + Data-sources panel out to energieatlas
+
+Extends the mastr drift-tooling to **linked-energieatlas** (see the mastr entry below).
+`ENERGIEATLAS_ROUTES` (`area` = the per-Gemeinde energy-potential profile, the only route the
+Standort-Energieprofil panel calls) in `standortEnergieprofil.ts`, checked at compile time against
+`src/generated/energieatlas.routes.ts` (regenerated from the live `/routes` manifest —
+`gen:routes:energieatlas[:check]`). `areaUrl` now builds from `ENERGIEATLAS_ROUTES.area`, so an
+upstream rename fails `deno task check` instead of the panel silently vanishing. Adds
+`probeEnergieatlas` (derefs `area/09564000` → the app's own `parseAreaProfile`, distinguishing `down`
+from a legitimate 404 via `deref`; example entity = the `area/{ags}` document) and an `energieatlas`
+contract descriptor. `area/{ags}` is a path-addressed record route (no query params, no `#id` call
+entity), so its contract has no LIDS examples — and `SourceContract` now hides the "LIDS examples"
+line when a wrapper reifies none. check clean; live probe conformant (`area/09564000`).
+
+## [2026-07-01] — Roll the wrapper route-contract + Data-sources panel out to wetterdienst
+
+Extends the mastr drift-tooling to **linked-wetterdienst** (see the mastr entry below).
+`WETTERDIENST_ROUTES` (`near` = nearest-station discovery; `values` = a station's observation series —
+the two routes the weather overlay calls) in `linkedWeather.ts`, checked at compile time against
+`src/generated/wetterdienst.routes.ts` (regenerated from the live `/routes` manifest —
+`gen:routes:wetterdienst[:check]`). `weatherStationsUrl`/`weatherValuesUrl` now build from
+`WETTERDIENST_ROUTES`, so an upstream rename fails `deno task check` instead of the overlay silently
+emptying. Adds `probeWetterdienst` (live `near` over central Nürnberg → the app's own
+`fetchNearestStations`; example entity = nearest `station/{id}` record) and a `wetterdienst` contract
+descriptor. Note: unlike the sibling wrappers, linked-wetterdienst does **not** reify a `#id`
+service-call entity — the collection is addressed by its query-document IRI directly — so its
+examples are the plain dereferenceable `near`/`bbox` collection documents (no `#id`). check clean;
+live probe conformant (`station/03668`).
+
+## [2026-07-01] — Roll the wrapper route-contract + Data-sources panel out to netztransparenz
+
+Extends the mastr drift-tooling to **linked-netztransparenz** (see the mastr entry below).
+`NETZTRANSPARENZ_ROUTES` (`eeg` = per-plant settled EEG generation, the only route the app calls) in
+`netztransparenz.ts`, checked at compile time against `src/generated/netztransparenz.routes.ts`
+(regenerated from the live `/routes` manifest — `gen:routes:netztransparenz[:check]`). `plantUrl` now
+builds its path from `NETZTRANSPARENZ_ROUTES.eeg`, so an upstream rename fails `deno task check`
+instead of the plant-generation lookup silently 404ing. Adds `probeNetztransparenz` (discovers a live
+plant via `filter?count=5`, then exercises the app's own `fetchPlantGenerationByYear` on the `eeg`
+deref path; example entity = the plant IRI) and a `netztransparenz` contract descriptor (eeg requires;
+`filter`-`#id` LIDS example). check clean; live probe conformant.
+
+## [2026-07-01] — Roll the wrapper route-contract + Data-sources panel out to lod2-by
+
+Extends the mastr drift-tooling to **linked-lod2-by** (see the mastr entry below). `LOD2_ROUTES`
+(`nearby` = buildings-near-a-point → rooftop-PV; `building` = per-building geometry deref) in
+`lod2Rooftop.ts`, checked at compile time against `src/generated/lod2-by.routes.ts` (regenerated from
+the live `/routes` manifest — `gen:routes:lod2-by[:check]`). `rooftopPointUrl` now builds its path
+from `LOD2_ROUTES.nearby` so a `/point`→`/nearby`-style upstream rename fails `deno task check`
+instead of 404ing. Adds `probeLod2` (live `nearby` over central Nürnberg → the app's own
+`parseNearbyBuildings`, example entity = nearest building IRI, best-effort `/routes` check) and a
+`lod2-by` contract descriptor (nearby/building requires; `nearby`- and `within`-`#id` LIDS examples).
+Live wrapper `/routes.json` is conformant (formats + params); generated union matches; check + drift
+check green.
+
+## [2026-07-01] — Roll the wrapper route-contract + Data-sources panel out to nuts + lau
+
+Extends the mastr drift-tooling to **linked-nuts** and **linked-lau** (see the mastr entry below).
+**lau** mirrors nuts: `LAU_ROUTES` (`contains`/`geojson`/`search`/`lau`-concept) in `regionGeometry.ts`,
+`gen:routes:lau[:check]` → `src/generated/lau.routes.ts`, a `probeLau` (live `/contains` → the
+containing Gemeinde AGS via `gemeindeAgsFromContains`) and a contract descriptor (routes link,
+required interface, `contains?…#id` LIDS example, a live `lau/DE_{ags}#it` example concept). Needs the
+linked-lau `/routes` endpoint (redeploy). The route-contract
+codegen (`scripts/genWrapperRoutes.ts`) is now parameterized by source id (`deno task
+gen:routes:nuts` / `:check`) → `src/generated/nuts.routes.ts`; `regionGeometry.ts` declares
+`NUTS_ROUTES` (`geojson`/`search`/`nuts`-concept) `satisfies Record<string, NutsRoute>` and builds
+its URLs from them, so a nuts endpoint rename breaks `deno task check`. The Data-sources panel gains
+a nuts probe (`probeNuts` — a live `geojson?level=1&parent=DE` must normalize to region features)
+and a contract descriptor (routes link, required interface, `contains?…#id` LIDS example, a live
+`nuts/{code}#it` example concept). The `/routes` manifest check is now **best-effort** (a wrapper
+without `/routes` yet isn't marked down — the data-shape check governs). Needs the linked-nuts
+`/routes` endpoint (redeploy) for the manifest-derived params/formats + `gen:routes:nuts:check`.
 
 The logistikimmobilien pipeline now bakes the authoritative LoD2-BY (LDBV) building metadata into
 each building's Turtle in the imported archive. The app reads and displays it:

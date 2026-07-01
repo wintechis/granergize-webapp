@@ -22,6 +22,7 @@ import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { deref } from "./capabilities.ts";
 import type { MessageId } from "../../lib/messages.ts";
+import type { RegionalstatistikRoute } from "../../generated/regionalstatistik.routes.ts";
 
 /** One (year, value) point of a regional measure, with its source unit (e.g. "Prozent"). */
 export interface RegionalObservation {
@@ -144,6 +145,21 @@ export const REGIONAL_TABLES: RegionalTable[] = [
 function regionalstatistikBase(): string {
   return sourceBase("regionalstatistik");
 }
+
+/**
+ * The linked-regionalstatistik routes the app dereferences, checked at COMPILE TIME against the
+ * wrapper's DEPLOYED route set (`src/generated/regionalstatistik.routes.ts`, regenerated from the
+ * live `/routes` manifest — `deno task gen:routes:regionalstatistik`). `data` = the RDF Data Cube
+ * table resource (`data/{tableId}`); `cl` = a codelist (`cl/geo` for Kreis names, `cl/{scheme}#…`
+ * for frag-style geo dimensions). A rename/removal upstream makes the literal unassignable to
+ * {@link RegionalstatistikRoute}, so `deno task check` fails rather than the regional layers
+ * silently emptying. (`ags/{code}` is a reference leaf the app builds but does not fetch — it is not
+ * a wrapper route, so it stays out of this map.) See `explore/explore-wrapper-contract-drift.md`.
+ */
+export const REGIONALSTATISTIK_ROUTES = {
+  data: "data",
+  cl: "cl",
+} as const satisfies Record<string, RegionalstatistikRoute>;
 
 /**
  * Parse a Data Cube Turtle document into the observations for one region
@@ -291,7 +307,7 @@ export async function fetchRegionalChoropleth(
 /** The table's dereferenceable **linked-data** IRI — the RDF Data Cube resource we
  * actually fetch (and the Developer-mode source link), not the HTML landing page. */
 export function regionalTableDataUrl(tableId: string): string {
-  return `${regionalstatistikBase()}data/${tableId}`;
+  return `${regionalstatistikBase()}${REGIONALSTATISTIK_ROUTES.data}/${tableId}`;
 }
 
 /**
@@ -308,7 +324,7 @@ export function regionalGeoUrl(table: RegionalTable, ags: string): string {
     // Frag style: the codelist scheme name is the geo dimension's local part
     // (e.g. `#dim-DINSG` → `cl/DINSG`).
     const scheme = (table.geoDimSuffix ?? "#dim-geo").replace(/^#dim-/, "");
-    return `${base}cl/${scheme}#${ags}`;
+    return `${base}${REGIONALSTATISTIK_ROUTES.cl}/${scheme}#${ags}`;
   }
   return `${base}ags/${ags}`;
 }
@@ -327,7 +343,7 @@ let kreisNamesPromise: Promise<Map<string, string>> | null = null;
 async function loadKreisNames(): Promise<Map<string, string>> {
   const store = await deref(
     getSourceGateway(),
-    `${regionalstatistikBase()}cl/geo`,
+    `${regionalstatistikBase()}${REGIONALSTATISTIK_ROUTES.cl}/geo`,
     "regional geo codelist",
   );
   const names = new Map<string, string>();

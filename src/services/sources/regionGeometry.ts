@@ -22,6 +22,30 @@ import { contains, deref, search } from "./capabilities.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { sourceKeys } from "./sourceKeys.ts";
 import { DCTERMS_IDENTIFIER, SKOS_NS } from "../rdf/vocabularies.ts";
+import type { NutsRoute } from "../../generated/nuts.routes.ts";
+import type { LauRoute } from "../../generated/lau.routes.ts";
+
+/**
+ * The nuts routes the app calls, checked at COMPILE TIME against the wrapper's DEPLOYED route set
+ * (`src/generated/nuts.routes.ts`, regenerated from the live `/routes` manifest — `deno task
+ * gen:routes:nuts`). A rename/removal upstream makes the literal unassignable to {@link NutsRoute},
+ * so `deno task check` fails here rather than the app silently 404ing. (`concept` = the `nuts/{code}#it`
+ * region-concept route.) See `explore/explore-wrapper-contract-drift.md`.
+ */
+export const NUTS_ROUTES = {
+  geojson: "geojson",
+  search: "search",
+  concept: "nuts",
+} as const satisfies Record<string, NutsRoute>;
+
+/** The lau routes the app calls, compile-time-checked against the generated {@link LauRoute} union
+ *  (`deno task gen:routes:lau`). (`concept` = the `lau/DE_{ags}#it` Gemeinde-concept route.) */
+export const LAU_ROUTES = {
+  contains: "contains",
+  geojson: "geojson",
+  search: "search",
+  concept: "lau",
+} as const satisfies Record<string, LauRoute>;
 
 /**
  * Region grain — Bundesland (NUTS-1, 2-digit AGS) and Kreis (NUTS-3, 5-digit AGS)
@@ -78,13 +102,14 @@ export interface RegionScope {
 export function regionGeometryUrl(grain: RegionGrain, scope?: RegionScope): string {
   if (grain === "gemeinde") {
     const base = sourceBase("lau");
-    if (scope?.parent) return `${base}geojson?parent=${encodeURIComponent(scope.parent)}`;
-    if (scope?.bbox) return `${base}geojson?bbox=${encodeURIComponent(scope.bbox)}`;
+    const geo = `${base}${LAU_ROUTES.geojson}`;
+    if (scope?.parent) return `${geo}?parent=${encodeURIComponent(scope.parent)}`;
+    if (scope?.bbox) return `${geo}?bbox=${encodeURIComponent(scope.bbox)}`;
     throw new Error("gemeinde geometry requires a parent Kreis or a bbox");
   }
   const base = sourceBase("nuts");
   const level = grain === "land" ? 1 : 3;
-  return `${base}geojson?level=${level}&parent=DE`;
+  return `${base}${NUTS_ROUTES.geojson}?level=${level}&parent=DE`;
 }
 
 /**
@@ -151,7 +176,7 @@ export async function fetchRegionGeometry(
  */
 export function regionContainsUrl(lat: number, long: number): string {
   const base = sourceBase("lau");
-  return `${base}contains?lat=${lat}&lon=${long}`;
+  return `${base}${LAU_ROUTES.contains}?lat=${lat}&lon=${long}`;
 }
 
 /**
@@ -163,7 +188,7 @@ export function regionContainsUrl(lat: number, long: number): string {
  */
 export function nationalRegionUrl(): string {
   const base = sourceBase("nuts");
-  return `${base}nuts/DE#it`;
+  return `${base}${NUTS_ROUTES.concept}/DE#it`;
 }
 
 /**
