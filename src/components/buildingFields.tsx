@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { OPCOST_FIELDS as OPCOST_KEYS } from "../services/rdf/building/buildingConfig.ts";
 import {
   Box,
   Checkbox,
@@ -101,25 +102,30 @@ export function makeBuildingFields(
   return { tf, check, enumSelect, sectionHeader };
 }
 
-/** Investor operating-cost categories rendered as `_opcost_<key>` form rows (mirrors
- * OPCOST_FIELDS in buildingSerializer). All are free-text currency amounts. Shared by the
- * building page's inline editors (master data + energy systems). */
-export const OPCOST_FIELDS: { key: string; labelId: MessageId }[] = [
-  { key: "wasteDisposal", labelId: "lblOpcostWasteDisposal" },
-  { key: "insurance", labelId: "lblOpcostInsurance" },
-  {
-    key: "operationInspectionAndMaintenance",
-    labelId: "lblOpcostOperationInspectionAndMaintenance",
-  },
-  { key: "routineCleaningOffice", labelId: "lblOpcostRoutineCleaningOffice" },
-  { key: "routineCleaningWarehouse", labelId: "lblOpcostRoutineCleaningWarehouse" },
-  { key: "glassCleaning", labelId: "lblOpcostGlassCleaning" },
-  { key: "exteriorMaintenance", labelId: "lblOpcostExteriorMaintenance" },
-  { key: "security", labelId: "lblOpcostSecurity" },
-  { key: "propertyManagement", labelId: "lblOpcostPropertyManagement" },
-  { key: "caretaker", labelId: "lblOpcostCaretaker" },
-  { key: "repairAndMaintenance", labelId: "lblOpcostRepairAndMaintenance" },
-];
+// One label id per canonical operating-cost field; the typed Record means a
+// field added to the canonical table is a compile error here until it gets a
+// label (no silently label-less form row).
+const OPCOST_LABEL_ID: Record<(typeof OPCOST_KEYS)[number], MessageId> = {
+  wasteDisposal: "lblOpcostWasteDisposal",
+  insurance: "lblOpcostInsurance",
+  operationInspectionAndMaintenance: "lblOpcostOperationInspectionAndMaintenance",
+  routineCleaningOffice: "lblOpcostRoutineCleaningOffice",
+  routineCleaningWarehouse: "lblOpcostRoutineCleaningWarehouse",
+  glassCleaning: "lblOpcostGlassCleaning",
+  exteriorMaintenance: "lblOpcostExteriorMaintenance",
+  security: "lblOpcostSecurity",
+  propertyManagement: "lblOpcostPropertyManagement",
+  caretaker: "lblOpcostCaretaker",
+  repairAndMaintenance: "lblOpcostRepairAndMaintenance",
+};
+
+/** Investor operating-cost categories rendered as `_opcost_<key>` form rows —
+ * the keys DERIVE from the canonical serializer/parser table (buildingConfig's
+ * OPCOST_FIELDS), so the form, the Turtle round-trip and the workbook columns
+ * move together. All are free-text currency amounts. Shared by the building
+ * page's inline editors (master data + energy systems). */
+export const OPCOST_FIELDS: { key: string; labelId: MessageId }[] = OPCOST_KEYS
+  .map((key) => ({ key, labelId: OPCOST_LABEL_ID[key] }));
 
 // `buildingToFields` (the seed) moved to the pure `buildingFormSeed.ts` so it is
 // unit-testable under Deno (this file's MUI imports block that).

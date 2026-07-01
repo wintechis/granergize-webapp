@@ -2,6 +2,18 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — RDF layer: read chokepoint, delete order, single-table round-trips
+
+- `readBuildingStore` now reads through `fetchFresh` (`Accept: text/turtle`) —
+  on a JSON-LD-native server the old raw fetch parsed nothing and
+  `deleteBuilding` silently orphaned the energy datasets.
+- `deleteAggregation` deletes the resource BEFORE its `.acl` (the TOCTOU order
+  the sibling deletes already followed).
+- The operating-cost fields and system-kind↔class maps are single tables with
+  derived inverses (`buildingConfig.OPCOST_FIELDS`, vocab `SYSTEM_TYPE_IRI`);
+  the parser derives from them instead of hand-maintained twins, so a new field
+  round-trips without parser edits. Round-trip completeness specs added.
+
 ## [2026-07-02] — Sharing/room event-log integrity, restorable ACL projections
 
 The shared-out log is the ground truth of sharing; three gaps let the derived

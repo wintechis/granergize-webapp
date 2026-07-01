@@ -5,7 +5,6 @@ import type {
   EnergyDatasetRef,
   InvestorCertification,
   InvestorOperatingCosts,
-  SystemKind,
 } from "../../../types.ts";
 import { setField } from "../../../types.ts";
 
@@ -25,6 +24,7 @@ import {
   objectPropertyMap,
   parsingFunctions,
   predicateMap,
+  OPCOST_FIELDS,
 } from "./buildingConfig.ts";
 import {
   BUILDING_NS,
@@ -55,6 +55,7 @@ import {
   SCHEMA_CONTENT_SIZE,
   SCHEMA_ENCODING_FORMAT,
   SCHEMA_NAME,
+  IRI_TO_SYSTEM_KIND,
 } from "../vocabularies.ts";
 import { Store } from "n3";
 import { parseDatasetLink } from "../../energy/energyDataset.ts";
@@ -319,29 +320,16 @@ export function parseBuildings(
     if (opCostBuildingMap.has(bId)) {
       if (!opCostData.has(bId)) opCostData.set(bId, {});
       const oc = opCostData.get(bId)!;
-      const ln = localName(objVal);
-      if (pred === `${BUILDING_NS}wasteDisposal`) {
-        oc.wasteDisposal = ln;
-      } else if (pred === `${BUILDING_NS}insurance`) {
-        oc.insurance = ln;
-      } else if (pred === `${BUILDING_NS}operationInspectionAndMaintenance`) {
-        oc.operationInspectionAndMaintenance = ln;
-      } else if (pred === `${BUILDING_NS}routineCleaningOffice`) {
-        oc.routineCleaningOffice = ln;
-      } else if (pred === `${BUILDING_NS}routineCleaningWarehouse`) {
-        oc.routineCleaningWarehouse = ln;
-      } else if (pred === `${BUILDING_NS}glassCleaning`) {
-        oc.glassCleaning = ln;
-      } else if (pred === `${BUILDING_NS}exteriorMaintenance`) {
-        oc.exteriorMaintenance = ln;
-      } else if (pred === `${BUILDING_NS}security`) {
-        oc.security = ln;
-      } else if (pred === `${BUILDING_NS}propertyManagement`) {
-        oc.propertyManagement = ln;
-      } else if (pred === `${BUILDING_NS}caretaker`) {
-        oc.caretaker = ln;
-      } else if (pred === `${BUILDING_NS}repairAndMaintenance`) {
-        oc.repairAndMaintenance = ln;
+      // Derived from the SAME table the serializer writes from (the field name
+      // IS the predicate local name), so a field added to OPCOST_FIELDS
+      // round-trips without touching this parser.
+      if (pred.startsWith(BUILDING_NS)) {
+        const key = pred.slice(
+          BUILDING_NS.length,
+        ) as (typeof OPCOST_FIELDS)[number];
+        if ((OPCOST_FIELDS as readonly string[]).includes(key)) {
+          oc[key] = localName(objVal);
+        }
       }
       return;
     }
@@ -540,24 +528,16 @@ export function parseBuildings(
   // Technical-system nodes: collect each into the building's `systems` list, its kind
   // from rdf:type. An UNTYPED node defaults to PV (tolerates a legacy `<#pv>`); a KNOWN
   // type maps to its kind; an UNRECOGNISED type is SKIPPED rather than silently
-  // masquerading as PV (kindByType covers every SystemKind, so no valid type is lost).
+  // masquerading as PV (IRI_TO_SYSTEM_KIND is the derived inverse of the ONE
+  // Record<SystemKind, IRI> table the serializer types nodes from, so every
+  // valid type maps and the two sides cannot drift).
   // The id is the node's hash fragment (the per-unit observation feature-of-interest);
   // each node carries only its own predicates, so the leftover props match TechnicalSystem.
-  const kindByType: Record<string, SystemKind> = {
-    [`${BUILDING_NS}BatteryStorage`]: "battery",
-    [`${BUILDING_NS}CHPSystem`]: "chp",
-    [`${BUILDING_NS}PVSystem`]: "pv",
-    [`${BUILDING_NS}HeatPump`]: "heatpump",
-    [`${BUILDING_NS}GasBoiler`]: "gasboiler",
-    [`${BUILDING_NS}DistrictHeating`]: "districtheating",
-    [`${BUILDING_NS}OilBoiler`]: "oilboiler",
-    [`${BUILDING_NS}ElectricBoiler`]: "electricboiler",
-  };
   for (const [node, buildingId] of systemNodeBuilding.entries()) {
     const building = buildings.get(buildingId);
     if (!building) continue;
     const { type, ...props } = systemData.get(node) ?? {};
-    const kind = type ? kindByType[type] : "pv";
+    const kind = type ? IRI_TO_SYSTEM_KIND[type] : "pv";
     if (!kind) continue; // typed with an unrecognised class → not a known system
     const id = node.split("#")[1] ?? node;
     (building.systems ??= []).push({ id, kind, ...props });

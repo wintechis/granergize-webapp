@@ -25,6 +25,7 @@ import {
 import { toggleBuildingVisibility } from "../../interop/sharing.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { _setStorageRootForTesting, podResources } from "../../pod/solidUtils.ts";
+import { OPCOST_FIELDS } from "./buildingConfig.ts";
 import { makeFakeSession } from "../../testing/fakeSession.ts";
 import {
   GEO_LAT,
@@ -41,6 +42,7 @@ import {
   REC_NS,
   REC_OWNED_BY,
   XSD_INTEGER,
+  SYSTEM_TYPE_IRI,
 } from "../vocabularies.ts";
 
 const { namedNode } = DataFactory;
@@ -1364,4 +1366,91 @@ Deno.test("deleteBuilding returns promptly when the listing already reflects the
   await deleteBuilding(session, WEBID, uri);
   assert.equal(counts.deletes, 1, "issued the DELETE");
   assert.equal(counts.containerGets, 1, "one listing read, no extra polling");
+});
+
+// ── deleteBuilding on a JSON-LD-native server (the Turtle-read chokepoint) ─────
+
+Deno.test("deleteBuilding deletes the linked datasets on a JSON-LD-native server (Accept: text/turtle)", async () => {
+  // JSS-shaped server: without an explicit `Accept: text/turtle` a GET serves
+  // JSON-LD, which n3 rejects. A raw session.fetch() read of the building file
+  // parsed nothing → the energy cleanup was silently skipped and the datasets
+  // orphaned. The building read must go through the fetchFresh/Accept
+  // chokepoint (podFetch.ts documents exactly this bug class).
+  const buildings = podResources(WEBID).buildings;
+  const fileUri = `${buildings}b-jld.ttl`;
+  const subject = `${fileUri}#b-jld`;
+  const DS = "https://pod.example/granergize/observations/2024/d-jld.ttl";
+  const buildingTtl = `
+@prefix cons: <${CONSUMPTION_NS}> .
+<${subject}> cons:hasEnergyDataset <${DS}#ds> .
+<${DS}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+`;
+  const { session, store, calls } = makeFakeSession({
+    webId: WEBID,
+    listContainers: true,
+    resources: { [fileUri]: buildingTtl, [DS]: "# dataset" },
+    respond: (url, init) => {
+      const method = (init?.method ?? "GET").toUpperCase();
+      const accept = new Headers(init?.headers).get("Accept") ?? "";
+      if (
+        method === "GET" && url === fileUri && url in store &&
+        !accept.includes("text/turtle")
+      ) {
+        return new Response(JSON.stringify({ "@id": subject }), {
+          status: 200,
+          headers: { "Content-Type": "application/ld+json" },
+        });
+      }
+      return undefined;
+    },
+  });
+
+  await deleteBuilding(session, WEBID, subject);
+
+  assert.ok(
+    calls.some((c) => c.method === "DELETE" && c.url === DS),
+    "the linked energy dataset is deleted, not silently orphaned",
+  );
+  assert.ok(!(fileUri in store), "the building file is deleted");
+});
+
+// ── Single-table round-trips: OPCOST_FIELDS + SYSTEM_TYPE_IRI drive BOTH sides ──
+
+Deno.test("EVERY OPCOST_FIELDS entry round-trips serialize→parse (no write-only fields)", () => {
+  // The serializer writes from OPCOST_FIELDS; the parser must read the same
+  // table back. With a hand-maintained parser chain, a field added to the table
+  // serialized fine but silently never parsed — a write-only property.
+  const uri = newBuildingUri(WEBID, "b-opcost-rt");
+  const fields: Record<string, string> = { streetAddress: "X" };
+  for (const f of OPCOST_FIELDS) fields[`_opcost_${f}`] = `val-${f}`;
+  const b = parseBuildings(
+    new Parser().parse(serializeBuildingToTurtle(fields, uri)),
+  ).get(`${uri}#it`);
+  for (const f of OPCOST_FIELDS) {
+    assert.equal(
+      b!.operatingCosts?.[f],
+      `val-${f}`,
+      `operating-cost field "${f}" round-trips`,
+    );
+  }
+});
+
+Deno.test("EVERY SystemKind round-trips serialize→parse (one type table, derived inverse)", () => {
+  const uri = newBuildingUri(WEBID, "b-kinds-rt");
+  const kinds = Object.keys(SYSTEM_TYPE_IRI) as (keyof typeof SYSTEM_TYPE_IRI)[];
+  const ttl = serializeBuildingToTurtle(
+    { streetAddress: "X" },
+    uri,
+    undefined,
+    undefined,
+    kinds.map((kind, i) => ({ id: `sys-${i}`, kind, commissioningYear: 2000 + i })),
+  );
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  assert.equal(b!.systems!.length, kinds.length, "every kind materialises a unit");
+  for (const kind of kinds) {
+    assert.ok(
+      b!.systems!.some((s) => s.kind === kind),
+      `system kind "${kind}" round-trips through its rdf:type`,
+    );
+  }
 });

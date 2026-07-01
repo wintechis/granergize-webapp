@@ -7,10 +7,10 @@ import {
   INV_FIELD_TO_LABEL,
   INV_YEAR_ROW_STEMS,
   OPCOST_FIELD_TO_LABEL,
-  OPCOST_FIELDS,
   SCALAR_FIELDS,
   type SpreadsheetFormat,
 } from "./buildingTemplates.ts";
+import { OPCOST_FIELDS } from "../rdf/building/buildingConfig.ts";
 import { GRANERGIZE_LOGO_PNG_BASE64 } from "../../lib/logoPng.ts";
 import { BRAND_PRIMARY } from "../../constants/chartColors.ts";
 import { optionLabel } from "../rdf/vocabLabels.ts";

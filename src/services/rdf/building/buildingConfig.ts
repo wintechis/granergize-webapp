@@ -8,6 +8,7 @@ import {
   VCARD_NS,
 } from "../vocabularies.ts";
 import { type TermSchema, VOCAB_SCHEMA } from "../vocabSchema.generated.ts";
+import type { OperatingCostsFields } from "../buildingShape.generated.ts";
 
 /**
  * The building field BRIDGE: each app field's `keyof Building` key ⇄ its
@@ -140,3 +141,38 @@ const fieldsWithDatatype = (dt: string): Set<string> =>
 export const INTEGER_FIELDS: Set<string> = fieldsWithDatatype("integer");
 export const DECIMAL_FIELDS: Set<string> = fieldsWithDatatype("decimal");
 export const BOOLEAN_FIELDS: Set<string> = fieldsWithDatatype("boolean");
+
+/**
+ * The operating-cost categories of the `investor:hasOperatingCosts` blank node —
+ * ONE table for both round-trip directions: the serializer writes each present
+ * `_opcost_<field>` form key as `bldg:<field>` (the field name IS the predicate
+ * local name), the parser reads any `bldg:<field>` back into
+ * `operatingCosts.<field>`, and the workbook/template columns + the form rows
+ * derive from the same list. Typed against the vocab-generated
+ * {@link OperatingCostsFields}, with a completeness witness below, so the vocab,
+ * this table, and the round-trip cannot drift apart.
+ */
+export const OPCOST_FIELDS = [
+  "wasteDisposal",
+  "insurance",
+  "operationInspectionAndMaintenance",
+  "routineCleaningOffice",
+  "routineCleaningWarehouse",
+  "glassCleaning",
+  "exteriorMaintenance",
+  "security",
+  "propertyManagement",
+  "caretaker",
+  "repairAndMaintenance",
+] as const satisfies readonly (keyof OperatingCostsFields)[];
+
+// Build-time assertion: every vocab-declared operating-cost field appears in
+// OPCOST_FIELDS (a regenerated vocab with a new field is a compile error here,
+// not a silently non-round-tripping property).
+type MissingOpcostField = Exclude<
+  keyof OperatingCostsFields,
+  (typeof OPCOST_FIELDS)[number]
+>;
+const _opcostFieldsComplete: MissingOpcostField extends never ? true
+  : MissingOpcostField = true;
+void _opcostFieldsComplete;

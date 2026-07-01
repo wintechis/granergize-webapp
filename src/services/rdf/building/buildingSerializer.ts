@@ -4,7 +4,6 @@ import type {
   AnnualData,
   Building,
   Scenario,
-  SystemKind,
   TechnicalSystem,
 } from "../../../types.ts";
 import { HEAT_KINDS } from "../../../types.ts";
@@ -50,6 +49,7 @@ import {
   XSD_GYEAR,
   XSD_INTEGER,
   XSD_STRING,
+  SYSTEM_TYPE_IRI,
 } from "../vocabularies.ts";
 import {
   type AnnualMetrics,
@@ -69,6 +69,7 @@ import {
 import { isSeriesGranularity } from "../durationUtils.ts";
 import { getStorageRoot, podResources } from "../../pod/solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
+import { fetchFresh } from "../../pod/podFetch.ts";
 import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
 import { listDirectChildren } from "../../pod/podDelete.ts";
@@ -85,9 +86,9 @@ import {
   INVESTOR_CERT_SYSTEMS,
   MAX_CERTS,
   normalizeBoolean,
-  OPCOST_FIELDS,
   yearsIn,
 } from "../../xlsx/buildingTemplates.ts";
+import { OPCOST_FIELDS } from "./buildingConfig.ts";
 
 const { namedNode, literal, blankNode } = DataFactory;
 
@@ -306,17 +307,6 @@ function replaceCertifications(
     addCertifications,
   );
 }
-
-const SYSTEM_TYPE_IRI: Record<SystemKind, string> = {
-  pv: `${BUILDING_NS}PVSystem`,
-  battery: `${BUILDING_NS}BatteryStorage`,
-  chp: `${BUILDING_NS}CHPSystem`,
-  heatpump: `${BUILDING_NS}HeatPump`,
-  gasboiler: `${BUILDING_NS}GasBoiler`,
-  districtheating: `${BUILDING_NS}DistrictHeating`,
-  oilboiler: `${BUILDING_NS}OilBoiler`,
-  electricboiler: `${BUILDING_NS}ElectricBoiler`,
-};
 
 /**
  * Write one energy-unit node `<#{id}>` — its kind's `rdf:type` plus the capacity
@@ -847,18 +837,23 @@ export async function bindObservationToBuilding(
   );
 }
 
-/** Fetch + parse the building file into a store, or null if missing/unreadable. */
+/**
+ * Fetch + parse the building file into a store, or null when the resource is
+ * missing/inaccessible (a non-ok response). Reads through {@link fetchFresh} so
+ * the request carries `Accept: text/turtle` — a raw `gateway.fetch` relied on
+ * the server's default serialization, and a JSON-LD-native server (JSS) then
+ * returned JSON-LD that n3 rejects; with the parse error swallowed to null,
+ * deleteBuilding silently skipped its energy cleanup and orphaned the datasets.
+ * A network or parse error now propagates (an unreadable-but-present building
+ * must fail the operation loudly, not masquerade as "missing").
+ */
 async function readBuildingStore(
   gateway: PodGateway,
   buildingFileUri: string,
 ): Promise<Store | null> {
-  try {
-    const res = await gateway.fetch(buildingFileUri);
-    if (!res.ok) return null;
-    return new Store(new Parser({ baseIRI: buildingFileUri }).parse(await res.text()));
-  } catch {
-    return null;
-  }
+  const res = await fetchFresh(buildingFileUri, gateway);
+  if (!res.ok) return null;
+  return new Store(new Parser({ baseIRI: buildingFileUri }).parse(await res.text()));
 }
 
 /**

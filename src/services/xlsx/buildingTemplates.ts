@@ -23,24 +23,6 @@ import {
  */
 export type SpreadsheetFormat = "investor" | "benchmark" | "generic";
 
-// Investor operating-cost categories (one `investor:hasOperatingCosts` blank
-// node). Each is read from a `_opcost_<field>` key; `operationInspectionAndMaintenance`
-// is the only boolean, the rest are controlled-vocab/free-text values. The field
-// names match the predicates buildingParser reads back, so they round-trip.
-export const OPCOST_FIELDS = [
-  "wasteDisposal",
-  "insurance",
-  "operationInspectionAndMaintenance",
-  "routineCleaningOffice",
-  "routineCleaningWarehouse",
-  "glassCleaning",
-  "exteriorMaintenance",
-  "security",
-  "propertyManagement",
-  "caretaker",
-  "repairAndMaintenance",
-] as const;
-
 // Upper bound on certifications scanned per building (`_cert_<i>_*` keys).
 export const MAX_CERTS = 10;
 

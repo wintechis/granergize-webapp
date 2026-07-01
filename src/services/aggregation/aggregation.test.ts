@@ -325,3 +325,40 @@ Deno.test("deleteAggregation removes the definition and its snapshot", async () 
   assert.ok(!(`${SNAPSHOTS}${v.id}.ttl` in store), "snapshot deleted");
   assert.deepEqual(await getAggregationDefinitions(session), []);
 });
+
+Deno.test("deleteAggregation deletes each resource BEFORE its .acl (no TOCTOU exposure window)", async () => {
+  // Removing a resource's .acl while the resource still exists briefly falls
+  // it back to the container's (possibly more permissive) inherited ACL — the
+  // exposure window deleteBuilding's delete order explicitly forbids. Same
+  // layer, same rule: resource first, then its auxiliary .acl.
+  const { session, store, calls } = makeSession();
+  const v = await createAggregationDefinition(session, "A", [], "average", ["heatConsumption"]);
+  await storeComputedSnapshot(session, {
+    id: v.id,
+    name: "A",
+    aggregationType: "average",
+    computedAt: "2026-06-04T10:00:00Z",
+    buildingCount: 1,
+    metrics: ["heatConsumption"],
+    values: { heatConsumption: 1 },
+  });
+  const defUri = `${AGGREGATIONS}${v.id}.ttl`;
+  const snapUri = `${SNAPSHOTS}${v.id}.ttl`;
+  store[`${defUri}.acl`] = "# acl";
+  store[`${snapUri}.acl`] = "# acl";
+
+  await deleteAggregation(session, v.id);
+
+  const deletes = calls.filter((c) => c.method === "DELETE").map((c) => c.url);
+  for (const uri of [defUri, snapUri]) {
+    assert.ok(
+      deletes.includes(uri) && deletes.includes(`${uri}.acl`),
+      `${uri}: both the resource and its .acl are deleted`,
+    );
+    assert.ok(
+      deletes.indexOf(uri) < deletes.indexOf(`${uri}.acl`),
+      `${uri}: the resource goes first, its .acl second`,
+    );
+    assert.ok(!(uri in store) && !(`${uri}.acl` in store));
+  }
+});

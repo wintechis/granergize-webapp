@@ -749,11 +749,15 @@ export async function deleteAggregation(
   const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
   const snapshotUri = getComputedSnapshotUri(webId, aggregationId);
   for (const url of [definitionUri, snapshotUri]) {
-    await gateway.fetch(`${url}.acl`, { method: "DELETE" }).catch((err) =>
-      logError("delete aggregation ACL", err)
-    );
+    // Resource FIRST, then its auxiliary .acl — never the reverse: removing the
+    // .acl while the resource still exists briefly falls it back to the
+    // container's (possibly more permissive) inherited ACL, a TOCTOU exposure
+    // window (the same rule deleteBuilding / deleteEnergyYear follow).
     await gateway.fetch(url, { method: "DELETE" }).catch((err) =>
       logError("delete aggregation resource", err)
+    );
+    await gateway.fetch(`${url}.acl`, { method: "DELETE" }).catch((err) =>
+      logError("delete aggregation ACL", err)
     );
   }
 }

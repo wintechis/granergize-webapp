@@ -1,5 +1,6 @@
 /** Shared RDF vocabulary IRI constants used across services */
 import type { GeocodePrecision } from "./buildingShape.generated.ts";
+import type { SystemKind } from "../../types/building.ts";
 
 // The three Granergize vocabularies, partitioned by subject (see vocab/README.md):
 // core (app/interop plumbing), building (rec:Building master data), consumption
@@ -92,6 +93,28 @@ export const IRI_TO_GEOCODE_PRECISION: Record<string, GeocodePrecision> = Object
   .fromEntries(
     Object.entries(GEOCODE_PRECISION_IRI).map(([k, v]) => [v, k]),
   ) as Record<string, GeocodePrecision>;
+
+/**
+ * Technical-system kind ↔ its `rdf:type` class IRI (all ⊑ `:TechnicalSystem`) —
+ * ONE table for both round-trip directions (the serializer types each
+ * `bldg:hasSystem` node from it, the parser recovers the kind through the
+ * derived inverse), following the {@link GEOCODE_PRECISION_IRI} pattern.
+ * `Record<SystemKind, …>` means a new kind is a compile error here first.
+ */
+export const SYSTEM_TYPE_IRI: Record<SystemKind, string> = {
+  pv: `${BUILDING_NS}PVSystem`,
+  battery: `${BUILDING_NS}BatteryStorage`,
+  chp: `${BUILDING_NS}CHPSystem`,
+  heatpump: `${BUILDING_NS}HeatPump`,
+  gasboiler: `${BUILDING_NS}GasBoiler`,
+  districtheating: `${BUILDING_NS}DistrictHeating`,
+  oilboiler: `${BUILDING_NS}OilBoiler`,
+  electricboiler: `${BUILDING_NS}ElectricBoiler`,
+};
+/** Reverse of {@link SYSTEM_TYPE_IRI} (class IRI → kind), for parsing. */
+export const IRI_TO_SYSTEM_KIND: Record<string, SystemKind> = Object.fromEntries(
+  Object.entries(SYSTEM_TYPE_IRI).map(([k, v]) => [v, k]),
+) as Record<string, SystemKind>;
 
 /** W3C Org ontology — person→organisation membership (org:memberOf). */
 export const ORG_NS = "http://www.w3.org/ns/org#";
