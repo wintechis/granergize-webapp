@@ -25,6 +25,9 @@ export interface WrapperStatus {
   health: WrapperHealth;
   /** A short human hint (why available-not-conformant, or the error), for a tooltip. */
   detail?: string;
+  /** A representative domain-entity IRI pulled live from the probe (e.g. a MaStR `see/{id}#it`
+   *  record) — a "see it for real" link on the Data-sources page. */
+  exampleEntity?: string;
 }
 
 /** A small WGS84 box of half-width `km` around a point (~111 km/°; lon shrinks by cos). */
@@ -77,7 +80,7 @@ async function probeMastr(): Promise<WrapperStatus> {
   }
   const u = parseInstallations(store)[0];
   return u && Number.isFinite(u.lat) && Number.isFinite(u.long)
-    ? { health: "conformant" }
+    ? { health: "conformant", exampleEntity: u.iri }
     : { health: "available", detail: "reachable, but no installation matched the expected shape" };
 }
 

@@ -3,6 +3,7 @@ import { msg } from "../lib/messages.ts";
 import { BackLink } from "../components/detail/DetailView.tsx";
 import { DATA_SOURCES } from "../constants/dataSources.ts";
 import { SourceStatusChip } from "../components/SourceStatusChip.tsx";
+import { SourceContract } from "../components/SourceContract.tsx";
 import { HOME } from "../routes.ts";
 
 /**
@@ -62,6 +63,7 @@ export default function DataSources() {
             <Typography variant="body2" color="text.secondary">
               {s.note}
             </Typography>
+            <SourceContract id={s.id} />
           </Box>
         ))}
       </Stack>

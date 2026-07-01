@@ -15,12 +15,16 @@ Two mechanisms against open-data-wrapper drift, prototyped on **mastr** (see
   `deno task check` at the use site instead of silently 404ing. New tasks `gen:routes:mastr` and
   `gen:routes:mastr:check` (CI gate: regenerate + fail on diff). Requires the wrapper's `/routes`
   endpoint (linked-mastr, deployed).
-- **Data-sources health badge (runtime).** `wrapperStatus.ts` probes a source and reports
-  **down** (unreachable) / **available** (reachable but the response drifted from the app's schema)
-  / **conformant**; the mastr probe checks BOTH that `/routes` still lists `MASTR_ROUTES` and that a
-  live `within` query still parses via `parseInstallations`. `SourceStatusChip` renders it on the
-  Data-sources page (no badge for a source without a probe). Prototype: labels are English (i18n
-  TODO); other sources' probes + typed routes are follow-ups.
+- **Data-sources health + interface panel (runtime).** `wrapperStatus.ts` probes a source and
+  reports **down** (unreachable) / **available** (reachable but the response drifted from the app's
+  schema) / **conformant**; the mastr probe checks BOTH that `/routes` still lists `MASTR_ROUTES`
+  and that a live `within` query still parses via `parseInstallations`. Beyond the `SourceStatusChip`
+  badge, `SourceContract` (from `wrapperContract.ts`) shows, per source: a link to the live **routes**
+  manifest, the **required interface** (the routes the app calls + their purpose), a dereferenceable
+  **example entity** pulled live from the probe (a `see/{id}#it` record), and the wrapper's **LIDS**
+  service-call example entities (`within?…#id` BoundingBox, `filter?…#id` Query). No panel for a
+  source without a contract/probe. Prototype: labels are English (i18n TODO); other sources are
+  follow-ups.
 
 ## [2026-07-01] — Rooftop-PV: match the LoD2 building by address, not just proximity
 
