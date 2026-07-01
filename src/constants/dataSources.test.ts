@@ -63,7 +63,7 @@ Deno.test("sourceBase resolves the registered base, env overrides it", () => {
 });
 
 Deno.test("capabilities are declared for the gateway-discovery sources", () => {
-  assert.deepEqual([...sourceCapabilities("mastr")], ["deref", "bbox", "search", "filter"]);
+  assert.deepEqual([...sourceCapabilities("mastr")], ["deref", "within", "search", "filter"]);
   assert.ok(sourceCapabilities("lau").includes("search"));
   assert.ok(sourceCapabilities("lau").includes("contains"));
   assert.ok(!sourceCapabilities("lau").includes("filter"));

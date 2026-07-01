@@ -1,7 +1,7 @@
 /**
  * Read `linked-mastr` (the German Marktstammdatenregister) as Linked Data: the
  * renewable-energy installations *around a building's coordinates*. The wrapper's
- * `<base>bbox?bbox=W,S,E,N` serves one RDF resource per generation unit
+ * `<base>within?bbox=W,S,E,N` serves one RDF resource per generation unit
  * (`<…/see/{id}#it>`), each carrying `rdfs:label`, WGS84 `geo:lat`/`geo:long`,
  * `dcterms:spatial …/ags/{8-digit}` (its municipality) and `mastr:Energietraeger`
  * (a MaStR energy-carrier CODE). We classify the carrier code into a renewable
@@ -27,7 +27,7 @@ import { DCTERMS_NS, GEO_LAT, GEO_LONG, RDFS_NS } from "../rdf/vocabularies.ts";
 import type { Store } from "n3";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
-import { bbox, type Box, deref, filter } from "./capabilities.ts";
+import { type Box, deref, filter, within } from "./capabilities.ts";
 
 const RDFS_LABEL = `${RDFS_NS}label`;
 const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
@@ -165,7 +165,7 @@ export function parseNearbyInstallations(
     .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
 }
 
-/** The bbox query IRI for a point — the Developer-mode source link (matches what
+/** The `within` (bbox) query IRI for a point — the Developer-mode source link (matches what
  *  {@link fetchNearbyInstallations} fetches through the gateway). */
 export function nearbyInstallationsUrl(
   lat: number,
@@ -173,7 +173,7 @@ export function nearbyInstallationsUrl(
   radiusKm = DEFAULT_RADIUS_KM,
 ): string {
   const b = boxAround(lat, long, radiusKm);
-  return `${sourceBase("mastr")}bbox?bbox=${b.w},${b.s},${b.e},${b.n}&count=${FETCH_CAP}`;
+  return `${sourceBase("mastr")}within?bbox=${b.w},${b.s},${b.e},${b.n}&count=${FETCH_CAP}`;
 }
 
 /**
@@ -186,7 +186,7 @@ export async function fetchNearbyInstallations(
   opts: NearbyOptions = {},
 ): Promise<NearbyInstallation[]> {
   const { radiusKm = DEFAULT_RADIUS_KM, limit = DEFAULT_LIMIT } = opts;
-  const store = await bbox(
+  const store = await within(
     getSourceGateway(),
     "mastr",
     boxAround(lat, long, radiusKm),

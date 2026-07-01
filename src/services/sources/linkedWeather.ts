@@ -10,8 +10,9 @@
  * Two discovery reads:
  * - `near?latitude&longitude&rank&parameters` → nearest `dwd:WeatherStation`s, each
  *   with `schema:distance`.
- * - `values?station&parameters&periods=recent` → a station's `sosa:Observation`s,
- *   each a `qudt:QuantityValue` result.
+ * - `values?station&parameters&periods=historical,recent` → a station's `sosa:Observation`s,
+ *   each a `qudt:QuantityValue` result. (Annual data lives in `historical`; `recent` alone is
+ *   near-empty for annual resolution — see {@link weatherValuesUrl}.)
  *
  * Reached through {@link trackedFetch} so requests show in the global loading
  * indicator and retry transient throttling. The parse halves are split out pure for
@@ -166,10 +167,16 @@ export function weatherStationsUrl(
 }
 
 /** The dereferenceable `values?…` query IRI (and the Developer-mode source link)
- *  for one station + parameter's recent observations. Absolute. */
+ *  for one station + parameter's observations. Absolute.
+ *
+ *  Uses `periods=historical,recent` (not `recent` alone): for the **annual** climate datasets
+ *  this app reads, the DWD `recent` file (last ~500 days) holds few or NO completed annual rows —
+ *  a discontinued nearest station (e.g. Nürnberg-Buchenbuehl 03666) has an empty `recent` and the
+ *  overlay showed nothing. `historical` carries the finalized annual series; adding `recent` keeps
+ *  the latest year for still-active stations. */
 export function weatherValuesUrl(stationId: string, parameters: string): string {
   return `${linkedWeatherBase()}values?` +
-    new URLSearchParams({ station: stationId, parameters, periods: "recent" });
+    new URLSearchParams({ station: stationId, parameters, periods: "historical,recent" });
 }
 
 /** Fetch + parse the nearest `rank` stations to a coordinate for a parameter dataset. */

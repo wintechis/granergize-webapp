@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import type { SourceId } from "../../constants/dataSources.ts";
 import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
-import { bbox, contains, deref, filter, point, search } from "./capabilities.ts";
+import { contains, deref, filter, point, search, within } from "./capabilities.ts";
 
 // Short, readable test bases instead of the production wunderfacts ones.
 const TEST_BASES: Partial<Record<SourceId, string>> = {
@@ -56,10 +56,10 @@ Deno.test("filter builds /filter?ags=, arrays repeat the key", async () => {
   );
 });
 
-Deno.test("bbox / point / contains build their grammars", async () => {
+Deno.test("within / point / contains build their grammars", async () => {
   const fb = gatewayServing("");
-  await bbox(fb.gateway, "mastr", { w: 10, s: 47, e: 13, n: 50 }, { count: 500 });
-  assert.equal(fb.calls[0].url, "https://mastr.test/bbox?bbox=10,47,13,50&count=500");
+  await within(fb.gateway, "mastr", { w: 10, s: 47, e: 13, n: 50 }, { count: 500 });
+  assert.equal(fb.calls[0].url, "https://mastr.test/within?bbox=10,47,13,50&count=500");
 
   const fp = gatewayServing("");
   await point(fp.gateway, "lod2-by", { lon: 11, lat: 49, r: 300 });

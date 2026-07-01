@@ -7,7 +7,7 @@
  *
  * - `deref(gw, iri)` — GET an absolute IRI (every source is dereferenceable).
  * - `search(gw, source, q, params?)` — `/search?q=` keyword discovery.
- * - `bbox(gw, source, box, params?)` — `/bbox?bbox=W,S,E,N` spatial area.
+ * - `within(gw, source, box, params?)` — `/within?bbox=W,S,E,N` spatial area.
  * - `point(gw, source, p)` — `/point?lon=&lat=&r=` spatial point + radius.
  * - `contains(gw, source, p)` — `/contains?lat=&lon=` point → containing region.
  * - `filter(gw, source, attrs)` — `/filter?{attrs}` by-attribute selection.
@@ -106,21 +106,22 @@ export async function search(
   return fetchRdf(gw, source, `search${query({ q, ...params })}`, `search ${source}`);
 }
 
-/** `/bbox?bbox=W,S,E,N` spatial-area discovery; extra `params` (e.g. `count`,
- *  `q`) are appended. */
-export async function bbox(
+/** `/within?bbox=W,S,E,N` spatial-area discovery (the endpoint renamed `/bbox`→`/within`
+ *  in the 2026-06-30 wrapper LIDS rework; the `bbox=` query param is kept); extra `params`
+ *  (e.g. `count`, `q`) are appended. */
+export async function within(
   gw: SourceGateway,
   source: SourceId,
   box: Box,
   params: Record<string, Param> = {},
 ): Promise<Store> {
-  assertCapability(source, "bbox");
+  assertCapability(source, "within");
   // Keep the commas literal (W,S,E,N) — matches the wrappers' grammar and the
   // existing modules / e2e route patterns; numeric, so no encoding is needed.
   const bboxStr = `${box.w},${box.s},${box.e},${box.n}`;
   const extra = query(params);
-  const path = `bbox?bbox=${bboxStr}${extra ? `&${extra.slice(1)}` : ""}`;
-  return fetchRdf(gw, source, path, `bbox ${source}`);
+  const path = `within?bbox=${bboxStr}${extra ? `&${extra.slice(1)}` : ""}`;
+  return fetchRdf(gw, source, path, `within ${source}`);
 }
 
 /** `/point?lon=&lat=&r=` spatial point + radius (metres) discovery. */

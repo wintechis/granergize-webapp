@@ -21,7 +21,7 @@ const store = (ttl: string, base: string) => parseRdfText(ttl, base);
 // generation unit carrying rdfs:label, WGS84 geo:lat/long, dcterms:spatial →
 // …/ags/{8-digit}, and mastr:Energietraeger as a carrier CODE. Mix of renewable
 // (solar 2495, wind 2497) and non-renewable (Wärme/combustion 2413, dropped).
-const BASE = "https://wunderfacts.com/mastr/bbox";
+const BASE = "https://wunderfacts.com/mastr/within";
 const FIXTURE = `
 @prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix geo:     <http://www.w3.org/2003/01/geo/wgs84_pos#> .

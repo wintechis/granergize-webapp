@@ -25,7 +25,7 @@
 export type SourceCapability =
   | "deref"
   | "search"
-  | "bbox"
+  | "within"
   | "point"
   | "contains"
   | "filter";
@@ -93,7 +93,7 @@ export const SOURCES = {
     note: "Nearby energy installations (via linked-mastr).",
     envKey: "VITE_MASTR_API_URI",
     base: "https://wunderfacts.com/mastr/",
-    capabilities: ["deref", "bbox", "search", "filter"],
+    capabilities: ["deref", "within", "search", "filter"],
   },
   netztransparenz: {
     id: "netztransparenz",
@@ -149,7 +149,7 @@ export const SOURCES = {
     note: "3D roof geometry for rooftop-PV potential (via linked-lod2-by).",
     envKey: "VITE_LOD2_API_URI",
     base: "https://wunderfacts.com/lod2-by/",
-    capabilities: ["deref", "point", "bbox"],
+    capabilities: ["deref", "point", "within"],
   },
   nuts: {
     id: "nuts",

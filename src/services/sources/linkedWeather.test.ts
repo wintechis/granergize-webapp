@@ -18,7 +18,7 @@ Deno.test("weatherStationsUrl / weatherValuesUrl build absolute wrapper IRIs", (
 
   const values = weatherValuesUrl("03668", "annual/x/temp");
   assert.match(values, /^https:\/\/[^/]+\/wetterdienst\/values\?/);
-  assert.ok(values.includes("station=03668") && values.includes("periods=recent"));
+  assert.ok(values.includes("station=03668") && values.includes("periods=historical%2Crecent"));
 });
 
 // A faithful slice of a `near` station collection from linked-wetterdienst: each

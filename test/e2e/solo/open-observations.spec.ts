@@ -9,7 +9,7 @@ import { T } from "../helpers/timeouts.ts";
 /**
  * The Observations finder's `open` source tier — actually-settled generation of nearby
  * renewable installations (netztransparenz, joined to MaStR via the unit's EEG number).
- * EXTERNAL hosts, so this STUBS the three-step join: `mastr/bbox` (a nearby solar unit) →
+ * EXTERNAL hosts, so this STUBS the three-step join: `mastr/within` (a nearby solar unit) →
  * `mastr/see/{id}` (its `EegMaStRNummer`) → `netztransparenz/eeg/{number}` (the settled
  * kWh/year). The open tier is **context around your own buildings** (`ownDataAnchor`), so
  * an owned building with coordinates near the stubbed plant anchors the open fetch once
@@ -82,7 +82,7 @@ test.describe("open observations (netztransparenz)", () => {
     // `/netztransparenz/` serves the plant. No live cross-origin call escapes.
     await page.route(/\/mastr\//, (route) => {
       const url = route.request().url();
-      if (url.includes("/bbox")) return route.fulfill(turtle(MASTR_BBOX));
+      if (url.includes("/mastr/within")) return route.fulfill(turtle(MASTR_BBOX));
       if (url.includes("/see/")) return route.fulfill(turtle(MASTR_SEE));
       return route.fulfill({ status: 404, headers: CORS, body: "" });
     });

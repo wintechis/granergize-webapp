@@ -14,7 +14,7 @@ import { T } from "../helpers/timeouts.ts";
 
 /**
  * Nearby-installations section (linked-mastr) e2e — the finest-grain place layer.
- * The wrapper is an EXTERNAL host, so this STUBS its `…/mastr/bbox` response (the
+ * The wrapper is an EXTERNAL host, so this STUBS its `…/mastr/within` response (the
  * way regional-context stubs the cube) with a mix of renewable + non-renewable
  * units around the building's coordinates, and asserts the section keeps the
  * renewables (solar/wind), drops combustion, and renders the per-kind summary +
@@ -66,7 +66,7 @@ test.describe("nearby installations (linked-mastr)", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     // Stub MaStR with the fixture; stub regionalstatistik to 404 so its (sibling)
     // section stays hidden and no live cross-origin call escapes the test.
-    await page.route(/\/mastr\/bbox/, (route) =>
+    await page.route(/\/mastr\/within/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "text/turtle",

@@ -2,6 +2,33 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-01] — Live open-data wrapper contract tests + drift fixes
+
+Added **remote contract tests** (`test/headless/contract/*.contract.test.ts`, run with
+`deno task headless:remote:contract`) that hit each live wrapper host and drive the app's OWN
+parsers over the real response — proving the data actually renders, catching the drift that unit
+fixtures (and `tsc`) cannot. Swept all live/pipeline sources; three had regressions (fallout of the
+2026-06-30/07-01 wrapper changes), now fixed:
+
+- **lod2-by — nearby rooftops empty.** The wrapper stopped emitting `lod2:installableCapacity` (the
+  PV-calc "untangle" moved it app-side), so `parseNearbyRooftops` (which required it) returned `[]`
+  and the open-buildings layer vanished. Fix: new `parseNearbyBuildings`; `fetchNearbyRooftops` now
+  dereferences each nearby building and computes kWp app-side via `computePotential`. (The main
+  rooftop-PV card was unaffected.) `lod2Rooftop.contract.test.ts`.
+- **mastr — nearby installations empty.** The wrapper renamed its spatial endpoint `/bbox` → `/within`
+  (bbox query param kept), so the app's `bbox` capability 404'd. Fix: renamed the capability
+  `bbox` → `within` end-to-end (`SourceCapability` type, registry, `capabilities.ts` helper,
+  `mastrNearby` call + dev-link) and updated the affected e2e stub routes. `mastrNearby.contract.test.ts`.
+- **wetterdienst — weather overlay empty.** `weatherValuesUrl` hard-coded `periods=recent`, which for
+  the ANNUAL climate datasets is empty at the (often discontinued) nearest station. Fix: query
+  `periods=historical,recent`. `linkedWeather.contract.test.ts`. (Follow-up: `EnergyWeatherOverlay`
+  still picks the single nearest station via `rank=1`, which can be discontinued → stale series.)
+
+Clean (no fix, contract added): **nuts**, **lau** (region choropleth + `/contains` + `/search`;
+`#point`→`#id` confirmed harmless), **netztransparenz** (per-plant deref), **energieatlas**,
+**regionalstatistik**, **osm** (live Nominatim geocoding). See also
+`explore/explore-wrapper-contract-drift.md` for making this drift a compile error, not a network test.
+
 ## [2026-07-01]
 - **Stop the transient "no access" / "session expired" flash during silent token refresh.**
   While `@inrupt/solid-client-authn-browser` refreshes the access token in the background, an

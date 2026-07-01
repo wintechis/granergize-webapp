@@ -144,7 +144,7 @@ test.describe("regional context (linked-regionalstatistik)", () => {
         ? route.fulfill({ status: 200, contentType: "text/turtle", headers: CORS, body })
         : route.fulfill({ status: 404, headers: CORS, body: "" });
     });
-    await page.route(/\/mastr\/bbox/, (route) =>
+    await page.route(/\/mastr\/within/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "text/turtle",

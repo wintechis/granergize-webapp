@@ -77,7 +77,7 @@ function useNearestStation(building: Building) {
   });
 }
 
-/** Recent annual mean-temperature values for a station. */
+/** Annual mean-temperature series for a station (historical + recent). */
 function useStationTemperatures(stationId: string | null) {
   return useQuery({
     queryKey: [...sourceKeys.overlayWeatherValues, stationId],

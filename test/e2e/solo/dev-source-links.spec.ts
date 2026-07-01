@@ -97,7 +97,7 @@ test.describe("dev-mode external source links", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await page.route(/\/regionalstatistik\//, (route) =>
       route.fulfill(ttl(REGIO_TTL)));
-    await page.route(/\/mastr\/bbox/, (route) => route.fulfill(ttl(MASTR_TTL)));
+    await page.route(/\/mastr\/within/, (route) => route.fulfill(ttl(MASTR_TTL)));
     await page.route(/\/wetterdienst\//, (route) => {
       const url = route.request().url();
       return route.fulfill(
@@ -141,7 +141,7 @@ test.describe("dev-mode external source links", () => {
     const regioLink = 'a[href^="https://wunderfacts.com/regionalstatistik/data/86251-Z-02"]';
     const onObservation = {
       weather: 'a[href^="https://wunderfacts.com/wetterdienst/values?"]',
-      mastr: 'a[href^="https://wunderfacts.com/mastr/bbox?"]',
+      mastr: 'a[href^="https://wunderfacts.com/mastr/within?"]',
       regionalstatistik: regioLink,
     };
     const assertLinks = async (where: Record<string, string>) => {
