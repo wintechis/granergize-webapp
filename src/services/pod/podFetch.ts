@@ -1,6 +1,7 @@
 import type { PodGateway } from "./podGateway.ts";
 import { Parser, Store } from "n3";
 import { logError } from "../../lib/logError.ts";
+import { recordGraph } from "../rdf/datasetRegistry.ts";
 
 /**
  * GET a mutable Pod resource with forced revalidation, so reload-after-action
@@ -83,7 +84,11 @@ export async function readStoreOrEmpty(
 ): Promise<Store> {
   const res = await fetchFresh(uri, gateway);
   if (!res.ok) return new Store();
-  return new Store(new Parser({ baseIRI: uri }).parse(await res.text()));
+  const quads = new Parser({ baseIRI: uri }).parse(await res.text());
+  // Feed the dataset registry (named graph = document IRI) for the provenance
+  // inspector — this one seam covers every readStoreOrEmpty consumer.
+  recordGraph(uri, quads);
+  return new Store(quads);
 }
 
 /**

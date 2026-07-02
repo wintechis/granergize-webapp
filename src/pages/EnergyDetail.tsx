@@ -7,6 +7,7 @@ import { useSolidData } from "../hooks/queries.ts";
 import { ACTION_PARAM } from "../routes.ts";
 import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
+import { ProvenanceMarker } from "../components/ProvenanceMarker.tsx";
 import EnergyYearEditor from "../components/EnergyYearEditor.tsx";
 import { getSession } from "../hooks/session.ts";
 import { useDevMode } from "../hooks/devMode.ts";
@@ -154,6 +155,11 @@ export default function EnergyDetail({ building }: EnergyProps) {
             <Divider />
           </>
         )}
+        {/* Group provenance for the annual view: one dataset node per year. */}
+        <ProvenanceMarker
+          subject={aggregates.map((d) => d.uri)}
+          sources={[...new Set(aggregates.map((d) => d.uri.split("#")[0]))]}
+        />
         <AnnualEnergy building={building} />
         {/* Step 6a: overlay the building's annual energy with the nearest DWD
             station's mean temperature on the shared year axis (cross-layer
@@ -187,7 +193,17 @@ export default function EnergyDetail({ building }: EnergyProps) {
           <EnergyResolutionSwitch
             annual={annualView}
             series={series.length > 0
-              ? <SeriesEnergy building={building} />
+              ? (
+                <>
+                  <ProvenanceMarker
+                    subject={series.map((d) => d.uri)}
+                    sources={[
+                      ...new Set(series.map((d) => d.uri.split("#")[0])),
+                    ]}
+                  />
+                  <SeriesEnergy building={building} />
+                </>
+              )
               : undefined}
           />
         )}

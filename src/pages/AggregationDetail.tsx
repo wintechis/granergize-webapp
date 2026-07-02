@@ -24,6 +24,7 @@ import {
 import { classifyQueryError } from "../hooks/queryErrors.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
+import { ProvenanceMarker } from "../components/ProvenanceMarker.tsx";
 import AggregationHeader from "../components/aggregation/AggregationHeader.tsx";
 import AggregationDetailsSection from "../components/aggregation/AggregationDetailsSection.tsx";
 import AggregationResultsSection from "../components/aggregation/AggregationResultsSection.tsx";
@@ -184,7 +185,19 @@ export default function AggregationDetail({ session }: AggregationProps) {
           <AggregationRegionMap extent={snapshot.spatialExtent} />
         )}
         {rdf && (
-          <RdfSourceLink href={`${rdf.aggregations}${definition.id}.ttl`} />
+          <Box>
+            {/* Document-level group: the page renders the definition + its
+                computed snapshot; empty subject list → the record shows the
+                documents' contents. */}
+            <ProvenanceMarker
+              subject={[]}
+              sources={[
+                `${rdf.aggregations}${definition.id}.ttl`,
+                `${rdf.aggregations}snapshots/${definition.id}.ttl`,
+              ]}
+            />
+            <RdfSourceLink href={`${rdf.aggregations}${definition.id}.ttl`} />
+          </Box>
         )}
       </Stack>
     </Container>

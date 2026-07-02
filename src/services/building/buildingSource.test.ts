@@ -11,6 +11,11 @@ import {
   fetchBuildingSourceShared,
   parseBuildingSource,
 } from "./buildingSource.ts";
+import {
+  clearDatasetRegistry,
+  getGraphQuads,
+  graphsMentioning,
+} from "../rdf/datasetRegistry.ts";
 
 const ROOT = "https://pod.example/";
 const WEBID = "https://pod.example/profile/card#me";
@@ -28,6 +33,18 @@ Deno.test("parseBuildingSource: one source → its building, sourceUri + coords 
   assert.equal(buildings[0].sourceUri, src); // graph = source IRI → ownership check
   assert.equal(buildings[0].lat, 49.5);
   assert.equal(buildings[0].long, 11.0);
+});
+
+Deno.test("parseBuildingSource feeds the dataset registry (graph = source IRI)", () => {
+  clearDatasetRegistry();
+  const src = `${ROOT}granergize/buildings/b1.ttl`;
+  const ttl = `${PREFIXES}
+<${src}#it> a rec:Building ;
+  geo:location [ a geo:Point ; geo:lat 49.5 ; geo:long 11.0 ] .`;
+  parseBuildingSource(ttl, src, ROOT);
+  assert.ok(getGraphQuads(src)?.length, "the parse recorded the source graph");
+  assert.deepEqual(graphsMentioning(`${src}#it`), [src]);
+  clearDatasetRegistry();
 });
 
 Deno.test("parseBuildingSource: a foreign multi-building doc yields each building", () => {

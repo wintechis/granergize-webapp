@@ -16,6 +16,7 @@ import type { Building, SystemKind, TechnicalSystem } from "../../types.ts";
 import { isHeatKind } from "../../types.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { DetailRow } from "../detail/DetailView.tsx";
+import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { useUpdateBuilding } from "../../hooks/mutations.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
@@ -306,6 +307,9 @@ export default function SystemListSection(
   const systems = ((building.systems ?? []) as TechnicalSystem[])
     .filter((s) => inGroup(group, s.kind));
   const hasAny = systems.length > 0;
+  // The systems are `<buildingFile>#{id}` nodes, all in the building's own
+  // source document — one group marker serves the section.
+  const fileUri = building.sourceUri ?? buildingFileUri(building.uri as string);
 
   return (
     <Box>
@@ -313,7 +317,17 @@ export default function SystemListSection(
         direction="row"
         sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}
       >
-        <Typography variant="h6">{msg(cfg.title)}</Typography>
+        <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
+          <Typography variant="h6">{msg(cfg.title)}</Typography>
+          {/* Only when the group HAS rows — an empty subject list would flip
+              the record into document-level mode (the whole building file). */}
+          {hasAny && (
+            <ProvenanceMarker
+              subject={systems.map((s) => `${fileUri}#${s.id}`)}
+              sources={[fileUri]}
+            />
+          )}
+        </Stack>
         {canEdit && !editing && (
           <Button
             size="small"

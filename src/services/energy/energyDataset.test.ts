@@ -20,6 +20,10 @@ import {
   serializeEnergyDataset,
 } from "./energyDataset.ts";
 import { CONSUMPTION_NS, SOSA_NS, UNIT_NS } from "../rdf/vocabularies.ts";
+import {
+  clearDatasetRegistry,
+  getGraphQuads,
+} from "../rdf/datasetRegistry.ts";
 
 const B = "https://pod.example/granergize/buildings/b-1.ttl#it";
 const ROOT = "https://pod.example/granergize/observations/";
@@ -323,6 +327,35 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
   assert.equal(back.metrics?.electricityConsumption, 121500);
   assert.equal(back.metrics?.waterConsumption, 1500);
   assert.equal(back.metrics?.heatConsumption, undefined);
+});
+
+Deno.test("loadEnergyDataset feeds the dataset registry (graph = document IRI)", async () => {
+  clearDatasetRegistry();
+  const fileUri = datasetFileUri(ROOT, 2024, ID);
+  const ref: EnergyDatasetRef = {
+    uri: datasetNodeUri(fileUri),
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+  };
+  const ds: EnergyDataset = {
+    building: B,
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+    metrics: { electricityConsumption: 121500 },
+  };
+  const ttl = serializeEnergyDataset(ds);
+  const fetchFn = () =>
+    Promise.resolve(
+      new Response(ttl, { headers: { "Content-Type": "text/turtle" } }),
+    );
+  await loadEnergyDatasets([ref], fetchFn);
+  assert.ok(
+    getGraphQuads(fileUri)?.length,
+    "the dataset document's graph is recorded under its file IRI",
+  );
+  clearDatasetRegistry();
 });
 
 Deno.test("loadEnergyDatasets skips an unreadable ref without throwing", async () => {

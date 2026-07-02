@@ -25,6 +25,7 @@ import {
 import { ENERGY_METRICS } from "../energy/energyDataset.ts";
 import { CONS } from "../rdf/consumption/consumptionConfig.ts";
 import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
+import { recordGraph } from "../rdf/datasetRegistry.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
 import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
@@ -568,6 +569,8 @@ export async function loadComputedSnapshot(
   const text = await response.text();
   const parser = new Parser({ format: "text/turtle", baseIRI: snapshotUri });
   const quads = parser.parse(text);
+  // Feed the dataset registry (this bespoke read bypasses readStoreOrEmpty).
+  recordGraph(snapshotUri, quads);
   const store = new Store(quads);
 
   const snapshotType = namedNode(CONS.aggregationSnapshotClass);

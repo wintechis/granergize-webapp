@@ -7,6 +7,7 @@ import { queryKeys } from "../../lib/queryKeys.ts";
 import { fetchFresh } from "../pod/podFetch.ts";
 import { parseBuildings } from "../rdf/building/buildingParser.ts";
 import { buildingFileUri } from "../rdf/building/buildingId.ts";
+import { recordGraph } from "../rdf/datasetRegistry.ts";
 
 /**
  * One building source file as a per-resource read — the buildings analogue of the
@@ -45,6 +46,10 @@ export function parseBuildingSource(
   const quads: Quad[] = new Parser({ baseIRI: sourceUri })
     .parse(ttl)
     .map((q) => DataFactory.quad(q.subject, q.predicate, q.object, graph));
+  // Every parse feeds the dataset registry (named graph = document IRI), so the
+  // provenance inspector can answer per-subject lookups from the same quads the
+  // object projection consumed.
+  recordGraph(sourceUri, quads);
   const buildings = [...parseBuildings(quads, storageRoot).values()];
   if (storageRoot !== undefined) {
     const isShared = isSharedSource(sourceUri, storageRoot);
