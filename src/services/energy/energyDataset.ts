@@ -13,7 +13,7 @@ import {
   XSD_DURATION,
   XSD_NS,
 } from "../rdf/vocabularies.ts";
-import { recordGraph } from "../rdf/datasetRegistry.ts";
+import { recordGraph } from "../rdf/rdfDataset.ts";
 import { VOCAB_SCHEMA } from "../rdf/vocabSchema.generated.ts";
 import { CONS } from "../rdf/consumption/consumptionConfig.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
@@ -439,7 +439,7 @@ export async function loadEnergyDataset(
     const res = await fetchFn(fileUri);
     if (!res.ok) return null;
     const quads = new Parser({ baseIRI: fileUri }).parse(await res.text());
-    // Feed the dataset registry (named graph = document IRI) for the
+    // Feed the RDF dataset (named graph = document IRI) for the
     // provenance inspector, from the same parse the projection consumes.
     recordGraph(fileUri, quads);
     return parseEnergyDataset(new Store(quads), datasetUri);

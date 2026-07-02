@@ -2,14 +2,14 @@
 import { strict as assert } from "node:assert";
 import { DataFactory } from "n3";
 import {
-  clearDatasetRegistry,
+  clearRdfDataset,
   getGraphQuads,
   graphRetrievedAt,
   graphsMentioning,
   listGraphIris,
   quadsAbout,
   recordGraph,
-} from "./datasetRegistry.ts";
+} from "./rdfDataset.ts";
 
 const { namedNode, literal, blankNode, quad } = DataFactory;
 
@@ -54,7 +54,7 @@ function graphB() {
 }
 
 Deno.test("recordGraph stores per graph IRI; re-record replaces", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(DOC_A, graphA());
   assert.equal(getGraphQuads(DOC_A)?.length, 3);
   assert.ok(graphRetrievedAt(DOC_A));
@@ -65,7 +65,7 @@ Deno.test("recordGraph stores per graph IRI; re-record replaces", () => {
 });
 
 Deno.test("graphsMentioning finds subject and object mentions", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(DOC_A, graphA());
   recordGraph(DOC_B, graphB());
   assert.deepEqual(graphsMentioning(SUBJECT).sort(), [DOC_A, DOC_B].sort());
@@ -74,7 +74,7 @@ Deno.test("graphsMentioning finds subject and object mentions", () => {
 });
 
 Deno.test("quadsAbout follows blank-node closure within a graph", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(DOC_A, graphA());
   const about = quadsAbout(SUBJECT, DOC_A);
   // label + qualifiedAttribution + the attribution node's own prov:agent quad
@@ -86,7 +86,7 @@ Deno.test("quadsAbout follows blank-node closure within a graph", () => {
 });
 
 Deno.test("quadsAbout scopes to one graph or spans the dataset", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(DOC_A, graphA());
   recordGraph(DOC_B, graphB());
   assert.equal(quadsAbout(SUBJECT, DOC_A).length, 3);
@@ -95,10 +95,10 @@ Deno.test("quadsAbout scopes to one graph or spans the dataset", () => {
   assert.equal(quadsAbout(SUBJECT, "https://nowhere.example/doc").length, 0);
 });
 
-Deno.test("clearDatasetRegistry empties the dataset", () => {
-  clearDatasetRegistry();
+Deno.test("clearRdfDataset empties the dataset", () => {
+  clearRdfDataset();
   recordGraph(DOC_A, graphA());
-  clearDatasetRegistry();
+  clearRdfDataset();
   assert.deepEqual(listGraphIris(), []);
   assert.equal(getGraphQuads(DOC_A), null);
   assert.equal(graphRetrievedAt(DOC_A), null);

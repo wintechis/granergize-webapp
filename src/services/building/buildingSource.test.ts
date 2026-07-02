@@ -12,10 +12,10 @@ import {
   parseBuildingSource,
 } from "./buildingSource.ts";
 import {
-  clearDatasetRegistry,
+  clearRdfDataset,
   getGraphQuads,
   graphsMentioning,
-} from "../rdf/datasetRegistry.ts";
+} from "../rdf/rdfDataset.ts";
 
 const ROOT = "https://pod.example/";
 const WEBID = "https://pod.example/profile/card#me";
@@ -35,8 +35,8 @@ Deno.test("parseBuildingSource: one source → its building, sourceUri + coords 
   assert.equal(buildings[0].long, 11.0);
 });
 
-Deno.test("parseBuildingSource feeds the dataset registry (graph = source IRI)", () => {
-  clearDatasetRegistry();
+Deno.test("parseBuildingSource feeds the RDF dataset (graph = source IRI)", () => {
+  clearRdfDataset();
   const src = `${ROOT}granergize/buildings/b1.ttl`;
   const ttl = `${PREFIXES}
 <${src}#it> a rec:Building ;
@@ -44,7 +44,7 @@ Deno.test("parseBuildingSource feeds the dataset registry (graph = source IRI)",
   parseBuildingSource(ttl, src, ROOT);
   assert.ok(getGraphQuads(src)?.length, "the parse recorded the source graph");
   assert.deepEqual(graphsMentioning(`${src}#it`), [src]);
-  clearDatasetRegistry();
+  clearRdfDataset();
 });
 
 Deno.test("parseBuildingSource: a foreign multi-building doc yields each building", () => {

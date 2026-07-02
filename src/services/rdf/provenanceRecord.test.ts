@@ -2,9 +2,9 @@
 import { strict as assert } from "node:assert";
 import { DataFactory } from "n3";
 import {
-  clearDatasetRegistry,
+  clearRdfDataset,
   recordGraph,
-} from "./datasetRegistry.ts";
+} from "./rdfDataset.ts";
 import {
   openSourceForGraph,
   provenanceRecordFor,
@@ -57,7 +57,7 @@ Deno.test("openSourceForGraph resolves the registry entry by base", () => {
 });
 
 Deno.test("provenanceRecordFor joins registry, tiers, and PROV statements", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(OWN_DOC, ownQuads());
   const record = provenanceRecordFor(SUBJECT, { storageRoot: ROOT });
   assert.equal(record.sources.length, 1);
@@ -67,11 +67,11 @@ Deno.test("provenanceRecordFor joins registry, tiers, and PROV statements", () =
   // 3 statements about the subject (incl. bnode closure), 2 of them PROV.
   assert.equal(record.statements.length, 3);
   assert.equal(record.provStatements.length, 2);
-  clearDatasetRegistry();
+  clearRdfDataset();
 });
 
 Deno.test("provenanceRecordFor: explicit sources pin the document set", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(OWN_DOC, ownQuads());
   const record = provenanceRecordFor(SUBJECT, {
     storageRoot: ROOT,
@@ -84,11 +84,11 @@ Deno.test("provenanceRecordFor: explicit sources pin the document set", () => {
   );
   assert.equal(record.sources[0].tier, "open");
   assert.equal(record.sources[0].retrievedAt, null, "never parsed → no timestamp");
-  clearDatasetRegistry();
+  clearRdfDataset();
 });
 
 Deno.test("provenanceRecordFor: several subjects merge their statements", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(OWN_DOC, ownQuads());
   const attrAgent = "https://me.example/profile/card#me";
   const record = provenanceRecordFor([SUBJECT, attrAgent], {
@@ -98,27 +98,27 @@ Deno.test("provenanceRecordFor: several subjects merge their statements", () => 
   // The agent appears as an object in OWN_DOC → the graph is found once.
   assert.deepEqual(record.sources.map((s) => s.graphIri), [OWN_DOC]);
   assert.equal(record.statements.length, 3, "subject statements merged");
-  clearDatasetRegistry();
+  clearRdfDataset();
 });
 
 Deno.test("provenanceRecordFor: empty subjects + pinned sources = document-level", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(OWN_DOC, ownQuads());
   const record = provenanceRecordFor([], { storageRoot: ROOT, sources: [OWN_DOC] });
   assert.deepEqual(record.subjectIris, []);
   assert.equal(record.sources[0].graphIri, OWN_DOC);
   assert.equal(record.statements.length, 3, "the whole graph is the record");
   assert.equal(record.provStatements.length, 2);
-  clearDatasetRegistry();
+  clearRdfDataset();
 });
 
 Deno.test("provenanceRecordFor joins the request log by document URL", () => {
-  clearDatasetRegistry();
+  clearRdfDataset();
   recordGraph(OWN_DOC, ownQuads());
   const id = beginActivity("GET buildings/a.ttl", OWN_DOC);
   endActivity(id, { status: 200 });
   const record = provenanceRecordFor(SUBJECT, { storageRoot: ROOT });
   assert.equal(record.sources[0].lastRequest?.status, 200);
   assert.equal(record.sources[0].lastRequest?.url, OWN_DOC);
-  clearDatasetRegistry();
+  clearRdfDataset();
 });

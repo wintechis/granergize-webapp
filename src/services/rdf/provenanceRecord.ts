@@ -4,7 +4,7 @@ import {
   graphRetrievedAt,
   graphsMentioning,
   quadsAbout,
-} from "./datasetRegistry.ts";
+} from "./rdfDataset.ts";
 import {
   getRequestLog,
   type RequestLogEntry,
@@ -17,14 +17,14 @@ import { PROV_NS } from "./vocabularies.ts";
  * subject (or group of infos sharing a subject): which documents say something
  * about it (named by source tier), when the app fetched them, the PROV
  * statements about it, and the raw statements as the floor. Assembled purely
- * from the dataset registry + the request log; no I/O, no React.
+ * from the RDF dataset + the request log; no I/O, no React.
  * See `plans/plan-per-value-provenance.md`.
  */
 
 export type SourceTier = "mine" | "shared" | "open";
 
 export interface ProvenanceSource {
-  /** The document IRI = the registry graph name. */
+  /** The document IRI = the RDF dataset's graph name. */
   graphIri: string;
   /** Concentric ring, derived from where the document lives (heuristic:
    * under the viewer's storage root → `mine`; under a known open-source
@@ -33,7 +33,7 @@ export interface ProvenanceSource {
   /** The open-source registry entry when the graph lives under a known base
    * (name + licence for the record's "where from" line). */
   source?: DataSource;
-  /** When the graph was last parsed into the registry (ISO), if known. */
+  /** When the graph was last parsed into the RDF dataset (ISO), if known. */
   retrievedAt: string | null;
   /** The most recent finished request for this document, when the request
    * log still holds it — status / duration / endedAt ("when" line). */
@@ -46,7 +46,7 @@ export interface ProvenanceRecord {
   subjectIris: string[];
   sources: ProvenanceSource[];
   /** "Who says so" — the PROV statements about the subjects (incl. the
-   * attribution blank node's detail via the registry's bnode closure). */
+   * attribution blank node's detail via the dataset's bnode closure). */
   provStatements: Quad[];
   /** The raw floor — every statement about the subjects across their graphs. */
   statements: Quad[];
@@ -77,7 +77,7 @@ export function lastRequestFor(url: string): RequestLogEntry | null {
 /**
  * Assemble the record for a group's subject(s). `sources` pins the document
  * set when the caller knows it (a group annotation, a composite's
- * `{activity, sources}`); otherwise every registry graph mentioning a subject
+ * `{activity, sources}`); otherwise every dataset graph mentioning a subject
  * is used. An EMPTY subject list with pinned sources is the document-level
  * group ("this card renders these documents"): the statements are then the
  * pinned graphs' full contents.

@@ -7,10 +7,12 @@ All notable changes to the Granergize WebApp project will be documented in this 
 Every info group in the UI can now answer "where does this come from?" in
 Developer mode — timbl's "Oh, yeah?" button (w3.org/DesignIssues/UI.html).
 
-- A **dataset registry** (`services/rdf/datasetRegistry.ts`) retains what the
-  app knows as an RDF dataset — one named graph per fetched document, the twin
-  of the IRI-keyed query cache — fed at the parse seams (`parseBuildingSource`,
+- **The RDF dataset** (`services/rdf/rdfDataset.ts`) retains what the app knows
+  as an RDF 1.1 dataset — one named graph per fetched document, the twin of the
+  IRI-keyed query cache — fed at the parse seams (`parseBuildingSource`,
   `loadEnergyDataset`, `readStoreOrEmpty`, the aggregation snapshot read).
+  (First landed as `datasetRegistry.ts`, renamed the same day: the module *is*
+  an RDF dataset, so it is named what it is.)
 - A pure **provenance record** (`provenanceRecordFor`) joins, per subject
   group: the source documents named by ring (mine / shared / open via the
   storage root and the `SOURCES` bases), the request log (status, duration),

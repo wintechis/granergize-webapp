@@ -21,9 +21,9 @@ import {
 } from "./energyDataset.ts";
 import { CONSUMPTION_NS, SOSA_NS, UNIT_NS } from "../rdf/vocabularies.ts";
 import {
-  clearDatasetRegistry,
+  clearRdfDataset,
   getGraphQuads,
-} from "../rdf/datasetRegistry.ts";
+} from "../rdf/rdfDataset.ts";
 
 const B = "https://pod.example/granergize/buildings/b-1.ttl#it";
 const ROOT = "https://pod.example/granergize/observations/";
@@ -329,8 +329,8 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
   assert.equal(back.metrics?.heatConsumption, undefined);
 });
 
-Deno.test("loadEnergyDataset feeds the dataset registry (graph = document IRI)", async () => {
-  clearDatasetRegistry();
+Deno.test("loadEnergyDataset feeds the RDF dataset (graph = document IRI)", async () => {
+  clearRdfDataset();
   const fileUri = datasetFileUri(ROOT, 2024, ID);
   const ref: EnergyDatasetRef = {
     uri: datasetNodeUri(fileUri),
@@ -355,7 +355,7 @@ Deno.test("loadEnergyDataset feeds the dataset registry (graph = document IRI)",
     getGraphQuads(fileUri)?.length,
     "the dataset document's graph is recorded under its file IRI",
   );
-  clearDatasetRegistry();
+  clearRdfDataset();
 });
 
 Deno.test("loadEnergyDatasets skips an unreadable ref without throwing", async () => {

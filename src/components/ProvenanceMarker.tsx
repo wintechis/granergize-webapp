@@ -58,7 +58,7 @@ export interface ProvenanceMarkerProps {
    * document-level group (the record then shows the documents' contents). */
   subject: string | readonly string[];
   /** Pin the document set when the caller knows it (e.g. the building's own
-   * source file); otherwise every registry graph mentioning a subject. */
+   * source file); otherwise every dataset graph mentioning a subject. */
   sources?: readonly string[];
 }
 
@@ -71,7 +71,7 @@ export function ProvenanceMarker({ subject, sources }: ProvenanceMarkerProps) {
   if (!dev) return null;
 
   const openRecord = (e: MouseEvent<HTMLElement>) => {
-    // Assembled at click time so the popover reflects the current registry +
+    // Assembled at click time so the popover reflects the current RDF dataset +
     // request log, not a stale snapshot from render time.
     let storageRoot: string | undefined;
     try {

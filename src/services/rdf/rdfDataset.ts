@@ -1,11 +1,11 @@
 import type { Quad } from "@rdfjs/types";
 
 /**
- * The dataset registry — the RDF twin of the IRI-keyed query cache. Holds, per
+ * The RDF dataset — the RDF twin of the IRI-keyed query cache. Holds, per
  * **named graph = document IRI**, the quads the per-resource parses produced (plus
  * when they were recorded), replaced wholesale on refetch. Together the graphs form
  * the RDF dataset of what the app currently knows about the outside world; the
- * typed object model is a projection of it, and this registry keeps the source
+ * typed object model is a projection of it, and it keeps the source
  * side addressable so the provenance inspector can answer "where does this info
  * come from" per subject. Pure module-level store (no React, no I/O), in the same
  * shape as `lib/networkActivity.ts`. See `plans/plan-per-value-provenance.md`.
@@ -88,6 +88,6 @@ export function quadsAbout(subjectIri: string, graphIri?: string): Quad[] {
 }
 
 /** Drop every recorded graph (logout / tests). */
-export function clearDatasetRegistry(): void {
+export function clearRdfDataset(): void {
   graphs.clear();
 }
