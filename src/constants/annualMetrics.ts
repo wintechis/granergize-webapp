@@ -3,6 +3,7 @@ import type { MessageId } from "../lib/messages.ts";
 import { label as vocabLabel } from "../services/rdf/vocabLabels.ts";
 import type { Lang } from "../lib/language.ts";
 import { CONSUMPTION_NS } from "../services/rdf/vocabularies.ts";
+import { isHeatKind, type TechnicalSystem } from "../types/building.ts";
 
 /**
  * THE annual-metric schema — the one description of the five annual energy
@@ -61,3 +62,51 @@ export function annualMetricLabel(key: string, lang?: Lang): string {
 export const CONSUMPTION_METRIC_KEYS: EnergyMetricKey[] = ANNUAL_METRICS
   .filter((m) => m.unit !== "%" && m.key !== "electricityGeneration")
   .map((m) => m.key);
+
+/**
+ * The metrics a building's DECLARED energy systems make especially relevant —
+ * the master-data → consumption-entry linkage: any heat generator (gas/oil/
+ * electric boiler, heat pump, district heating) makes heat consumption
+ * relevant; a producing system (PV, CHP) makes generation and the renewable
+ * share relevant; electricity consumption is always relevant (every building
+ * draws power). Water/wastewater are never system-derived.
+ */
+export function relevantMetricKeys(
+  systems: readonly TechnicalSystem[] | undefined,
+): Set<EnergyMetricKey> {
+  const relevant = new Set<EnergyMetricKey>(["electricityConsumption"]);
+  for (const s of systems ?? []) {
+    if (isHeatKind(s.kind)) relevant.add("heatConsumption");
+    if (s.kind === "pv" || s.kind === "chp") {
+      relevant.add("electricityGeneration");
+      relevant.add("renewableSelfGeneratedShare");
+    }
+  }
+  return relevant;
+}
+
+/**
+ * {@link ANNUAL_METRICS} ordered for a building's entry form / read-back: the
+ * metrics its declared systems make relevant come FIRST (canonical relative
+ * order preserved), the rest follow, flagged `relevant: false` so the form can
+ * de-emphasise them. The unified six-metric schema is untouched — nothing is
+ * hidden or dropped (cross-building comparability). A building with NO
+ * declared systems gets the canonical order with every metric `relevant`
+ * (identical to the unlinked form).
+ */
+export function orderedAnnualMetrics(
+  systems: readonly TechnicalSystem[] | undefined,
+): Array<AnnualMetricDesc & { relevant: boolean }> {
+  if (!systems || systems.length === 0) {
+    return ANNUAL_METRICS.map((m) => ({ ...m, relevant: true }));
+  }
+  const relevant = relevantMetricKeys(systems);
+  const flagged = ANNUAL_METRICS.map((m) => ({
+    ...m,
+    relevant: relevant.has(m.key),
+  }));
+  return [
+    ...flagged.filter((m) => m.relevant),
+    ...flagged.filter((m) => !m.relevant),
+  ];
+}

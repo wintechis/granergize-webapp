@@ -2,6 +2,16 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — Energy entry: guided by the building's declared systems
+
+The consumption entry now reflects the building's master data: metrics its
+declared systems suggest (heat for a heat generator, generation + renewable
+share for PV/CHP) come first; the rest stay available but de-emphasised. The
+unified six-metric schema is untouched — nothing hidden, nothing dropped
+(cross-building comparability); a building with no declared systems gets the
+form exactly as before. One pure helper (`orderedAnnualMetrics`) drives the
+entry form and the read-back table alike.
+
 ## [2026-07-02] — E2E repairs II: fixtures catch up with the wrapper shapes
 
 The open-data specs' stubs predated two wrapper migrations, so the whole

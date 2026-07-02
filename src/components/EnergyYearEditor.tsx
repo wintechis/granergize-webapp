@@ -44,20 +44,30 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
-import { annualMetricLabel, ANNUAL_METRICS } from "../constants/annualMetrics.ts";
+import { orderedAnnualMetrics, annualMetricLabel } from "../constants/annualMetrics.ts";
 
 // Derived from the shared annual-metric schema (constants/annualMetrics.ts) so
 // the entry form and the view dialogs can't drift on the metric set/labels.
 // A function (not a const) so the labels resolve in the ACTIVE language on each
 // render — the full label comes from the vocab, the short form from the catalog.
-function metricFields(): Array<
-  { key: EnergyMetricKey; label: string; short: string; decimals: number }
+// Ordered by the building's DECLARED systems (relevant metrics first, the rest
+// flagged for de-emphasis) — the master-data → consumption linkage; with no
+// systems the canonical order applies and nothing is de-emphasised.
+function metricFields(systems?: readonly TechnicalSystem[]): Array<
+  {
+    key: EnergyMetricKey;
+    label: string;
+    short: string;
+    decimals: number;
+    relevant: boolean;
+  }
 > {
-  return ANNUAL_METRICS.map((m) => ({
+  return orderedAnnualMetrics(systems).map((m) => ({
     key: m.key,
     label: annualMetricLabel(m.key),
     short: msg(m.shortId),
     decimals: m.decimals,
+    relevant: m.relevant,
   }));
 }
 
@@ -284,7 +294,7 @@ export default function EnergyYearEditor(
       return;
     }
     const metrics: AnnualMetrics = {};
-    for (const { key, label } of metricFields()) {
+    for (const { key, label } of metricFields(building?.systems)) {
       const raw = values[key];
       if (raw && raw.trim() !== "") {
         const n = parseFloat(raw);
@@ -487,7 +497,7 @@ export default function EnergyYearEditor(
                     <TableRow>
                       <TableCell><strong>{t("lblYear")}</strong></TableCell>
                       <TableCell><strong>{t("lblScenario")}</strong></TableCell>
-                      {metricFields().map((m) => (
+                      {metricFields(building?.systems).map((m) => (
                         <TableCell key={m.key} align="right">
                           <strong>{m.short}</strong>
                         </TableCell>
@@ -500,7 +510,7 @@ export default function EnergyYearEditor(
                       <TableRow hover key={dsKey(d.year, d.scenario)}>
                         <TableCell>{d.year}</TableCell>
                         <TableCell>{scenarioLabel(d.scenario)}</TableCell>
-                        {metricFields().map((m) => {
+                        {metricFields(building?.systems).map((m) => {
                           const v = d.metrics?.[m.key];
                           return (
                             <TableCell key={m.key} align="right">
@@ -560,7 +570,7 @@ export default function EnergyYearEditor(
                 {t("eyEditingNote")}
               </Typography>
             )}
-            {metricFields().map(({ key, label }) => (
+            {metricFields(building?.systems).map(({ key, label, relevant }) => (
               <TextField
                 key={key}
                 label={label}
@@ -569,6 +579,11 @@ export default function EnergyYearEditor(
                 value={values[key] ?? ""}
                 onChange={(e) =>
                   setValues((v) => ({ ...v, [key]: e.target.value }))}
+                // De-emphasise (never hide) the metrics the building's declared
+                // systems don't suggest — the unified schema stays intact.
+                slotProps={relevant ? undefined : {
+                  inputLabel: { sx: { color: "text.secondary" } },
+                }}
               />
             ))}
           </Stack>
