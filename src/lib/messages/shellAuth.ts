@@ -197,6 +197,14 @@ export const shellAuth = {
   menuProfile: { en: "Profile", de: "Profil", fr: "Profil" },
   menuOrganisation: { en: "Organisation…", de: "Organisation…", fr: "Organisation…" },
   menuDevMode: { en: "Developer mode", de: "Entwicklermodus", fr: "Mode développeur" },
+  provTitle: { en: "Provenance", de: "Herkunft", fr: "Provenance" },
+  provFetched: { en: "Fetched", de: "Abgerufen", fr: "Récupéré" },
+  provStatements: { en: "Statements", de: "Aussagen", fr: "Déclarations" },
+  provNone: {
+    en: "No provenance recorded.",
+    de: "Keine Herkunft aufgezeichnet.",
+    fr: "Aucune provenance enregistrée.",
+  },
   menuAddBuildings: {
     en: "Add example buildings and energy data",
     de: "Beispielgebäude und Energiedaten hinzufügen",

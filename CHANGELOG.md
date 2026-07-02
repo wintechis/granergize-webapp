@@ -66,6 +66,39 @@ into the same skip-by-name listing).
   survive `disabled` again); CreateAggregationDialog resets mode/extent on
   close and its Select-all is a real, keyboard-reachable button.
 
+## [2026-07-02] — Provenance: the "Oh, yeah?" button
+
+Every info group in the UI can now answer "where does this come from?" in
+Developer mode — timbl's "Oh, yeah?" button (w3.org/DesignIssues/UI.html).
+
+- **The RDF dataset** (`services/rdf/rdfDataset.ts`) retains what the app knows
+  as an RDF 1.1 dataset — one named graph per fetched document, the twin of the
+  IRI-keyed query cache — fed at the parse seams (`parseBuildingSource`,
+  `loadEnergyDataset`, `readStoreOrEmpty`, the aggregation snapshot read).
+  (First landed as `datasetRegistry.ts`, renamed the same day: the module *is*
+  an RDF dataset, so it is named what it is.)
+- A pure **provenance record** (`provenanceRecordFor`) joins, per subject
+  group: the source documents named by ring (mine / shared / open via the
+  storage root and the `SOURCES` bases), the request log (status, duration),
+  the PROV statements about the subject, and the raw statements as the floor.
+- The **`ProvenanceMarker`** popover renders it, one marker per
+  provenance-homogeneous group (self-hides outside Developer mode; no separate
+  toggle). Wired on: building master data, energy + heat systems (hidden for an
+  empty group), the energy detail's annual and time-series views (per-year
+  dataset nodes), and the aggregation detail (document-level
+  definition + snapshot record).
+
+## [2026-07-02] — Login: a deliberate sign-in keeps the in-app route
+
+Logging in from a deep link (e.g. `/building?ref=…`) landed on a bare
+`/building` ("Building not found…"): the auth library strips the query string
+from the OIDC redirect URL, and the existing route replay only covered the
+*silent* restore (whose `sessionRestore` event carries the pre-redirect URL).
+A deliberate login now saves its route (`pathname + search + hash`) to a
+per-tab `sessionStorage` breadcrumb right before `session.login` navigates
+away, and the `login` event replays it through the same deferred
+`restoreRouteFrom` mechanism, so the round-trip returns to the full route.
+
 ## [2026-07-02] — Consistency sweep: one way to do each thing
 
 - Gateway composition happens in one place: components call `getGateway()`

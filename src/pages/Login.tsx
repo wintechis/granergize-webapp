@@ -78,6 +78,35 @@ const clearRestoreAttempt = () => {
   }
 };
 
+// sessionStorage breadcrumb for a DELIBERATE login's in-app route. The library
+// strips the query string from the OIDC redirect URL, so a login started on
+// `/building?ref=…` comes back to a bare `/building` (path kept, `?ref=` lost).
+// The `sessionRestore` event replays the route only for SILENT restores; for an
+// explicit login the app must save its route itself: written right before
+// `session.login` navigates away, replayed (and cleared) on the `login` event.
+// Per-tab on purpose (sessionStorage): parallel tabs don't clobber each other.
+const PRE_LOGIN_ROUTE_KEY = "granergize:preLoginRoute";
+const markPreLoginRoute = () => {
+  try {
+    sessionStorage.setItem(
+      PRE_LOGIN_ROUTE_KEY,
+      window.location.pathname + window.location.search +
+        window.location.hash,
+    );
+  } catch {
+    // private-mode / disabled storage — the route replay simply won't engage.
+  }
+};
+const takePreLoginRoute = (): string | null => {
+  try {
+    const route = sessionStorage.getItem(PRE_LOGIN_ROUTE_KEY);
+    sessionStorage.removeItem(PRE_LOGIN_ROUTE_KEY);
+    return route;
+  } catch {
+    return null;
+  }
+};
+
 const IdpInputWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
   // Stretch so the submit button matches the text field's height without a
@@ -266,6 +295,14 @@ export const Login: React.FC<LoginProps> = ({
     const handleLoginEvent = () => {
       markResponded();
       clearRestoreAttempt();
+      // A deliberate login comes back without the query string (the library
+      // strips it from the redirect URL) — replay the route saved right before
+      // `session.login` navigated away, via the same deferred mechanism the
+      // silent-restore path uses.
+      const preLoginRoute = takePreLoginRoute();
+      if (preLoginRoute) {
+        restoreRouteFrom(window.location.origin + preLoginRoute);
+      }
       // Set the WebID together with clearing `loading` so the screen goes
       // straight from "Loading…" to the app. The library fires this `login`
       // event while `handleIncomingRedirect()` is still in flight (its promise
@@ -397,6 +434,9 @@ export const Login: React.FC<LoginProps> = ({
     // loop guard protects against — clear the breadcrumb so the guard never
     // blocks an explicit attempt.
     clearRestoreAttempt();
+    // Save the in-app route so the post-login `login` event can replay it (the
+    // redirect round-trip loses the query string — see PRE_LOGIN_ROUTE_KEY).
+    markPreLoginRoute();
     // Immediate feedback while `session.login` discovers/registers before it
     // redirects the browser away (the page navigation ends this component).
     let host = targetIdp;

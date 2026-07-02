@@ -27,6 +27,7 @@ import { BUILDING_NS } from "../../services/rdf/vocabularies.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../../services/xlsx/buildingTemplates.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { DetailRow, SectionTitle } from "../detail/DetailView.tsx";
+import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 
 /** Display label for a controlled-vocab TOKEN stored on the building (e.g. "OneShift"
  *  → "1-Shift"), resolved through the vocab catalog. */
@@ -342,7 +343,15 @@ export default function MasterDataSection(
         direction="row"
         sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}
       >
-        <Typography variant="h6">{msg("secMasterData")}</Typography>
+        <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
+          <Typography variant="h6">{msg("secMasterData")}</Typography>
+          {/* Group-level provenance: every master-data row comes from the
+              building's own source document, so one marker serves the card. */}
+          <ProvenanceMarker
+            subject={building.uri as string}
+            sources={[building.sourceUri ?? buildingFileUri(building.uri)]}
+          />
+        </Stack>
         {canEdit && !editing && (
           <Button
             size="small"
