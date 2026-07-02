@@ -20,7 +20,6 @@ import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx
 import NotificationLogIndicator from "../components/NotificationLogIndicator.tsx";
 import CommandPalette, { OPEN_PALETTE_EVENT } from "../components/CommandPalette.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
-import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/organisation/logo.ts";
 import { getOrgLogoObjectUrl } from "../services/organisation/organisation.ts";
 import { useAvatarRefresh } from "../lib/avatarRefresh.ts";
@@ -222,14 +221,6 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     handleMenuClose();
     void navigate(DETAIL_PATTERNS.organisation);
   };
-
-  // Load the current-room pointer from the Pod into memory once after login, so
-  // the sharing dialogs (which read it synchronously) know the room app-wide.
-  useEffect(() => {
-    hydrateActiveRoom(getGateway()).catch((err) =>
-      logError("hydrate active data room on login", err)
-    );
-  }, [session]);
 
   const menuOpen = Boolean(anchorEl);
 

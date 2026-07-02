@@ -166,7 +166,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
     ownsRoom(r, getGateway())
       ? (
         <IconAction
-  label={t("roomDeleteTooltip")}
+  label={t("roomDeleteAria")}
   icon={<DeleteIcon fontSize="small" />}
   color="error"
   disabled={busy}
@@ -175,7 +175,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
       )
       : (
         <IconAction
-  label={t("roomRemoveTooltip")}
+  label={t("roomRemoveAria")}
   icon={<DeleteIcon fontSize="small" />}
   color="error"
   disabled={busy}

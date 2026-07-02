@@ -21,7 +21,7 @@ import {
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
 import { webIdsError } from "../lib/webId.ts";
-import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
+import { getCurrentRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
 import { useShareBuilding } from "../hooks/mutations.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
 import type { AttachmentRef, Building, UserRole } from "../types.ts";
@@ -133,7 +133,7 @@ export function ShareBuildingDialog({
     setWebIdError("");
     try {
       const resolved = await getMembersByRole(
-        getActiveRoom(),
+        await getCurrentRoom(getGateway()),
         targetRole,
         getGateway(),
       );

@@ -1,4 +1,5 @@
 import type { PodGateway } from "../pod/podGateway.ts";
+import { listLogEvents, readEventCached } from "../pod/eventLog.ts";
 import { DataFactory, Store } from "n3";
 import {
   ACL_NS,
@@ -15,7 +16,6 @@ import {
 import { podResources } from "../pod/solidUtils.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import { appendToContainer, ensureContainer } from "../pod/podWrite.ts";
-import { listDirectChildren } from "../pod/podDelete.ts";
 import { mapPooled } from "../../lib/pool.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { queryKeys } from "../../lib/queryKeys.ts";
@@ -211,32 +211,6 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
 }
 
 /**
- * Parsed events per event URL, scoped per gateway (so a fresh login — or a
- * fresh fake gateway in tests — never sees another's entries). An event
- * resource is IMMUTABLE once POSTed (append-only log, server-minted IRI, never
- * rewritten), so its parse can be reused for the gateway's lifetime: a re-fold
- * then costs only the container listing, not one GET per event. Only non-empty
- * parses are cached — an empty result can be a TRANSIENT failure
- * (`readStoreOrEmpty` degrades 403/throttle to an empty store) and must stay
- * retryable.
- */
-const eventCacheBySession = new WeakMap<PodGateway, Map<string, SharingEvent[]>>();
-
-/**
- * List the event resource IRIs in a log container (the membership listing). The
- * container query of the `useSharedInGrants`/`useSharedOutGrants` fan-out; an empty
- * array when the container doesn't exist yet (fresh Pod).
- */
-export async function listLogEvents(
-  containerUri: string,
-  gateway: PodGateway,
-): Promise<string[]> {
-  const children = await listDirectChildren(containerUri, gateway);
-  if (!children) return []; // container doesn't exist yet
-  return children.filter((u) => !u.endsWith("/"));
-}
-
-/**
  * Parse ONE event resource into its `SharingEvent[]` (usually one). The per-event
  * read the React Query fan-out caches: an event is IMMUTABLE once POSTed (append-only,
  * server-minted IRI), so its query is `staleTime: Infinity` — a re-fold after a new
@@ -256,16 +230,13 @@ async function readAllEvents(
   gateway: PodGateway,
 ): Promise<SharingEvent[]> {
   const eventUris = await listLogEvents(containerUri, gateway);
-  const cache = eventCacheBySession.get(gateway) ??
-    new Map<string, SharingEvent[]>();
-  eventCacheBySession.set(gateway, cache);
-  const parsed = await mapPooled(eventUris, 4, async (uri) => {
-    const cached = cache.get(uri);
-    if (cached) return cached;
-    const events = await loadSharingEvent(uri, gateway);
-    if (events.length > 0) cache.set(uri, events);
-    return events;
-  });
+  // Immutable-event cache + non-empty-only rule live in the shared primitive.
+  const parsed = await mapPooled(
+    eventUris,
+    4,
+    (uri) =>
+      readEventCached(uri, gateway, parseSharingEvents, (v) => v.length > 0),
+  );
   return parsed.flat();
 }
 

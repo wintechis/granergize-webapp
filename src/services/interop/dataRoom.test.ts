@@ -42,6 +42,8 @@ const BOB = "https://bob.example/profile/card#me";
 class FakePod {
   readonly containers = new Set<string>();
   readonly resources = new Map<string, string>();
+  /** Every resource GET (not container listings) — for fetch-count assertions. */
+  readonly gets: string[] = [];
   private counter = 0;
   /** ETag per resource (bumped on every PUT) — lets readModifyWrite use If-Match. */
   private etags = new Map<string, string>();
@@ -90,6 +92,7 @@ class FakePod {
           .join("\n");
         return this.res(body, 200, turtle);
       }
+      this.gets.push(url);
       const body = this.resources.get(url);
       return body === undefined
         ? this.res("", 404)
@@ -554,4 +557,73 @@ Deno.test("ensureRoomAcls throws when not logged in", async () => {
     { info: { isLoggedIn: false, webId: undefined } } as unknown as Session,
   );
   await assertRejects(() => ensureRoomAcls(session), Error, "Not logged in");
+});
+
+// ── Shared event-log discipline (the sharing log's primitives, reused) ─────────
+
+/** A membership event resource in the room's AS2 shape, for direct seeding. */
+function membershipTtl(agent: string, at: string, joined: boolean): string {
+  return `@prefix as: <https://www.w3.org/ns/activitystreams#> .
+<#it> a as:${joined ? "Join" : "Leave"} ;
+  as:actor <${agent}> ;
+  as:published "${at}"^^<http://www.w3.org/2001/XMLSchema#dateTime> .`;
+}
+
+Deno.test("membership fold: at an exact timestamp tie, LEAVE wins (not listing order)", async () => {
+  // The sharing fold's documented rule is revocation-wins-on-tie
+  // (least-privilege, read-order independent). The room fold kept whichever
+  // event the server LISTED first — same-instant join/leave flapped by
+  // listing order. Assert both orders agree: not a member.
+  for (const order of [["j", "l"], ["l", "j"]]) {
+    const pod = new FakePod();
+    const session = sessionFor(pod, ALICE);
+    pod.containers.add(ROOM);
+    const at = "2026-07-01T10:00:00Z";
+    for (const [i, kind] of order.entries()) {
+      pod.resources.set(`${ROOM}evt-${i}`, membershipTtl(ALICE, at, kind === "j"));
+    }
+    assertEquals(
+      await getMyMembership(ROOM, session),
+      false,
+      `leave wins the tie regardless of listing order (${order.join(",")})`,
+    );
+  }
+});
+
+Deno.test("room fold never fetches the name document or auxiliary sidecars", async () => {
+  // The `name` child is the room's one in-place metadata resource; some
+  // servers also list `.acl` in ldp:contains. Both are skipped by NAME in the
+  // listing — not fetched-and-discarded on every fold.
+  const pod = new FakePod();
+  const session = sessionFor(pod, ALICE);
+  pod.containers.add(ROOM);
+  pod.resources.set(`${ROOM}name`, `<${ROOM}> <http://www.w3.org/2000/01/rdf-schema#label> "Raum" .`);
+  pod.resources.set(`${ROOM}evt-1`, membershipTtl(ALICE, "2026-07-01T10:00:00Z", true));
+
+  const members = await getMembers(ROOM, session);
+  assertEquals(members.map((m) => m.webId), [ALICE]);
+  assert(!pod.gets.includes(`${ROOM}name`), "the name document is not fetched by the fold");
+  assert(!pod.gets.some((u) => u.endsWith(".acl")), "no auxiliary sidecar fetched");
+});
+
+Deno.test("room events are cached per gateway: a re-fold re-reads only the listing", async () => {
+  // Same discipline as the sharing log: an event resource is immutable once
+  // POSTed, so the second fold costs the container listing, not one GET per
+  // event.
+  const pod = new FakePod();
+  const session = sessionFor(pod, ALICE);
+  pod.containers.add(ROOM);
+  pod.resources.set(`${ROOM}evt-1`, membershipTtl(ALICE, "2026-07-01T10:00:00Z", true));
+  pod.resources.set(`${ROOM}evt-2`, membershipTtl(BOB, "2026-07-01T10:00:01Z", true));
+
+  await getMembers(ROOM, session);
+  await getMembers(ROOM, session);
+
+  for (const evt of [`${ROOM}evt-1`, `${ROOM}evt-2`]) {
+    assertEquals(
+      pod.gets.filter((u) => u === evt).length,
+      1,
+      `${evt} read once across two folds`,
+    );
+  }
 });

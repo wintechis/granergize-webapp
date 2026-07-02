@@ -2,6 +2,35 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — E2E repairs: room aria-labels, wrapper geocode stub
+
+- The rooms finder's delete/remove IconAction conversion had swapped the
+  aria-label to the tooltip phrasing — restored to the `roomDeleteAria`/
+  `roomRemoveAria` ids (the specs' and assistive tech's contract); the unused
+  tooltip ids retired.
+- The local-lane Nominatim stub now also covers the OSM wrapper's proxy host
+  (`osmwrap.ontologycentral.com/nominatim/`) the app actually geocodes
+  through — pre-existing gap: local-lane geocodes escaped to the real network
+  and died in retry backoff, timing out every seeding/import spec. Three
+  per-spec stubs switched to the same path-based pattern.
+
+## [2026-07-02] — Rooms: onto the shared event-log machinery
+
+The room log had re-invented the sharing log's infrastructure (own listing,
+fold, no caching) and kept a module-global current-room mirror.
+
+- Shared primitives in `services/pod/eventLog.ts`: event listing (skips
+  sub-containers, `.acl`/`.meta` sidecars and named in-place siblings — the
+  room's `name` doc is no longer fetched-and-discarded every fold) + a
+  per-gateway immutable-event parse cache. Sharing and rooms both use them.
+- The membership fold is leave-wins on a timestamp tie (was listing-order
+  dependent), mirroring the sharing fold's revocation-wins.
+- The `activeRoom` module global is gone — share-by-role reads the Pod's
+  current-room pointer directly; no hydration/reset plumbing.
+
+Groundwork for the room-rules redesign (its `rules` charter document slots
+into the same skip-by-name listing).
+
 ## [2026-07-02] — Dialogs: conventions sweep
 
 - The five big dialogs render through `useT()` — an open dialog now follows a

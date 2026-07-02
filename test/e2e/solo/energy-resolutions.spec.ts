@@ -57,7 +57,7 @@ test.describe("energy resolution toggle", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     // Keep the import independent of Nominatim's availability (the address is
     // filled manually below, but address edits trigger a geocode attempt).
-    await page.route(/nominatim\.openstreetmap\.org/, (route) =>
+    await page.route(/\/nominatim\/search/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",

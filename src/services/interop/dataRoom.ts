@@ -1,5 +1,5 @@
 import type { PodGateway } from "../pod/podGateway.ts";
-import { DataFactory, Parser, Store, Writer } from "n3";
+import { DataFactory, Store, Writer } from "n3";
 import type { UserRole } from "../../types.ts";
 import {
   ACL_NS,
@@ -13,7 +13,7 @@ import {
   XSD_NS,
 } from "../rdf/vocabularies.ts";
 import { appRoot, getStorageRoot } from "../pod/solidUtils.ts";
-import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
+import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import {
   appendToContainer,
   ensureContainer,
@@ -33,6 +33,7 @@ import {
   MEMBERSHIP_ROLE_TO_IRI,
 } from "../../constants/roles.ts";
 import { logError } from "../../lib/logError.ts";
+import { listLogEvents, readEventCached } from "../pod/eventLog.ts";
 
 const { blankNode, literal, namedNode } = DataFactory;
 
@@ -77,27 +78,6 @@ export function normalizeRoomUri(uri: string): string {
   return uri.endsWith("/") ? uri : `${uri}/`;
 }
 
-// In-memory mirror of the Pod's current-room pointer, so components can read the
-// current room synchronously (the sharing dialogs use getActiveRoom). Hydrated
-// from the Pod on load via hydrateActiveRoom; updated by enterRoom/leaveRoom.
-let activeRoom: string | null = null;
-
-/** The room the user is currently in, or null. Mirrors the Pod's pointer. */
-export function getActiveRoom(): string | null {
-  return activeRoom;
-}
-
-/**
- * Clear the in-memory current-room pointer. Unlike the WebID-namespaced React
- * Query cache, this bare module global would otherwise survive a
- * logout→login-as-different-user in the same tab and briefly target the previous
- * user's room. Call on every logout / session-expiry path (see main.tsx);
- * re-login rehydrates it from the new user's Pod via hydrateActiveRoom.
- */
-export function resetActiveRoom(): void {
-  activeRoom = null;
-}
-
 // The room state on the user's OWN Pod is the single source of truth — no
 // localStorage. It is split across two single-writer flat files (see prefs.ts /
 // bookmarks.ts):
@@ -132,7 +112,11 @@ export function getKnownRooms(gateway: PodGateway): Promise<string[]> {
 }
 
 /**
- * The current room recorded on the Pod (source of truth for getActiveRoom).
+ * The current room recorded on the Pod — the ONE source of that fact for
+ * non-hook readers (the share-by-role path); hook code reads it from the
+ * `rooms` registry query. There is deliberately NO in-memory mirror: a module
+ * global was a third copy of this state, mutated from queries (a CQS leak)
+ * and leakable across a re-login.
  * @operation query
  */
 export async function getCurrentRoom(gateway: PodGateway): Promise<string | null> {
@@ -149,19 +133,7 @@ export async function readRooms(gateway: PodGateway): Promise<RoomRegistry> {
     readPrefs(gateway),
     readBookmarks(gateway),
   ]);
-  activeRoom = prefs.currentRoom;
   return { known, current: prefs.currentRoom };
-}
-
-/**
- * Load the Pod's current-room pointer into memory so getActiveRoom works.
- * @operation query
- */
-export async function hydrateActiveRoom(
-  gateway: PodGateway,
-): Promise<string | null> {
-  activeRoom = (await readPrefs(gateway)).currentRoom;
-  return activeRoom;
 }
 
 /**
@@ -188,12 +160,11 @@ export async function removeKnownRoom(
   if ((await getCurrentRoom(gateway)) === room) {
     await setCurrentRoom(gateway, null);
   }
-  if (activeRoom === room) activeRoom = null;
 }
 
 /**
  * Enter a room (single membership): leave whatever room you're in, join this
- * one, bookmark it, and make it the current room (persisted + in memory).
+ * one, bookmark it, and make it the current room.
  * @operation mutation
  */
 export async function enterRoom(
@@ -228,7 +199,6 @@ export async function enterRoom(
   await addBookmark(gateway, room);
   if (makeCurrent) {
     await setCurrentRoom(gateway, room);
-    activeRoom = room;
   }
 }
 
@@ -245,7 +215,6 @@ export async function exitRoom(
   if ((await getCurrentRoom(gateway)) === room) {
     await setCurrentRoom(gateway, null);
   }
-  if (activeRoom === room) activeRoom = null;
 }
 
 /**
@@ -315,65 +284,64 @@ interface MembershipEvent {
   joined: boolean;
 }
 
+/** One classified room event, or null (malformed / transient empty read). */
+type RoomEvent =
+  | { kind: "membership"; event: MembershipEvent }
+  | { kind: "role"; event: RoleEvent };
+
+/**
+ * Classify one event resource: membership (as:Join/as:Leave) or role
+ * assignment (as:Update carrying sioc:has_function). Pure — the fold's
+ * per-event half, cached through the shared immutable-event cache.
+ */
+function classifyRoomEvent(store: Store): RoomEvent | null {
+  const joinSubj = store.getSubjects(RDF_TYPE_NODE, AS_JOIN, null)[0];
+  const memSubj = joinSubj ??
+    store.getSubjects(RDF_TYPE_NODE, AS_LEAVE, null)[0];
+  if (memSubj) {
+    const agent = store.getObjects(memSubj, AS_ACTOR, null)[0]?.value;
+    const at = store.getObjects(memSubj, AS_PUBLISHED, null)[0]?.value;
+    if (!agent || !at) return null;
+    return {
+      kind: "membership",
+      event: { agent, at, joined: Boolean(joinSubj) },
+    };
+  }
+  const roleSubj = store.getSubjects(RDF_TYPE_NODE, AS_UPDATE, null)[0];
+  if (roleSubj) {
+    const agent = store.getObjects(roleSubj, AS_ACTOR, null)[0]?.value;
+    const at = store.getObjects(roleSubj, AS_PUBLISHED, null)[0]?.value;
+    if (!agent || !at) return null;
+    const roles = store.getObjects(roleSubj, SIOC_HAS_FUNCTION, null)
+      .map((r) => IRI_TO_ROLE[r.value])
+      .filter((r): r is UserRole => Boolean(r));
+    return { kind: "role", event: { agent, at, roles } };
+  }
+  return null;
+}
+
 /**
  * Read and classify every event resource in the log container into the two
- * independent streams (membership and role assignment) in a single pass.
+ * independent streams (membership and role assignment) — through the SAME
+ * primitives as the sharing logs (`eventLog.ts`): the listing skips the
+ * room's in-place `name` document and auxiliary sidecars by name, and each
+ * immutable event parse is cached per gateway (a re-fold costs only the
+ * listing). Bounded concurrency: a burst of per-event GETs is what
+ * Cloudflare answers with 429s.
  */
 async function readLog(
   roomUri: string,
   gateway: PodGateway,
 ): Promise<{ roleEvents: RoleEvent[]; membershipEvents: MembershipEvent[] }> {
   const containerUri = normalizeRoomUri(roomUri);
-  // fetchFresh bypasses caches so we always read the current container listing;
-  // baseIRI below stays canonical (the cache-buster is only on the request URL).
-  const response = await fetchFresh(containerUri, gateway);
-  if (!response.ok) {
-    if (response.status === 404) return { roleEvents: [], membershipEvents: [] };
-    throw new Error(`Failed to load data room log (HTTP ${response.status})`);
-  }
-
-  const listing = new Store(
-    new Parser({ baseIRI: containerUri }).parse(await response.text()),
-  );
-  const eventUris = listing.getObjects(
-    namedNode(containerUri),
-    LDP_CONTAINS,
-    null,
-  ).map((o) => o.value);
-
-  // Bounded concurrency, not Promise.all: reading every event at once is a burst
-  // that Cloudflare answers with 429s (opaque CORS errors in the browser). A small
-  // pool keeps each wave under the rate limit. See utils/pool.ts.
-  const parsed = await mapPooled(eventUris, 4, async (uri) => {
-    const store = await readStoreOrEmpty(uri, gateway);
-
-    // Membership: as:Join / as:Leave.
-    const joinSubj = store.getSubjects(RDF_TYPE_NODE, AS_JOIN, null)[0];
-    const memSubj = joinSubj ??
-      store.getSubjects(RDF_TYPE_NODE, AS_LEAVE, null)[0];
-    if (memSubj) {
-      const agent = store.getObjects(memSubj, AS_ACTOR, null)[0]?.value;
-      const at = store.getObjects(memSubj, AS_PUBLISHED, null)[0]?.value;
-      if (!agent || !at) return null;
-      return {
-        kind: "membership" as const,
-        event: { agent, at, joined: Boolean(joinSubj) },
-      };
-    }
-
-    // Role assignment: as:Update carrying sioc:has_function → role(s).
-    const roleSubj = store.getSubjects(RDF_TYPE_NODE, AS_UPDATE, null)[0];
-    if (roleSubj) {
-      const agent = store.getObjects(roleSubj, AS_ACTOR, null)[0]?.value;
-      const at = store.getObjects(roleSubj, AS_PUBLISHED, null)[0]?.value;
-      if (!agent || !at) return null;
-      const roles = store.getObjects(roleSubj, SIOC_HAS_FUNCTION, null)
-        .map((r) => IRI_TO_ROLE[r.value])
-        .filter((r): r is UserRole => Boolean(r));
-      return { kind: "role" as const, event: { agent, at, roles } };
-    }
-    return null;
+  const eventUris = await listLogEvents(containerUri, gateway, {
+    exclude: ["name"],
   });
+  const parsed = await mapPooled(
+    eventUris,
+    4,
+    (uri) => readEventCached(uri, gateway, classifyRoomEvent, (v) => v !== null),
+  );
 
   const roleEvents: RoleEvent[] = [];
   const membershipEvents: MembershipEvent[] = [];
@@ -385,14 +353,25 @@ async function readLog(
   return { roleEvents, membershipEvents };
 }
 
-/** Fold an event stream to the latest event per agent (lexical timestamp order). */
+/**
+ * Fold an event stream to the latest event per agent (lexical timestamp
+ * order). `tieWins` decides an EXACT timestamp tie (else the first-listed
+ * stays) — membership passes leave-wins, mirroring the sharing fold's
+ * revocation-wins-on-tie (least privilege, read-order independent).
+ */
 function latestByAgent<T extends { agent: string; at: string }>(
   events: T[],
+  tieWins?: (candidate: T, incumbent: T) => boolean,
 ): Map<string, T> {
   const latest = new Map<string, T>();
   for (const event of events) {
     const prev = latest.get(event.agent);
-    if (!prev || event.at > prev.at) latest.set(event.agent, event);
+    if (
+      !prev || event.at > prev.at ||
+      (event.at === prev.at && tieWins?.(event, prev))
+    ) {
+      latest.set(event.agent, event);
+    }
   }
   return latest;
 }
@@ -407,7 +386,10 @@ function deriveState(
   webId: string | null,
 ): { members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean } {
   const latestRole = latestByAgent(log.roleEvents);
-  const latestMem = latestByAgent(log.membershipEvents);
+  const latestMem = latestByAgent(
+    log.membershipEvents,
+    (candidate, incumbent) => !candidate.joined && incumbent.joined,
+  );
   const members = [...latestMem.values()]
     .filter((m) => m.joined)
     .map((m) => ({ webId: m.agent, roles: latestRole.get(m.agent)?.roles ?? [] }));

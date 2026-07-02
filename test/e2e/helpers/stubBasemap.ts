@@ -66,7 +66,14 @@ const CORS = {
  */
 export async function stubExternalData(page: Page): Promise<void> {
   // Nominatim → fake but valid coords so geocoded buildings get a marker.
-  await page.route(/nominatim\.openstreetmap\.org/, (route) => {
+  // Covers BOTH hosts the app has geocoded through: the OSM wrapper's
+  // nominatim proxy (osmwrap.ontologycentral.com/nominatim/, the current
+  // sourceBase("osm")) and nominatim.openstreetmap.org. Without the wrapper
+  // host, local-lane geocodes escaped to the real network and died in retry
+  // backoff — every seeding/import spec then timed out.
+  await page.route(
+    /nominatim\.openstreetmap\.org|osmwrap\.ontologycentral\.com\/nominatim\//,
+    (route) => {
     const q = decodeURIComponent(
       route.request().url().match(/[?&]q=([^&]*)/)?.[1] ?? "",
     );
@@ -79,7 +86,8 @@ export async function stubExternalData(page: Page): Promise<void> {
       headers: { ...CORS, "Content-Type": "application/json" },
       body: JSON.stringify([{ lat, lon }]),
     });
-  });
+    },
+  );
   // The open-data / regional wrappers + logos → 404 (best-effort enrichment; the app
   // falls back). Scoped to the specific wrapper PATHS, NOT the whole `wunderfacts.com`
   // host — `/wetterdienst/` is deliberately left live (cube-calendar-weather asserts the

@@ -178,11 +178,6 @@ export const detailRooms = {
     de: "Datenzimmer löschen",
     fr: "Supprimer la salle de données",
   },
-  roomDeleteTooltip: {
-    en: "Delete data room (for everyone)",
-    de: "Datenzimmer löschen (für alle)",
-    fr: "Supprimer la salle de données (pour tous)",
-  },
   noRole: { en: "no role", de: "keine Rolle", fr: "aucun rôle" },
   lblWebId: { en: "WebID", de: "WebID", fr: "WebID" },
   agentAddAria: {
@@ -232,11 +227,6 @@ export const detailRooms = {
     fr: "Hébergée par {host}",
   },
   roomActive: { en: "active", de: "aktiv", fr: "active" },
-  roomRemoveTooltip: {
-    en: "Remove from your list",
-    de: "Aus deiner Liste entfernen",
-    fr: "Retirer de votre liste",
-  },
   roomRemoveAria: {
     en: "Remove data room",
     de: "Datenzimmer entfernen",

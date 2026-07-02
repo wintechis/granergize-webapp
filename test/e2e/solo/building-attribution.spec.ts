@@ -47,7 +47,7 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     // Stub Nominatim: any address query resolves to fixed Nürnberg coordinates
     // (+ permissive CORS, since the prod build calls the absolute OSM host).
-    await page.route(/nominatim\.openstreetmap\.org/, (route) =>
+    await page.route(/\/nominatim\/search/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",

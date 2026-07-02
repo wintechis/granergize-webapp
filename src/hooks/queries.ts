@@ -33,12 +33,12 @@ import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
   type ActiveGrant,
   activeGrantsFrom,
-  listLogEvents,
   loadSharingEvent,
   type SharingEvent,
   sharedInUri,
   sharedOutUri,
 } from "../services/interop/sharingLog.ts";
+import { listLogEvents } from "../services/pod/eventLog.ts";
 import {
   receivedAggregationsFromGrants,
   sharedBuildingsFromGrants,

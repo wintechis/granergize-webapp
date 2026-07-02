@@ -378,3 +378,27 @@ Deno.test("removeInaccessibleBuildingSources records the GRANTING owner + kind o
   assert.equal(rev!.owner, OWNER, "the event records the sharer, not the pruning recipient");
   assert.equal(rev!.kind, "Building", "the pruned grant's kind is recorded");
 });
+
+Deno.test("foldSharingLog never fetches auxiliary sidecars a server lists in ldp:contains", async () => {
+  // JSS lists a container's own .acl in ldp:contains; folding it as an event
+  // is never right, and because empty parses are (rightly) uncacheable, the
+  // wasted GET would repeat on every fold. The listing filters it by name.
+  const { session, store, gets } = makePod();
+  const log = sharedInUri(WEBID);
+  await appendSharingEvent(log, session, {
+    type: "grant",
+    owner: OWNER,
+    grantee: WEBID,
+    resource: B1,
+    kind: "Building",
+    at: "2026-06-04T10:00:00Z",
+  });
+  store[`${log}.acl`] = "# the container's own access-control resource";
+
+  const grants = await foldSharingLog(log, session);
+  assert.equal(grants.length, 1, "the real event still folds");
+  assert.ok(
+    !gets.some((u) => u.endsWith(".acl")),
+    "the .acl sidecar is never fetched as an event",
+  );
+});

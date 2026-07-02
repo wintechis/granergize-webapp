@@ -17,7 +17,6 @@ import {
 import { queryKeys } from "../lib/queryKeys.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
-import { resetActiveRoom } from "../services/interop/dataRoom.ts";
 import type { Building } from "../types.ts";
 
 /**
@@ -121,7 +120,6 @@ const rooms = (client: QueryClient): RoomRegistry =>
   client.getQueryData<RoomRegistry>([...queryKeys.rooms, WEBID])!;
 
 Deno.test("useCreateRoom adds the new room to the registry and makes it current", async () => {
-  resetActiveRoom();
   _setSessionForTesting(sessionFor(new FakePod()));
   const { client, wrapper } = makeWrapper({ known: [], current: null });
   try {
@@ -180,7 +178,6 @@ Deno.test("useDeleteBuilding drops the deleted source from the container roster 
 });
 
 Deno.test("useExitRoom clears the current pointer but keeps the bookmark", async () => {
-  resetActiveRoom();
   const ROOM = `${ORIGIN}granergize/rooms/r1/`;
   _setSessionForTesting(sessionFor(new FakePod()));
   const { client, wrapper } = makeWrapper({ known: [ROOM], current: ROOM });
@@ -195,7 +192,6 @@ Deno.test("useExitRoom clears the current pointer but keeps the bookmark", async
 });
 
 Deno.test("useRemoveBookmark drops the bookmark and clears current if it was current", async () => {
-  resetActiveRoom();
   const R1 = `${ORIGIN}granergize/rooms/r1/`;
   const R2 = `${ORIGIN}granergize/rooms/r2/`;
   _setSessionForTesting(sessionFor(new FakePod()));

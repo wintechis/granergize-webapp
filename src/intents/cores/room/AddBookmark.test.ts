@@ -8,7 +8,6 @@ import { type PodGateway, sessionGateway } from "../../../services/pod/podGatewa
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { addBookmarkCore } from "./AddBookmark.ts";
-import { resetActiveRoom } from "../../../services/interop/dataRoom.ts";
 import { _setStorageRootForTesting } from "../../../services/pod/solidUtils.ts";
 
 const OWNER = "https://a.example/profile/card#me";
@@ -25,7 +24,6 @@ function roomPod(opts: { exists: boolean }): {
   calls: { url: string; method: string }[];
 } {
   _setStorageRootForTesting(OWNER, "https://a.example/");
-  resetActiveRoom();
   const store: Record<string, string> = {};
   const calls: { url: string; method: string }[] = [];
   const fetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> => {

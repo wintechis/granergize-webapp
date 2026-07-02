@@ -67,7 +67,7 @@ test.describe("excel upload", () => {
     // uncoordinated, blocking submit. Stub it with deterministic coordinates so
     // the test exercises OUR import flow, not Nominatim's availability. (The
     // app's own throttle + coarsening fallback are covered by unit tests.)
-    await page.route(/nominatim\.openstreetmap\.org/, (route) =>
+    await page.route(/\/nominatim\/search/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",

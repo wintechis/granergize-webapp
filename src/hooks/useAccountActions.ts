@@ -9,7 +9,6 @@ import {
   listContainedResources,
 } from "../services/pod/podDelete.ts";
 import { APP_DIR, getStorageRoot } from "../services/pod/solidUtils.ts";
-import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
 import { msg } from "../lib/messages.ts";
@@ -137,9 +136,6 @@ export function useAccountActions(
     }
     restoreMut.mutate({ bytes }, {
       onSuccess: ({ restored, rebasedTo, rebasedWebId, reissued }) => {
-        hydrateActiveRoom(getGateway()).catch((err) =>
-          logError("hydrate active data room", err)
-        );
         const rebased = rebasedTo || rebasedWebId ? msg("devRebased") : "";
         showNotification(
           msg("devRestoreSuccess", { restored, rebased, reissued }),
@@ -277,9 +273,6 @@ export function useAccountActions(
       // were reset by the mutation). Re-hydrate the (now absent) active room
       // and re-offer the demo buildings — startup no longer re-seeds silently,
       // so there's nothing to "log out to avoid" any more.
-      hydrateActiveRoom(getGateway()).catch((err) =>
-        logError("hydrate active data room", err)
-      );
       // Re-offer the demo buildings now the collection is empty again: the wipe
       // cleared the query cache, so useDemoOffer re-probes the (now empty) Pod and
       // returns true; just lift any in-session dismissal so the banner can show.

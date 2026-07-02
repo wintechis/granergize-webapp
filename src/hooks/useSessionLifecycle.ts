@@ -18,7 +18,6 @@ import {
   clearStorageRootCache,
   resolveStorageRoot,
 } from "../services/pod/solidUtils.ts";
-import { resetActiveRoom } from "../services/interop/dataRoom.ts";
 import {
   getSessionExpiredSnapshot,
   isSessionExpired,
@@ -99,7 +98,6 @@ export function useSessionLifecycle(): SessionLifecycle {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuppressRestore(true);
       clearRequestLog();
-      resetActiveRoom();
       session.logout()
         .then(() => setSession(null))
         .catch((err) => {
@@ -184,7 +182,6 @@ export function useSessionLifecycle(): SessionLifecycle {
     // the same tab can't briefly target the previous user's room. (The query
     // cache and storage roots are evicted by the session-null effect above,
     // after the shell has unmounted.)
-    resetActiveRoom();
     if (opts?.suppressAutoLogin) {
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
       setSuppressRestore(true);
