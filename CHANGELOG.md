@@ -2,6 +2,20 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — E2E repairs II: fixtures catch up with the wrapper shapes
+
+The open-data specs' stubs predated two wrapper migrations, so the whole
+geocode/choropleth cluster was silently red:
+
+- Geocode stubs (global + three per-spec) serve the OSM proxy's GeoJSON
+  FeatureCollection — the shape `geocode.ts` parses — instead of the classic
+  Nominatim array. Un-blocks coordinates, markers, import/export round-trips.
+- neighbourhood-energy's Energie-Atlas fixture emits the wrapper's RDF Data
+  Cube (qb:Observation per `#dim-indicator`), not the pre-QB flat shape.
+- Attribution/credits specs expect the registry name
+  "OpenStreetMap (via linked-osm)"; logistics-visible lifts the local wrapper
+  404 (`allowLiveWrappers`) so its live 3D/Standort panels populate.
+
 ## [2026-07-02] — E2E repairs: room aria-labels, wrapper geocode stub
 
 - The rooms finder's delete/remove IconAction conversion had swapped the

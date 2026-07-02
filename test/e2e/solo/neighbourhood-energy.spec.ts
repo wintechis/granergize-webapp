@@ -51,15 +51,28 @@ const LAU_FC = JSON.stringify({
   ],
 });
 
-// Per-Gemeinde Energie-Atlas potential (vocab:AreaPotential), keyed by AGS.
+// Per-Gemeinde Energie-Atlas potential, in the wrapper's RDF DATA CUBE shape
+// (one qb:Observation per `#dim-indicator`, the form `readSingleRegionCube`
+// parses — the flat vocab:AreaPotential shape predates the QB migration).
 function eaTtl(ags: string, name: string, pct: number, installed: number, pot: number): string {
+  const obs = (indicator: string, value: number) => `
+<#obs-${indicator}> rdf:type qb:Observation ;
+  qb:dataSet <../data/area#ds> ;
+  <../ds/area#dim-TIME_PERIOD> "2024"^^xsd:gYear ;
+  <../ds/area#dim-geo> <../ags/${ags}> ;
+  <../ds/area#dim-indicator> <../cl/indicator#${indicator}> ;
+  <../ds/area#measure-OBS_VALUE> "${value}"^^xsd:decimal .`;
   return `
 @prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix qb:    <http://purl.org/linked-data/cube#> .
 @prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
 @prefix vocab: <https://wunderfacts.com/energieatlas/vocab#> .
-<#it> rdf:type vocab:AreaPotential ; skos:notation "${ags}" ; vocab:name "${name}" ;
-  vocab:developmentDegreePct ${pct} ; vocab:installedCapacityMWp ${installed} ;
-  vocab:pvPotentialCapacityMWp ${pot} ; vocab:remainingPotentialMWp ${pot - installed} .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+<#it> vocab:name "${name}" ; skos:notation "${ags}" .
+${obs("developmentDegreePct", pct)}
+${obs("installedCapacityMWp", installed)}
+${obs("pvPotentialCapacityMWp", pot)}
+${obs("remainingPotentialMWp", pot - installed)}
 `;
 }
 const EA: Record<string, string> = {

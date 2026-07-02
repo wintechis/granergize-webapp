@@ -60,8 +60,14 @@ test.describe("energy resolution toggle", () => {
     await page.route(/\/nominatim\/search/, (route) =>
       route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([{ lat: "49.45", lon: "11.08" }]),
+        contentType: "application/geo+json",
+        body: JSON.stringify({
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [11.08, 49.45] },
+          }],
+        }),
       }));
     await login(page, ACC);
     await assertCleanStart(page);

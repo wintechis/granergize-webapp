@@ -50,9 +50,15 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     await page.route(/\/nominatim\/search/, (route) =>
       route.fulfill({
         status: 200,
-        contentType: "application/json",
+        contentType: "application/geo+json",
         headers: CORS,
-        body: JSON.stringify([{ lat: "49.4521", lon: "11.0767" }]),
+        body: JSON.stringify({
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [11.0767, 49.4521] },
+          }],
+        }),
       }));
     await login(page, ACC);
     await assertCleanStart(page);
@@ -99,11 +105,11 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     if (!id) throw new Error("building-attribution: missing geocoded building id");
 
     await page.goto(buildingRoute("building", id));
-    // The coordinate attribution: "Coordinates: OpenStreetMap / Nominatim (ODbL)".
+    // The coordinate attribution: "Coordinates: OpenStreetMap (via linked-osm) (ODbL)".
     await expect(page.getByText(t("coordsLabel"))).toBeVisible({
       timeout: T.action,
     });
-    await expect(page.getByRole("link", { name: "OpenStreetMap / Nominatim" }))
+    await expect(page.getByRole("link", { name: "OpenStreetMap (via linked-osm)" }))
       .toBeVisible();
     await expect(page.getByRole("link", { name: "ODbL" })).toBeVisible();
 
@@ -129,7 +135,7 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
       timeout: T.action,
     });
     await expect(page.getByText(t("coordsLabel"))).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "OpenStreetMap / Nominatim" }))
+    await expect(page.getByRole("link", { name: "OpenStreetMap (via linked-osm)" }))
       .toHaveCount(0);
 
     await page.goto("/");

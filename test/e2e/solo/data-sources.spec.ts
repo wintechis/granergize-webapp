@@ -48,7 +48,7 @@ test.describe("data sources & licences (attribution)", () => {
       .toBeVisible({ timeout: T.action });
 
     // Representative sources link out to their homepages…
-    await expect(page.getByRole("link", { name: "OpenStreetMap / Nominatim" }))
+    await expect(page.getByRole("link", { name: "OpenStreetMap (via linked-osm)" }))
       .toBeVisible();
     await expect(page.getByRole("link", { name: /Marktstammdatenregister/ }))
       .toBeVisible();

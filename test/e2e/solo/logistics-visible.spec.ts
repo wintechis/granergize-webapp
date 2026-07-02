@@ -4,6 +4,7 @@ import { t, tPattern } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingIds, buildingRoute, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { allowLiveWrappers } from "../helpers/stubBasemap.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -22,10 +23,10 @@ import { createZip } from "../../../src/lib/zip.ts";
  *                                 building's Gemeinde; renders in EnergyDetail, so /observation
  *
  * The building uses a real Nürnberg coordinate + the real Nürnberg LAU concept so the
- * live-fetched panels (Standort, 3D model) light up against the running wrappers. Because
- * those panels hit the LIVE wrappers, this is really a REMOTE spec — under `e2e:local` the
- * wrappers are stubbed, so the 3D/Standort panels don't populate. The archive is the
- * generator's verbatim shape (relative `<#it>`, no base/webId ⇒ PUT as-is).
+ * live-fetched panels (Standort, 3D model) light up against the running wrappers. Those
+ * panels hit the LIVE wrappers in BOTH lanes: under `e2e:local` the blanket wrapper 404
+ * is lifted per-page ({@link allowLiveWrappers}, the archive-live-enrichment pattern).
+ * The archive is the generator's verbatim shape (relative `<#it>`, no base/webId ⇒ PUT as-is).
  *
  * MUTATES the Pod (adds one building); afterAll resets it. Alice (account A); skipped
  * without creds.
@@ -91,6 +92,10 @@ test.describe("imported wrapper-derived logistics data is visible on the buildin
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "logistics-visible");
+    // The 3D-model + Standort panels fetch LIVE from the wrappers (this spec's
+    // whole point); lift the local-lane wrapper 404 like archive-live-enrichment
+    // does (logos stay stubbed).
+    await allowLiveWrappers(page);
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);

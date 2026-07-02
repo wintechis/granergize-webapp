@@ -79,12 +79,21 @@ export async function stubExternalData(page: Page): Promise<void> {
     );
     let h = 0;
     for (let i = 0; i < q.length; i++) h = (h * 31 + q.charCodeAt(i)) >>> 0;
-    const lat = (49.40 + (h % 100) / 1000).toFixed(6); // ~49.40–49.50
-    const lon = (11.00 + (Math.floor(h / 100) % 100) / 1000).toFixed(6); // ~11.00–11.10
+    const lat = Number((49.40 + (h % 100) / 1000).toFixed(6)); // ~49.40–49.50
+    const lon = Number((11.00 + (Math.floor(h / 100) % 100) / 1000).toFixed(6)); // ~11.00–11.10
+    // The wrapper's proxy returns a GeoJSON FeatureCollection (geometry
+    // [lon, lat]) — the shape geocode.ts parses — NOT the classic Nominatim
+    // [{lat, lon}] array.
     return route.fulfill({
       status: 200,
-      headers: { ...CORS, "Content-Type": "application/json" },
-      body: JSON.stringify([{ lat, lon }]),
+      headers: { ...CORS, "Content-Type": "application/geo+json" },
+      body: JSON.stringify({
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [lon, lat] },
+        }],
+      }),
     });
     },
   );
