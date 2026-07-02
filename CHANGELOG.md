@@ -2,6 +2,17 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-02] — Login: a deliberate sign-in keeps the in-app route
+
+Logging in from a deep link (e.g. `/building?ref=…`) landed on a bare
+`/building` ("Building not found…"): the auth library strips the query string
+from the OIDC redirect URL, and the existing route replay only covered the
+*silent* restore (whose `sessionRestore` event carries the pre-redirect URL).
+A deliberate login now saves its route (`pathname + search + hash`) to a
+per-tab `sessionStorage` breadcrumb right before `session.login` navigates
+away, and the `login` event replays it through the same deferred
+`restoreRouteFrom` mechanism, so the round-trip returns to the full route.
+
 ## [2026-07-02] — Consistency sweep: one way to do each thing
 
 - Gateway composition happens in one place: components call `getGateway()`
