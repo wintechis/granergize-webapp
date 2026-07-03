@@ -8,6 +8,7 @@ import {
   DETAIL_PATTERNS,
   FINDERS,
   observationRoute,
+  observationUnitRoute,
   pushTrail,
   roomRoute,
 } from "./routes.ts";
@@ -106,4 +107,16 @@ Deno.test("a builder output matches its bare detail pattern", () => {
   assert.equal(DETAIL_PATTERNS.building, "/building");
   assert.equal(buildingRoute("x").startsWith("/building?ref="), true);
   assert.equal(FINDERS.observations, "/observations");
+});
+
+Deno.test("observationUnitRoute appends the ?unit= focus param", () => {
+  assert.equal(
+    observationUnitRoute("b1", "sys-abc123"),
+    "/observation?ref=b1&unit=sys-abc123",
+  );
+  // Composes with an absolute id's ?uri= form too.
+  assert.equal(
+    observationUnitRoute("https://bob.example/b.ttl#it", "sys-x"),
+    "/observation?uri=https%3A%2F%2Fbob.example%2Fb.ttl%23it&unit=sys-x",
+  );
 });

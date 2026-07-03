@@ -8,6 +8,7 @@ import {
   loadProfileStore,
 } from "./profileDocument.ts";
 import { makeFakeSession } from "../testing/fakeSession.ts";
+import { clearRdfDataset, getGraphQuads } from "../rdf/rdfDataset.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE = `@prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -79,4 +80,18 @@ Deno.test("loadProfileStore: an unreadable profile returns null and is not cache
   assert.equal(await loadProfileStore(session), null);
   assert.equal(await loadProfileStore(session), null); // retried, not cached
   assert.equal(calls, 2);
+});
+
+Deno.test("loadProfileStore feeds the RDF dataset under the profile document IRI", async () => {
+  _resetProfileCacheForTesting();
+  clearRdfDataset();
+  const { session } = makeSession();
+  await loadProfileStore(session);
+  const doc = WEBID.split("#")[0];
+  const quads = getGraphQuads(doc);
+  assert.ok(quads, "profile parse recorded under the doc IRI");
+  assert.ok(
+    quads.some((q) => q.subject.value === WEBID),
+    "the recorded graph carries the WebID's statements",
+  );
 });

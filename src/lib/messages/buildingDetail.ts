@@ -103,6 +103,12 @@ export const buildingDetail = {
     de: "Energiediagramme ansehen →",
     fr: "Voir les graphiques d'énergie →",
   },
+  // Per-system link from a system row to its own observations (observation page).
+  sysViewObservations: {
+    en: "View observations →",
+    de: "Beobachtungen ansehen →",
+    fr: "Voir les observations →",
+  },
   // Compact metric column-header abbreviations — UI chrome (the full metric
   // display labels come from the vocab via annualMetricLabel).
   metricShortElectricity: { en: "Electricity", de: "Strom", fr: "Électricité" },

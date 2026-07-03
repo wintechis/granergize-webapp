@@ -1,6 +1,7 @@
 import { DataFactory, Parser, Store } from "n3";
 import type { NamedNode, Quad, Term } from "n3";
 import { RDF_TYPE, XSD_STRING } from "./vocabularies.ts";
+import { recordGraph } from "./rdfDataset.ts";
 
 /**
  * Mint `<ns><localName>` after validating that `localName` is usable as an IRI
@@ -99,10 +100,15 @@ export function quadsToJsonLd(quads: Quad[]): string {
   );
 }
 
-/** Parse Turtle text into an n3 Store */
+/** Parse Turtle text into an n3 Store, recording the result in the RDF dataset
+ * under `baseIRI` (graph name = document IRI): every caller passes the fetched
+ * document's URL as the base, so this seam feeds the provenance dataset for all
+ * open-source wrapper reads (capabilities/weather/LoD2) in one place. */
 export function parseRdfText(text: string, baseIRI: string): Store {
   const parser = new Parser({ format: "text/turtle", baseIRI });
-  return new Store(parser.parse(text));
+  const quads = parser.parse(text);
+  recordGraph(baseIRI, quads);
+  return new Store(quads);
 }
 
 /** Returns the first matching quad's object value, or undefined */

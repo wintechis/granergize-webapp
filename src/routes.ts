@@ -65,6 +65,13 @@ export const buildingRoute = (id: string): string =>
   detailRoute(DETAIL_PATTERNS.building, id);
 export const observationRoute = (id: string): string =>
   detailRoute(DETAIL_PATTERNS.observation, id);
+/** The query param that focuses the observation page on ONE technical system's
+ *  own observations (`?unit=<system id>` — the `<#id>` local name of the
+ *  `bldg:hasSystem` node whose datasets carry it as feature of interest). */
+export const UNIT_PARAM = "unit";
+/** The observation page scrolled to one system's per-unit observations. */
+export const observationUnitRoute = (id: string, unitId: string): string =>
+  `${observationRoute(id)}&${UNIT_PARAM}=${encodeURIComponent(unitId)}`;
 export const aggregationRoute = (id: string): string =>
   detailRoute(DETAIL_PATTERNS.aggregation, id);
 export const roomRoute = (uri: string): string =>

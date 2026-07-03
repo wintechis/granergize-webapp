@@ -18,6 +18,7 @@ import {
   regionalTableDataUrl,
 } from "../../services/sources/regionalCube.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
+import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 
 /**
@@ -71,6 +72,12 @@ export default function RegionalContextSection(
               </TableBody>
             </Table>
           </TableContainer>
+          {/* Document-level record: the table's data-cube document is the
+              group's source (the rendered rows carry no per-observation IRIs). */}
+          <ProvenanceMarker
+            subject={[]}
+            sources={[regionalTableDataUrl(m.table.tableId)]}
+          />
           <RdfSourceLink href={regionalTableDataUrl(m.table.tableId)} />
           {/* The place itself — a leaf the app references but has no page for;
               the dereference handoff (explore/explore-app-boundary.md). */}

@@ -15,11 +15,13 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import type { Building, SystemKind, TechnicalSystem } from "../../types.ts";
 import { isHeatKind } from "../../types.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
-import { DetailRow } from "../detail/DetailView.tsx";
+import { DetailRow, RefLink } from "../detail/DetailView.tsx";
 import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { useUpdateBuilding } from "../../hooks/mutations.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
+import { observationUnitRoute } from "../../routes.ts";
+import { systemKindLabel, systemValueLine } from "../../lib/systemDisplay.ts";
 
 /** The two presentation sections over the ONE `bldg:hasSystem` list. Energy systems
  *  (PV / battery / CHP) and heat generation (heat pump / boilers / district heating) are
@@ -65,37 +67,6 @@ const GROUPS: Record<Group, GroupConfig> = {
 /** Whether a kind belongs to a section (heat → the heat kinds; energy → the rest). */
 const inGroup = (group: Group, kind: SystemKind): boolean =>
   group === "heat" ? isHeatKind(kind) : !isHeatKind(kind);
-
-/** The kind's display label (reuses the master-data heat labels). */
-const kindLabel = (kind: SystemKind): string =>
-  msg(
-    kind === "battery"
-      ? "mdBatteryStorage"
-      : kind === "chp"
-      ? "mdChpSystem"
-      : kind === "pv"
-      ? "mdPvSystem"
-      : kind === "heatpump"
-      ? "mdHeatPump"
-      : kind === "gasboiler"
-      ? "mdGasBoiler"
-      : kind === "districtheating"
-      ? "mdDistrictHeating"
-      : kind === "oilboiler"
-      ? "mdOilBoiler"
-      : "mdElectricBoiler",
-  );
-
-/** One-line capacity summary ("750 kW, since 2018" / "215.5 kWh" / "120 kW th, since
- * 2019"), or "Yes" when present but undetailed. */
-const systemSummary = (s: TechnicalSystem): string => {
-  const parts: string[] = [];
-  if (s.capacityKW != null) parts.push(`${s.capacityKW} kW${s.kind === "chp" ? " el" : ""}`);
-  if (s.storageCapacityKWh != null) parts.push(`${s.storageCapacityKWh} kWh`);
-  if (s.thermalCapacityKW != null) parts.push(`${s.thermalCapacityKW} kW th`);
-  if (s.commissioningYear != null) parts.push(`since ${s.commissioningYear}`);
-  return parts.length ? parts.join(", ") : "Yes";
-};
 
 /** The capacity field(s) a kind shows: heat → thermal kW; battery → kWh; PV → kW;
  * CHP → electrical kW + thermal kW. */
@@ -237,7 +208,7 @@ function EditView(
             direction="row"
             sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}
           >
-            <Typography variant="subtitle2">{kindLabel(s.kind)}</Typography>
+            <Typography variant="subtitle2">{systemKindLabel(s.kind)}</Typography>
             <Tooltip title={msg("btnDelete")}>
               <IconButton
                 size="small"
@@ -351,22 +322,42 @@ export default function SystemListSection(
         : hasAny
         ? (
           <Stack spacing={1}>
-            {systems.map((s) => (
-              <Fragment key={s.id}>
-                <DetailRow
-                  label={kindLabel(s.kind)}
-                  value={s.label
-                    ? `${s.label} · ${systemSummary(s)}`
-                    : systemSummary(s)}
-                />
-                {s.operatedBy && (
+            {systems.map((s) => {
+              // The system's own observations (datasets whose feature of
+              // interest is this `<#id>` node) live on the observation page —
+              // link there when it has any (an unobserved system gets no link).
+              const hasObservations = (building.energyDatasets ?? []).some(
+                (d) =>
+                  d.featureOfInterest === `${fileUri}#${s.id}` &&
+                  d.scenario === "actual",
+              );
+              return (
+                <Fragment key={s.id}>
                   <DetailRow
-                    label={msg("mdSystemOperator")}
-                    value={<AgentLabel value={s.operatedBy} />}
+                    label={systemKindLabel(s.kind)}
+                    value={
+                      <span>
+                        {systemValueLine(s)}
+                        {hasObservations && (
+                          <>
+                            {" · "}
+                            <RefLink to={observationUnitRoute(building.id, s.id)}>
+                              {msg("sysViewObservations")}
+                            </RefLink>
+                          </>
+                        )}
+                      </span>
+                    }
                   />
-                )}
-              </Fragment>
-            ))}
+                  {s.operatedBy && (
+                    <DetailRow
+                      label={msg("mdSystemOperator")}
+                      value={<AgentLabel value={s.operatedBy} />}
+                    />
+                  )}
+                </Fragment>
+              );
+            })}
           </Stack>
         )
         : (

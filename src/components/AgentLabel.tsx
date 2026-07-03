@@ -2,6 +2,7 @@ import { Avatar, Box, Chip, type ChipProps } from "@mui/material";
 import { useResolveAgent } from "../hooks/queries.ts";
 import { agentRoute } from "../routes.ts";
 import { RefLink } from "./detail/DetailView.tsx";
+import { ProvenanceMarker } from "./ProvenanceMarker.tsx";
 
 /**
  * Render a referenced agent. `value` is either a WebID IRI — resolved (name +
@@ -37,6 +38,12 @@ export function AgentLabel({ value }: { value: string }) {
         {avatarUrl ? null : initials(name)}
       </Avatar>
       <RefLink to={agentRoute(value)}>{name}</RefLink>
+      {
+        /* The agent's provenance: the profile / Wikidata entity document the
+          resolution parsed feeds the RDF dataset, so the record resolves by
+          WebID (self-hides outside dev mode, like the whole marker). */
+      }
+      <ProvenanceMarker subject={webId} />
     </Box>
   );
 }

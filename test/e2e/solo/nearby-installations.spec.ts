@@ -87,7 +87,7 @@ test.describe("nearby installations (linked-mastr)", () => {
     await page.close();
   });
 
-  test("the observation page lists nearby renewable installations, nearest first", async () => {
+  test("the building page lists nearby renewable installations, nearest first", async () => {
     test.setTimeout(T.testSolo);
 
     await addBuilding(page, ADDR); // fills Nürnberg coords (49.45, 11.08)
@@ -96,7 +96,9 @@ test.describe("nearby installations (linked-mastr)", () => {
     const id = await buildingIdOf(row);
     if (!id) throw new Error("nearby-installations: missing building id");
 
-    await page.goto(buildingRoute("observation", id));
+    // The location context layers live on the BUILDING page (the section moved
+    // there from the observation page — it describes the surroundings).
+    await page.goto(buildingRoute("building", id));
 
     // The section renders with its title, the per-kind summary, and its data-source
     // line — lane-agnostic (present whenever ≥1 renewable is nearby).
@@ -126,8 +128,9 @@ test.describe("nearby installations (linked-mastr)", () => {
     // of the same set; switching back restores the list.
     const viewToggle = page.getByRole("group", { name: t("niViewAria") });
     await viewToggle.getByRole("button", { name: t("btnMap") }).click();
-    // The nearby section's map is the LAST leaflet map on the page — the observation
-    // page may also carry the neighbourhood choropleth above it.
+    // The nearby section's map is the LAST leaflet map on the page — the building
+    // page carries the header locator map above it (and the nearby-rooftops
+    // section below stays in its default list view).
     await expect(page.locator(".leaflet-container").last()).toBeVisible({
       timeout: T.action,
     });

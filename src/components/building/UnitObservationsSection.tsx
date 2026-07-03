@@ -11,26 +11,24 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import type { Building, SystemKind, TechnicalSystem } from "../../types.ts";
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import type { Building, TechnicalSystem } from "../../types.ts";
 import { useAnnualDatasets } from "../../hooks/queries.ts";
 import { ANNUAL_METRICS, annualMetricLabel } from "../../constants/annualMetrics.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
+import { UNIT_PARAM } from "../../routes.ts";
+import { systemKindLabel, systemValueLine } from "../../lib/systemDisplay.ts";
 import Sparkline from "../detail/Sparkline.tsx";
 
-const kindLabel = (kind: SystemKind): string =>
-  kind === "battery"
-    ? msg("mdBatteryStorage")
-    : kind === "chp"
-    ? msg("mdChpSystem")
-    : msg("mdPvSystem");
+/** "PV system: Solaranlage Langguth · 63.45 kW, since 2011" — the SAME kind label
+ * and value line the building page's system row shows, so the row's link lands on
+ * a heading the reader recognises as the same system. */
+const unitTitle = (u: TechnicalSystem): string =>
+  `${systemKindLabel(u.kind)}: ${systemValueLine(u)}`;
 
-/** "PV system (500 kW)" — the unit's kind + capacity, to tell several apart. */
-const unitTitle = (u: TechnicalSystem): string => {
-  const cap = u.capacityKW ?? u.storageCapacityKWh;
-  return cap != null
-    ? `${kindLabel(u.kind)} (${cap} ${u.kind === "battery" ? "kWh" : "kW"})`
-    : kindLabel(u.kind);
-};
+/** The DOM id the `?unit=` deep link scrolls to. */
+const unitAnchorId = (unitId: string): string => `unit-${unitId}`;
 
 const fmt = (v: number, decimals: number): string =>
   new Intl.NumberFormat("de-DE", {
@@ -61,6 +59,18 @@ export default function UnitObservationsSection(
     }))
     .filter((g) => g.datasets.length > 0);
 
+  // A `?unit=` deep link (the building page's per-system link) scrolls to that
+  // unit's table once its datasets have loaded.
+  const [searchParams] = useSearchParams();
+  const focusUnit = searchParams.get(UNIT_PARAM);
+  const focusReady = focusUnit !== null &&
+    groups.some((g) => g.unit.id === focusUnit);
+  useEffect(() => {
+    if (!focusReady) return;
+    document.getElementById(unitAnchorId(focusUnit as string))
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusReady, focusUnit]);
+
   if (groups.length === 0) return null;
 
   return (
@@ -79,7 +89,7 @@ export default function UnitObservationsSection(
               .filter((v): v is number => v != null)
             : [];
           return (
-            <Box key={unit.id}>
+            <Box key={unit.id} id={unitAnchorId(unit.id)}>
               <Stack
                 direction="row"
                 sx={{ alignItems: "center", gap: 1, mb: 0.5 }}

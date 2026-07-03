@@ -1,14 +1,16 @@
 import { useEffect, useMemo } from "react";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import {
   CircleMarker,
   MapContainer,
   Marker,
   Polygon,
+  Popup,
   Tooltip,
   useMap,
   WMSTileLayer,
 } from "react-leaflet";
+import { RdfSourceLink } from "../detail/DetailView.tsx";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { detailBaseLayer } from "../../lib/orthophoto.ts";
@@ -86,6 +88,15 @@ export default function NearbyRooftopsMap(
       t("niDistance", { km: r.distanceKm.toFixed(1) })
     }`;
 
+  // Click → the same description with the building's ORIGINAL source (its
+  // linked-lod2-by resource) as a clickable, dereferenceable link.
+  const popup = (r: NearbyRooftopGeometry) => (
+    <Popup>
+      <Typography variant="body2">{tip(r)}</Typography>
+      <RdfSourceLink href={r.iri} inline />
+    </Popup>
+  );
+
   return (
     <Box
       sx={{
@@ -134,6 +145,7 @@ export default function NearbyRooftopsMap(
                 }}
               >
                 <Tooltip direction="top" offset={[0, -4]}>{tip(r)}</Tooltip>
+                {popup(r)}
               </CircleMarker>
             );
           }
@@ -149,6 +161,7 @@ export default function NearbyRooftopsMap(
               }}
             >
               <Tooltip direction="top" offset={[0, -4]}>{tip(r)}</Tooltip>
+              {popup(r)}
             </Polygon>
           ));
         })}

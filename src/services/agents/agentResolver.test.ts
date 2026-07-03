@@ -3,6 +3,11 @@ import type { PodGateway } from "../pod/podGateway.ts";
 import { strict as assert } from "node:assert";
 import { resolveAgent, resolveAgentOrg } from "./agentResolver.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
+import {
+  clearRdfDataset,
+  getGraphQuads,
+  graphsMentioning,
+} from "../rdf/rdfDataset.ts";
 import { makeFakeSession } from "../testing/fakeSession.ts";
 
 const WEBID = "https://alice.example/profile/card#me";
@@ -340,4 +345,34 @@ Deno.test("resolveAgent: no contact facts → fields absent", async () => {
   assert.equal(agent.email, undefined);
   assert.equal(agent.phone, undefined);
   assert.equal(agent.website, undefined);
+});
+
+Deno.test("resolveAgent feeds the RDF dataset: profile doc and Wikidata entity doc", async () => {
+  _resetProfileCacheForTesting();
+  clearRdfDataset();
+  // Solid profile → recorded under the profile document IRI.
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> a foaf:Person ; foaf:name "Alice Example" .`;
+  await resolveAgent(WEBID, makeSession(ttl));
+  assert.ok(getGraphQuads(DOC), "profile parse recorded under the doc IRI");
+  assert.ok(
+    graphsMentioning(WEBID).includes(DOC),
+    "the profile doc mentions the WebID",
+  );
+
+  // Wikidata entity → recorded under the EntityData .ttl document URL.
+  const WD = "http://www.wikidata.org/entity/Q2220179";
+  const WD_DOC = "https://www.wikidata.org/wiki/Special:EntityData/Q2220179.ttl";
+  const wdTtl = `
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    <${WD}> rdfs:label "Sanacorp Pharmahandel"@en .`;
+  const fetchFn = (() =>
+    Promise.resolve(new Response(wdTtl, { status: 200 }))) as unknown as typeof fetch;
+  await resolveAgent(WD, makeSession(undefined), fetchFn);
+  assert.ok(getGraphQuads(WD_DOC), "entity parse recorded under the .ttl doc URL");
+  assert.ok(
+    graphsMentioning(WD).includes(WD_DOC),
+    "the entity doc mentions the canonical entity IRI",
+  );
 });

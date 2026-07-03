@@ -19,8 +19,6 @@ import UnitObservationsSection from "../components/building/UnitObservationsSect
 import ObservationHeader from "../components/observation/ObservationHeader.tsx";
 import WeatherData from "./WeatherData.tsx";
 import EnergyWeatherOverlay from "../components/EnergyWeatherOverlay.tsx";
-import NearbyInstallationsSection from "../components/observation/NearbyInstallationsSection.tsx";
-import NearbyRooftopsSection from "../components/observation/NearbyRooftopsSection.tsx";
 // The building's location energy CONTEXT — moved here from the building page so building
 // info stays on the building and observation/context lives on the observation page.
 import StandortEnergieprofil from "../components/building/StandortEnergieprofil.tsx";
@@ -131,8 +129,6 @@ export default function EnergyDetail({ building }: EnergyProps) {
             </Typography>
           )}
         {weatherSection}
-        <NearbyInstallationsSection building={building} />
-        <NearbyRooftopsSection building={building} />
         <StandortEnergieprofil building={building} />
         <NeighbourhoodEnergyMap building={building} />
         <RegionalStatistics building={building} />
@@ -209,8 +205,6 @@ export default function EnergyDetail({ building }: EnergyProps) {
         )}
       <UnitObservationsSection building={building} />
       {weatherSection}
-      <NearbyInstallationsSection building={building} />
-      <NearbyRooftopsSection building={building} />
       <StandortEnergieprofil building={building} />
       <NeighbourhoodEnergyMap building={building} />
       <RegionalStatistics building={building} />

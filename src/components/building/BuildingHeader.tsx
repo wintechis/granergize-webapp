@@ -27,6 +27,7 @@ import {
 } from "../../services/rdf/building/buildingId.ts";
 import { downloadXlsx } from "../../lib/download.ts";
 import { formatError } from "../../lib/formatError.ts";
+import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 
 /**
  * The building page's header: a breadcrumb back to the buildings list, the
@@ -101,6 +102,16 @@ export default function BuildingHeader({ building }: { building: Building }) {
               label={msg("bhDownloadData")}
               icon={<DownloadIcon fontSize="small" />}
               onClick={handleDownload}
+            />
+            {
+              /* The header mixes sources (building doc + lod2-by address + OSM
+                coords); this marker covers the building-document part — the
+                SourceNotes below stay until the adapter parses feed the RDF
+                dataset (plan-per-value-provenance, phase 2). */
+            }
+            <ProvenanceMarker
+              subject={building.uri as string}
+              sources={[sourceUri]}
             />
           </Stack>
           {

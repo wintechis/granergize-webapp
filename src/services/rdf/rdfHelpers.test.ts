@@ -1,7 +1,8 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { DataFactory, Store } from "n3";
-import { localName, mintLocalIri, quadsToJsonLd } from "./rdfHelpers.ts";
+import { localName, mintLocalIri, parseRdfText, quadsToJsonLd } from "./rdfHelpers.ts";
+import { clearRdfDataset, getGraphQuads } from "./rdfDataset.ts";
 
 const { namedNode, literal } = DataFactory;
 const ACL = "http://www.w3.org/ns/auth/acl#";
@@ -73,4 +74,18 @@ Deno.test("localName: the fragment after the LAST # or /", () => {
   assert.equal(localName("https://ex.org/vocab#Token"), "Token");
   assert.equal(localName("https://ex.org/path/token"), "token");
   assert.equal(localName("plain"), "plain");
+});
+
+Deno.test("parseRdfText records the document in the RDF dataset under its base IRI", () => {
+  clearRdfDataset();
+  const doc = "https://wrapper.example/mastr/unit/SEE123";
+  parseRdfText(
+    `<> a <http://example.org/Unit> ; <http://example.org/label> "Unit 123" .`,
+    doc,
+  );
+  const quads = getGraphQuads(doc);
+  assert.ok(quads, "parse feeds the dataset under the base IRI");
+  assert.equal(quads.length, 2);
+  // The relative <> resolves against the base — the document names itself.
+  assert.equal(quads[0].subject.value, doc);
 });

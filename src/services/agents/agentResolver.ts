@@ -1,5 +1,6 @@
 import type { PodGateway } from "../pod/podGateway.ts";
-import { DataFactory, Parser, Store } from "n3";
+import { DataFactory, Store } from "n3";
+import { parseRdfText } from "../rdf/rdfHelpers.ts";
 import { loadProfileStoreFor } from "../pod/profileDocument.ts";
 import { logError } from "../../lib/logError.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
@@ -245,11 +246,12 @@ async function loadAgentStore(
 ): Promise<Store | null> {
   if (qid) {
     try {
-      const res = await fetchFn(
-        `${sourceBase("wikidata")}wiki/Special:EntityData/${qid}.ttl`,
-      );
+      const url = `${sourceBase("wikidata")}wiki/Special:EntityData/${qid}.ttl`;
+      const res = await fetchFn(url);
       if (!res.ok) return null;
-      return new Store(new Parser({ format: "text/turtle" }).parse(await res.text()));
+      // parseRdfText also records the entity document in the RDF dataset, so the
+      // provenance record of an agent resolved from Wikidata names its source.
+      return parseRdfText(await res.text(), url);
     } catch (err) {
       logError("fetch Wikidata entity for resolution", err);
       return null;

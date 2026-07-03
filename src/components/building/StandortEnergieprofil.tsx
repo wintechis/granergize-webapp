@@ -16,6 +16,7 @@ import {
 } from "../../services/sources/standortEnergieprofil.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import SourceNote from "../SourceNote.tsx";
+import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 import { SOURCES } from "../../constants/dataSources.ts";
 
 const fmt0 = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -180,11 +181,11 @@ function BiomassCardView({ data }: { data: BiomassCardData }) {
 }
 
 /**
- * The "Standort-Energieprofil" — the building's location energy CONTEXT, shown on the
- * OBSERVATION page. (The building page keeps only the building's own rooftop potential —
- * {@link RooftopPotentialSection} — and the actual nearby installations live in the
- * observation page's `NearbyInstallationsSection`; this is the de-mix that keeps building
- * info on the building and observation/context on the observation.) It renders the
+ * The "Standort-Energieprofil" — the building's Gemeinde-level energy CONTEXT, shown
+ * on the OBSERVATION page. (The building page carries the building-and-surroundings
+ * layers — its own rooftop potential ({@link RooftopPotentialSection}), the nearby
+ * installations and nearby rooftops; the observation page keeps the region-grain
+ * context like this profile and the regional statistics.) It renders the
  * per-Gemeinde Energie-Atlas profile: rooftop- and Freiflächen-PV Ausbaulücke, the
  * renewable share + generation mix, and biomass (`linked-energieatlas`, Bavaria-only).
  * Renders nothing where no Energie-Atlas profile resolves (off-pilot).
@@ -220,7 +221,12 @@ export default function StandortEnergieprofil(
         {p.green && <GreenCardView data={p.green} />}
         {p.biomass && <BiomassCardView data={p.biomass} />}
       </Stack>
-      <SourceNote variant="caption" sources={[SOURCES.energieatlas]} />
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+        <SourceNote variant="caption" sources={[SOURCES.energieatlas]} />
+        {/* Document-level record: the Gemeinde's Energie-Atlas area document is
+            the profile's source (the cards render derived figures, no IRIs). */}
+        {ags && <ProvenanceMarker subject={[]} sources={[areaUrl(ags)]} />}
+      </Stack>
       {ags && <RdfSourceLink href={areaUrl(ags)} />}
     </Stack>
   );

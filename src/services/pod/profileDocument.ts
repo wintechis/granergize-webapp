@@ -1,6 +1,7 @@
 import type { PodGateway } from "./podGateway.ts";
 import { Parser, Store } from "n3";
 import { fetchFresh } from "./podFetch.ts";
+import { recordGraph } from "../rdf/rdfDataset.ts";
 
 /**
  * One shared, session-lived cache of the logged-in user's WebID profile document
@@ -75,11 +76,13 @@ export function loadProfileStoreFor(
       return null;
     }
     if (!res.ok) return null; // don't cache failures — let the next read retry
-    const store = new Store(
-      new Parser({ format: "text/turtle", baseIRI: docUri }).parse(
-        await res.text(),
-      ),
+    const quads = new Parser({ format: "text/turtle", baseIRI: docUri }).parse(
+      await res.text(),
     );
+    // Feed the RDF dataset: the profile document is the source an agent's
+    // provenance record names (name/org/logo say-so lives here).
+    recordGraph(docUri, quads);
+    const store = new Store(quads);
     cache.set(docUri, store);
     return store;
   })();

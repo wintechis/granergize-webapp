@@ -14,7 +14,8 @@ import {
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
-import { AnnualData, Building } from "../types.ts";
+import { AnnualData, Building, type TechnicalSystem } from "../types.ts";
+import { systemKindLabel, systemValueLine } from "../lib/systemDisplay.ts";
 import {
   ChartBox,
   DetailCard,
@@ -171,6 +172,12 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
     [...actual, ...planned].some((d) => d[m.key] != null) ||
     operatorAvg[m.key] != null
   );
+
+  // The building's PRODUCING systems (PV, CHP) — building-level generation is
+  // their output, so the generation chart names them (the same kind + description
+  // line the building page's system rows and the per-unit tables use).
+  const producingSystems = ((building.systems ?? []) as TechnicalSystem[])
+    .filter((s) => s.kind === "pv" || s.kind === "chp");
 
   // A benchmark is shown only when a received BSP snapshot covers at least one
   // visible metric (mirrors hasOperatorAvg's gating).
@@ -357,6 +364,17 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                     <SectionTitle divider icon={METRIC_ICONS[m.key]}>
                       {chartTitleOf(m, displayUnit(m))}
                     </SectionTitle>
+                    {m.key === "electricityGeneration" &&
+                      producingSystems.length > 0 && (
+                      <Typography variant="body2" color="text.secondary">
+                        {msg("aeGeneratedBy")}:{" "}
+                        {producingSystems
+                          .map((s) =>
+                            `${systemKindLabel(s.kind)}: ${systemValueLine(s)}`
+                          )
+                          .join(" — ")}
+                      </Typography>
+                    )}
                     <ChartBox>
                       <MetricBarChart
                         data={metricData((d) => toDisplay(m, d[m.key]))}

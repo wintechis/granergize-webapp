@@ -130,12 +130,15 @@ test.describe("live open-data enrichment over an uploaded real archive", () => {
     await openBuildingsList(page);
 
     for (const id of selectionIds(ARCHIVE!)) {
-      // The observation page carries the location context layers, fetched live.
-      await page.goto(buildingRoute("observation", id));
+      // The BUILDING page carries the location context layers, fetched live.
+      await page.goto(buildingRoute("building", id));
 
       // linked-mastr: the nearby renewable installations (by coordinate).
       await expect(page.getByText(t("niTitle")))
         .toBeVisible({ timeout: T.poll });
+
+      // The observation page keeps the region-grain context.
+      await page.goto(buildingRoute("observation", id));
 
       // linked-energieatlas: the Standort energy profile (by the building's Gemeinde).
       // Exact heading — "Location energy profile" prefixes the neighbourhood section's

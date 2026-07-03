@@ -16,6 +16,7 @@ import {
   rooftopPointUrl,
 } from "../../services/sources/lod2Rooftop.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
+import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 import Pager from "../Pager.tsx";
 import { usePaging } from "../../hooks/usePaging.ts";
 import { ellipsis, listStyle, rowStyle } from "../../constants/listStyles.ts";
@@ -56,6 +57,9 @@ export default function NearbyRooftopsSection(
       >
         <RoofingIcon color="action" />
         <Typography variant="h6">{t("nrTitle")}</Typography>
+        {/* Group record over the nearby buildings; the point-summary document
+            (now in the RDF dataset) resolves as the open-tier source. */}
+        <ProvenanceMarker subject={rooftops.map((r) => r.iri)} />
         <Box sx={{ flexGrow: 1 }} />
         <ToggleButtonGroup
           size="small"

@@ -12,6 +12,8 @@ import SystemListSection from "../components/building/SystemListSection.tsx";
 import ObservationsLink from "../components/building/ObservationsLink.tsx";
 import RoofPlan from "../components/building/RoofPlan.tsx";
 import RooftopPotentialSection from "../components/building/RooftopPotentialSection.tsx";
+import NearbyInstallationsSection from "../components/building/NearbyInstallationsSection.tsx";
+import NearbyRooftopsSection from "../components/building/NearbyRooftopsSection.tsx";
 import BuildingFilesSection from "../components/building/BuildingFilesSection.tsx";
 import SharingSection from "../components/building/SharingSection.tsx";
 
@@ -29,11 +31,13 @@ interface BuildingProps {
 /**
  * The BUILDING PAGE — the centerpiece of the app. A single scrolling column of
  * sections for one building: an identity header (breadcrumb, name, address,
- * producer attribution, owned/shared badge, locator thumbnail), read-first
- * master data with an inline editor, a link to the building's energy/observations
- * (the figures live on the observation page — building info stays here, observation
- * info there, the two only link), the building's own rooftop-PV potential + roof plan,
- * the building's files (inline upload/download/certificate), and the sharing status.
+ * producer attribution, owned/shared badge, locator thumbnail), the sharing
+ * status (above the fold), read-first master data with an inline editor, the
+ * building's files (inline upload/download/certificate), its technical systems,
+ * a link to the building's energy/observations (the figures live on the
+ * observation page — building info stays here, observation info there, the two
+ * only link), the building's own roof plan + rooftop-PV potential, and the
+ * location context (nearby renewable installations + nearby rooftop potential).
  *
  * Every action is inline on the page; modals survive only for Share and for
  * destructive confirmations (revoke / file delete).
@@ -74,18 +78,26 @@ export default function BuildingDetail({ building }: BuildingProps) {
   return (
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
       <BuildingHeader building={building} />
-      <MasterDataSection building={building} autoOpenEdit={action === "edit"} />
-      <SystemListSection building={building} group="energy" />
-      <SystemListSection building={building} group="heat" />
-      <ObservationsLink building={building} />
-      <BuildingFilesSection building={building} />
+      {/* Section order (agreed 2026-07-03): sharing above the fold, then master
+          data → files → systems → the observations link; the building's own
+          roof and the surroundings close the page. */}
       <SharingSection
         building={building}
         session={session}
         autoOpenShare={action === "share"}
       />
+      <MasterDataSection building={building} autoOpenEdit={action === "edit"} />
+      <BuildingFilesSection building={building} />
+      <SystemListSection building={building} group="energy" />
+      <SystemListSection building={building} group="heat" />
+      <ObservationsLink building={building} />
       <RoofPlan building={building} />
       <RooftopPotentialSection building={building} />
+      {/* The building's location context — the renewable installations and
+          rooftop-PV potential AROUND it (moved here from the observation page:
+          they describe the building's surroundings, not its measurements). */}
+      <NearbyInstallationsSection building={building} />
+      <NearbyRooftopsSection building={building} />
     </Stack>
   );
 }

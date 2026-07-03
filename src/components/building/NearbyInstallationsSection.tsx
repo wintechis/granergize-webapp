@@ -16,6 +16,7 @@ import {
   nearbyInstallationsUrl,
 } from "../../services/sources/mastrNearby.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
+import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 import Pager from "../Pager.tsx";
 import { usePaging } from "../../hooks/usePaging.ts";
 import { ellipsis, listStyle, rowStyle } from "../../constants/listStyles.ts";
@@ -33,13 +34,13 @@ const KIND_ORDER: InstallationKind[] = ["solar", "wind", "hydro", "biomass"];
 
 /**
  * NEARBY RENEWABLE INSTALLATIONS: the individual generation units around the
- * building's coordinates, from `linked-mastr` — the FINEST-grain place layer (the
- * per-building analogue of the nearest weather station), shown with the same
- * visual weight as the regional-context and weather sections (icon header →
- * summary + list → data-source attribution). Best-effort: renders nothing when
- * the building has no coordinates, the wrapper is unreachable, or no renewable
- * units are nearby (mirrors the weather/regional sections). The bbox query IRI is
- * a Developer-mode source link (`RdfSourceLink` self-hides).
+ * building's coordinates, from `linked-mastr` — the FINEST-grain place layer, on
+ * the BUILDING page beside the building's own rooftop potential (it describes the
+ * building's surroundings, not its measurements). Same shape as its siblings
+ * (icon header → summary + list → data-source attribution). Best-effort: renders
+ * nothing when the building has no coordinates, the wrapper is unreachable, or no
+ * renewable units are nearby. The bbox query IRI is a Developer-mode source link
+ * (`RdfSourceLink` self-hides).
  */
 export default function NearbyInstallationsSection(
   { building }: { building: Building },
@@ -68,6 +69,9 @@ export default function NearbyInstallationsSection(
       >
         <SolarPowerIcon color="action" />
         <Typography variant="h6">{t("niTitle")}</Typography>
+        {/* Group record over the listed units; their bbox document (now in the
+            RDF dataset) resolves as the record's open-tier source. */}
+        <ProvenanceMarker subject={data.installations.map((u) => u.iri)} />
         <Box sx={{ flexGrow: 1 }} />
         <ToggleButtonGroup
           size="small"

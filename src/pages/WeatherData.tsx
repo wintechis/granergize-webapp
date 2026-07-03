@@ -36,6 +36,7 @@ import {
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
 import { Building } from "../types.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
+import { ProvenanceMarker } from "../components/ProvenanceMarker.tsx";
 
 interface WeatherDataProps {
   building: Building;
@@ -216,9 +217,21 @@ export default function WeatherData({ building }: WeatherDataProps) {
               </Table>
             </TableContainer>
 
-            <Typography variant="body2" color="text.secondary">
-              {msg("dataSourceLabel")} Deutscher Wetterdienst (DWD)
-            </Typography>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              <Typography variant="body2" color="text.secondary">
+                {msg("dataSourceLabel")} Deutscher Wetterdienst (DWD)
+              </Typography>
+              {/* Document-level record: the values document is the table's
+                  source (rows are dates/values, no per-observation IRIs). */}
+              {selectedStation && (
+                <ProvenanceMarker
+                  subject={[]}
+                  sources={[
+                    weatherValuesUrl(selectedStation, selectedParameter),
+                  ]}
+                />
+              )}
+            </Stack>
             {/* Dev-mode source link to the ACTUAL dereferenced wrapper query (the
                 values?… IRI for the shown station, else the near?… stations IRI) —
                 absolute + clickable, mirroring the regional/MaStR sections. */}

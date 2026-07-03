@@ -1,13 +1,15 @@
 import { useEffect, useMemo } from "react";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import {
   CircleMarker,
   MapContainer,
   Marker,
+  Popup,
   Tooltip,
   useMap,
   WMSTileLayer,
 } from "react-leaflet";
+import { RdfSourceLink } from "../detail/DetailView.tsx";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { detailBaseLayer } from "../../lib/orthophoto.ts";
@@ -122,6 +124,15 @@ export default function NearbyInstallationsMap(
               {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")} —{" "}
               {t("niDistance", { km: (u.distanceKm ?? 0).toFixed(1) })}
             </Tooltip>
+            {/* Click → the same description with the unit's ORIGINAL source (its
+                linked-mastr resource) as a clickable, dereferenceable link. */}
+            <Popup>
+              <Typography variant="body2">
+                {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")} —{" "}
+                {t("niDistance", { km: (u.distanceKm ?? 0).toFixed(1) })}
+              </Typography>
+              <RdfSourceLink href={u.iri} inline />
+            </Popup>
           </CircleMarker>
         ))}
         <FitBounds points={points} />
