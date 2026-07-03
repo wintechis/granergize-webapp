@@ -196,7 +196,7 @@ export default function Landing(
     { icon: <CodeIcon />, title: t("landingSov3Title"), body: t("landingSov3Body") },
   ];
 
-  const sectionPy = { py: { xs: 8, md: 13 } };
+  const sectionPy = { py: { xs: 5, md: 6 } };
 
   return (
     <Box
@@ -252,6 +252,7 @@ export default function Landing(
           component="section"
           sx={{
             ...sectionPy,
+            pt: { xs: 7, md: 10 },
             background:
               "radial-gradient(900px 500px at 85% -10%, rgba(2,119,189,.10), transparent 60%), linear-gradient(#fff,#f5f7fa)",
           }}
