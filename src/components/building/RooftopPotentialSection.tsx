@@ -10,8 +10,8 @@ import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
 /**
  * The building's OWN rooftop-PV potential — its roof's installable kWp + annual yield,
  * computed over this building's LoD2 geometry. Building info (a property of the building's
- * roof); the surrounding layers (`NearbyInstallationsSection`, `NearbyRooftopsSection`)
- * follow it on the building page, while the region-grain context
+ * roof); the surroundings (`SurroundingsSection` — nearby installations + nearby
+ * rooftop potential) follow it on the building page, while the region-grain context
  * ({@link StandortEnergieprofil}) stays on the observation page. Renders nothing
  * off-pilot (no LoD2).
  */

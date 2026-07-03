@@ -126,7 +126,8 @@ test.describe("nearby installations (linked-mastr)", () => {
 
     // Map guise: the section's List ⇄ Map toggle swaps the list for a Leaflet map
     // of the same set; switching back restores the list.
-    const viewToggle = page.getByRole("group", { name: t("niViewAria") });
+    // ONE toggle for the whole Surroundings section (both nearby layers).
+    const viewToggle = page.getByRole("group", { name: t("surViewAria") });
     await viewToggle.getByRole("button", { name: t("btnMap") }).click();
     // The nearby section's map is the LAST leaflet map on the page — the building
     // page carries the header locator map above it (and the nearby-rooftops

@@ -10,23 +10,44 @@ import {
   useMap,
   WMSTileLayer,
 } from "react-leaflet";
-import { RdfSourceLink } from "../detail/DetailView.tsx";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { detailBaseLayer } from "../../lib/orthophoto.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
 import type { Building } from "../../types.ts";
+import type {
+  InstallationKind,
+  NearbyInstallation,
+} from "../../services/sources/mastrNearby.ts";
 import type { NearbyRooftopGeometry } from "../../services/sources/lod2Rooftop.ts";
 import {
   magnitudeCategoriserFor,
   type MetricFraming,
 } from "../../services/energy/energyMetric.ts";
 import { bandColor } from "../../constants/lensBand.ts";
+import { RdfSourceLink } from "../detail/DetailView.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
+import type { MessageId } from "../../lib/messages.ts";
 
 const FRAMING: MetricFraming = "magnitude";
 
-/** Pan/zoom to frame the building + all rooftops whenever the set of points changes. */
+const KIND_LABEL: Record<InstallationKind, MessageId> = {
+  solar: "niKindSolar",
+  wind: "niKindWind",
+  hydro: "niKindHydro",
+  biomass: "niKindBiomass",
+};
+
+/** Per-kind marker fill, taken from the theme palette family the kind reads as. */
+const KIND_COLOR: Record<InstallationKind, string> = {
+  solar: "#f9a825", // amber — sun
+  wind: "#0288d1", // blue — air
+  hydro: "#00838f", // teal — water
+  biomass: "#558b2f", // green — bio
+};
+
+/** Pan/zoom to frame the building + every surrounding feature whenever the set
+ *  of points changes. */
 function FitBounds({ points }: { points: [number, number][] }) {
   const map = useMap();
   useEffect(() => {
@@ -35,21 +56,25 @@ function FitBounds({ points }: { points: [number, number][] }) {
       map.setView(points[0], detailBaseLayer(points[0][0], points[0][1]).zoom);
       return;
     }
-    map.fitBounds(L.latLngBounds(points), { padding: [24, 24], maxZoom: 18 });
+    map.fitBounds(L.latLngBounds(points), { padding: [24, 24], maxZoom: 17 });
   }, [map, points]);
   return null;
 }
 
 /**
- * The MAP guise of {@link NearbyRooftopsSection}: the building (owned/shared
- * {@link buildingPin}) plus each nearby building's roof FOOTPRINTS as polygons, shaded by
- * the building's installable kWp via the shared magnitude lens (the same shading as
- * {@link ../building/RoofPlan}). A building whose geometry isn't (yet) loaded or wasn't served
- * falls back to a kWp-sized dot, so the map is useful while the derefs are still in flight.
+ * The ONE surroundings map ({@link SurroundingsSection}'s map guise): the building
+ * (owned/shared {@link buildingPin}) with BOTH neighbourhood layers overlaid —
+ * the nearby rooftops' footprints as kWp-shaded polygons (dot fallback while a
+ * footprint deref is in flight or absent) underneath, and the MaStR generation
+ * units as kind-coloured dots on top. Every feature carries a hover tooltip and
+ * a click popup with its dereferenceable source IRI. Merges the former
+ * NearbyInstallationsMap + NearbyRooftopsMap, so the neighbourhood is one map,
+ * not two of the same place.
  */
-export default function NearbyRooftopsMap(
-  { building, rooftops, height = 420 }: {
+export default function SurroundingsMap(
+  { building, installations, rooftops, height = 420 }: {
     building: Building;
+    installations: NearbyInstallation[];
     rooftops: NearbyRooftopGeometry[];
     height?: number;
   },
@@ -68,9 +93,11 @@ export default function NearbyRooftopsMap(
     [rooftops],
   );
 
-  // Frame the building + every rooftop (polygon vertices when present, else the centre).
+  // Frame the building + every unit + every rooftop (polygon vertices when
+  // present, else the centre).
   const points: [number, number][] = useMemo(() => {
     const pts: [number, number][] = [[lat, long]];
+    for (const u of installations) pts.push([u.lat, u.long]);
     for (const r of rooftops) {
       const rings = r.roofs.filter((s) => s.polygon);
       if (rings.length === 0) pts.push([r.lat, r.long]);
@@ -81,18 +108,18 @@ export default function NearbyRooftopsMap(
       }
     }
     return pts;
-  }, [lat, long, rooftops]);
+  }, [lat, long, installations, rooftops]);
 
-  const tip = (r: NearbyRooftopGeometry) =>
+  const rooftopTip = (r: NearbyRooftopGeometry) =>
     `${t("nrKwp", { kwp: r.installableKwp.toFixed(1) })} — ${
       t("niDistance", { km: r.distanceKm.toFixed(1) })
     }`;
 
-  // Click → the same description with the building's ORIGINAL source (its
-  // linked-lod2-by resource) as a clickable, dereferenceable link.
-  const popup = (r: NearbyRooftopGeometry) => (
+  // Click → the feature's description with its ORIGINAL source (the linked-lod2-by /
+  // linked-mastr resource) as a clickable, dereferenceable link.
+  const rooftopPopup = (r: NearbyRooftopGeometry) => (
     <Popup>
-      <Typography variant="body2">{tip(r)}</Typography>
+      <Typography variant="body2">{rooftopTip(r)}</Typography>
       <RdfSourceLink href={r.iri} inline />
     </Popup>
   );
@@ -127,6 +154,7 @@ export default function NearbyRooftopsMap(
           attribution={base.config.attribution}
         />
         <Marker position={[lat, long]} icon={buildingPin(building.isShared ?? false)} />
+        {/* Rooftop layer first — area fills sit UNDER the installation dots. */}
         {rooftops.map((r) => {
           const fill = bandColor(classify(r.installableKwp), FRAMING);
           const rings = r.roofs.filter((s) => s.polygon);
@@ -144,8 +172,8 @@ export default function NearbyRooftopsMap(
                   fillOpacity: 0.9,
                 }}
               >
-                <Tooltip direction="top" offset={[0, -4]}>{tip(r)}</Tooltip>
-                {popup(r)}
+                <Tooltip direction="top" offset={[0, -4]}>{rooftopTip(r)}</Tooltip>
+                {rooftopPopup(r)}
               </CircleMarker>
             );
           }
@@ -160,11 +188,36 @@ export default function NearbyRooftopsMap(
                 fillOpacity: 0.85,
               }}
             >
-              <Tooltip direction="top" offset={[0, -4]}>{tip(r)}</Tooltip>
-              {popup(r)}
+              <Tooltip direction="top" offset={[0, -4]}>{rooftopTip(r)}</Tooltip>
+              {rooftopPopup(r)}
             </Polygon>
           ));
         })}
+        {installations.map((u) => (
+          <CircleMarker
+            key={u.iri}
+            center={[u.lat, u.long]}
+            radius={6}
+            pathOptions={{
+              color: "#fff",
+              weight: 1,
+              fillColor: KIND_COLOR[u.kind],
+              fillOpacity: 0.9,
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -4]}>
+              {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")} —{" "}
+              {t("niDistance", { km: (u.distanceKm ?? 0).toFixed(1) })}
+            </Tooltip>
+            <Popup>
+              <Typography variant="body2">
+                {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")} —{" "}
+                {t("niDistance", { km: (u.distanceKm ?? 0).toFixed(1) })}
+              </Typography>
+              <RdfSourceLink href={u.iri} inline />
+            </Popup>
+          </CircleMarker>
+        ))}
         <FitBounds points={points} />
       </MapContainer>
     </Box>

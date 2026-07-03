@@ -186,7 +186,15 @@ export const energyRegional = {
     de: "Baufertigstellungen Mehrfamilienhäuser mit Wärmepumpe",
     fr: "Immeubles collectifs achevés avec pompe à chaleur",
   },
-  // Nearby renewable installations section (linked-mastr — finest grain).
+  // Surroundings section — ONE location-context section over both nearby
+  // layers (installations + rooftop potential), one List ⇄ Map toggle.
+  surTitle: { en: "Surroundings", de: "Umgebung", fr: "Environs" },
+  surViewAria: {
+    en: "Surroundings view",
+    de: "Umgebungsansicht",
+    fr: "Vue des environs",
+  },
+  // Nearby renewable installations layer (linked-mastr — finest grain).
   niTitle: {
     en: "Nearby renewable installations",
     de: "Erneuerbare Anlagen in der Nähe",
@@ -198,11 +206,6 @@ export const energyRegional = {
     fr: "{count} dans un rayon de {radius} km",
   },
   niDistance: { en: "{km} km", de: "{km} km", fr: "{km} km" },
-  niViewAria: {
-    en: "Nearby installations view",
-    de: "Ansicht der Anlagen in der Nähe",
-    fr: "Vue des installations à proximité",
-  },
   niKindSolar: { en: "Solar", de: "Solar", fr: "Solaire" },
   niKindWind: { en: "Wind", de: "Wind", fr: "Éolien" },
   niKindHydro: { en: "Hydro", de: "Wasser", fr: "Hydraulique" },
@@ -229,11 +232,6 @@ export const energyRegional = {
     fr: "{count} toitures dans un rayon de {radius} m · ~{kwp} kWp au total",
   },
   nrKwp: { en: "{kwp} kWp", de: "{kwp} kWp", fr: "{kwp} kWp" },
-  nrViewAria: {
-    en: "Nearby rooftops view",
-    de: "Ansicht der Dächer in der Nähe",
-    fr: "Vue des toitures à proximité",
-  },
   nrCaption: {
     en:
       "Estimated rooftop-PV potential of nearby buildings, by location — not their actual energy data.",

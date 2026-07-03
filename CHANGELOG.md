@@ -2,6 +2,21 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-03] — Surroundings: one section for the building's location context
+
+The two nearby sections (renewable installations, rooftop-PV potential) were
+structural twins showing the same neighbourhood on two separate maps with two
+toggles. They merge into ONE "Surroundings" section
+(`SurroundingsSection`/`SurroundingsMap`): one header, one List ⇄ Map toggle;
+the map overlays both layers — kWp-shaded rooftop footprints underneath, the
+kind-coloured MaStR unit dots on top — on a single map of the neighbourhood,
+with each feature's click popup carrying its dereferenceable source IRI. The
+list view stacks the two layers as subgroups, keeping their summaries (with
+their different radii: installations search kilometres, rooftop potential is
+a near-field point query), per-layer provenance markers, attributions and
+licences. Future place layers join this section rather than becoming new
+siblings.
+
 ## [2026-07-02] — Building page: system → its observations; location context moves in
 
 - **A system row links to its own observations.** A technical system whose

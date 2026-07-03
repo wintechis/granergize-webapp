@@ -12,8 +12,7 @@ import SystemListSection from "../components/building/SystemListSection.tsx";
 import ObservationsLink from "../components/building/ObservationsLink.tsx";
 import RoofPlan from "../components/building/RoofPlan.tsx";
 import RooftopPotentialSection from "../components/building/RooftopPotentialSection.tsx";
-import NearbyInstallationsSection from "../components/building/NearbyInstallationsSection.tsx";
-import NearbyRooftopsSection from "../components/building/NearbyRooftopsSection.tsx";
+import SurroundingsSection from "../components/building/SurroundingsSection.tsx";
 import BuildingFilesSection from "../components/building/BuildingFilesSection.tsx";
 import SharingSection from "../components/building/SharingSection.tsx";
 
@@ -93,11 +92,9 @@ export default function BuildingDetail({ building }: BuildingProps) {
       <ObservationsLink building={building} />
       <RoofPlan building={building} />
       <RooftopPotentialSection building={building} />
-      {/* The building's location context — the renewable installations and
-          rooftop-PV potential AROUND it (moved here from the observation page:
-          they describe the building's surroundings, not its measurements). */}
-      <NearbyInstallationsSection building={building} />
-      <NearbyRooftopsSection building={building} />
+      {/* The building's location context — what generates around it and what
+          its neighbours' roofs could generate, in ONE section. */}
+      <SurroundingsSection building={building} />
     </Stack>
   );
 }
