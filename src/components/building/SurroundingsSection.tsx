@@ -22,7 +22,7 @@ import {
 } from "../../services/sources/mastrNearby.ts";
 import {
   NEARBY_ROOFTOP_RADIUS_M,
-  rooftopPointUrl,
+  rooftopNearbyUrl,
 } from "../../services/sources/lod2Rooftop.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
@@ -252,7 +252,7 @@ export default function SurroundingsSection(
       {rooftops.length > 0 && (
         <Box>
           <RdfSourceLink
-            href={rooftopPointUrl(
+            href={rooftopNearbyUrl(
               building.lat!,
               building.long!,
               NEARBY_ROOFTOP_RADIUS_M,

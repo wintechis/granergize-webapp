@@ -41,7 +41,7 @@ import { ELECTRICITY_COLOR } from "../constants/chartColors.ts";
  * drawn on ONE year axis (a second, right-hand axis for °C), so consumption can be
  * read against the weather (the cross-layer superimpose guise).
  *
- * The weather path dereferences the `linked-wetterdienst` wrapper the way
+ * The weather path dereferences the `linked-dwd` wrapper the way
  * `WeatherData.tsx` does (via `linkedWeather.ts`) — nearest-station-by-coordinates,
  * then annual values; the fetch is tracked by `trackedFetch`. The energy side reads
  * the SELECTED metric's absolute figure per year
@@ -74,8 +74,7 @@ function useNearestStations(building: Building) {
         lat as number,
         long as number,
         5,
-        WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL,
-        true, // active=true: drop discontinued (graceful no-op on an un-redeployed wrapper)
+        true, // active=true: drop discontinued stations before the rank cut
       ),
   });
 }

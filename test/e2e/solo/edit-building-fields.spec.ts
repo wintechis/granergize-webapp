@@ -124,8 +124,9 @@ test.describe("edit building operating costs + certifications", () => {
     // The single button in the Energy systems section header (label flips Add → Edit).
     const sysBtn = page
       .getByRole("heading", { name: t("secEnergySystems"), exact: true })
-      .locator("xpath=..")
-      .getByRole("button");
+      .locator("xpath=../..")
+      .getByRole("button")
+      .last(); // the header row's ACTION button (the dev-mode marker precedes it)
     await expect(page.getByText(t("energySystemsEmpty")))
       .toBeVisible({ timeout: T.visible });
 

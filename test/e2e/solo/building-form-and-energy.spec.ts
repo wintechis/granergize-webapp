@@ -6,6 +6,7 @@ import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import {
   buildingIdOf,
   buildingRoute,
+  clickSectionAction,
   openBuildingsList,
 } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -126,10 +127,7 @@ test.describe("building form + energy entry", () => {
     if (!id) throw new Error("building-form: missing building id");
     await page.goto(buildingRoute("building", id));
     // The Heat generation section's [Add] flips to its inline list editor.
-    await page.getByRole("heading", { name: t("secHeatGeneration"), exact: true })
-      .locator("xpath=..")
-      .getByRole("button")
-      .click();
+    await clickSectionAction(page, t("secHeatGeneration"));
     await page.getByRole("button", { name: t("btnAddHeatPump"), exact: true }).click();
     await page.getByLabel(t("lblSystemThermalKW")).fill("120");
     await page.getByLabel(t("lblCommissioningYear")).fill("2019");

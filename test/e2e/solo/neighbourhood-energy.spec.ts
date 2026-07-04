@@ -112,7 +112,7 @@ test.describe("neighbourhood energy choropleth", () => {
     // this test's subject, and 404'ing/emptying them keeps the page-wide interactive-path
     // count attributable to the neighbourhood map (regionalstatistik/MaStR/weather degrade
     // silently; the regional NUTS map draws no polygons).
-    await page.route(/\/(regionalstatistik|mastr|wetterdienst)\//, (route) =>
+    await page.route(/\/(regionalstatistik|mastr|dwd)\//, (route) =>
       route.fulfill({ status: 404, headers: CORS, body: "" }));
     await page.route(/\/nuts\/geojson/, (route) =>
       route.fulfill({

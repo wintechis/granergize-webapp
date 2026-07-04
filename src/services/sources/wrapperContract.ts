@@ -13,7 +13,7 @@ import { MASTR_ROUTES } from "./mastrNearby.ts";
 import { LAU_ROUTES, NUTS_ROUTES } from "./regionGeometry.ts";
 import { LOD2_ROUTES } from "./lod2Rooftop.ts";
 import { NETZTRANSPARENZ_ROUTES } from "./netztransparenz.ts";
-import { WETTERDIENST_ROUTES } from "./linkedWeather.ts";
+import { DWD_ROUTES } from "./linkedWeather.ts";
 import { ENERGIEATLAS_ROUTES } from "./standortEnergieprofil.ts";
 import { REGIONALSTATISTIK_ROUTES } from "./regionalCube.ts";
 import { OSM_ROUTES } from "./geocode.ts";
@@ -117,16 +117,16 @@ const CONTRACTS: Record<string, () => WrapperContract> = {
       ],
     };
   },
-  wetterdienst: () => {
-    const b = sourceBase("wetterdienst");
+  dwd: () => {
+    const b = sourceBase("dwd");
     const p = "annual/climate_summary/sunshine_duration";
     return {
       routesUrl: `${b}routes`,
       requires: [
-        { route: WETTERDIENST_ROUTES.near, purpose: "nearest weather stations to a building" },
-        { route: WETTERDIENST_ROUTES.values, purpose: "a station's annual observation series" },
+        { route: DWD_ROUTES.near, purpose: "nearest weather stations to a building" },
+        { route: DWD_ROUTES.values, purpose: "a station's annual observation series" },
       ],
-      // Unlike the sibling wrappers, linked-wetterdienst does NOT reify a `#id` service-call entity:
+      // Unlike the sibling wrappers, linked-dwd does NOT reify a `#id` service-call entity:
       // the collection is addressed by its query-document IRI directly (only `#activity`/`#agent`
       // provenance fragments exist). So these examples are the dereferenceable collection documents.
       lidsExamples: [

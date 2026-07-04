@@ -41,7 +41,7 @@ const CORS = {
  * Stub the EXTERNAL open-data / enrichment hosts the app fetches around the map — the
  * regional + open-data tiers the redesign added: the linked-data wrappers on
  * `wunderfacts.com` (mastr / lod2-by / energieatlas / regionalstatistik / nuts / lau /
- * wetterdienst) and Wikidata/Commons logos. Every map visit fires dozens of slow REAL
+ * dwd weather) and Wikidata/Commons logos. Every map visit fires dozens of slow REAL
  * cross-internet GETs that no spec asserts; left un-stubbed they keep the app busy and
  * starve the lane. A 404 lets the app fall back (every enrichment is best-effort).
  *
@@ -99,7 +99,7 @@ export async function stubExternalData(page: Page): Promise<void> {
   );
   // The open-data / regional wrappers + logos → 404 (best-effort enrichment; the app
   // falls back). Scoped to the specific wrapper PATHS, NOT the whole `wunderfacts.com`
-  // host — `/wetterdienst/` is deliberately left live (cube-calendar-weather asserts the
+  // host — `/dwd/` is deliberately left live (cube-calendar-weather asserts the
   // real DWD adapter's outcome), and per-spec stubs (`/mastr/`, `/lod2-by/`, …) register
   // later and win where a spec wants fixture data.
   //
@@ -123,7 +123,7 @@ export async function stubExternalData(page: Page): Promise<void> {
 
 /** The external open-data hosts {@link stubExternalData} 404s in the LOCAL lane — the
  *  wunderfacts wrappers plus the Wikidata/Commons logo lookups. Exported so a spec can
- *  lift it (see {@link allowLiveWrappers}); `/wetterdienst/` is deliberately absent (left
+ *  lift it (see {@link allowLiveWrappers}); `/dwd/` is deliberately absent (left
  *  live for cube-calendar-weather). */
 export const EXTERNAL_STUB_HOSTS =
   /wunderfacts\.com\/(mastr|lod2-by|energieatlas|regionalstatistik|nuts|lau|netztransparenz)\/|wikidata\.org|commons\.wikimedia\.org/;

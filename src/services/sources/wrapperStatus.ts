@@ -27,7 +27,7 @@ import {
 import {
   LOD2_ROUTES,
   parseNearbyBuildings,
-  rooftopPointUrl,
+  rooftopNearbyUrl,
 } from "./lod2Rooftop.ts";
 import {
   fetchPlantGenerationByYear,
@@ -37,8 +37,7 @@ import {
 import {
   fetchNearestStations,
   linkedWeatherBase,
-  WEATHER_PARAMETERS,
-  WETTERDIENST_ROUTES,
+  DWD_ROUTES,
 } from "./linkedWeather.ts";
 import {
   areaUrl,
@@ -205,7 +204,7 @@ async function probeLau(): Promise<WrapperStatus> {
  */
 async function probeLod2(): Promise<WrapperStatus> {
   const lat = 49.4521, long = 11.0767;
-  const url = rooftopPointUrl(lat, long, 250);
+  const url = rooftopNearbyUrl(lat, long, 250);
   let text: string;
   try {
     const res = await getSourceGateway().fetch(
@@ -262,7 +261,7 @@ async function probeNetztransparenz(): Promise<WrapperStatus> {
 }
 
 /**
- * Probe **linked-wetterdienst**: a live `near` nearest-station query over central Nürnberg must
+ * Probe **linked-dwd**: a live `near` nearest-station query over central Nürnberg must
  * parse to weather stations via the app's own `fetchNearestStations` (the `near` route + station
  * shape the weather overlay depends on). `down` on fetch failure; `conformant` when a station parses
  * (and, best-effort, `/routes` still lists `near`/`values`); `available` otherwise. Example entity:
@@ -271,9 +270,7 @@ async function probeNetztransparenz(): Promise<WrapperStatus> {
 async function probeWetterdienst(): Promise<WrapperStatus> {
   let stations;
   try {
-    stations = await fetchNearestStations(
-      49.4521, 11.0767, 5, WEATHER_PARAMETERS.SUNSHINE_DURATION_ANNUAL, true,
-    );
+    stations = await fetchNearestStations(49.4521, 11.0767, 5, true);
   } catch (e) {
     return { health: "down", detail: shortErr(e) };
   }
@@ -282,7 +279,7 @@ async function probeWetterdienst(): Promise<WrapperStatus> {
     return { health: "available", detail: "reachable, but no station matched the expected shape" };
   }
   const example = `${linkedWeatherBase()}station/${s.station_id}`;
-  return await verdictWithRoutes("wetterdienst", Object.values(WETTERDIENST_ROUTES), example);
+  return await verdictWithRoutes("dwd", Object.values(DWD_ROUTES), example);
 }
 
 /**
@@ -366,7 +363,7 @@ export const WRAPPER_PROBES: Partial<Record<SourceId, () => Promise<WrapperStatu
   lau: probeLau,
   "lod2-by": probeLod2,
   netztransparenz: probeNetztransparenz,
-  wetterdienst: probeWetterdienst,
+  dwd: probeWetterdienst,
   energieatlas: probeEnergieatlas,
   regionalstatistik: probeRegionalstatistik,
   osm: probeOsm,

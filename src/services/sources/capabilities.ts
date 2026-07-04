@@ -8,7 +8,7 @@
  * - `deref(gw, iri)` — GET an absolute IRI (every source is dereferenceable).
  * - `search(gw, source, q, params?)` — `/search?q=` keyword discovery.
  * - `within(gw, source, box, params?)` — `/within?bbox=W,S,E,N` spatial area.
- * - `point(gw, source, p)` — `/point?lon=&lat=&r=` spatial point + radius.
+ * - `nearby(gw, source, p)` — `/nearby?lon=&lat=&r=` spatial point + radius.
  * - `contains(gw, source, p)` — `/contains?lat=&lon=` point → containing region.
  * - `filter(gw, source, attrs)` — `/filter?{attrs}` by-attribute selection.
  *
@@ -124,18 +124,19 @@ export async function within(
   return fetchRdf(gw, source, path, `within ${source}`);
 }
 
-/** `/point?lon=&lat=&r=` spatial point + radius (metres) discovery. */
-export async function point(
+/** `/nearby?lon=&lat=&r=` spatial point + radius (metres) discovery (the endpoint
+ *  renamed `/point`→`/nearby` in the 2026-06-30 wrapper LIDS rework). */
+export async function nearby(
   gw: SourceGateway,
   source: SourceId,
   p: { lon: number; lat: number; r: number },
 ): Promise<Store> {
-  assertCapability(source, "point");
+  assertCapability(source, "nearby");
   return fetchRdf(
     gw,
     source,
-    `point${query({ lon: p.lon, lat: p.lat, r: p.r })}`,
-    `point ${source}`,
+    `nearby${query({ lon: p.lon, lat: p.lat, r: p.r })}`,
+    `nearby ${source}`,
   );
 }
 

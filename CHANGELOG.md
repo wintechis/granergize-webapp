@@ -2,6 +2,34 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-04] — Weather: read DWD open data directly (`linked-dwd`)
+
+The weather panel now reads the **`linked-dwd`** wrapper
+(`wunderfacts.com/dwd/`), which republishes DWD open data straight from the
+CDC `annual/kl` product as SOSA/QUDT RDF in DWD-native terms — observed
+properties are the CDC columns (`dwd:JA_TT` mean temperature °C, `dwd:JA_SD_S`
+sunshine hours, `dwd:JA_RR` precipitation mm), in their natural units, so no
+adapter-side unit conversion. One `values?station&periods=…` read returns all
+of a station's measurement columns, each naming its column via
+`sosa:observedProperty`; `parseObservations` selects the requested column.
+Replaces `linked-wetterdienst` (env var `VITE_WETTERDIENST_API_URI` →
+`VITE_DWD_API_URI`, generated route set `wetterdienst.routes` → `dwd.routes`).
+
+## [2026-07-04] — Wrapper sync: lod2-by `/point` → `/nearby`; e2e helper repairs
+
+- **lod2-by endpoint rename followed.** The linked-lod2-by wrapper renamed its
+  point-radius endpoint `/point` → `/nearby` (the LIDS rework that also did
+  `/bbox` → `/within`); the app follows — the `nearby` capability verb,
+  `rooftopNearbyUrl`, the registry `capabilities`, and the `sources/` docs. The
+  compile-time route guard (`Lod2ByRoute`) already caught the drift.
+- **e2e section-action helper.** The provenance marker next to a section heading
+  broke the specs' `heading → parent → button` click pattern (it now selects the
+  header ROW's last button — the marker precedes the action). Extracted as the
+  shared `clickSectionAction` helper; the dev-source-links spec asserts the
+  nearby-installations source link on the building page (it moved there with the
+  Surroundings section), and the large-archive teardown takes a `wipeTimeout` so
+  the ~1.3k-resource recursive delete isn't cut off by the default toast wait.
+
 ## [2026-07-03] — Surroundings: one section for the building's location context
 
 The two nearby sections (renewable installations, rooftop-PV potential) were

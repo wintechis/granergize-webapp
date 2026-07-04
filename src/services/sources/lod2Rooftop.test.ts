@@ -92,11 +92,11 @@ Deno.test("isOpenBuildingIri: a lod2-by building IRI vs anything else", () => {
   assert.equal(isOpenBuildingIri("granergize/buildings/b.ttl#it"), false);
 });
 
-// A `point` summary slice: two RoofPotential buildings with coordinates. The nearest to the
+// A `nearby` summary slice: two RoofPotential buildings with coordinates. The nearest to the
 // query point wins (the granergize building's centroid vs the LoD2 centroid differ slightly).
-const POINT_BASE =
-  "https://wunderfacts.com/lod2-by/point?lon=11.13&lat=49.61&r=60";
-const POINT_TTL = `
+const NEARBY_BASE =
+  "https://wunderfacts.com/lod2-by/nearby?lon=11.13&lat=49.61&r=60";
+const NEARBY_TTL = `
 @prefix lod2: <https://wunderfacts.com/lod2-by/vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <https://wunderfacts.com/lod2-by/building/A> a lod2:RoofPotential ;
@@ -106,20 +106,20 @@ const POINT_TTL = `
 `;
 
 Deno.test("parseNearestBuilding picks the building closest to the query point", () => {
-  const n = parseNearestBuilding(POINT_TTL, POINT_BASE, 49.609711, 11.130988);
+  const n = parseNearestBuilding(NEARBY_TTL, NEARBY_BASE, 49.609711, 11.130988);
   assert.ok(n);
   assert.equal(n.iri, "https://wunderfacts.com/lod2-by/building/A");
   assert.ok(n.distanceKm < 0.1);
 });
 
 Deno.test("parseNearestBuilding returns null for an empty document", () => {
-  assert.equal(parseNearestBuilding("", POINT_BASE, 49, 11), null);
+  assert.equal(parseNearestBuilding("", NEARBY_BASE, 49, 11), null);
 });
 
 Deno.test("parseNearbyBuildings lists ALL nearby buildings (no capacity needed), nearest first", () => {
   // Unlike parseNearbyRooftops, it does not require lod2:installableCapacity (the wrapper no
   // longer serves it post-untangle) — it lists the buildings so the app can deref + compute kWp.
-  const all = parseNearbyBuildings(POINT_TTL, POINT_BASE, 49.609711, 11.130988);
+  const all = parseNearbyBuildings(NEARBY_TTL, NEARBY_BASE, 49.609711, 11.130988);
   assert.equal(all.length, 2);
   assert.ok(all[0].distanceKm <= all[1].distanceKm);
   assert.ok(all[0].iri.includes("/building/"));

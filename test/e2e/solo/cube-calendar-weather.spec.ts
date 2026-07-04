@@ -24,7 +24,7 @@ import { T } from "../helpers/timeouts.ts";
  * month of readings. The binning/alignment maths is proved in `energyCalendar.test.ts` /
  * `energyWeather.test.ts`; this is the UI proof the surfaces render.
  *
- * The weather reads (linked-wetterdienst) are stubbed per-spec (`page.route`), so the
+ * The weather reads (linked-dwd) are stubbed per-spec (`page.route`), so the
  * overlay asserts its affordance and chart/caveat region appear once toggled on. The
  * stub serves overlapping years, so the dual-axis chart is the expected outcome — but
  * the no-overlap / no-station states stay tolerated (the assertion shape outlives the
@@ -46,7 +46,7 @@ const ACC = account("A"); // Alice -- solo specs use one account
 
 const CORS = { "access-control-allow-origin": "*" };
 
-// linked-wetterdienst stub fixtures (the wrapper's served Turtle shapes; see
+// linked-dwd stub fixtures (the wrapper's served Turtle shapes; see
 // `linkedWeather.ts`). `near?` → one nearby `dwd:WeatherStation` with a distance;
 // `values?` → two annual `sosa:Observation`s (mean temperature) for 2023-2024, the
 // years the demo office carries energy for, so the energy×weather overlay aligns.
@@ -66,9 +66,11 @@ const WEATHER_VALUES_TTL = `@prefix dwd: <https://opendata.dwd.de/#> .
 @prefix qudt: <http://qudt.org/1.1/schema/qudt#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 <#obs-2023> a sosa:Observation ;
+  sosa:observedProperty dwd:JA_TT ;
   sosa:resultTime "2023-12-31"^^xsd:date ; dwd:quality 1 ;
   sosa:hasResult [ a qudt:QuantityValue ; qudt:numericValue 10.5 ] .
 <#obs-2024> a sosa:Observation ;
+  sosa:observedProperty dwd:JA_TT ;
   sosa:resultTime "2024-12-31"^^xsd:date ; dwd:quality 1 ;
   sosa:hasResult [ a qudt:QuantityValue ; qudt:numericValue 11.2 ] .
 `;
@@ -91,7 +93,7 @@ test.describe("cube calendar heatmap + weather overlay", () => {
     page = await newCapturedPage(browser, "cube-calendar-weather");
     // Weather is an external read; e2e:local stubs it per-spec so the panel + overlay
     // assert against fixed data, not the live wunderfacts.com host (the one open gap).
-    await page.route(/\/wetterdienst\//, (route) =>
+    await page.route(/\/dwd\//, (route) =>
       route.fulfill({
         status: 200,
         contentType: "text/turtle",
@@ -189,7 +191,7 @@ test.describe("cube calendar heatmap + weather overlay", () => {
     await expect(page.getByText(t("wdStation")).first())
       .toBeVisible({ timeout: T.visible });
 
-    // The linked-wetterdienst lookup (fetchNearestStations → fetchStationValues, both
+    // The linked-dwd lookup (fetchNearestStations → fetchStationValues, both
     // parsed from the wrapper's Turtle, here the stub's) resolves to a definite state:
     // the values table, or an honest empty notice. Asserting one appears proves the
     // dereference+parse path runs end-to-end; the stub serves data, so the table is the

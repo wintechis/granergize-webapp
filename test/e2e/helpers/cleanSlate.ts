@@ -107,9 +107,9 @@ export async function logCollectionState(
  */
 export async function wipeCollection(
   page: Page,
-  opts: { reload?: boolean; tag?: string } = {},
+  opts: { reload?: boolean; tag?: string; wipeTimeout?: number } = {},
 ): Promise<void> {
-  const { reload = false, tag = "" } = opts;
+  const { reload = false, tag = "", wipeTimeout = T.action } = opts;
   if (page.isClosed()) {
     logRun(`clean-slate wipe [${tag}]: page already closed, skipped`);
     return;
@@ -120,8 +120,11 @@ export async function wipeCollection(
     await menuAction(page, t("menuRemoveAll"));
     // Confirm via the in-app confirm dialog (replaced the native window.confirm).
     await confirmDialog(page, "Remove all");
+    // The "removed" toast fires only once the recursive delete finishes; a spec
+    // that imported a LARGE archive (~1.3k resources) passes a bigger `wipeTimeout`
+    // so the delete has room to complete (the default T.action fits a normal spec).
     await expect(page.getByText(t("allDataRemoved"), { exact: false }))
-      .toBeVisible({ timeout: T.action });
+      .toBeVisible({ timeout: wipeTimeout });
     logRun(`clean-slate wipe [${tag}]: collection removed`);
     if (reload) {
       await page.reload();
@@ -165,20 +168,27 @@ async function returnToShell(page: Page): Promise<boolean> {
  * burn the whole afterAll budget: the bounded {@link returnToShell} probe is the
  * only wait we pay, so a dead page fails the hook in ~60s, not 240s.
  */
-export async function verifyAndReset(page: Page, tag: string): Promise<void> {
+export async function verifyAndReset(
+  page: Page,
+  tag: string,
+  opts: { wipeTimeout?: number } = {},
+): Promise<void> {
   // Grant the teardown its own budget ON TOP of whatever's left — a recursive
   // remote delete can exceed the default. ADD it (don't replace): `test.setTimeout`
   // sets the TOTAL test budget from the start, so a bare `setTimeout(T.afterAll)`
   // called from a sharing spec's test-body `finally` would SHRINK a 150 s test to
   // 60 s and abort it mid-cleanup. Extending works in both an afterAll hook and a
-  // test-body finally.
-  test.setTimeout(test.info().timeout + T.afterAll);
+  // test-body finally. A large-archive spec passes `wipeTimeout` for the slow
+  // delete; the hook budget is extended to cover it (max of the two), so the inner
+  // toast wait can't outlast the hook.
+  const { wipeTimeout } = opts;
+  test.setTimeout(test.info().timeout + Math.max(T.afterAll, wipeTimeout ?? 0));
   if (!await returnToShell(page)) {
     logRun(`clean-slate wipe [${tag}]: app shell unavailable, skipped`);
     return;
   }
   await logCollectionState(page, tag);
-  await wipeCollection(page, { tag });
+  await wipeCollection(page, { tag, wipeTimeout });
 }
 
 /**

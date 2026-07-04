@@ -233,8 +233,9 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.goto(buildingRoute("building", id));
     const sysBtn = page
       .getByRole("heading", { name: t("secEnergySystems"), exact: true })
-      .locator("xpath=..")
-      .getByRole("button");
+      .locator("xpath=../..")
+      .getByRole("button")
+      .last(); // the header row's ACTION button (the dev-mode marker precedes it)
     await sysBtn.click();
     // The energy-systems editor is inline on the page now (no dialog).
     const addPv = page.getByRole("button", { name: t("btnAddPv"), exact: true });

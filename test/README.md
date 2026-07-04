@@ -73,7 +73,7 @@ bounded retries.
 
 ## External sources — the second backend, faked per-kind
 
-External read-only sources (weather `linked-wetterdienst`, `linked-regionalstatistik`
+External read-only sources (weather `linked-dwd`, `linked-regionalstatistik`
 and the other geo/MaStR wrappers — see [`../notes/data-deref.md`](../notes/data-deref.md)
 §External wrapper endpoints — plus `nominatim`, map tiles, Wikidata/Commons) are **not**
 the Pod. They are the backend's second, independent part, and **each kind makes its

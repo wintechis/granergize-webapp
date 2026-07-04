@@ -38,13 +38,14 @@ Deno.test("the two provenance-recorded sources are present (OSM, Commons)", () =
   assert.ok(SOURCES.commons.homepage?.includes("commons.wikimedia.org"));
 });
 
-Deno.test("ids are the canonical wrapper path segments (lod2-by, wetterdienst, nuts, lau)", () => {
+Deno.test("ids are the canonical wrapper path segments (lod2-by, dwd, nuts, lau)", () => {
   const ids = new Set(DATA_SOURCES.map((s) => s.id));
-  for (const id of ["lod2-by", "wetterdienst", "nuts", "lau", "mastr"]) {
+  for (const id of ["lod2-by", "dwd", "nuts", "lau", "mastr"]) {
     assert.ok(ids.has(id), `${id} present`);
   }
-  // The old grouped/provider ids are gone (no backwards-compat alias).
-  for (const gone of ["lod2", "dwd", "geo"]) {
+  // The old grouped/provider ids are gone (no backwards-compat alias) — including
+  // `wetterdienst`, renamed to `dwd` with the wrapper (2026-07-04).
+  for (const gone of ["lod2", "wetterdienst", "geo"]) {
     assert.ok(!ids.has(gone), `${gone} removed`);
   }
 });

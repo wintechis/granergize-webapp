@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** Base URI of the linked-wetterdienst wrapper (see linkedWeather.ts). */
-  readonly VITE_WETTERDIENST_API_URI: string;
+  /** Base URI of the linked-dwd wrapper (see linkedWeather.ts). */
+  readonly VITE_DWD_API_URI: string;
   /** Base URI of the linked-regionalstatistik wrapper (see regionalCube.ts). */
   readonly VITE_REGIONALSTATISTIK_API_URI?: string;
   /** Base URI of the linked-mastr wrapper (see mastrNearby.ts). */

@@ -64,14 +64,16 @@ alone.
   property), only where that service declares a `nameSearch` capability, scoped to named
   features, with no ranking / fuzzy / multi-field matching. Treat it as a thin place-name
   lookup, not a general keyword index.
-- **`/bbox?bbox=W,S,E,N`** — **spatial, area**: resources within a bounding rectangle.
+- **`/within?bbox=W,S,E,N`** — **spatial, area**: resources within a bounding rectangle
+  (renamed from `/bbox` in the 2026-06-30 LIDS rework; the `bbox=` param kept).
   (`linked-mastr`, `linked-lod2-by`.)
-- **`/point?lon=&lat=&r=`** — **spatial, point + radius**: resources within `r` of a
-  coordinate — the "nearby" circle. (`linked-lod2-by`.) `/bbox` and `/point` are the two
-  *find-around-here* shapes; the app's `fetchNearby*` functions wrap whichever one the
-  source offers (MaStR via `/bbox`, LoD2 rooftops via `/point`).
+- **`/nearby?lon=&lat=&r=`** — **spatial, point + radius**: resources within `r` of a
+  coordinate — the "nearby" circle (renamed from `/point` in the same rework).
+  (`linked-lod2-by`.) `/within` and `/nearby` are the two *find-around-here* shapes; the
+  app's `fetchNearby*` functions wrap whichever one the source offers (MaStR via
+  `/within`, LoD2 rooftops via `/nearby`).
 - **`/contains?lat=&lon=`** — **spatial, point → container**: the region(s) a coordinate
-  falls *inside*. (`linked-nuts`, `linked-lau`.) Distinct from `/point`: not "what's near"
+  falls *inside*. (`linked-nuts`, `linked-lau`.) Distinct from `/nearby`: not "what's near"
   but "what contains me".
 - **`/filter?<attrs>`** — **structured by-attribute selection** over a listing (exact
   facet matches, not free text). (`linked-mastr`: `ags` (an AGS *prefix* — Land/Kreis/
@@ -123,8 +125,8 @@ Grouped by how the app consumes them. Each lists: what it provides · the client
   potential/installed/mix (Bavaria-only). `standortEnergieprofil.ts`. `open`. Deref via
   the constructible `/area/{ags}`.
 - **LoD2 rooftop** (`lod2-by.md`, `linked-lod2-by`) — 3D roof geometry → installable
-  kWp + annual kWh (Bavaria). `lod2Rooftop.ts`. `open`. `/point` (the nearby layer) +
-  `/bbox` for discovery, then deref (`/building/{id}`, `/ags/{ags}`).
+  kWp + annual kWh (Bavaria). `lod2Rooftop.ts`. `open`. `/nearby` (the nearby layer) +
+  `/within` for discovery, then deref (`/building/{id}`, `/ags/{ags}`).
 - **NUTS regions** (`nuts.md`, `linked-nuts`) — EU statistical regions as SKOS +
   GeoSPARQL geometry. `regionGeometry.ts`. Choropleths / place-by-AGS. Deref +
   `geojson`/`contains`/`search` (keyword over code+name) + `/sparql`.

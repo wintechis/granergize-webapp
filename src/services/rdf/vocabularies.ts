@@ -134,7 +134,7 @@ export const TIME_NS = "http://www.w3.org/2006/time#";
 export const SSN_NS = "http://www.w3.org/ns/ssn/";
 
 /**
- * DWD vocabulary served by `linked-wetterdienst` (see `linkedWeather.ts`): a
+ * DWD vocabulary served by `linked-dwd` (see `linkedWeather.ts`): a
  * `dwd:WeatherStation` carries `dwd:station_id`/`dwd:station_name`, an observation
  * carries `dwd:quality`. The QUDT *schema* namespace (`qudt:numericValue` on the
  * `qudt:QuantityValue` result) — distinct from {@link UNIT_NS}, the unit vocabulary.

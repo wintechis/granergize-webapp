@@ -115,7 +115,7 @@ function haversineKm(
 
 /** The `nearby` query IRI for a coordinate (also the Developer-mode source link). The
  *  endpoint was renamed `point` → `nearby` in the 2026-06-30 linked-lod2-by LIDS rename. */
-export function rooftopPointUrl(
+export function rooftopNearbyUrl(
   lat: number,
   long: number,
   radiusM = DEFAULT_RADIUS_M,
@@ -124,7 +124,7 @@ export function rooftopPointUrl(
 }
 
 /**
- * From a `point` summary document, the IRI + coordinates of the building nearest to
+ * From a `nearby` summary document, the IRI + coordinates of the building nearest to
  * (`fromLat`, `fromLong`), or `null` if none. Pure — the head of the (distance-
  * sorted) {@link parseNearbyBuildings} list, not a third copy of its loop.
  */
@@ -316,9 +316,9 @@ export async function fetchBuilding3d(
   long: number,
   radiusM = DEFAULT_RADIUS_M,
 ): Promise<Building3d | null> {
-  const pointUrl = rooftopPointUrl(lat, long, radiusM);
+  const nearbyUrl = rooftopNearbyUrl(lat, long, radiusM);
   const res = await getSourceGateway().fetch(
-    pointUrl,
+    nearbyUrl,
     { headers: { Accept: "text/turtle" } },
     "building 3D geometry (LoD2-BY)",
   );
@@ -326,7 +326,7 @@ export async function fetchBuilding3d(
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} fetching building 3D geometry`);
   }
-  const nearest = parseNearestBuilding(await res.text(), pointUrl, lat, long);
+  const nearest = parseNearestBuilding(await res.text(), nearbyUrl, lat, long);
   if (!nearest) return null;
   const detail = await getSourceGateway().fetch(
     nearest.iri,
@@ -376,9 +376,9 @@ export async function fetchRooftopPotential(
    *  shared key: an exact `locn:thoroughfare` match beats mere proximity. */
   wantAddress?: string,
 ): Promise<RooftopPotential | null> {
-  const pointUrl = rooftopPointUrl(lat, long, radiusM);
+  const nearbyUrl = rooftopNearbyUrl(lat, long, radiusM);
   const res = await getSourceGateway().fetch(
-    pointUrl,
+    nearbyUrl,
     { headers: { Accept: "text/turtle" } },
     "rooftop-PV geometry (LoD2-BY)",
   );
@@ -386,7 +386,7 @@ export async function fetchRooftopPotential(
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} fetching rooftop-PV geometry`);
   }
-  const candidates = parseNearbyBuildings(await res.text(), pointUrl, lat, long);
+  const candidates = parseNearbyBuildings(await res.text(), nearbyUrl, lat, long);
   if (candidates.length === 0) return null;
 
   // Choose the LoD2 building. Default: the nearest (candidates are distance-sorted).
@@ -495,15 +495,15 @@ async function fetchRatedRooftops(
   radiusM: number,
   limit: number,
 ): Promise<NearbyRooftopGeometry[]> {
-  const pointUrl = rooftopPointUrl(lat, long, radiusM);
+  const nearbyUrl = rooftopNearbyUrl(lat, long, radiusM);
   const res = await getSourceGateway().fetch(
-    pointUrl,
+    nearbyUrl,
     { headers: { Accept: "text/turtle" } },
     "nearby rooftops (LoD2-BY)",
   );
   if (res.status === 404) return [];
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching nearby rooftops`);
-  const buildings = parseNearbyBuildings(await res.text(), pointUrl, lat, long)
+  const buildings = parseNearbyBuildings(await res.text(), nearbyUrl, lat, long)
     .slice(0, limit);
   const rated = await mapPooled(buildings, NEARBY_GEOM_CONCURRENCY, async (b) => {
     try {

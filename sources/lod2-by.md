@@ -19,7 +19,7 @@ dereferenceable at `…/lod2-by/vocab`, like `mastr/vocab#`).
   (0=N/90=E/180=S/270=W) and `lod2:area` (m²). Linked by `lod2:hasRoofSurface`.
 - The wrapper serves **measured geometry only — no derived figures.**
 
-The app fetches in two steps (`point?lon=&lat=&r=` → nearest building, then
+The app fetches in two steps (`nearby?lon=&lat=&r=` → nearest building, then
 dereference its IRI) and parses into roof surfaces.
 
 ## Correspondence to our model
@@ -44,5 +44,5 @@ AGS-keyed `skos:notation`; PROV / CC BY 4.0 (LDBV); a dump-based per-record stor
 The data is **raw geometry, deliberately figure-free** — the headline number
 (kWp/kWh) is *not* served and is computed app-side, the opposite of the
 statistics/energieatlas sources that arrive pre-aggregated. Join is by
-**proximity** (`point?` nearest building to the building's coordinate), and scope
+**proximity** (`nearby?` nearest building to the building's coordinate), and scope
 is **Bavaria-only**.

@@ -63,23 +63,22 @@ const parameterUnits: Record<string, string> = {
  * isn't auto-instrumented like the Solid session, so the fetch opts into the
  * global activity store (`beginActivity`/`endActivity`).
  */
-function useWeatherStations(building: Building, parameter: string) {
+function useWeatherStations(building: Building) {
   const lat = building?.lat;
   const long = building?.long;
   return useQuery({
-    queryKey: [...sourceKeys.weatherStations, lat, long, parameter],
+    queryKey: [...sourceKeys.weatherStations, lat, long],
     enabled: Boolean(lat) && Boolean(long),
-    queryFn: () =>
-      fetchNearestStations(lat as number, long as number, 5, parameter),
+    queryFn: () => fetchNearestStations(lat as number, long as number, 5),
   });
 }
 
-/** Recent values for one station + parameter; disabled until a station is picked. */
-function useWeatherValues(station: string | null, parameter: string) {
+/** Values for one station, selected to one column; disabled until a station is picked. */
+function useWeatherValues(station: string | null, column: string) {
   return useQuery({
-    queryKey: [...sourceKeys.weatherValues, station, parameter],
+    queryKey: [...sourceKeys.weatherValues, station, column],
     enabled: Boolean(station),
-    queryFn: () => fetchStationValues(station as string, parameter),
+    queryFn: () => fetchStationValues(station as string, column),
   });
 }
 
@@ -93,7 +92,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
       replace: true,
     });
 
-  const stationsQuery = useWeatherStations(building, selectedParameter);
+  const stationsQuery = useWeatherStations(building);
   const stations = stationsQuery.data ?? [];
   const isLoadingStations = stationsQuery.isFetching;
 
@@ -226,9 +225,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
               {selectedStation && (
                 <ProvenanceMarker
                   subject={[]}
-                  sources={[
-                    weatherValuesUrl(selectedStation, selectedParameter),
-                  ]}
+                  sources={[weatherValuesUrl(selectedStation)]}
                 />
               )}
             </Stack>
@@ -237,13 +234,8 @@ export default function WeatherData({ building }: WeatherDataProps) {
                 absolute + clickable, mirroring the regional/MaStR sections. */}
             <RdfSourceLink
               href={selectedStation
-                ? weatherValuesUrl(selectedStation, selectedParameter)
-                : weatherStationsUrl(
-                  building.lat ?? 0,
-                  building.long ?? 0,
-                  5,
-                  selectedParameter,
-                )}
+                ? weatherValuesUrl(selectedStation)
+                : weatherStationsUrl(building.lat ?? 0, building.long ?? 0, 5)}
             />
 
             <Typography

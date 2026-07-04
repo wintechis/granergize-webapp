@@ -13,7 +13,8 @@
  *   `base`), so the same resolver works in the browser, under Deno, and in tests.
  *
  * Source ids are the **canonical wrapper path segment** (`linked-{id}` /
- * `wunderfacts.com/{id}/`): `lod2-by` not `lod2`, `wetterdienst` not `dwd`, and
+ * `wunderfacts.com/{id}/`): `lod2-by` not `lod2`, `dwd` not `wetterdienst`
+ * (renamed with the wrapper, 2026-07-04), and
  * `nuts` / `lau` split (they are two wrappers with two bases). One entry per id,
  * mirroring the `sources/<id>.md` notes (overview in `sources/README.md`).
  */
@@ -26,7 +27,7 @@ export type SourceCapability =
   | "deref"
   | "search"
   | "within"
-  | "point"
+  | "nearby"
   | "contains"
   | "filter";
 
@@ -41,7 +42,7 @@ export type SourceId =
   | "regionalstatistik"
   | "energieatlas"
   | "netztransparenz"
-  | "wetterdienst"
+  | "dwd"
   | "osm"
   | "inspire"
   | "wikidata"
@@ -122,15 +123,15 @@ export const SOURCES = {
     base: "https://wunderfacts.com/netztransparenz/",
     capabilities: ["deref"],
   },
-  wetterdienst: {
-    id: "wetterdienst",
+  dwd: {
+    id: "dwd",
     name: "Deutscher Wetterdienst (DWD)",
     homepage: "https://www.dwd.de/",
     license: "GeoNutzV",
     licenseHref: "https://www.dwd.de/EN/service/copyright/copyright_node.html",
-    note: "Weather observations (via linked-wetterdienst).",
-    envKey: "VITE_WETTERDIENST_API_URI",
-    base: "https://wunderfacts.com/wetterdienst/",
+    note: "Weather observations (via linked-dwd, straight from opendata.dwd.de).",
+    envKey: "VITE_DWD_API_URI",
+    base: "https://wunderfacts.com/dwd/",
     // near/values are custom endpoints, not standard verbs — see linkedWeather.ts.
     capabilities: ["deref"],
   },
@@ -165,7 +166,7 @@ export const SOURCES = {
     note: "3D roof geometry for rooftop-PV potential (via linked-lod2-by).",
     envKey: "VITE_LOD2_API_URI",
     base: "https://wunderfacts.com/lod2-by/",
-    capabilities: ["deref", "point", "within"],
+    capabilities: ["deref", "nearby", "within"],
   },
   nuts: {
     id: "nuts",

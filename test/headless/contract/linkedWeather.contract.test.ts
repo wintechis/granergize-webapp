@@ -1,9 +1,9 @@
 /// <reference lib="deno.ns" />
 /**
- * REMOTE contract test for `linked-wetterdienst` — the live weather source.
+ * REMOTE contract test for `linked-dwd` — the live weather source.
  *
- * Network-only (no Pod, no actors): hits the real wrapper host (`wunderfacts.com/wetterdienst`,
- * override `VITE_WETTERDIENST_API_URI`) and drives the app's OWN parsers + station picker. Run with
+ * Network-only (no Pod, no actors): hits the real wrapper host (`wunderfacts.com/dwd`,
+ * override `VITE_DWD_API_URI`) and drives the app's OWN parsers + station picker. Run with
  * `deno task headless:remote:contract`; the hermetic unit tests at
  * `src/services/sources/linkedWeather.test.ts` use fixtures.
  *
@@ -12,8 +12,8 @@
  *    `historical`; `recent` alone is empty for annual resolution);
  *  - **station selection (option 2/3)**: `near?…&active=true` + `pickStationForYears` skip the
  *    discontinued nearest station (Nürnberg's nearest, 03666, ended 1974) for a farther ACTIVE one
- *    whose recording period overlaps the building's (recent) energy years. `active=true` degrades
- *    gracefully on an un-redeployed wrapper — the overlap filter still excludes the stale station.
+ *    whose recording period overlaps the building's (recent) energy years. The values response carries ALL CDC columns;
+ *    `parseObservations` selects the mean-temperature column (`JA_TT`).
  */
 import { assert } from "jsr:@std/assert";
 import {
@@ -36,9 +36,9 @@ async function getTurtle(url: string): Promise<string> {
   return await res.text();
 }
 
-Deno.test("contract: live wetterdienst → app picks an ACTIVE nearby station with recent annual data", async () => {
+Deno.test("contract: live linked-dwd → app picks an ACTIVE nearby station with recent annual data", async () => {
   // near (active) → candidate stations, each with its recording period (dwd:start_date/end_date).
-  const stationsUrl = weatherStationsUrl(NBG.lat, NBG.lon, 5, PARAM, true);
+  const stationsUrl = weatherStationsUrl(NBG.lat, NBG.lon, 5, true);
   const stations = parseStations(await getTurtle(stationsUrl), stationsUrl);
   assert(stations.length > 0, "at least one nearby station");
   assert(stations.some((s) => typeof s.endYear === "number"), "stations expose an endYear");
@@ -53,9 +53,9 @@ Deno.test("contract: live wetterdienst → app picks an ACTIVE nearby station wi
   );
 
   // Its values (periods=historical,recent) include a recent year → the overlay actually aligns.
-  const valuesUrl = weatherValuesUrl(chosen!.station_id, PARAM);
+  const valuesUrl = weatherValuesUrl(chosen!.station_id);
   assert(valuesUrl.includes("historical"), "values query spans the historical period");
-  const obs = parseObservations(await getTurtle(valuesUrl), valuesUrl);
+  const obs = parseObservations(await getTurtle(valuesUrl), valuesUrl, PARAM);
   assert(obs.length > 0, `chosen station ${chosen!.station_id} yields observations`);
   const maxYear = Math.max(...obs.map((o) => Number.parseInt(o.date.slice(0, 4), 10)));
   assert(maxYear >= 2020, `chosen station has recent observations (latest year ${maxYear})`);

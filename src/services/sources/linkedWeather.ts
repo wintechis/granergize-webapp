@@ -1,18 +1,21 @@
 /**
- * Read weather from the **`linked-wetterdienst`** Linked Data wrapper
- * (`https://wunderfacts.com/wetterdienst`) by dereferencing its Turtle — the
+ * Read weather from the **`linked-dwd`** Linked Data wrapper
+ * (`https://wunderfacts.com/dwd`) by dereferencing its Turtle — the
  * follow-your-nose sibling of {@link ./regionalCube.ts} (which reads
  * `linked-regionalstatistik` the same way). The wrapper re-publishes German weather
- * (Deutscher Wetterdienst, via the wetterdienst service) as SOSA/QUDT RDF, and
- * already applies the QUDT unit conversions (e.g. sunshine seconds→hours), so the
- * values arrive display-ready.
+ * **straight from the DWD open data server** (CDC `annual/kl` product) as SOSA/QUDT
+ * RDF in DWD-native terms: observed properties are the CDC columns (`dwd:JA_TT` mean
+ * temperature °C, `dwd:JA_SD_S` sunshine hours, `dwd:JA_RR` precipitation mm), in
+ * their natural units — display-ready without conversion.
  *
  * Two discovery reads:
- * - `near?latitude&longitude&rank&parameters` → nearest `dwd:WeatherStation`s, each
- *   with `schema:distance`.
- * - `values?station&parameters&periods=historical,recent` → a station's `sosa:Observation`s,
- *   each a `qudt:QuantityValue` result. (Annual data lives in `historical`; `recent` alone is
- *   near-empty for annual resolution — see {@link weatherValuesUrl}.)
+ * - `near?latitude&longitude&rank&active` → nearest `dwd:WeatherStation`s, each with
+ *   `schema:distance`.
+ * - `values?station&periods=historical,recent` → a station's `sosa:Observation`s —
+ *   ALL measurement columns of the product in one response, each naming its column
+ *   via `sosa:observedProperty`; {@link parseObservations} selects the wanted column.
+ *   (Annual data lives in `historical`; `recent` alone is near-empty for annual
+ *   resolution — see {@link weatherValuesUrl}.)
  *
  * Reached through {@link trackedFetch} so requests show in the global loading
  * indicator and retry transient throttling. The parse halves are split out pure for
@@ -33,31 +36,33 @@ import { parseRdfText } from "../rdf/rdfHelpers.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import type { WeatherAnnualValue } from "../energy/energyWeather.ts";
-import type { WetterdienstRoute } from "../../generated/wetterdienst.routes.ts";
+import type { DwdRoute } from "../../generated/dwd.routes.ts";
 
 const { namedNode } = DataFactory;
 
 /**
- * The linked-wetterdienst routes the app calls, checked at COMPILE TIME against the wrapper's
- * DEPLOYED route set (`src/generated/wetterdienst.routes.ts`, regenerated from the live `/routes`
- * manifest — `deno task gen:routes:wetterdienst`). `near` = nearest-station discovery; `values` =
+ * The linked-dwd routes the app calls, checked at COMPILE TIME against the wrapper's
+ * DEPLOYED route set (`src/generated/dwd.routes.ts`, regenerated from the live `/routes`
+ * manifest — `deno task gen:routes:dwd`). `near` = nearest-station discovery; `values` =
  * a station's observations. A rename/removal upstream makes the literal unassignable to
- * {@link WetterdienstRoute}, so `deno task check` fails rather than the weather overlay silently
+ * {@link DwdRoute}, so `deno task check` fails rather than the weather overlay silently
  * emptying. See `explore/explore-wrapper-contract-drift.md`.
  */
-export const WETTERDIENST_ROUTES = {
+export const DWD_ROUTES = {
   near: "near",
   values: "values",
-} as const satisfies Record<string, WetterdienstRoute>;
+} as const satisfies Record<string, DwdRoute>;
 
 /**
- * The weather datasets the wrapper/upstream expose, as `{resolution}/{dataset}/{parameter}`
- * paths. Replaces the former `@wintechis/wetterdienst-rdf-adapter` `WeatherParameters` enum.
+ * The weather observables the app reads, as **CDC column names** of the wrapper's
+ * `annual/kl` product (the DWD-native vocabulary: `dwd:JA_TT` etc.). A `values`
+ * response carries all columns; these select client-side in {@link parseObservations}.
+ * Values are already in the columns' natural units (°C, hours, mm).
  */
 export const WEATHER_PARAMETERS = {
-  TEMPERATURE_MEAN_ANNUAL: "annual/climate_summary/temperature_air_mean_2m",
-  SUNSHINE_DURATION_ANNUAL: "annual/climate_summary/sunshine_duration",
-  PRECIPITATION_ANNUAL: "annual/climate_summary/precipitation_height",
+  TEMPERATURE_MEAN_ANNUAL: "JA_TT",
+  SUNSHINE_DURATION_ANNUAL: "JA_SD_S",
+  PRECIPITATION_ANNUAL: "JA_RR",
 } as const;
 
 /** A weather station as surfaced in the UI. `distance` (km) is present on ranked results;
@@ -84,9 +89,9 @@ export interface WeatherObservation extends WeatherAnnualValue {
   quality?: number;
 }
 
-/** Base IRI of linked-wetterdienst — delegates to the registry resolver (env-overridable). */
+/** Base IRI of linked-dwd — delegates to the registry resolver (env-overridable). */
 export function linkedWeatherBase(): string {
-  return sourceBase("wetterdienst");
+  return sourceBase("dwd");
 }
 
 /**
@@ -141,11 +146,18 @@ export function parseStations(turtle: string, baseIri: string): WeatherStation[]
 }
 
 /**
- * Parse a `values` Turtle document into a station's observations, sorted ascending by date.
- * Pure (network-free). Each `sosa:Observation` yields its `sosa:resultTime` (date), the
- * `qudt:numericValue` of its `sosa:hasResult` `qudt:QuantityValue`, and `dwd:quality`.
+ * Parse a `values` Turtle document into a station's observations **of one column**,
+ * sorted ascending by date. Pure (network-free). The response interleaves every
+ * measurement column of the product, so observations are selected by their
+ * `sosa:observedProperty` (`dwd:{column}`); each yields its `sosa:resultTime` (the
+ * aggregation-period end), the `qudt:numericValue` of its `sosa:hasResult`
+ * `qudt:QuantityValue`, and `dwd:quality`.
  */
-export function parseObservations(turtle: string, baseIri: string): WeatherObservation[] {
+export function parseObservations(
+  turtle: string,
+  baseIri: string,
+  column: string,
+): WeatherObservation[] {
   const store = parseRdfText(turtle, baseIri);
   const out: WeatherObservation[] = [];
   for (
@@ -156,15 +168,18 @@ export function parseObservations(turtle: string, baseIri: string): WeatherObser
       null,
     )
   ) {
+    let observed = "";
     let date = "";
     let quality: number | undefined;
     let resultNode = null;
     for (const q of store.getQuads(subject, null, null, null)) {
       const p = q.predicate.value;
-      if (p === `${SOSA_NS}resultTime`) date = q.object.value;
+      if (p === `${SOSA_NS}observedProperty`) observed = q.object.value;
+      else if (p === `${SOSA_NS}resultTime`) date = q.object.value;
       else if (p === `${DWD_NS}quality`) quality = Number.parseInt(q.object.value, 10);
       else if (p === `${SOSA_NS}hasResult`) resultNode = q.object;
     }
+    if (observed !== `${DWD_NS}${column}`) continue;
     let value: number | null = null;
     if (resultNode) {
       for (
@@ -187,24 +202,23 @@ export function parseObservations(turtle: string, baseIri: string): WeatherObser
 
 /** The dereferenceable `near?…` query IRI (and the Developer-mode source link)
  *  for the nearest stations to a coordinate. Absolute (the CORS-enabled host).
- *  `active` adds `&active=true` — the wrapper then drops discontinued stations before the
- *  `rank` cut (a graceful no-op on an older wrapper: the unknown param is ignored, and the
- *  client-side {@link pickStationForYears} overlap filter still excludes stale stations). */
+ *  Discovery is column-independent (the wrapper serves one product, `annual/kl`).
+ *  `active` adds `&active=true` — the wrapper drops discontinued stations before the
+ *  `rank` cut; the client-side {@link pickStationForYears} overlap filter additionally
+ *  excludes stations whose series misses the plotted years. */
 export function weatherStationsUrl(
   latitude: number,
   longitude: number,
   rank: number,
-  parameters: string,
   active = false,
 ): string {
   const params = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
     rank: String(rank),
-    parameters,
   });
   if (active) params.set("active", "true");
-  return `${linkedWeatherBase()}${WETTERDIENST_ROUTES.near}?${params}`;
+  return `${linkedWeatherBase()}${DWD_ROUTES.near}?${params}`;
 }
 
 /**
@@ -233,28 +247,28 @@ export function pickStationForYears(
 }
 
 /** The dereferenceable `values?…` query IRI (and the Developer-mode source link)
- *  for one station + parameter's observations. Absolute.
+ *  for one station's observations (all columns; the column selects at parse time).
+ *  Absolute.
  *
  *  Uses `periods=historical,recent` (not `recent` alone): for the **annual** climate datasets
  *  this app reads, the DWD `recent` file (last ~500 days) holds few or NO completed annual rows —
  *  a discontinued nearest station (e.g. Nürnberg-Buchenbuehl 03666) has an empty `recent` and the
  *  overlay showed nothing. `historical` carries the finalized annual series; adding `recent` keeps
  *  the latest year for still-active stations. */
-export function weatherValuesUrl(stationId: string, parameters: string): string {
-  return `${linkedWeatherBase()}${WETTERDIENST_ROUTES.values}?` +
-    new URLSearchParams({ station: stationId, parameters, periods: "historical,recent" });
+export function weatherValuesUrl(stationId: string): string {
+  return `${linkedWeatherBase()}${DWD_ROUTES.values}?` +
+    new URLSearchParams({ station: stationId, periods: "historical,recent" });
 }
 
-/** Fetch + parse the nearest `rank` stations to a coordinate for a parameter dataset.
+/** Fetch + parse the nearest `rank` stations to a coordinate.
  *  `active` asks the wrapper to drop discontinued stations (see {@link weatherStationsUrl}). */
 export async function fetchNearestStations(
   latitude: number,
   longitude: number,
   rank: number,
-  parameters: string,
   active = false,
 ): Promise<WeatherStation[]> {
-  const url = weatherStationsUrl(latitude, longitude, rank, parameters, active);
+  const url = weatherStationsUrl(latitude, longitude, rank, active);
   const res = await getSourceGateway().fetch(
     url,
     { headers: { Accept: "text/turtle" } },
@@ -264,17 +278,17 @@ export async function fetchNearestStations(
   return parseStations(await res.text(), url);
 }
 
-/** Fetch + parse the recent observations for one station + parameter dataset. */
+/** Fetch a station's observations and select one column ({@link WEATHER_PARAMETERS}). */
 export async function fetchStationValues(
   stationId: string,
-  parameters: string,
+  column: string,
 ): Promise<WeatherObservation[]> {
-  const url = weatherValuesUrl(stationId, parameters);
+  const url = weatherValuesUrl(stationId);
   const res = await getSourceGateway().fetch(
     url,
     { headers: { Accept: "text/turtle" } },
     "weather data",
   );
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching weather values`);
-  return parseObservations(await res.text(), url);
+  return parseObservations(await res.text(), url, column);
 }

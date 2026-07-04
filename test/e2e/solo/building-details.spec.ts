@@ -4,7 +4,11 @@ import { agentFieldT, t } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { buildingRoute, openBuildingsList } from "../helpers/manage.ts";
+import {
+  buildingRoute,
+  clickSectionAction,
+  openBuildingsList,
+} from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -95,10 +99,7 @@ test.describe("building details", () => {
     await page.goto(buildingRoute("building", id));
     // The operator is master data now (not a create-form basic) — set it INLINE via the
     // master-data editor (the create modal minted only address + coordinates).
-    await page.getByRole("heading", { name: t("secMasterData"), exact: true })
-      .locator("xpath=..")
-      .getByRole("button")
-      .click();
+    await clickSectionAction(page, t("secMasterData"));
     await page.getByLabel(agentFieldT("operatedBy")).fill(OP_WEBID);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: t("btnSave"), exact: true }).click();

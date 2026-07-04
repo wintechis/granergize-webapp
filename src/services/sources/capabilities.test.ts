@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import type { SourceId } from "../../constants/dataSources.ts";
 import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
-import { contains, deref, filter, point, search, within } from "./capabilities.ts";
+import { contains, deref, filter, nearby, search, within } from "./capabilities.ts";
 
 // Short, readable test bases instead of the production wunderfacts ones.
 const TEST_BASES: Partial<Record<SourceId, string>> = {
@@ -56,14 +56,14 @@ Deno.test("filter builds /filter?ags=, arrays repeat the key", async () => {
   );
 });
 
-Deno.test("within / point / contains build their grammars", async () => {
+Deno.test("within / nearby / contains build their grammars", async () => {
   const fb = gatewayServing("");
   await within(fb.gateway, "mastr", { w: 10, s: 47, e: 13, n: 50 }, { count: 500 });
   assert.equal(fb.calls[0].url, "https://mastr.test/within?bbox=10,47,13,50&count=500");
 
   const fp = gatewayServing("");
-  await point(fp.gateway, "lod2-by", { lon: 11, lat: 49, r: 300 });
-  assert.equal(fp.calls[0].url, "https://lod2.test/point?lon=11&lat=49&r=300");
+  await nearby(fp.gateway, "lod2-by", { lon: 11, lat: 49, r: 300 });
+  assert.equal(fp.calls[0].url, "https://lod2.test/nearby?lon=11&lat=49&r=300");
 
   const fc = gatewayServing("");
   await contains(fc.gateway, "nuts", { lat: 49, lon: 11 });
@@ -83,9 +83,9 @@ Deno.test("a wrong source+verb pairing throws (capability assert)", async () => 
     () => filter(fake.gateway, "lau", { ags: "09" }),
     /does not serve \/filter/,
   );
-  // wetterdienst serves only deref.
+  // dwd serves only deref.
   await assert.rejects(
-    () => search(fake.gateway, "wetterdienst", "nuremberg"),
+    () => search(fake.gateway, "dwd", "nuremberg"),
     /does not serve \/search/,
   );
 });

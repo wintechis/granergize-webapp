@@ -129,6 +129,25 @@ export function buildingRoute(
  * "Building deleted" toast, which lingers ~6 s from the previous delete and
  * lets a loop race ahead into mid-refetch re-renders that swallow clicks.
  */
+/**
+ * Click a section header's ACTION button (Edit / Add …) by the section heading.
+ * The heading shares an inner wrapper with the dev-mode provenance marker (the
+ * "Oh, yeah?" IconButton), so the action button lives in the header ROW — the
+ * heading's grandparent — and is its LAST button (the marker, when Developer
+ * mode is on, precedes it). Replaces the old `heading/../button` pattern, which
+ * the marker wrapper broke.
+ */
+export async function clickSectionAction(
+  page: Page,
+  heading: string,
+): Promise<void> {
+  await page.getByRole("heading", { name: heading, exact: true })
+    .locator("xpath=../..")
+    .getByRole("button")
+    .last()
+    .click();
+}
+
 export async function deleteBuildingRow(page: Page, id: string): Promise<void> {
   const row = page.locator(`li[data-building-id="${id}"]`).first();
   await row.getByRole("button", { name: t("buildingDeleteAria") }).click();
@@ -182,10 +201,7 @@ export async function addBuilding(
   if (opts.operatedBy) {
     const { id } = await findOwnBuildingRow(page, street);
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("heading", { name: t("secMasterData"), exact: true })
-      .locator("xpath=..")
-      .getByRole("button")
-      .click();
+    await clickSectionAction(page, t("secMasterData"));
     await page.getByLabel(agentFieldT("operatedBy")).fill(opts.operatedBy);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: t("btnSave"), exact: true }).click();

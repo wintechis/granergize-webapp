@@ -111,7 +111,11 @@ test.describe("live open-data enrichment over an uploaded real archive", () => {
   });
 
   test.afterAll(async () => {
-    await verifyAndReset(page, "archive-live-enrichment");
+    // The ~1.3k-resource archive's recursive delete far outlasts the default
+    // wipe budget — give it the same room the import got (T.action fits a normal spec).
+    await verifyAndReset(page, "archive-live-enrichment", {
+      wipeTimeout: IMPORT_TIMEOUT,
+    });
     await page.close();
   });
 

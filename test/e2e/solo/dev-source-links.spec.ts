@@ -15,7 +15,7 @@ import { t } from "../helpers/i18n.ts";
 
 /**
  * Developer-mode source links for the THREE external observation wrappers
- * (linked-regionalstatistik, linked-wetterdienst, linked-mastr). In dev mode each
+ * (linked-regionalstatistik, linked-dwd, linked-mastr). In dev mode each
  * section must surface the ACTUAL dereferenced wrapper IRI as an absolute,
  * clickable, external link (MUI `<Link target=_blank>`), mirroring the Pod links —
  * so the data the app fetched is inspectable. All three wrappers are stubbed so the
@@ -68,7 +68,7 @@ const WEATHER_STATIONS_TTL = `
 @prefix dwd: <https://opendata.dwd.de/#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix schema: <http://schema.org/> .
-<https://wunderfacts.com/wetterdienst/station/03668> a dwd:WeatherStation ;
+<https://wunderfacts.com/dwd/station/03668> a dwd:WeatherStation ;
   dwd:station_id "03668" ; dwd:station_name "Nürnberg" ;
   geo:lat 49.50 ; geo:long 11.06 ; schema:distance 6 .
 `;
@@ -77,7 +77,8 @@ const WEATHER_VALUES_TTL = `
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix qudt: <http://qudt.org/1.1/schema/qudt#> .
 @prefix dwd: <https://opendata.dwd.de/#> .
-<#obs1> a sosa:Observation ; sosa:resultTime "2023-01-01" ; dwd:quality 3 ;
+<#obs1> a sosa:Observation ; sosa:observedProperty dwd:JA_TT ;
+  sosa:resultTime "2023-12-31" ; dwd:quality 3 ;
   sosa:hasResult [ qudt:numericValue 9.8 ] .
 `;
 
@@ -98,7 +99,7 @@ test.describe("dev-mode external source links", () => {
     await page.route(/\/regionalstatistik\//, (route) =>
       route.fulfill(ttl(REGIO_TTL)));
     await page.route(/\/mastr\/within/, (route) => route.fulfill(ttl(MASTR_TTL)));
-    await page.route(/\/wetterdienst\//, (route) => {
+    await page.route(/\/dwd\//, (route) => {
       const url = route.request().url();
       return route.fulfill(
         ttl(url.includes("values?") ? WEATHER_VALUES_TTL : WEATHER_STATIONS_TTL),
@@ -134,15 +135,17 @@ test.describe("dev-mode external source links", () => {
     if (!id) throw new Error("dev-source-links: missing building id");
 
     // Each section surfaces the ACTUAL dereferenced wrapper IRI (absolute, external).
-    // The building's location-context layers — regional statistics, weather, nearby
-    // installations — ALL live on the observation (energy) page now; the bare master-data
-    // /building page carries no dereferenced wrapper IRIs. The regional figures are
-    // map-first, so switch to the figures table to surface its source link.
+    // The region-grain layers — regional statistics, weather — live on the
+    // observation (energy) page; the nearby installations moved to the BUILDING
+    // page's Surroundings section. The regional figures are map-first, so switch
+    // to the figures table to surface its source link.
     const regioLink = 'a[href^="https://wunderfacts.com/regionalstatistik/data/86251-Z-02"]';
     const onObservation = {
-      weather: 'a[href^="https://wunderfacts.com/wetterdienst/values?"]',
-      mastr: 'a[href^="https://wunderfacts.com/mastr/within?"]',
+      weather: 'a[href^="https://wunderfacts.com/dwd/values?"]',
       regionalstatistik: regioLink,
+    };
+    const onBuilding = {
+      mastr: 'a[href^="https://wunderfacts.com/mastr/within?"]',
     };
     const assertLinks = async (where: Record<string, string>) => {
       for (const [name, sel] of Object.entries(where)) {
@@ -161,14 +164,17 @@ test.describe("dev-mode external source links", () => {
     await page.goto(buildingRoute("observation", id));
     await showRegionalTable();
     await assertLinks(onObservation);
+    await page.goto(buildingRoute("building", id));
+    await assertLinks(onBuilding);
 
     // Sanity: the same links are HIDDEN once dev mode is off (self-hiding affordance).
     await page.goto("/");
     await setDevMode(page, false);
     await page.goto(buildingRoute("observation", id));
     await showRegionalTable();
-    await expect(page.locator(onObservation.mastr)).toHaveCount(0);
     await expect(page.locator(onObservation.regionalstatistik)).toHaveCount(0);
+    await page.goto(buildingRoute("building", id));
+    await expect(page.locator(onBuilding.mastr)).toHaveCount(0);
 
     // Cleanup.
     await page.goto("/");
