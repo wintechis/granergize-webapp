@@ -422,9 +422,9 @@ export const shellAuth = {
       "Saisissez l’adresse web de votre fournisseur d’identité — par exemple https://login.inrupt.com ou https://solidcommunity.net — et non votre e-mail ou WebID.",
   },
   loginSignIn: {
-    en: "Recommended identity providers",
-    de: "Empfohlene Identity Provider",
-    fr: "Fournisseurs d'identité recommandés",
+    en: "Suggested identity providers",
+    de: "Vorgeschlagene Identity Provider",
+    fr: "Fournisseurs d'identité suggérés",
   },
   loginSignInAgainWith: {
     en: "Previously used",

@@ -18,6 +18,8 @@ import { logError } from "../lib/logError.ts";
 import { clearLocalData, hasLocalData } from "../lib/clearLocalData.ts";
 import Landing from "./Landing.tsx";
 import { normalizeIssuer } from "../lib/normalizeIssuer.ts";
+import { diagnoseLoginFailure } from "../lib/diagnoseLoginFailure.ts";
+import { UriLink } from "../components/detail/DetailView.tsx";
 import { msg } from "../lib/messages.ts";
 
 interface LoginProps {
@@ -455,7 +457,13 @@ export const Login: React.FC<LoginProps> = ({
       setRedirectingTo(null);
       setInvalidIDP(true);
       setAttemptedIdp(targetIdp);
+      // Show the raw platform message immediately, then upgrade it with the HTTP
+      // status recovered by probing the provider's OIDC discovery document (the
+      // opaque "NetworkError" carries no code). Best-effort; never throws.
       setLoginErrorDetail(err instanceof Error ? err.message : String(err));
+      diagnoseLoginFailure(targetIdp, err).then(setLoginErrorDetail).catch(
+        () => {}, // the diagnostic never rejects; satisfy no-floating-promises
+      );
     });
   }
 
@@ -518,7 +526,12 @@ export const Login: React.FC<LoginProps> = ({
     // hosts the real provider chooser below (a working OIDC sign-in, not links).
     return (
       <Landing
-        loginErrorOpen={!!restoreError}
+        // Keep the login modal open for BOTH error kinds: a failed silent
+        // restore (`restoreError`) AND a failed sign-in attempt (`invalidIDP`).
+        // A failed attempt renders the full-screen "Redirecting…" screen, which
+        // unmounts Landing; without this the freshly-remounted Landing defaults
+        // its modal CLOSED and the error sits unseen until the user reopens it.
+        loginErrorOpen={!!restoreError || invalidIDP}
         login={
           <Box
             sx={{
@@ -668,7 +681,22 @@ export const Login: React.FC<LoginProps> = ({
                 {invalidIDP && (
                   <Alert severity="error" sx={{ mt: 1 }}>
                     {attemptedIdp
-                      ? msg("loginCouldNotSignInTo", { idp: attemptedIdp })
+                      ? (() => {
+                        // Render the provider as a clickable link IN PLACE of the
+                        // `{idp}` placeholder — split the raw template (msg with no
+                        // params leaves `{idp}` literal) so each language keeps its
+                        // word order. UriLink falls back to plain text for a
+                        // non-URL (the "that's not a web address" case).
+                        const [before, after] = msg("loginCouldNotSignInTo")
+                          .split("{idp}");
+                        return (
+                          <>
+                            {before}
+                            <UriLink href={attemptedIdp}>{attemptedIdp}</UriLink>
+                            {after}
+                          </>
+                        );
+                      })()
                       : msg("loginCouldNotSignIn")}{" "}
                     {msg("loginEnterIdpHint")}
                     {loginErrorDetail && (

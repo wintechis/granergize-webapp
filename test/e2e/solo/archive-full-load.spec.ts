@@ -157,7 +157,12 @@ test.describe("full logistics archive imports and renders at scale", () => {
   });
 
   test.afterAll(async () => {
-    await verifyAndReset(page, "archive-full-load");
+    // The full logistics archive (~1.3k resources) takes far longer than the
+    // default wipe budget to delete — give it the import's own timeout (as the
+    // sibling archive-live-enrichment spec does).
+    await verifyAndReset(page, "archive-full-load", {
+      wipeTimeout: IMPORT_TIMEOUT,
+    });
     await page.close();
   });
 
