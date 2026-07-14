@@ -1,0 +1,918 @@
+\documentclass[11pt,a4paper]{article}
+
+% Companion draft to paper-vector-navigation.tex; venue-neutral.
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{microtype}
+\usepackage{fullpage}
+\usepackage{setspace}
+\onehalfspacing
+\emergencystretch=1.5em
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=4pt}
+
+\newtheorem{definition}{Definition}[section]
+\newtheorem{property}{Property}[section]
+\newtheorem{guarantee}{Guarantee}[section]
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[section]
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{The Client Is the Database:\\ Caching, Consistency, and Projection Maintenance\\ for Applications over Personal Data Stores}
+\author{Draft --- author list TBD}
+\date{2026-07-12 (working draft)}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+In an application over personal data stores (Solid pods), the storage layer is a
+set of plain HTTP resource servers the application does not control: there is no
+server-side query engine, no reliable push channel, and several agents write. The
+layers a database management system normally provides --- concurrency control,
+cache coherence, materialised-view maintenance --- must therefore be
+reconstructed client-side over HTTP. We describe such a reconstruction. Writes
+commit against one of two \emph{storage models} --- in-place resources under
+optimistic concurrency, or append-only event logs whose current state is a
+\emph{projection} --- with the access-control lists maintained as a replayable
+materialised projection of a user-owned grant log. Reads flow through a
+\emph{resource-oriented} client cache that mirrors the store's container/resource
+graph, keyed by IRI, deriving screen shapes at the edge; we show this keying makes
+cache coverage structural (a derived read cannot silently under-cover its inputs).
+Freshness is maintained without push by four mechanisms --- server-driven
+revalidation, write-owned invalidation, last-good-wins rendering, and
+\emph{attention-triggered} revalidation for state written by other agents --- and
+we state the resulting consistency contract in the style of session guarantees.
+Finally we report conformance findings from running against three Solid server
+implementations: entity validators are missing or, in one case, unsound under
+content negotiation, and retry layers must sit above per-request proof-of-possession
+signing. The system is in production use in a building-energy application; a
+companion paper describes the interaction model above this layer.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+The premise of personal data stores is that applications \emph{visit} data that
+users own~\cite{solid}. Architecturally this deletes the database tier: a Solid
+pod is a plain HTTP resource server speaking LDP~\cite{ldp} --- \code{GET},
+\code{PUT}, \code{POST}, \code{DELETE} over RDF documents and containers --- with
+per-resource access control~\cite{wac}. Three consequences follow for any
+non-trivial application:
+
+\begin{itemize}
+\item \textbf{No query engine.} The store answers only dereference and container
+  listing. Joins, folds, and projections happen in the client.
+\item \textbf{No push.} Change notification exists as a
+  specification~\cite{solid-notifications} but cannot be assumed across servers;
+  in practice the client polls, and must decide \emph{when}.
+\item \textbf{Multiple writers.} The user's own devices, the application's own
+  reconciliation, and --- through sharing --- \emph{other agents} write state the
+  client renders. Some of that state (another user's access-control lists) the
+  client cannot even read.
+\end{itemize}
+
+A DBMS would meet these with concurrency control, cache coherence, and
+materialised-view maintenance. Our thesis: \textbf{the client must become its own
+database}, and doing so systematically --- rather than screen by screen --- is
+what keeps a decentralised application correct. This paper reports the design as
+built and hardened in Granergize, a production React application for
+building-energy data on Solid pods, and makes four contributions:
+
+\begin{enumerate}
+\item \textbf{A write-side taxonomy} (\S\ref{sec:writes}): two storage models
+  (in-place vs event-sourced) chosen by where authority lives, two projection
+  disciplines (fold-on-read vs materialised) chosen by whether the consumer can
+  fold, and an orthogonal trigger axis (user-intent vs reconciliation) --- with
+  the WAC access-control lists as a \emph{replayable materialised projection} of
+  a user-owned grant log, including the audit and repair operations that keep it
+  honest, and an idempotency discipline (client-chosen URIs, conditional
+  \code{PUT}) that makes creation replay-safe under a retrying transport.
+\item \textbf{A resource-oriented client cache} (\S\ref{sec:reads}): entries
+  mirror the store's container/resource graph, keyed by IRI and namespaced by
+  viewer; screen shapes are derived at the edge by pure selectors. We state the
+  structural property this buys: a derived read cannot under-cover its inputs,
+  because the unit of invalidation is the resource a write touches.
+\item \textbf{A consistency contract without push} (\S\ref{sec:consistency}):
+  four freshness mechanisms, including \emph{attention-triggered revalidation}
+  for cross-agent state, and the resulting guarantees stated in the style of
+  session guarantees~\cite{terry1994} --- read-your-writes for own-pod state,
+  monotonic display per session, attention-bounded eventual consistency across
+  agents, and self-healing visibility under revocation.
+\item \textbf{Ecosystem conformance findings} (\S\ref{sec:findings}): what three
+  Solid server implementations actually provide of the HTTP machinery this
+  design leans on --- missing entity validators, a content-negotiation
+  unsoundness in conditional requests, and the interaction of retries with
+  DPoP-style proof-of-possession --- plus the in-application instrumentation used
+  to find them.
+\end{enumerate}
+
+A companion paper describes the interaction model \emph{above} this layer (a
+typed command--query intent catalogue and a navigation state machine); the
+interface between the two is exactly the intent dispatch: this paper is what
+happens beneath a read intent's answer and a write intent's commit.
+
+\section{A running example}\label{sec:running}
+
+Alice operates logistics halls; her pod holds one RDF document per building and
+one per energy year. She shares the Feucht hall --- energy included, years
+2022--2024 --- with her consultant Carol. Three things must now stay true, and
+each is threatened by a different failure mode:
+
+\begin{enumerate}
+\item \emph{Carol can read exactly what Alice granted.} The grant's scope lives
+  in an event Alice's pod records; the server enforces only \code{.acl} files.
+  If the two drift --- an archive restore that recovers the log but not the
+  ACLs, or a new 2025 energy year created \emph{inside} an all-years grant ---
+  enforcement silently diverges from intent (\S\ref{sec:projections}).
+\item \emph{Alice's screens reflect her writes, immediately.} She edits the hall
+  and saves a reading; every view folding that document must refetch --- and
+  nothing else should (\S\ref{sec:reads}).
+\item \emph{Alice eventually sees what others did.} Bob revokes a share to her;
+  a data-room member joins. No notification may arrive; her client must decide
+  when to look (\S\ref{sec:consistency}).
+\end{enumerate}
+
+The design below is organised around exactly these three obligations.
+
+\section{Setting and requirements}\label{sec:setting}
+
+The store is a set of pods: per-user HTTP servers holding RDF (Turtle) documents
+in LDP containers, authenticated by Solid-OIDC with DPoP proof-of-possession, and
+authorised per resource by WAC \code{.acl} documents that only the server's
+enforcement engine reads. The application reads three \emph{tiers} of data ---
+\emph{owned} (the user's pod), \emph{granted} (peers' pods, via shares), and
+\emph{open} (public registers, spatially gated) --- and the reachable data set is
+assembled at read time; there is no global index, so no read may claim
+exhaustiveness. From the failure modes of \S\ref{sec:running} we take the
+requirements: (R1) writes must be safe under concurrency \emph{and} under a
+retrying transport; (R2) enforcement state must remain rebuildable from recorded
+intent; (R3) a write must refresh exactly the reads it affects; (R4) state
+written by other agents must become visible without a push channel; (R5) all of
+it must degrade gracefully on servers that implement the HTTP machinery
+partially (\S\ref{sec:findings}).
+
+\paragraph{The store, concretely.} All application state lives under one
+\emph{app collection} on the user's storage, \code{granergize/} under the
+pod's storage root; Figure~\ref{fig:podlayout} shows its layout. Container and resource URIs are
+client-chosen (\S\ref{sec:idempotency}) and structure-bearing: a building's
+attachments and its energy datasets are derivable from the building's own URI
+without a discovery read, and the observation tree is \emph{time-first}
+(year before entity) so a period's data is one container listing. This graph
+is exactly what the client cache of \S\ref{sec:reads} mirrors, entry per
+resource. Table~\ref{tab:statekinds} classifies each resource kind along the
+dimensions \S\ref{sec:writes} develops --- which storage model governs it, who
+writes it, and how its current state is derived.
+
+\begin{figure}[t]
+\begin{center}
+\small
+\begin{tabular}{@{}l@{\qquad}l@{}}
+\texttt{granergize/} & \\
+\texttt{|--~buildings/} & \\
+\texttt{|~~~|--~\{id\}.ttl} & building master data (subject \texttt{<\#it>}) \\
+\texttt{|~~~`--~\{id\}/files/\{name\}} & binary attachments \\
+\texttt{|--~observations/} & \\
+\texttt{|~~~|--~\{year\}/\{id\}.ttl} & annual energy datasets (time-first) \\
+\texttt{|~~~`--~\{year\}/\{month\}/\{day\}/\{id\}.ttl} & sub-daily series \\
+\texttt{|--~aggregations/} & \\
+\texttt{|~~~|--~\{id\}.ttl} & roll-up definitions \\
+\texttt{|~~~`--~snapshots/\{id\}.ttl} & computed snapshots \\
+\texttt{|--~rooms/} & \\
+\texttt{|~~~`--~\{id\}/\ldots} & data-room event logs (shared) \\
+\texttt{|--~shared-out/} & outgoing grant log \\
+\texttt{|--~shared-in/} & incoming grant log \\
+\texttt{|--~inbox/} & notification inbox (discoverable) \\
+\texttt{|--~prefs.ttl} & preferences \\
+\texttt{|--~bookmarks.ttl} & room bookmarks \\
+\texttt{`--~agents.ttl} & address book \\
+\end{tabular}
+\end{center}
+\caption{The app collection on a user's storage (a relative reference,
+resolved against the pod's storage root). Every entry is an ordinary LDP
+resource or container; the tree is what the resource-oriented cache
+(\S\ref{sec:reads}) mirrors. Room containers are the one place other agents
+write inside a user's collection (via the room's own ACL); the inbox receives
+\code{POST}s from peers and is drained into \code{shared-in/}. The
+per-resource \code{.acl} documents sit beside the resources they protect and
+are omitted here; Figure~\ref{fig:acls} gives their shape.}
+\label{fig:podlayout}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lll@{}}
+\code{.acl} of & authorization (agent) & modes \\
+\hline
+any owned resource & \code{\#owner} (owner WebID) & \code{Read},
+  \code{Write}, \code{Control} \\[3pt]
+shared building \code{\{id\}.ttl} & \code{\#owner}; + one per grantee WebID
+  & grantee: \code{Read} \\
+its \code{files/} container & \code{\#owner}; + grantee, with
+  \code{acl:default} & grantee: \code{Read} \\
+each in-scope energy dataset & \code{\#owner}; + grantee (per granted year)
+  & grantee: \code{Read} \\[3pt]
+room container \code{rooms/\{id\}/} & \code{\#owner} (creator);
+  \code{\#members} & members: \code{Read}, \code{Append} \\
+ & \quad(= \code{acl:AuthenticatedAgent}); both & \\
+ & \quad carry \code{acl:default} & \\
+inbox \code{inbox/} & \code{\#owner}; \code{\#append}
+  (\code{acl:AuthenticatedAgent}) & peers: \code{Read}, \code{Append} \\
+\end{tabular}
+\caption{The enforcement cache: the authorizations each \code{.acl} carries.
+Every owned resource grants its owner full control; a share adds one
+\code{acl:Read} authorization per grantee to the building document, its
+\code{files/} container (with \code{acl:default}, so later uploads inherit),
+and each energy dataset the grant's recorded scope covers. Room containers
+and the inbox are the two places other agents may write: members of a room
+read and append under its container-wide default; any authenticated agent
+may deliver into the inbox. All of these are derived state --- rebuilt from
+the \code{shared-out/} log by replay (\S\ref{sec:projections}).}
+\label{fig:acls}
+\end{figure}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}llll@{}}
+resource kind & storage model & writer(s) & current state \\
+\hline
+building doc, energy dataset & in-place, cond.\ \code{PUT} & owner & the resource itself \\
+attachments (binary) & in-place, immutable & owner & the resource itself \\
+aggregation defs + snapshots & in-place, cond.\ \code{PUT} & owner & the resource itself \\
+prefs, bookmarks, address book & in-place, cond.\ \code{PUT} & owner & the resource itself \\
+outgoing share log & event log, \code{POST} & owner & fold-on-read \\
+incoming share log & event log, \code{POST} & owner (drain) & fold-on-read \\
+room logs & event log, \code{POST} & all participants & fold-on-read \\
+inbox & transport, \code{POST} & other agents & drained, not folded \\
+\code{.acl} files & materialised projection & this client (replayable) & rebuilt from grant log \\
+\end{tabular}
+\caption{Every state kind, classified along the write-side dimensions of
+\S\ref{sec:writes}: which storage model governs it, who writes it, and how its
+current state is derived. The one materialised projection is the enforcement
+cache (\S\ref{sec:projections}); everything else is either ground truth
+in place or a log folded on read.}
+\label{tab:statekinds}
+\end{table}
+
+\paragraph{Documents and their classes.} Each resource is a Turtle document;
+Table~\ref{tab:classes} lists the principal RDF classes per document kind.
+The vocabulary mix is standard-first: buildings are RealEstateCore, raw
+readings SOSA, aggregates the RDF Data Cube, grants the Solid interop
+vocabulary, room events ActivityStreams, agents FOAF/vCard, enforcement WAC,
+lineage PROV --- with three small application-owned namespaces
+(\code{bldg:}, \code{cons:}, \code{gran:}) for what no standard covers
+(building subsystems, the energy-dataset envelope, app preferences). The
+schema is enforced by the application's parsers and serialisers, not by a
+shapes language: no ShEx or SHACL artefact exists, and a document with
+unexpected triples is read leniently (unknown triples survive a
+read--modify--write untouched). For this paper the class structure matters
+mainly as the unit of parsing: a cache entry (\S\ref{sec:reads}) holds one
+document parsed against these classes. Instances follow two idioms, and the
+table's middle column makes them explicit: an \emph{addressable entity} is a
+fragment of its document (a building is \code{\ldots\{id\}.ttl\#it}, a
+dataset \code{\ldots\{id\}.ttl\#ds}) --- the document is the unit of caching
+and concurrency, the fragment the entity --- whereas an \emph{immutable
+event} is its document (\code{<> a interop:AccessGrant}), one event per
+server-minted log resource, which is what lets event entries opt out of
+revalidation entirely (\S\ref{sec:mechanisms}).
+
+\paragraph{The open tier, concretely.} The granted tier reuses the layout
+above --- a peer's app collection, read with the recipient's own credentials
+--- but the open tier is different in kind: external Linked-Data services,
+resolved from a static registry of wrapper bases
+(\code{https://wunderfacts.com/\{mastr, dwd, regionalstatistik, energieatlas,
+lod2-by, nuts, lau, netztransparenz, addressapi\}/}, plus Wikidata and
+Wikimedia Commons for operator identities and logos), reached over plain
+unauthenticated HTTP through a second, read-only transport --- retried and
+instrumented like the authed one, but with no DPoP and no identity, so it can
+be ambient where the Pod gateway must be threaded. Discovery is query-shaped:
+each wrapper exposes a small capability vocabulary over its base ---
+dereference plus \code{/search?q=}, \code{/within?bbox=W,S,E,N},
+\code{/nearby?lon=\&lat=\&r=}, \code{/contains?lat=\&lon=},
+\code{/filter?\{attrs\}} --- and these query URLs are exactly the
+\emph{spatial gates} of the tier model: the reachable open set is what the
+gates issued so far have returned, never a corpus. Responses are negotiated
+per source --- Turtle for records and cubes, GeoJSON for region boundaries;
+Table~\ref{tab:openclasses} lists the principal classes. Open entries share
+the client cache but not its freshness contract: no local write ever touches
+them, so they are never write-invalidated (\S\ref{sec:mechanisms});
+keyed by external IRI or gate URL, they instead carry long time-based
+staleness --- a region's boundary or a published statistic changes on
+bureaucratic, not interactive, timescales.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llp{6.2cm}@{}}
+source & discovery & principal classes / format \\
+\hline
+\code{regionalstatistik/}, & filter, deref &
+  \code{qb:DataSet} cubes of \code{qb:Observation}s; \code{skos:Concept}
+  dimension code lists \\
+\quad\code{energieatlas/} & & \\
+\code{dwd/} (weather) & \code{near?lat\ldots}, \code{values?station} &
+  \code{sosa:Observation} series, \code{sosa:Sensor} stations \\
+\code{mastr/}; \code{netztransparenz/} & within (bbox), filter, deref &
+  typed generation-unit records (\code{mastr:} vocabulary); per-plant EEG
+  settlement figures \\
+\code{lod2-by/} & filter, deref & \code{lod2:Building},
+  \code{lod2:RoofSurface}, \code{lod2:GroundSurface} \\
+\code{lau/}, \code{nuts/} & contains, search, deref & \code{skos:Concept}
+  region hierarchy; boundary polygons as GeoJSON \\
+\code{addressapi/} & \code{search?\{road,postcode,\ldots\}} & register
+  address points (JSON) \\
+\end{tabular}
+\caption{The open tier: external sources (bases under
+\code{https://wunderfacts.com/}), their discovery gates, and the principal
+classes the client parses from them. All are read over unauthenticated HTTP
+with per-source content negotiation; none is ever write-invalidated.}
+\label{tab:openclasses}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llp{6.4cm}@{}}
+document kind & instance IRI & principal classes \\
+\hline
+building & \code{buildings/\{id\}.ttl\#it} & \code{rec:Building}; subsystem
+  fragment nodes \code{bldg:PVSystem}, \code{bldg:BatteryStorage},
+  \code{bldg:CHPSystem}, heating (\code{bldg:GasBoiler},
+  \code{bldg:HeatPump}, \ldots); \code{bldg:Address}, \code{geo:Point};
+  \code{schema:MediaObject} (attachment links); \code{prov:Attribution} \\
+energy dataset & \code{observations/\ldots/\{id\}.ttl\#ds} &
+  \code{cons:EnergyDataset} (dual-typed \code{sosa:ObservationCollection}),
+  one per building, year, and scenario (\code{cons:Actual} vs
+  \code{cons:Planned}); members \code{sosa:Observation}; rolled-up figures
+  \code{qb:Observation} \\
+aggregation & \code{aggregations/\{id\}.ttl},
+  & \code{cons:AggregationDefinition}; \code{cons:AggregationSnapshot},
+  \code{cons:BenchmarkResult} \\
+ & \code{\ldots/snapshots/\{id\}.ttl} & \\
+grant event & \code{shared-out/\{event\}} $=$ \code{<>} &
+  \code{interop:AccessGrant}, \code{interop:AccessRevocation} (mirrored into
+  \code{shared-in/} on the recipient) \\
+room event & \code{rooms/\{id\}/\{event\}} $=$ \code{<>} & \code{as:Join},
+  \code{as:Leave}, \code{as:Update}; \code{gran:UserRole} \\
+address book & \code{agents.ttl\#book}; contacts by WebID &
+  \code{vcard:AddressBook}; \code{vcard:Individual},
+  \code{vcard:Organization} (also \code{foaf:Agent} in grants) \\
+singletons & \code{prefs.ttl}, \code{bookmarks.ttl} $=$ \code{<>} &
+  \code{gran:Preferences}, \code{gran:Bookmarks} \\
+\code{.acl} & \code{\{resource\}.acl\#owner}, \code{\#grantee}, \ldots &
+  \code{acl:Authorization} (modes \code{acl:Read}, \code{acl:Write},
+  \code{acl:Control}; Figure~\ref{fig:acls}) \\
+\end{tabular}
+\caption{Principal RDF classes per document kind. Prefixes are as registered
+at \url{https://prefix.cc}, except: \code{rec:} is RealEstateCore
+(\code{https://w3id.org/rec\#}), \code{geo:} is WGS84 lat/long
+(\code{http://www.w3.org/2003/01/geo/wgs84\_pos\#}), and \code{bldg:},
+\code{cons:}, \code{gran:} are application-owned
+(\code{https://solid.ti.rw.fau.de/gra/\{building,consumption,vocab\}.ttl\#}).}
+\label{tab:classes}
+\end{table}
+
+\section{The write path: storage models and projections}\label{sec:writes}
+
+\subsection{Two storage models}\label{sec:models}
+
+Every mutation commits against one of two models, chosen by \textbf{where
+authority (ground truth) lives}:
+
+\begin{description}
+\item[In-place resource (the default).] The resource \emph{is} the state:
+  \code{GET} $\to$ mutate $\to$ conditional \code{PUT} with \code{If-Match} ---
+  optimistic concurrency in its plain HTTP form, retried through a re-read on
+  \code{412}/\code{409} and surfaced as a conflict after bounded attempts.
+  The conditionality is \emph{validator-dependent}: \code{If-Match} is sent when
+  the read supplied an \code{ETag}; on servers that omit validators
+  (\S\ref{sec:findings}) the write proceeds unconditioned and the model
+  degrades, knowingly, to last-writer-wins --- acceptable for the data this
+  model is reserved for (single-writer personal state, where the residual race
+  is the same user's own devices), but a degradation the conformance findings
+  make explicit rather than the design hiding it. Correct wherever the data has
+  a single writer who owns it: building documents, energy datasets, preference
+  and bookmark files, aggregation definitions and snapshots, the profile
+  document.
+\item[Event-sourced log (the escalation).] Chosen when in-place breaks down:
+  several agents write the same state (concurrent \code{PUT}s would clobber), or
+  the history is itself the point (audit, replay). Immutable events are
+  \code{POST}ed to an LDP container --- the server mints each child IRI, so
+  concurrent appends never collide --- and are never updated. The log is ground
+  truth; \emph{current state is always derived through a projection}
+  (\S\ref{sec:projections}). Instances: the outgoing and incoming share logs,
+  per-room membership/role logs, the notification inbox.
+\end{description}
+
+The governing rule is one sentence: \emph{overwrite single-writer owned state in
+place; event-source anything cross-agent or needing replay; treat enforcement
+artifacts as projections of the log.}
+
+Within the event model there are two \emph{delivery topologies}, chosen by
+whether the affected party can read where the fact lives. A \textbf{shared
+container} (the rooms) is one log all participants can read and append to;
+nobody is notified --- readers fold when they look. An \textbf{inbox push} (the
+sharing events) is used when the authoritative record sits behind the writer's
+access control: the grant lives in the sharer's log and ACLs, which the
+recipient cannot read, so a \emph{copy} of the event is delivered into the
+recipient's inbox --- transport, not a log; the drain archives each message into
+the recipient's own incoming log and deletes it, leaving the event recorded once
+per party.
+
+\subsection{Idempotent creation under a retrying transport}\label{sec:idempotency}
+
+Every write rides a retry layer (transient throttling is a fact of hosted pods,
+\S\ref{sec:findings}), which forces a creation discipline. Addressable resources
+are created by \code{PUT} to a \emph{client-chosen} URI, not by
+\code{POST}-and-\code{Location}: a \code{PUT} retry hits the same URI, and
+\code{If-None-Match:\,*} turns a duplicate replay into a clean \code{412} --- the
+idempotent-create primitive HTTP already has. A \code{POST} retry, by contrast,
+mints a second slug on a lost \code{201} and silently duplicates the resource.
+\code{POST} is reserved for exactly the places where a fresh server-minted child
+per append is wanted and a retry duplicate folds away harmlessly: the event
+logs. ``Harmlessly'' is a requirement on the folds, not luck: every projection
+folds latest-per-key (a grant by (resource, grantee), a membership by member),
+so a duplicated event coincides with its original --- appends are effectively
+idempotent \emph{modulo the fold}, which is the algebraic condition retry
+safety actually needs.
+Rule of thumb: resources you must \emph{address later} get client URIs; resources
+you only \emph{accumulate} get \code{POST}. Client-chosen URIs also let one flow
+derive every dependent path (a building's datasets, a room's ACL and first join
+event) without a write--parse--derive round-trip, and behave identically across
+server implementations where \code{Slug}/\code{Location} semantics vary.
+
+\subsection{Failure atomicity: ordering, not transactions}\label{sec:atomicity}
+
+There are no multi-resource transactions, so a mutation that spans resources
+(a building document plus its datasets; a grant's log event, ACL projection,
+and inbox notification) states its failure model through \emph{write
+ordering}: dependent resources first, the \emph{discoverable} resource last,
+so the last write is the commit point and a crash before it leaves only inert
+orphans no read will find. Bulk operations extend this per item: seeding $N$
+demo entities is per-item best-effort with a tally outcome
+(``added $n$ of $N$'') --- partial success is a \emph{result} the caller
+renders, not an error --- and a retry mints fresh identifiers rather than
+resuming. There is no compensation; what replaces rollback is the
+reconciliation family of \S\ref{sec:triggers}: a grant recorded but not (or
+no longer correctly) enforced is repaired by replay, a projection that drifted
+is repaired by the audit's repair twin, and the archive restore \emph{embeds}
+its reconciliation (the archive carries the log but not the derived ACLs, so
+the restore mutation runs the replay as part of the same intent). Sagas
+without compensation, ordered so that every interrupted state is either
+invisible or repairable.
+
+\subsection{Projections, and the enforcement cache}\label{sec:projections}
+
+A log's derived state reaches its consumer through one of two disciplines, chosen
+by \emph{whether the consumer can fold the log itself}:
+
+\begin{description}
+\item[Fold-on-read (the default).] The projection is computed in memory each
+  time a query reads the log --- group events by key, keep the latest, emit
+  current state --- and never persisted. The consumer is the application.
+\item[Materialised projection.] Persisted as a store resource because the
+  consumer \emph{cannot} fold. The sole instance is load-bearing: the WAC
+  \code{.acl} files. The server's enforcement engine reads only \code{.acl}, so
+  the projection must be written where the enforcer looks --- but the \code{.acl}
+  is \emph{not} ground truth. It is an enforcement cache, rebuilt from the
+  outgoing share log by a replay operation; a grant or revocation writes the ACL
+  at the call site (mechanically an in-place \code{PUT}), while the authoritative
+  record is the event. Every share dimension (recipient, energy included, which
+  years, which attachments) is recorded \emph{in the event} precisely so the log
+  stays self-sufficient for replay --- after an archive restore, which recovers
+  the log but not the ACLs, the same replay rebuilds enforcement
+  (obligation~1 of \S\ref{sec:running}).
+\end{description}
+
+\paragraph{Intensional scope, extensional projection.}
+The projection's characteristic hazard is that a grant's recorded scope is
+\emph{intensional} (``this building, all energy years'') while the applied ACLs
+are \emph{extensional} (the per-dataset resources that existed at apply time). A
+mutation that \emph{creates} a resource inside an intensionally granted scope is
+a projection-input change with no projection update. Each resource-creating
+mutation is audited against this hazard: attachment uploads are covered by
+construction (the grant targets the container with a default rule, so later
+members inherit); the energy-year write was the genuine gap and now runs a
+best-effort re-application of the affected building's active grants per their
+recorded scope (an all-years grant picks up the new dataset; a per-year grant
+correctly leaves it outside); deletions are benign (a dropped resource takes its
+ACL along, and replay skips grants on missing resources).
+
+\begin{property}[Enforcement--intent agreement --- checkable, not invariant]\label{prop:agreement}
+A recipient can read exactly what the folded outgoing log says they may.
+\end{property}
+
+This is a \emph{checkable agreement condition}, not an invariant: between an
+in-scope resource creation and its (best-effort) reconciliation, and after a
+silently failed repair, it can be violated, and no liveness is guaranteed ---
+the system guarantees only that the audit \emph{detects} a violation and the
+replay \emph{restores} agreement when run. The condition is executable: a headless test folds the log and probes each
+implied resource with recipient-credentialed \code{GET}s; in the field the same
+enumeration backs an audit operation (a dry-run diff of expected against actual
+ACLs) and its repair twin (the replay). Auditability of the enforcement cache is,
+we found, the single strongest argument for event-sourcing the grants: an
+in-place permission model has nothing to diff against.
+
+\paragraph{Read authority differs by direction.} Outgoing ``shared with whom''
+reads the ACLs directly (a user can read their own) with the log as history;
+incoming ``shared with me'' has no cheaper authority than the user's own incoming
+log, folded on read --- and a missed revocation self-heals because the revoked
+source \code{403}s on load and is pruned (\S\ref{sec:consistency}).
+
+\subsection{The trigger axis, and the honest seams}\label{sec:triggers}
+
+Orthogonally to mechanism, mutations split by \emph{trigger}: almost all are
+\textbf{user-intent} (they record a decision a person made); a small family is
+\textbf{reconciliation} --- system-initiated writes whose whole job is to make a
+projection match observed reality: the stale-grant prune (appending a
+self-revocation when a shared source has become inaccessible), the ACL replay,
+and the grant re-application above. Reconciliations legitimately live inside
+query and restore paths. That placement produces the system's three deliberate
+violations of command--query separation~\cite{meyer} --- reads that may write:
+the source load that prunes revoked shares, the inbox drain (a destructive move
+shaped like a refresh), and a detail read that auto-materialises a missing
+computed snapshot. Each is exceptional rather than per-call (the happy path
+writes nothing), best-effort (a failed reconciliation degrades, never throws),
+documented as a seam --- and, crucially for \S\ref{sec:mechanisms},
+\emph{each still owns its cache effect}: the prune invalidates the
+incoming-log key it changed, the user-invoked drain is an ordinary mutation
+hook with its invalidations, and the snapshot auto-materialisation returns the
+computed value as the read's own result, needing none. We prefer three named exceptions over either fiction:
+pretending the reads are pure, or splitting each into a read plus a manual
+cleanup step no user would run.
+
+\section{The read path: a resource-oriented cache}\label{sec:reads}
+
+\subsection{Mirror the graph, not the screens}\label{sec:normalised}
+
+The client cache is \emph{resource-oriented}: one entry per store resource --- a
+container listing, a building document, an energy dataset, an immutable log
+event --- keyed by its IRI and namespaced by the viewer's WebID (a re-login
+cannot read another user's cache). The domain shapes a screen wants (the building
+list, the folded grant set, a labelled energy table) are \emph{never stored}:
+they are derived at the edge, per render, by pure memoised selectors over the
+resource entries. Four principles:
+
+\begin{description}
+\item[resource-keyed] the entry's value is parsed close to the triples, under
+  canonical vocabulary keys --- no display labels in the cache.
+\item[containers-as-queries] an LDP container is an entry over its membership
+  listing; a \emph{structural} change (a resource added or removed) refreshes the
+  container entry, a \emph{content} change refreshes the member's entry.
+\item[derive-at-edge] selectors compose entries into app shapes in memory;
+  presentation (labels, grouping, hiding) is applied at render, so a
+  presentation-only change refetches nothing.
+\item[single-read-path] every consumer --- map, dialog, background computation
+  --- reads the \emph{same} entry; there is no second read to race or diverge
+  from the warm copy.
+\end{description}
+
+This replaced a screen-shaped design in which one monolithic loader discovered,
+fetched, parsed and composed many resources into a single view-shaped value under
+a coarse key. Its failure mode was structural: a consumer needing a different
+shape or fresher data re-read the store independently, and the independent read
+raced the warm copy. Reads flow through four bands --- consumers; hooks with
+combine selectors (which preserve the external
+\code{\{data, isLoading, error\}} contract across internal reshaping); the
+IRI-keyed resource entries; and React-free loader/parser functions shared with
+the headless test path, so the application and its offline harness cannot drift
+in how a resource is read.
+
+\subsection{Structural invalidation}\label{sec:coverage}
+
+The payoff of resource keying is that cache coverage stops being a per-call-site
+discipline and becomes a property of the keying:
+
+\begin{property}[Key coverage]\label{prop:coverage}
+Let $K(r)$ be the set of resource entries a derived read $r$ depends on and
+$W(m)$ the resources a write $m$ touches. Assume (i) $K(r) \supseteq
+\mathit{inputs}(r)$ --- enforced structurally by derive-at-edge, since a
+selector can only fold entries it subscribes to --- and (ii) every write path
+of this client invalidates $W(m)$ soundly --- witnessed by the single key
+registry that hooks and service peeks share. Then no write \emph{by this
+client} changes $r$'s inputs without invalidating an entry in $K(r)$ or
+changing $K(r)$ itself. (Writes by other agents are outside the property's
+scope by construction; they are Guarantee~\ref{g:eventual}'s concern.)
+\end{property}
+
+The hazard this closes is concrete: the screen-shaped design once keyed a fold by
+the \emph{identity of a set} (which buildings exist) but not the \emph{content it
+folded} (which datasets each links), so a write that added an energy year to an
+existing building changed no key and no refetch ever fired --- silently, because
+last-good-wins rendering kept stale data on screen. Under resource keying the
+write invalidates the touched dataset entry \emph{by IRI}; there is no whole-set
+key left to under-cover. Three cost consequences are equally structural: a
+content edit refetches one resource, not a screen; a structural change refetches
+the container listing while member entries stay warm (the refold reads only the
+new member); and a derived-state-only change (hiding a building) re-runs a
+selector and refetches nothing. The principle: prefer correctness that
+\emph{falls out of the data} --- keys derived from the folded resources --- over
+correctness by discipline, every mutation remembering every dependent key, which
+works until one call site forgets.
+
+The trade-offs are the classic ones of normalised caching, accepted rather than
+fought: more and smaller entries (structural sharing and garbage collection keep
+them cheap; net fetch volume \emph{drops} because each resource is read once and
+reused across consumers), and container-to-member waterfalls (bounded-concurrency
+fan-out from the listing, not lazy per-render reads). One point stays
+deliberately coarse: an archive restore may have replaced anything, so it
+invalidates the entire cache and re-reads through the dependent chain, with
+last-good-wins holding the pre-restore view until the maximal re-read lands.
+
+\section{Consistency without push}\label{sec:consistency}
+
+\subsection{Four mechanisms}\label{sec:mechanisms}
+
+There is no push from the store, so freshness rests on four deliberate
+mechanisms, centralised rather than per-screen:
+
+\begin{enumerate}
+\item \textbf{Server-driven freshness.} Every subscribed read revalidates with a
+  conditional \code{GET} (zero client-side freshness window; an unchanged
+  resource is a cheap \code{304}). The client never fabricates a TTL; the
+  server's validator decides. Immutable resources --- log events, whose IRIs are
+  server-minted and whose content never changes --- opt out entirely and are
+  refreshed only by invalidation.
+\item \textbf{Write-owned invalidation.} Every write path of this client ---
+  a user-intent mutation \emph{or} a reconciliation (\S\ref{sec:triggers})
+  --- \emph{owns} the keys it invalidates, declared against a single leaf
+  registry of key builders that the service-side cache peeks share, so hook
+  keys and service reads cannot drift. This includes the CQS seams: the prune
+  invalidates the incoming-log key it appends to, the user-invoked drain is an
+  ordinary mutation hook, and the snapshot auto-materialisation returns the
+  computed value as the read's own result, needing none. No caller wires
+  invalidation; forgetting is not an available error.
+\item \textbf{Last-good-wins rendering.} An in-flight or failed refetch keeps
+  the previous good projection on screen; staleness is never rendered as
+  emptiness. (This is what makes silent under-coverage dangerous ---
+  \S\ref{sec:coverage} --- and why coverage had to become structural.)
+\item \textbf{Attention-triggered revalidation.} State appended by \emph{other}
+  agents (a room log, an incoming share) can never be locally invalidated ---
+  the writer is elsewhere. The client revalidates it when the user's attention
+  lands on it: opening the room page invalidates the room log; visiting the
+  sharing surface (or logging in) drains the inbox; a dialog's opening is a
+  ``look'' that refetches what it displays. The \emph{mechanism} is standard
+  client-side practice (data-fetching libraries ship refetch-on-focus and
+  refetch-on-mount~\cite{reactquery}); the contribution is the policy and its
+  contract --- attention as the \emph{only} poll trigger for cross-agent
+  state, with the staleness bound of G\ref{g:eventual} --- frequent exactly
+  where the user is, silent where they are not.
+\end{enumerate}
+
+Read-time reconciliation supplements these where a server's own reads lag its
+writes: a delete polls the container listing until the member is gone; a load
+that \code{403}s on a shared source prunes the corresponding grant
+(\S\ref{sec:triggers}). The status taxonomy matters here: \code{403} is a
+definitive access decision and \code{404} a definitive absence --- both prune
+--- whereas a transport failure carries no status and must never prune;
+treating an outage as a revocation would destroy records self-healing cannot
+recover.
+
+\subsection{The contract}\label{sec:contract}
+
+To state the guarantees precisely we fix a minimal execution model. A
+\emph{session} is one client's sequence of operation events: reads $r$ with
+input set $\mathit{inputs}(r)$ (the resources folded) and a \emph{settle}
+event (the response rendered), and writes $m$ with touch set $W(m)$ and a
+settle event (the mutation reported done). The store assigns each resource a
+per-resource version order; a read \emph{reflects} $m$ if, for every resource
+in $\mathit{inputs}(r) \cap W(m)$, the version it serves is $\ge$ the version
+$m$ installed. The guarantees are per session, in the style of session
+guarantees~\cite{terry1994}, and they are \emph{safety} statements ---
+\S\ref{sec:liveness} owns the liveness caveat.
+
+\begin{guarantee}[Read-your-writes, own state]\label{g:ryw}
+For a write $m$ and a read $r$ of the same session with
+$\mathit{inputs}(r) \cap W(m) \neq \varnothing$: if $r$ \emph{settles} after
+$m$ settles, $r$ reflects $m$. Mechanism: $m$'s owned invalidation marks the
+touched entries before $m$ settles, so a later-settling $r$ cannot be served
+from a pre-write entry; because the refetch is asynchronous, a render
+\emph{between} $m$'s settle and $r$'s settle may still show the prior value,
+marked as revalidating --- the guarantee is about settled reads, not
+intermediate frames.
+\end{guarantee}
+
+\begin{guarantee}[Monotonic display]\label{g:monotonic}
+Per cache entry, the version rendered is non-decreasing in the resource's
+version order within a session: refetches replace state only on success
+(last-good-wins), and immutable event entries never change. A cross-agent
+revocation \emph{removes} an entry (a visibility change under
+G\ref{g:heal}); removal is not a version regression.
+\end{guarantee}
+
+\begin{guarantee}[Attention-bounded eventual consistency, cross-agent]\label{g:eventual}
+State written by another agent becomes visible no later than the next attention
+event that covers it --- the page open, the inbox drain, the login refresh ---
+and its staleness window is therefore bounded by the user's own interaction,
+not by a timer.
+\end{guarantee}
+
+\begin{guarantee}[Self-healing visibility]\label{g:heal}
+Access lost without notification (a revocation, a deleted source) is detected at
+the next read of the affected resource (\code{403}/\code{404}), rendered
+immediately, and reconciled into the local record by the prune --- the client
+never depends on being told.
+\end{guarantee}
+
+Equally important is what is \emph{not} promised: no writes-follow-reads or
+causal ordering across agents (two users editing unrelated resources have no
+ordering at all; the event logs serialise only appends to one container); no
+\emph{cross-entry snapshot} --- after a multi-resource mutation the touched
+entries refetch independently, so a fold rendered mid-refetch can briefly mix
+old and new entries (fractured reads; the settled state of G\ref{g:ryw} is
+consistent, the intermediate frames are not); no bounded staleness in
+wall-clock terms for a page the user never revisits; and no offline operation
+(writes require the store; the cache is a projection, not a replica).
+
+\paragraph{Safety and liveness.}\label{sec:liveness}
+All four guarantees are safety-flavoured. Liveness is deliberately
+conditional: G\ref{g:eventual}'s bound is an attention event that may never
+occur, Property~\ref{prop:agreement}'s repair runs best-effort, and
+reconciliations may fail silently and retry only on the next trigger. Making
+that conditionality explicit is, we think, more honest than a wall-clock bound
+no polling client can keep. We consider the narrowness of this contract a
+feature: it is exactly what the mechanisms of \S\ref{sec:mechanisms} can
+actually deliver, and each guarantee names the mechanism that delivers it.
+
+\paragraph{Why not CRDTs.} The local-first program~\cite{kleppmann2019,
+shapiro2011} solves a harder problem --- concurrent edits to shared replicas ---
+that this storage discipline arranges not to have: in-place resources have a
+single writer by design, and cross-agent state is append-only with commutative
+folds (add/remove grant events keyed by subject; last-writer-wins per key at
+fold time). Where a conflict could occur at all (two devices of the \emph{same}
+user racing an in-place \code{PUT}), optimistic concurrency detects it and the
+losing write re-reads --- rare enough, for personal master data, that detection
+beats merge machinery. The trade is deliberate: no offline writes, in exchange
+for a store whose ground truth is always a readable document rather than a
+replica state.
+
+\paragraph{Why not push.} The Solid Notifications
+Protocol~\cite{solid-notifications} would replace G\ref{g:eventual}'s attention
+bound with subscription latency, and we consider it the natural upgrade path.
+It is not assumed because server support is uneven (R5), a browser client's
+subscriptions die with its tab (wake-up still needs a look), and every
+mechanism above remains necessary as the fallback on servers without it ---
+push, when adopted, slots in as a fifth trigger for the same invalidation
+machinery, not as a replacement architecture.
+
+\subsection{Two caches, layered}\label{sec:twocaches}
+
+The application cache is not the only cache in the loop: every request also
+traverses the browser's HTTP cache, and the two differ in every dimension that
+matters. The app cache is keyed by (viewer WebID, resource IRI) and holds
+\emph{parsed} values; the browser cache is keyed by URL (plus \code{Vary}) and
+holds \emph{representations}, with the server's validators deciding freshness.
+The revalidating read deliberately composes them --- \code{cache: no-cache}
+forces a conditional request while still letting a \code{304} be served from
+the browser-cached body --- which is efficient exactly when the server's
+validators are sound, and is how the content-negotiation unsoundness of
+\S\ref{sec:findings} reached the application at all: the wrong body came from
+the \emph{browser} cache, honestly revalidated against a broken validator. Two
+consequences deserve naming. The layers must agree on identity: a cache keyed
+by URL is oblivious to \emph{who} is asking, so on a shared device the browser
+cache can retain representations across logins that the WebID-namespaced app
+cache correctly separates --- private data should be served
+\code{Cache-Control: private} (ideally \code{no-store} on shared machines), a
+server-side obligation the client cannot substitute for. And the chattiness of
+revalidate-always is a deliberate trade: the alternatives --- trusting
+\code{Cache-Control} heuristics, container validators as digests for their
+members, \code{HEAD} probes --- all reduce requests by trusting servers that
+\S\ref{sec:findings} shows to be unreliable precisely in this machinery; we
+revisit the trade under push (\S\ref{sec:limits}).
+
+\section{Ecosystem findings}\label{sec:findings}
+
+The design leans on ordinary HTTP machinery --- validators, conditional
+requests, status codes --- and part of the contribution is reporting what three
+Solid server implementations --- Community Solid Server (v5--v7), Node Solid
+Server (v5), and a JavaScript Solid server (0.0.x) from our test matrix; exact
+versions will be pinned in the final conformance table --- actually provide. Method: the
+application instruments its authenticated fetch once at login, recording every
+request's method, target, status, and timing into an in-app inspection log; the
+hermetic test lanes run the same data layer against local server instances, so
+a conformance regression fails a test rather than a user. The single-read-path
+rule (\S\ref{sec:normalised}) is what makes this harness a valid instrument:
+loaders and parsers are shared between the reactive hooks and the headless
+orchestrators, and the hooks themselves --- including the cache layer, its
+invalidation fan-out, and entry reuse --- run under the test runtime against a
+real local server, so the quantitative measurements are taken on the
+application's own read path, headless, with the browser needed only where the
+browser's HTTP cache is itself the object of measurement
+(\S\ref{sec:twocaches}).
+
+\begin{description}
+\item[Missing validators.] \code{GET} responses on one production server
+  carried no \code{ETag}, silently degrading every conditional read to a full
+  transfer --- the revalidation \emph{protocol} still behaves correctly
+  (\code{staleTime}~0 + conditional \code{GET} simply never sees a \code{304}),
+  but the efficiency claim of \S\ref{sec:mechanisms} is server-dependent, and a
+  client cannot assume cheap revalidation on today's ecosystem.
+\item[Unsound validators under content negotiation.] One implementation derived
+  a container's \code{ETag} independently of the representation's media type: a
+  Turtle conditional \code{GET} could receive \code{304 Not Modified} against a
+  cached JSON-LD body --- a validator unsoundness that surfaces only through a
+  browser cache, and that we fixed upstream by making the validator
+  format-aware. HTTP already forbids this --- distinct representations of a
+  resource are required to carry distinct validators~\cite{rfc9110} --- so the
+  finding is not a gap in the protocol but a MUST that RDF servers, which
+  negotiate formats freely, are evidently prone to violate.
+\item[Retries below or above proof-of-possession.] Hosted pods sit behind CDN
+  throttling (intermittent \code{429}/\code{503}). A retry layer placed
+  \emph{below} DPoP signing replays a consumed proof and fails; the retry must
+  wrap the authenticated fetch so every attempt is freshly signed. The same
+  layer motivates the idempotent-creation discipline of \S\ref{sec:idempotency}.
+\item[Discovery cost.] Index-free discovery is $N{+}1$ reads (list a container,
+  \code{GET} each member). At the realistic scale of personal data
+  (tens-to-hundreds of resources per collection) this is acceptable ---
+  HTTP/2 multiplexing takes most of the sting out of the request count, leaving
+  server-side work as the real cost --- and the normalised cache amortises it
+  across consumers; the pattern to avoid is re-discovery per consumer, which
+  the single-read-path rule exists to prevent.
+\end{description}
+
+A quantitative evaluation --- request counts and \code{304} rates per screen
+under the normalised cache versus the screen-shaped predecessor, and measured
+staleness windows for the cross-agent cases --- is planned on the existing
+instrumentation and is not yet included in this draft.
+
+\section{Related work}\label{sec:related}
+
+\emph{Session guarantees and weak consistency.} Our contract adopts the
+per-session framing of Terry et al.~\cite{terry1994}; the attention-bounded
+guarantee (G\ref{g:eventual}) can be read as a session guarantee whose
+anti-entropy trigger is the user's own navigation. Classic client--server
+coherence assumes server callbacks or leases; we operate where neither exists.
+
+\emph{Local-first and CRDTs.} Kleppmann et al.~\cite{kleppmann2019} argue for
+replica-owning clients with CRDT merge~\cite{shapiro2011}; \S\ref{sec:contract}
+states why this system deliberately stays on the other side of that line
+(single-writer resources, append-only logs, no offline writes).
+
+\emph{Event sourcing and materialised views.} The log-as-truth discipline is
+event sourcing~\cite{fowler-es,helland2016}; the \code{.acl} maintenance is
+materialised-view maintenance~\cite{gupta1995} in an unusual regime: the view's
+only consumer is another party's \emph{enforcement engine}, the view must be
+written into the store because the consumer cannot fold, and the
+intensional/extensional gap of \S\ref{sec:projections} is the incremental
+view-maintenance problem in access-control clothing.
+
+\emph{HTTP caching.} The mechanisms build on standard conditional requests and
+validators~\cite{rfc9111}; last-good-wins rendering is the application-level
+cousin of \code{stale-while-revalidate}~\cite{rfc5861}. Client data-fetching
+frameworks~\cite{reactquery} supply the cache substrate we key, and the
+normalised shape has a practitioner lineage --- ORM identity maps, GraphQL
+normalised stores such as Relay~\cite{relay} --- that resolves entities by
+application-assigned ids; keying by \emph{dereferenceable IRIs} lets the
+store's own graph play that role. The contributions here are what to key the
+cache by (the LDP resource graph), who owns invalidation (every write path),
+and what contract results.
+
+\emph{Solid.} Prior Solid application work centres on authentication, access
+control, and interoperability~\cite{solid,wac,solid-notifications}; we add the
+data-management layer such applications need and report where the server
+ecosystem falls short of the HTTP machinery it nominally inherits.
+
+\section{Limitations and future work}\label{sec:limits}
+
+The quantitative evaluation of \S\ref{sec:findings} is outstanding. The
+contract is per-session and single-device; multi-device read-your-writes would
+need either push or a device-spanning session token. The three CQS seams are
+documented but not eliminated; the inbox drain in particular could become a pure
+read over an idempotent archive. Optimistic UI updates are used in exactly one
+place (room switching) and a principled account of when optimism is safe under
+this contract is open. The execution model of \S\ref{sec:contract} is small
+enough to mechanise (the cache, the invalidation rule, and G\ref{g:ryw} in a
+model checker), and doing so --- including the fractured-read window the
+contract excludes --- is the natural hardening step. Finally, adopting server push where available --- as a
+fifth invalidation trigger with the attention mechanisms as fallback --- is
+designed but unimplemented. Two operational details are likewise untreated:
+container pagination (collections here stay small enough to list whole) and
+write-response economy (\code{Prefer: return=minimal}); both matter one order
+of magnitude up.
+
+\section{Conclusion}
+
+Deleting the database tier does not delete the database problems. An application
+over personal data stores inherits concurrency control, cache coherence, and
+view maintenance, and must solve them client-side over plain HTTP against
+servers of varying fidelity. We showed a design that solves them systematically:
+authority-driven storage models with a replayable enforcement projection,
+a resource-keyed cache whose coverage is structural rather than disciplined,
+and a four-mechanism freshness policy whose modest, explicit contract ---
+read-your-writes at home, attention-bounded eventual consistency abroad,
+self-healing visibility under revocation --- is, we argue, the honest
+consistency level a decentralised web application can promise today.
+
+\bibliographystyle{plain}
+\bibliography{paper-client-database}
+
+\end{document}
