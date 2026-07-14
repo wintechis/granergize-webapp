@@ -92,6 +92,32 @@ export async function readStoreOrEmpty(
 }
 
 /**
+ * Like {@link readStoreOrEmpty}, but only DEFINITIVE absence (404/410/403)
+ * folds to the empty store; any other non-ok (a 5xx, throttling past the
+ * transport's retries) THROWS. For reads whose result a long-lived cache will
+ * remember (the immutable sharing-event queries): a transient failure must
+ * surface as an error the cache retries, not be remembered as "empty" —
+ * an event read as empty makes a revoked share reappear (or a grant vanish)
+ * for the rest of the session.
+ * @operation query
+ */
+export async function readStoreOrAbsent(
+  uri: string,
+  gateway: PodGateway,
+): Promise<Store> {
+  const res = await fetchFresh(uri, gateway);
+  if (res.status === 404 || res.status === 410 || res.status === 403) {
+    return new Store();
+  }
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText} for ${uri}`);
+  }
+  const quads = new Parser({ baseIRI: uri }).parse(await res.text());
+  recordGraph(uri, quads);
+  return new Store(quads);
+}
+
+/**
  * Like {@link readStoreOrEmpty}, but TOLERANT and header-aware — for the discovery
  * reads ({@link resolveStorageRootForWebId}, the storage-root walk-up, the inbox
  * `ldp:inbox` lookup) that must (a) survive a thrown fetch / non-ok by falling

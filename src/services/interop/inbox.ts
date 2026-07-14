@@ -252,12 +252,18 @@ export async function ensureOwnInbox(gateway: PodGateway): Promise<boolean> {
   const webId = gateway.webId;
   if (!webId) return false;
   const { inbox } = podResources(webId);
-  // A HEAD that doesn't 404 means the container is already there.
+  // Only a definitive 404 means "not provisioned yet". A failed/erroring HEAD
+  // (network, 5xx, throttling) is UNKNOWN — provisioning anyway would blind-PUT
+  // the default ACL over a possibly customised one; skip this round instead
+  // (ensureOwnInbox re-runs at every login).
   const existing = await gateway.fetch(inbox, { method: "HEAD" }).catch((err) => {
     logError("HEAD own inbox to check provisioning", err);
     return null;
   });
-  const createdContainer = !existing?.ok;
+  if (existing === null || (!existing.ok && existing.status !== 404)) {
+    return false;
+  }
+  const createdContainer = !existing.ok;
   if (createdContainer) {
     await gateway.fetch(inbox, {
       method: "PUT",
@@ -270,13 +276,16 @@ export async function ensureOwnInbox(gateway: PodGateway): Promise<boolean> {
   }
   // A just-created container has no ACL yet; behind an existing container the
   // ACL gets its own existence check (the restore shape — see the doc above).
-  const aclExists = createdContainer ? false : (
+  // Same discipline: only a definitive 404 warrants writing the default ACL —
+  // an inconclusive HEAD must not clobber a possibly customised one.
+  const aclHead = createdContainer ? null : (
     await gateway.fetch(`${inbox}.acl`, { method: "HEAD" }).catch((err) => {
       logError("HEAD own inbox ACL to check provisioning", err);
       return null;
     })
-  )?.ok ?? false;
-  if (!aclExists) {
+  );
+  const aclMissing = createdContainer || aclHead?.status === 404;
+  if (aclMissing) {
     const acl = `@prefix acl: <http://www.w3.org/ns/auth/acl#>.
 <#owner> a acl:Authorization; acl:agent <${webId}>;
   acl:accessTo <${inbox}>; acl:default <${inbox}>;

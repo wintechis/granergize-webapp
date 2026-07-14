@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import {
   CircleMarker,
@@ -28,6 +28,7 @@ import { bandColor } from "../../constants/lensBand.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 import type { MessageId } from "../../lib/messages.ts";
+import { useTileActivity } from "../../hooks/tileActivity.ts";
 
 const FRAMING: MetricFraming = "magnitude";
 
@@ -46,16 +47,19 @@ const KIND_COLOR: Record<InstallationKind, string> = {
   biomass: "#558b2f", // green — bio
 };
 
-/** Pan/zoom to frame the building + every surrounding feature whenever the set
- *  of points changes. */
+/** Pan/zoom to frame the building + every surrounding feature — ONCE per
+ *  building (keyed on the first point, the building's position). The rooftop
+ *  footprints deref lazily and each arrival grows `points`; re-fitting on every
+ *  one would keep yanking the view out from under the user. Waits for more
+ *  than the lone building point so the first fit covers the surroundings. */
 function FitBounds({ points }: { points: [number, number][] }) {
   const map = useMap();
+  const fittedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (points.length === 0) return;
-    if (points.length === 1) {
-      map.setView(points[0], detailBaseLayer(points[0][0], points[0][1]).zoom);
-      return;
-    }
+    if (points.length < 2) return;
+    const key = `${points[0][0]},${points[0][1]}`;
+    if (fittedFor.current === key) return;
+    fittedFor.current = key;
     map.fitBounds(L.latLngBounds(points), { padding: [24, 24], maxZoom: 17 });
   }, [map, points]);
   return null;
@@ -80,6 +84,7 @@ export default function SurroundingsMap(
   },
 ) {
   const t = useT();
+  const tileEvents = useTileActivity();
   const lat = building.lat!;
   const long = building.long!;
   const base = detailBaseLayer(lat, long);
@@ -152,6 +157,7 @@ export default function SurroundingsMap(
           maxZoom={base.config.maxZoom}
           transparent={false}
           attribution={base.config.attribution}
+          eventHandlers={tileEvents}
         />
         <Marker position={[lat, long]} icon={buildingPin(building.isShared ?? false)} />
         {/* Rooftop layer first — area fills sit UNDER the installation dots. */}

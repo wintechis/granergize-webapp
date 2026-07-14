@@ -89,6 +89,9 @@ async function resolveBuilding(
   }
   if (!match) return undefined;
 
+  // Default-graph parse → the parser recorded no source graph; consumers of
+  // `sourceUri ?? uri` would otherwise see the empty string (not nullish).
+  if (!match.sourceUri) match.sourceUri = fileUri;
   // Ownership: the ONE shared predicate (isSharedSource) — no mirrored copy of
   // the load path's derivation that could drift.
   match.isShared = isSharedSource(match.sourceUri || match.uri, storageRoot);

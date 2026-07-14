@@ -9,6 +9,7 @@ import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
 import {
   fetchRegionAgsShared,
   gemeindeAgsFromContains,
+  geocodePlace,
   normalizeRegionGeometry,
   parseRegionMatches,
   type RegionFeatureCollection,
@@ -229,5 +230,50 @@ Deno.test("fetchRegionAgsShared: warm cache derefs once; headless falls back", a
   } finally {
     _setSourceGatewayForTesting(null);
     _setAppQueryClient(null);
+  }
+});
+
+Deno.test("geocodePlace resolves a Gemeinde name to its polygon's bbox centre", async () => {
+  // A lean /search GeoJSON reply: one MultiPolygon Gemeinde (two rings).
+  const fc = {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      geometry: {
+        type: "MultiPolygon",
+        coordinates: [
+          [[[11.0, 49.4], [11.2, 49.4], [11.2, 49.5], [11.0, 49.4]]],
+          [[[11.1, 49.44], [11.15, 49.44], [11.15, 49.46], [11.1, 49.44]]],
+        ],
+      },
+      properties: { ags: "09564000", code: "DE_09564000", label: "Nürnberg" },
+    }],
+  };
+  const fake = makeFakeSourceGateway({
+    respond: (url) =>
+      url.includes("/search")
+        ? new Response(JSON.stringify(fc), {
+          headers: { "content-type": "application/geo+json" },
+        })
+        : undefined,
+  });
+  _setSourceGatewayForTesting(fake.gateway);
+  try {
+    const hit = await geocodePlace("Nürnberg");
+    // bbox centre of all rings: lon (11.0+11.2)/2, lat (49.4+49.5)/2.
+    assert.equal(hit?.long, "11.1");
+    assert.equal(hit?.lat, "49.45");
+
+    // A no-match search (empty features) is a clean null, not a throw.
+    const empty = makeFakeSourceGateway({
+      respond: () =>
+        new Response(JSON.stringify({ type: "FeatureCollection", features: [] }), {
+          headers: { "content-type": "application/geo+json" },
+        }),
+    });
+    _setSourceGatewayForTesting(empty.gateway);
+    assert.equal(await geocodePlace("Atlantis"), null);
+  } finally {
+    _setSourceGatewayForTesting(null);
   }
 });

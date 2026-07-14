@@ -317,6 +317,15 @@ schema:customer rdfs:label "Customer"@en ; rdfs:label "Kunde"@de ; rdfs:label "C
 :certificationScope rdf:type owl:DatatypeProperty ;
     rdfs:label "certification scope"@en ; rdfs:label "Zertifizierungsumfang"@de ; rdfs:label "périmètre de certification"@fr ; rdfs:domain :BuildingCertification ; rdfs:range xsd:string .
 
+# The certification systems the app serializes: a cert node carries BOTH
+# :BuildingCertification and its system class (see addCertifications).
+:BREEAMCertification rdf:type rdfs:Class ; rdfs:subClassOf :BuildingCertification ;
+    rdfs:label "BREEAM certification"@en ; rdfs:label "BREEAM-Zertifizierung"@de ; rdfs:label "Certification BREEAM"@fr .
+:DGNBCertification rdf:type rdfs:Class ; rdfs:subClassOf :BuildingCertification ;
+    rdfs:label "DGNB certification"@en ; rdfs:label "DGNB-Zertifizierung"@de ; rdfs:label "Certification DGNB"@fr .
+:LEEDCertification rdf:type rdfs:Class ; rdfs:subClassOf :BuildingCertification ;
+    rdfs:label "LEED certification"@en ; rdfs:label "LEED-Zertifizierung"@de ; rdfs:label "Certification LEED"@fr .
+
 ############################
 ###   File attachments   ###
 ############################
@@ -334,6 +343,10 @@ schema:customer rdfs:label "Customer"@en ; rdfs:label "Kunde"@de ; rdfs:label "C
     rdfs:comment "Flags one attachment (a schema:MediaObject) as the energy certificate."@en ;
     rdfs:comment "Kennzeichnet einen Anhang (ein schema:MediaObject) als den Energieausweis."@de ;
     rdfs:comment "Désigne une pièce jointe (un schema:MediaObject) comme le certificat énergétique."@fr ;
+    # No rdfs:range on purpose: the app's field bridge stores this as a FLAT IRI
+    # reference (see vocabSchema.test's BUILDING_FIELDS guard); a class range
+    # would classify it as a structured node. The target shape is stated in the
+    # comment above (a schema:MediaObject, via the hasAttachment super-property).
     rdfs:subPropertyOf :hasAttachment ; rdfs:domain rec:Building .
 
 ############################

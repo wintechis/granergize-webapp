@@ -149,13 +149,14 @@ export default function BuildingHeader({ building }: { building: Building }) {
             </Typography>
           )}
           {
-            /* The coordinates were geocoded from OpenStreetMap (Nominatim) iff a
-              precision is set — record the ODbL attribution that travels with the
-              shared building (see the geo:Point prov:wasDerivedFrom in Turtle). */
+            /* The coordinates were geocoded from the national address register
+              (GISCO Address API via linked-addressapi) iff a precision is set —
+              surface the BKG attribution that travels with the shared building
+              (see the geo:Point prov:wasDerivedFrom in Turtle). */
           }
           {building.geocodePrecision && (
             <Box sx={{ mt: 0.5 }}>
-              <SourceNote sources={SOURCES.osm} label={msg("coordsLabel")} />
+              <SourceNote sources={SOURCES.addressapi} label={msg("coordsLabel")} />
             </Box>
           )}
         </Box>

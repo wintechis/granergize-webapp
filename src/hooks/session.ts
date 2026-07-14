@@ -31,5 +31,20 @@ export function _setSessionForTesting(session: Session | null): void {
  * the WebID read (`webIdOf`) still touch the raw `Session`.
  */
 export function getGateway(): PodGateway {
-  return sessionGateway(getSession());
+  const session = getSession();
+  // One gateway object PER login, not per call: service-side caches key on
+  // the gateway's identity (e.g. the WeakMap event-log cache), so a fresh
+  // object every call would silently defeat them. The @inrupt session is a
+  // singleton across logins and `instrumentSessionFetch` swaps its `fetch` at
+  // each login, so the cache holds only while fetch AND WebID still match.
+  const cached = gateways.get(session);
+  if (
+    cached && cached.fetch === session.fetch &&
+    cached.webId === session.info.webId
+  ) return cached;
+  const gateway = sessionGateway(session);
+  gateways.set(session, gateway);
+  return gateway;
 }
+
+const gateways = new WeakMap<Session, PodGateway>();

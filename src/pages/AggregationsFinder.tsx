@@ -263,7 +263,10 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
         </>
       )}
     >
-        {aggregationDefsQuery.isLoading
+        {aggregationDefsQuery.isLoading || receivedAggregationsQuery.isLoading
+          // Both Pod tiers must have settled before "no aggregations yet" —
+          // with only defs gated, a still-loading received tier flashed the
+          // empty state at a user whose aggregations are all shared-in.
           ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
           : totalReachable === 0
           ? (

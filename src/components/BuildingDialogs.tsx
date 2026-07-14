@@ -72,9 +72,14 @@ export function ShareBuildingDialog({
     () => (building.attachments ?? []) as AttachmentRef[],
     [building.attachments],
   );
-  const [selectedAttachments, setSelectedAttachments] = useState<string[]>(
-    () => attachments.map((a) => a.uri),
+  // null = untouched → "all" stays DERIVED from the live attachment list, so
+  // attachments that finish loading after the dialog mounted are still included
+  // (a state snapshot at mount silently excluded them). First user tick pins
+  // the explicit subset.
+  const [pickedAttachments, setPickedAttachments] = useState<string[] | null>(
+    null,
   );
+  const selectedAttachments = pickedAttachments ?? attachments.map((a) => a.uri);
   const allAttachmentsSelected = selectedAttachments.length === attachments.length;
   const [webIdError, setWebIdError] = useState("");
   const [confirmStep, setConfirmStep] = useState(false);
@@ -178,8 +183,13 @@ export function ShareBuildingDialog({
     <Modal
       open={open}
       onClose={onClose}
-      dirty={webIds.length > 0 || recipients.length > 0 || targetRole !== ""}
-      busy={sharing}
+      // Nothing left to discard once the share succeeded — closing the success
+      // screen must not raise the discard confirm.
+      dirty={!shareSuccess &&
+        (webIds.length > 0 || recipients.length > 0 || targetRole !== "")}
+      // Role resolution is as in-flight as the share itself: closing mid-resolve
+      // would drop its result on an unmounted dialog.
+      busy={sharing || resolving}
       title={t("shareBuildingTitle")}
       actions={sharing
         ? undefined
@@ -371,10 +381,10 @@ export function ShareBuildingDialog({
                         <Checkbox
                           checked={selectedAttachments.includes(a.uri)}
                           onChange={(e) =>
-                            setSelectedAttachments((prev) =>
+                            setPickedAttachments(
                               e.target.checked
-                                ? [...prev, a.uri]
-                                : prev.filter((u) => u !== a.uri)
+                                ? [...selectedAttachments, a.uri]
+                                : selectedAttachments.filter((u) => u !== a.uri),
                             )}
                         />
                       }

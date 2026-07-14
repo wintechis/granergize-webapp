@@ -61,22 +61,18 @@ test.describe("excel upload", () => {
     // The cleanup step deletes each imported building; "Delete building" confirms
     // via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept());
-    // Import geocodes each building's address via Nominatim (lat/long are
-    // required). e2e must not depend on a rate-limited third-party service — a
-    // burst of real lookups intermittently throttles and leaves a building
-    // uncoordinated, blocking submit. Stub it with deterministic coordinates so
-    // the test exercises OUR import flow, not Nominatim's availability. (The
-    // app's own throttle + coarsening fallback are covered by unit tests.)
-    await page.route(/\/nominatim\/search/, (route) =>
+    // Import geocodes each building's address via the addressapi register
+    // search (lat/long are required). e2e must not depend on a live service —
+    // stub it with deterministic coordinates so the test exercises OUR import
+    // flow, not the wrapper's availability. (The app's candidate-spelling
+    // fallback is covered by unit tests.)
+    await page.route(/\/addressapi\/search/, (route) =>
       route.fulfill({
         status: 200,
-        contentType: "application/geo+json",
+        contentType: "application/json",
         body: JSON.stringify({
-          type: "FeatureCollection",
-          features: [{
-            type: "Feature",
-            geometry: { type: "Point", coordinates: [11.08, 49.45] },
-          }],
+          count: 1,
+          results: [{ lat: 49.45, lon: 11.08 }],
         }),
       }));
     await login(page, ACC);

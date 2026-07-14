@@ -18,6 +18,7 @@ import {
   clearStorageRootCache,
   resolveStorageRoot,
 } from "../services/pod/solidUtils.ts";
+import { invalidateProfile } from "../services/pod/profileDocument.ts";
 import {
   getSessionExpiredSnapshot,
   isSessionExpired,
@@ -124,6 +125,7 @@ export function useSessionLifecycle(): SessionLifecycle {
     if (session === null) {
       queryClient.clear();
       clearStorageRootCache();
+      invalidateProfile();
     }
   }, [session, queryClient]);
 

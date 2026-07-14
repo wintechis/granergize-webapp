@@ -108,14 +108,14 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "DeleteBuilding",
-    action: "", // hook declares no meta.action (caller confirms; cache patched)
+    action: "actionDeleteBuilding",
     effect: "write",
     entity: "building",
     hook: "useDeleteBuilding",
   },
   {
     name: "ToggleVisibility",
-    action: "", // hook declares no meta.action
+    action: "actionToggleVisibility",
     effect: "write",
     entity: "building",
     hook: "useToggleVisibility",
@@ -231,14 +231,14 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "DeleteAggregation",
-    action: "", // hook declares no meta.action
+    action: "actionDeleteAggregation",
     effect: "write",
     entity: "aggregation",
     hook: "useDeleteAggregation",
   },
   {
     name: "RefreshAggregation",
-    action: "", // hook declares no meta.action
+    action: "actionRefreshAggregation",
     effect: "write",
     entity: "aggregation",
     hook: "useRefreshAggregation",
@@ -253,7 +253,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "RevokeAggregationAccess",
-    action: "", // hook declares no meta.action
+    action: "actionRevokeAggregationAccess",
     effect: "write",
     entity: "sharing",
     hook: "useRevokeAggregationAccess",
@@ -269,14 +269,14 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "RevokeBuildingAccess",
-    action: "", // hook declares no meta.action
+    action: "actionRevokeBuildingAccess",
     effect: "write",
     entity: "sharing",
     hook: "useRevokeBuildingAccess",
   },
   {
     name: "DrainInbox",
-    action: "", // hook declares no meta.action
+    action: "actionCheckShares",
     effect: "write",
     entity: "sharing",
     exposure: "developer",
@@ -317,14 +317,14 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Agents ─────────────────────────────────────────────────────────────────
   {
     name: "SaveAgent",
-    action: "", // hook declares no meta.action
+    action: "actionAddAgent",
     effect: "write",
     entity: "agent",
     hook: "useSaveAgent",
   },
   {
     name: "RemoveAgent",
-    action: "", // hook declares no meta.action
+    action: "actionRemoveAgent",
     effect: "write",
     entity: "agent",
     hook: "useRemoveAgent",
@@ -340,49 +340,49 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Data rooms ───────────────────────────────────────────────────────────────
   {
     name: "CreateRoom",
-    action: "", // hook declares no meta.action
+    action: "actionCreateRoom",
     effect: "write",
     entity: "room",
     hook: "useCreateRoom",
   },
   {
     name: "EnterRoom",
-    action: "", // hook declares no meta.action
+    action: "", // silent: RoomDetail shows its contextual "room unreachable" toast
     effect: "write",
     entity: "room",
     hook: "useEnterRoom",
   },
   {
     name: "ExitRoom",
-    action: "", // hook declares no meta.action
+    action: "actionExitRoom",
     effect: "write",
     entity: "room",
     hook: "useExitRoom",
   },
   {
     name: "DeleteRoom",
-    action: "", // hook declares no meta.action
+    action: "actionDeleteRoom",
     effect: "write",
     entity: "room",
     hook: "useDeleteRoom",
   },
   {
     name: "AddBookmark",
-    action: "", // hook declares no meta.action
+    action: "actionAddRoom",
     effect: "write",
     entity: "room",
     hook: "useAddRoom",
   },
   {
     name: "RemoveBookmark",
-    action: "", // hook declares no meta.action
+    action: "actionRemoveBookmark",
     effect: "write",
     entity: "room",
     hook: "useRemoveBookmark",
   },
   {
     name: "SaveRoles",
-    action: "", // hook declares no meta.action
+    action: "actionSaveRoles",
     effect: "write",
     entity: "room",
     hook: "useSaveRoles",

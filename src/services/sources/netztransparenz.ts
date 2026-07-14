@@ -13,7 +13,7 @@
 import type { Store } from "n3";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
-import { deref } from "./capabilities.ts";
+import { deref, DerefError } from "./capabilities.ts";
 import type { NetztransparenzRoute } from "../../generated/netztransparenz.routes.ts";
 
 /**
@@ -47,7 +47,8 @@ export function parsePlantSettlements(store: Store): Map<number, number> {
   const byYear = new Map<number, number>();
   for (const q of store.getQuads(null, null, null, null)) {
     if (!q.predicate.value.endsWith(STROMMENGE_SUFFIX)) continue;
-    const kWh = Number.parseInt(q.object.value, 10);
+    // parseFloat, not parseInt: settled amounts carry decimals (e.g. "12345.67").
+    const kWh = Number.parseFloat(q.object.value);
     if (Number.isNaN(kWh)) continue;
     let year = Number.NaN;
     for (const yq of store.getQuads(q.subject, null, null, null)) {
@@ -77,8 +78,15 @@ export async function fetchPlantGenerationByYear(
       "plant generation (netztransparenz)",
     );
     return parsePlantSettlements(store);
-  } catch {
-    // A plant in MaStR but absent from the settled dump 404s — empty, not an error.
-    return new Map();
+  } catch (err) {
+    // A plant in MaStR but absent from the settled dump 404s — genuinely empty.
+    // Anything else (network, 5xx) is transient and must propagate so a caching
+    // layer retries instead of remembering failure as "no generation".
+    if (
+      err instanceof DerefError && (err.status === 404 || err.status === 410)
+    ) {
+      return new Map();
+    }
+    throw err;
   }
 }

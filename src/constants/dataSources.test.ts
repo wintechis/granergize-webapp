@@ -68,5 +68,5 @@ Deno.test("capabilities are declared for the gateway-discovery sources", () => {
   assert.ok(sourceCapabilities("lau").includes("search"));
   assert.ok(sourceCapabilities("lau").includes("contains"));
   assert.ok(!sourceCapabilities("lau").includes("filter"));
-  assert.deepEqual([...sourceCapabilities("osm")], []); // Nominatim JSON, no RDF verb
+  assert.deepEqual([...sourceCapabilities("osm")], []); // Overpass JSON, no RDF verb
 });

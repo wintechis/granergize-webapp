@@ -6,8 +6,8 @@ named a diagonal through the first two:
 - **kind** — how much of the stack runs: `unit` → `headless` → `e2e`.
 - **backend** — where data comes from: `local` (hermetic) vs `remote` (online). The
   backend has **two independent parts**: the authed **Pod** (Solid server) and the
-  read-only **external sources** (weather, the MaStR/OSM/INSPIRE/NUTS/LAU wrappers,
-  `nominatim`, map tiles, Wikidata/Commons, and — for evals — the chat API). `local`
+  read-only **external sources** (weather, the MaStR/OSM/INSPIRE/NUTS/LAU/addressapi
+  wrappers, map tiles, Wikidata/Commons, and — for evals — the chat API). `local`
   fakes both; `remote` uses both real.
 - **mode** — what the run yields: **assert** (pass/fail, the default), **measure**
   (benchmark numbers, §Benchmarks), **load** (the stress probe), **judge** (eval
@@ -75,7 +75,7 @@ bounded retries.
 
 External read-only sources (weather `linked-dwd`, `linked-regionalstatistik`
 and the other geo/MaStR wrappers — see [`../notes/data-deref.md`](../notes/data-deref.md)
-§External wrapper endpoints — plus `nominatim`, map tiles, Wikidata/Commons) are **not**
+§External wrapper endpoints — plus map tiles, Wikidata/Commons) are **not**
 the Pod. They are the backend's second, independent part, and **each kind makes its
 `local` cell hermetic by a different mechanism**:
 

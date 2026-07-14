@@ -434,17 +434,25 @@ export async function loadEnergyDataset(
   datasetUri: string,
   fetchFn: (uri: string) => Promise<Response>,
 ): Promise<EnergyDataset | null> {
+  const fileUri = datasetUri.split("#")[0];
+  // A network error propagates: only DEFINITIVE absence (revoked / deleted) may
+  // become the cacheable `null`; a transient failure (5xx, connectivity) must
+  // throw so the `staleTime: Infinity` cache layer retries it instead of
+  // remembering the outage as "no data" for the session.
+  const res = await fetchFn(fileUri);
+  if (res.status === 404 || res.status === 410 || res.status === 403) return null;
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText} for ${fileUri}`);
+  }
   try {
-    const fileUri = datasetUri.split("#")[0];
-    const res = await fetchFn(fileUri);
-    if (!res.ok) return null;
     const quads = new Parser({ baseIRI: fileUri }).parse(await res.text());
     // Feed the RDF dataset (named graph = document IRI) for the
     // provenance inspector, from the same parse the projection consumes.
     recordGraph(fileUri, quads);
     return parseEnergyDataset(new Store(quads), datasetUri);
   } catch (err) {
-    logError("load energy dataset", err);
+    // Malformed content is deterministic — a retry can't fix it; null is right.
+    logError("parse energy dataset", err);
     return null;
   }
 }
@@ -459,10 +467,19 @@ export async function loadEnergyDatasets(
   refs: EnergyDatasetRef[],
   fetchFn: (uri: string) => Promise<Response>,
 ): Promise<EnergyDataset[]> {
-  const loaded = await Promise.all(
+  // allSettled: one dataset's transient failure drops just that dataset from
+  // this batch (logged), never the whole view; the per-dataset cache layer has
+  // NOT cached the failure, so the next read retries it.
+  const loaded = await Promise.allSettled(
     refs.map((ref) => loadEnergyDataset(ref.uri, fetchFn)),
   );
-  return loaded.filter((ds): ds is EnergyDataset => ds !== null);
+  return loaded
+    .map((r, i) => {
+      if (r.status === "fulfilled") return r.value;
+      logError(`load energy dataset ${refs[i].uri}`, r.reason);
+      return null;
+    })
+    .filter((ds): ds is EnergyDataset => ds !== null);
 }
 
 /** Year (from the period's beginning) for a parsed dataset node; 0 if absent. */
@@ -537,6 +554,11 @@ export function parseEnergyDataset(
     const val = store.getObjects(result, namedNode(`${SOSA_NS}hasSimpleResult`), null)[0]
       ?.value;
     if (val === undefined) continue;
+    // A malformed literal must not surface as NaN in charts/aggregations.
+    if (Number.isNaN(Number(val))) {
+      console.warn(`Skipping ${key}: non-numeric result "${val}"`);
+      continue;
+    }
     const unitIri = store.getObjects(result, namedNode(`${SSN_NS}hasUnit`), null)[0]
       ?.value;
     const canonical = ENERGY_METRICS[key].unit;

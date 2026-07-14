@@ -173,11 +173,13 @@ export const PROV_ACTIVITY = `${PROV_NS}Activity`;
 export const PROV_USED = `${PROV_NS}used`;
 export const PROV_WAS_GENERATED_BY = `${PROV_NS}wasGeneratedBy`;
 
-/** The OpenStreetMap/Nominatim geocoder, recorded as the source of geocoded
- * coordinates (ODbL — attribution + share-alike). */
-export const OSM_NOMINATIM_SOURCE = "https://nominatim.openstreetmap.org/";
-export const OSM_ODBL_LICENSE = "https://opendatacommons.org/licenses/odbl/1-0/";
-export const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
+/** The GISCO Address API (the geocoder behind `linked-addressapi`), recorded as
+ * the source of geocoded coordinates. DE addresses come from the national
+ * register (© GeoBasis-DE / BKG, dl-de/by-2-0 — attribution required). */
+export const GISCO_ADDRESSAPI_SOURCE =
+  "https://gisco-services.ec.europa.eu/addressapi/";
+export const ADDRESSAPI_DE_LICENSE = "https://www.govdata.de/dl-de/by-2-0";
+export const ADDRESSAPI_DE_ATTRIBUTION = "© GeoBasis-DE / BKG";
 
 // Solid Application Interoperability — the access-grant vocabulary used for the
 // sharing event logs (shared-in/ and shared-out/) and the inbox messages.
@@ -211,6 +213,8 @@ export const XSD_DATE = `${XSD_NS}date`;
 export const XSD_STRING = `${XSD_NS}string`;
 export const XSD_BOOLEAN = `${XSD_NS}boolean`;
 export const XSD_GYEAR = `${XSD_NS}gYear`;
+/** xsd:gYearMonth — a MONTHLY benchmark's `bench:metricPeriod` ("2024-03"). */
+export const XSD_GYEARMONTH = `${XSD_NS}gYearMonth`;
 /** xsd:duration — an energy dataset's `cons:granularity` ("P1Y" annual, "PT15M" series). */
 export const XSD_DURATION = `${XSD_NS}duration`;
 

@@ -3,6 +3,9 @@ import { strict as assert } from "node:assert";
 import { Parser } from "n3";
 import { BUILDING_FIELDS, schemaFor } from "./building/buildingConfig.ts";
 import { MEMBERSHIP_ROLE_TO_IRI } from "../../constants/roles.ts";
+import { ANNUAL_METRICS } from "../../constants/annualMetrics.ts";
+import { INVESTOR_CERT_SYSTEMS } from "../xlsx/buildingTemplates.ts";
+import { SYSTEM_TYPE_IRI } from "./vocabularies.ts";
 import {
   BENCH_COMPUTED_BY,
   BENCH_METRIC_PERIOD,
@@ -188,6 +191,48 @@ Deno.test("every code-referenced owned term carries en + de rdfs:labels", () => 
       `[vocab] ${missingFr.length} code-referenced owned term(s) missing @fr rdfs:label (known pending gap):\n  ` +
         missingFr.join("\n  "),
     );
+  }
+});
+
+Deno.test("every annual-metric class the app writes is defined in the consumption vocab", () => {
+  // A metric key names its vocab class as PascalCase under CONSUMPTION_NS (the
+  // observed property + the render label source — annualMetricLabel). Derived
+  // from ANNUAL_METRICS so a new metric key fails here until its class lands.
+  for (const m of ANNUAL_METRICS) {
+    const iri = `${CONSUMPTION_NS}${m.key.charAt(0).toUpperCase()}${m.key.slice(1)}`;
+    assert.ok(defined.has(iri), `metric class not defined in vocab/: ${iri}`);
+  }
+});
+
+Deno.test("technical-system terms the serializer writes are defined in the building vocab", () => {
+  const owned = [
+    ...Object.values(SYSTEM_TYPE_IRI), // every SystemKind's class (addSystem's rdf:type)
+    ...[
+      "hasSystem",
+      "capacityKW",
+      "storageCapacityKWh",
+      "thermalCapacityKW",
+      "commissioningYear",
+    ].map((n) => `${BUILDING_NS}${n}`),
+  ];
+  for (const iri of owned) {
+    assert.ok(defined.has(iri), `system term not defined in vocab/: ${iri}`);
+  }
+});
+
+Deno.test("attachment + certification terms the serializer writes are defined in the building vocab", () => {
+  const owned = [
+    "hasAttachment",
+    "hasEnergyCertificate",
+    "hasBuildingCertification",
+    "BuildingCertification",
+    "certificationLevel",
+    "certificationScope",
+    // addCertifications mints `bldg:{system}Certification` per system.
+    ...INVESTOR_CERT_SYSTEMS.map((s) => `${s}Certification`),
+  ].map((n) => `${BUILDING_NS}${n}`);
+  for (const iri of owned) {
+    assert.ok(defined.has(iri), `term not defined in vocab/: ${iri}`);
   }
 });
 

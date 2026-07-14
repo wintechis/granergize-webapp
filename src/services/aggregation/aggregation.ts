@@ -19,6 +19,7 @@ import {
   XSD_DATETIME,
   XSD_DECIMAL,
   XSD_GYEAR,
+  XSD_GYEARMONTH,
   XSD_INTEGER,
   XSD_NS,
 } from "../rdf/vocabularies.ts";
@@ -435,7 +436,17 @@ export async function storeComputedSnapshot(
       store.addQuad(quad(
         snapshotNode,
         namedNode(BENCH_METRIC_PERIOD),
-        literal(snapshot.metricPeriod, namedNode(XSD_GYEAR)),
+        // An annual benchmark covers a year ("2024"), a monthly one a month
+        // ("2024-03") — type each with its actual XSD datatype (a gYear-typed
+        // "2024-03" is an invalid literal).
+        literal(
+          snapshot.metricPeriod,
+          namedNode(
+            /^\d{4}-\d{2}$/.test(snapshot.metricPeriod)
+              ? XSD_GYEARMONTH
+              : XSD_GYEAR,
+          ),
+        ),
       ));
     }
   }
@@ -550,13 +561,21 @@ async function updateAggregationLastComputed(
 export async function loadComputedSnapshot(
   gateway: PodGateway,
   snapshotUri: string,
+  opts: {
+    /** Whether a 403 counts as absence. True (default) for a snapshot shared
+     * WITH you — the owner revoking access is a normal "gone". False for your
+     * OWN snapshot, where a 403 is an anomaly (ACL glitch, throttling proxy)
+     * that must NOT read as "missing" — the detail page keys its
+     * snapshot-overwriting auto-recompute on `null`. */
+    treat403AsAbsent?: boolean;
+  } = {},
 ): Promise<AggregationSnapshot | null> {
+  const { treat403AsAbsent = true } = opts;
   const response = await fetchFresh(snapshotUri, gateway);
-  // 404/410 = deleted, 403 = the owner revoked your access — all mean "gone",
-  // a normal lifecycle event for a resource shared WITH you, not a failure.
+  // 404/410 = deleted; 403 = revoked access (shared-with-you reads only).
   if (
     response.status === 404 || response.status === 410 ||
-    response.status === 403
+    (treat403AsAbsent && response.status === 403)
   ) {
     return null;
   }
@@ -729,7 +748,9 @@ export async function getComputedSnapshotByAggregationId(
 ): Promise<AggregationSnapshot | null> {
   if (!gateway.webId) return null;
   const snapshotUri = getSnapshotUri(gateway.webId, aggregationId);
-  return loadComputedSnapshot(gateway, snapshotUri);
+  // Your OWN snapshot: a 403 throws rather than reading as "absent", so the
+  // detail page's auto-recompute can't overwrite a snapshot it failed to read.
+  return loadComputedSnapshot(gateway, snapshotUri, { treat403AsAbsent: false });
 }
 
 /**

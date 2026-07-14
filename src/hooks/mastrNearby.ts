@@ -5,10 +5,11 @@
  * sibling of {@link useRegionalContext}.
  *
  * Best-effort: the wrapper is an external host that may be down, CORS-blocked, or
- * (currently) only seeded for a subset of Germany, so the fetch is caught and
- * degraded to `null` rather than thrown — otherwise the central
- * `QueryCache.onError` toast would fire for a non-critical context layer. The
- * request still shows in the global activity indicator (via `trackedFetch`).
+ * (currently) only seeded for a subset of Germany, so the query is `meta.silent`
+ * (no central toast for a non-critical context layer). The failure still THROWS —
+ * a caught-to-`null` result would be cached as *success* for the hour-long
+ * staleTime, freezing a transient outage; an errored query retries on the next
+ * mount instead. The request still shows in the global activity indicator.
  *
  * Besides the installation list this resolves the building's **Kreis** (from the
  * units' municipality AGS), which {@link useRegionalContext} consumes for its
@@ -21,7 +22,6 @@ import {
   kreisFromInstallations,
   type NearbyInstallation,
 } from "../services/sources/mastrNearby.ts";
-import { logError } from "../lib/logError.ts";
 import { sourceKeys } from "../services/sources/sourceKeys.ts";
 
 export interface NearbyContext {
@@ -42,16 +42,13 @@ export function useNearbyInstallations(building: Building) {
     queryKey: [...sourceKeys.mastrNearby, lat, long],
     enabled: located,
     staleTime: 1000 * 60 * 60,
+    // Best-effort layer: no toast — but the error must surface to React Query
+    // (not be cached as a null success) so a wrapper outage stays retryable.
+    meta: { silent: true },
     queryFn: async () => {
       if (lat == null || long == null) return null;
-      try {
-        const installations = await fetchNearbyInstallations(lat, long);
-        return { installations, kreisAgs: kreisFromInstallations(installations) };
-      } catch (err) {
-        // Best-effort: a down/partial wrapper must not sink the page or toast.
-        logError("fetch nearby installations", err);
-        return null;
-      }
+      const installations = await fetchNearbyInstallations(lat, long);
+      return { installations, kreisAgs: kreisFromInstallations(installations) };
     },
   });
 }

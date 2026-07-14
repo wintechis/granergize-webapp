@@ -26,10 +26,7 @@ import MuiTooltip from "@mui/material/Tooltip";
 import { useAnnualEnergyByYear, useSolidData } from "../../hooks/queries.ts";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
-import {
-  beginActivity,
-  endActivity,
-} from "../../lib/networkActivity.ts";
+import { useTileActivity } from "../../hooks/tileActivity.ts";
 import {
   clampYear,
   type LensBand,
@@ -155,20 +152,9 @@ export default function BuildingsMap(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [buildings, tierKey, query],
   );
-  // One activity token per tile-loading burst (the layer fires `loading` when it
-  // starts fetching tiles and `load` once the visible set is in), so panning/
-  // zooming registers in the global indicator without a token per image.
-  const tileToken = useRef<number | null>(null);
-  // Close a still-open tile burst on unmount (e.g. logout mid-pan) — otherwise
-  // the header indicator counts a phantom in-flight request forever.
-  useEffect(() => {
-    return () => {
-      if (tileToken.current !== null) {
-        endActivity(tileToken.current);
-        tileToken.current = null;
-      }
-    };
-  }, []);
+  // Basemap fetches feed the global indicator through the shared hook (one
+  // token per tile burst, closed on unmount) — the same wiring as every map.
+  const tileEvents = useTileActivity();
   // The map's current bounding box; the energy lens's peer set is computed
   // over the buildings that fall inside it.
   const [bbox, setBbox] = useState<L.LatLngBounds | null>(null);
@@ -232,13 +218,11 @@ export default function BuildingsMap(
   const [draftYear, setDraftYear] = useState<number | null>(null);
   const activeYear = draftYear ?? selectedYear;
 
-  // Markers update their icon in place on a lens / metric-framing / year change; the
-  // cluster bubbles are tinted from those icons, so tell the group to recompute them
-  // (otherwise a year tick leaves the clusters showing the previous band's colour).
+  // The cluster bubbles are tinted from the marker icons; the refresh effect
+  // that recomputes them lives below, keyed on the lens categoriser itself
+  // (`lensAtYear`), so EVERY input that re-bands a marker — lens, metric, year,
+  // the visible peer set after a pan — also refreshes the clusters.
   const buildingClusterRef = useRef<L.MarkerClusterGroup | null>(null);
-  useEffect(() => {
-    buildingClusterRef.current?.refreshClusters();
-  }, [lens, framing, activeYear]);
 
   // Animation play/pause state — declared here so the URI writers can stop it.
   const [playing, setPlaying] = useState(false);
@@ -286,13 +270,22 @@ export default function BuildingsMap(
   const bandFor = (id: string): LensBand =>
     lensAtYear ? lensAtYear.band(id) : "none";
 
+  // Markers update their icon in place when the lens re-bands them; tell the
+  // cluster group to recompute its bubbles too (otherwise a metric/year/pan
+  // change leaves the clusters showing the previous band's colour).
+  useEffect(() => {
+    buildingClusterRef.current?.refreshClusters();
+  }, [lens, lensAtYear]);
+
   // Region-LOD (#2): below CHOROPLETH_BELOW the map shades regions instead of drawing
   // markers/clusters — a portfolio-wide overview that coarsens to Land as you zoom out.
   const [zoom, setZoom] = useState(() => getStoredViewport()?.zoom ?? 6.5);
   const showChoropleth = zoom < CHOROPLETH_BELOW;
   const grain: RegionGrain = zoom < ZOOM_KREIS ? "land" : "kreis";
   const regionGeo = useQuery({
-    queryKey: [...sourceKeys.regionGeometry, grain],
+    // The trailing null is the bbox slot — the key shape the other maps use,
+    // so the whole-layer geometry is cached ONCE across all of them.
+    queryKey: [...sourceKeys.regionGeometry, grain, null],
     queryFn: () => fetchRegionGeometry(grain),
     // Only when the choropleth is actually shown AND the tab is visible (the map stays
     // mounted-hidden on other tabs — don't fetch geometry for an off-screen map).
@@ -422,19 +415,7 @@ export default function BuildingsMap(
           format="image/png"
           transparent={false}
           attribution={BASEMAP_DE.attribution}
-          eventHandlers={{
-            loading: () => {
-              if (tileToken.current === null) {
-                tileToken.current = beginActivity("map tiles");
-              }
-            },
-            load: () => {
-              if (tileToken.current !== null) {
-                endActivity(tileToken.current);
-                tileToken.current = null;
-              }
-            },
-          }}
+          eventHandlers={tileEvents}
         />
         <InvalidateOnActive active={active} />
         <FitToBuildings active={active} buildings={shownBuildings} />

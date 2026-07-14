@@ -76,7 +76,7 @@ export function useRegionalContext(building: Building) {
   const regionName = region || (landAgs ? bundeslandName(landAgs) ?? "" : "");
 
   return useQuery<RegionalContext | null>({
-    queryKey: ["regionalContext", landAgs, kreisAgs, regionName],
+    queryKey: [...sourceKeys.regionalContext, landAgs, kreisAgs, regionName],
     enabled: Boolean(landAgs || kreisAgs),
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {

@@ -11,6 +11,7 @@ import {
   newBuildingUri,
   seedDemoBuildings,
   serializeBuildingToTurtle,
+  updateBuilding,
   uploadBuilding,
   writeBuildingEnergy,
   writeEnergyYear,
@@ -43,6 +44,8 @@ import {
   REC_OWNED_BY,
   XSD_INTEGER,
   SYSTEM_TYPE_IRI,
+  SOSA_NS,
+  DCTERMS_SPATIAL,
 } from "../vocabularies.ts";
 
 const { namedNode } = DataFactory;
@@ -457,7 +460,7 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
   assert.equal(b!.geocodePrecision, "Postcode");
 });
 
-Deno.test("geocoded coordinates carry OSM/Nominatim provenance (ODbL) on the geo:Point", () => {
+Deno.test("geocoded coordinates carry register/BKG provenance (dl-de) on the geo:Point", () => {
   const uri = newBuildingUri(WEBID, "b-geo-prov");
   const store = parse(
     serializeBuildingToTurtle(
@@ -471,24 +474,24 @@ Deno.test("geocoded coordinates carry OSM/Nominatim provenance (ODbL) on the geo
   assert.ok(src, "point prov:wasDerivedFrom a source entity");
   assert.equal(
     store.getObjects(src, namedNode("http://purl.org/dc/terms/source"), null)[0]?.value,
-    "https://nominatim.openstreetmap.org/",
-    "dcterms:source is Nominatim",
+    "https://gisco-services.ec.europa.eu/addressapi/",
+    "dcterms:source is the GISCO Address API",
   );
   assert.equal(
     store.getObjects(src, namedNode("http://purl.org/dc/terms/license"), null)[0]?.value,
-    "https://opendatacommons.org/licenses/odbl/1-0/",
-    "dcterms:license is ODbL",
+    "https://www.govdata.de/dl-de/by-2-0",
+    "dcterms:license is dl-de/by-2-0",
   );
   assert.equal(
     store.getObjects(src, namedNode("http://xmlns.com/foaf/0.1/name"), null)[0]?.value,
-    "© OpenStreetMap contributors",
-    "carries the required OSM attribution string",
+    "© GeoBasis-DE / BKG",
+    "carries the required BKG attribution string",
   );
 });
 
 Deno.test("coordinates from a non-geocoded source (no precision) get NO OSM attribution", () => {
   const uri = newBuildingUri(WEBID, "b-coords-plain");
-  // lat/long present but no geocodePrecision ⇒ not from Nominatim (a partner
+  // lat/long present but no geocodePrecision ⇒ not geocoded (a partner
   // file, MaStR/LoD2 import, or manual entry) ⇒ no OSM/ODbL claim.
   const store = parse(serializeBuildingToTurtle({ lat: "49.45", long: "11.08" }, uri));
   const point = store.getObjects(namedNode(`${uri}#it`), namedNode(GEO_LOCATION), null)[0];
@@ -529,6 +532,27 @@ Deno.test("serializeBuildingToTurtle links energy datasets via cons:hasEnergyDat
     b!.energyDatasets!.map((d) => d.granularity).sort(),
     ["P1Y", "PT15M"],
   );
+});
+
+Deno.test("serializeBuildingToTurtle keeps a dataset link's feature of interest (per-unit series stay per-unit)", () => {
+  const uri = newBuildingUri(WEBID, "b-foi");
+  const root = observationsRootForBuilding(uri);
+  const ds = `${datasetFileUri(root, 2024, "id-pv")}#ds`;
+  const foi = `${uri}#pv`;
+  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, [
+    { uri: ds, granularity: "P1Y", scenario: "actual", featureOfInterest: foi },
+  ]);
+  const quads = parse(ttl).getQuads(
+    namedNode(ds),
+    namedNode(`${SOSA_NS}hasFeatureOfInterest`),
+    null,
+    null,
+  );
+  assert.equal(quads.length, 1, "sosa:hasFeatureOfInterest survives a full serialize");
+  assert.equal(quads[0].object.value, foi);
+  // And the parsed link carries it back (the full round-trip).
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  assert.equal(b!.energyDatasets![0].featureOfInterest, foi);
 });
 
 Deno.test("annualDatasetsFromFields converts _inv_*/_bsp_* fields to annual P1Y datasets", () => {
@@ -976,9 +1000,9 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   const realFetch = globalThis.fetch;
   globalThis.fetch = ((input: string | URL) => {
     const uri = typeof input === "string" ? input : input.toString();
-    if (uri.includes("nominatim")) {
+    if (uri.includes("addressapi")) {
       return Promise.resolve(
-        new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
+        new Response(JSON.stringify({ count: 1, results: [{ lat: 49.45, lon: 11.08 }] }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }),
@@ -1159,9 +1183,9 @@ Deno.test("seedDemoBuildings counts a failed building instead of throwing — an
   const realFetch = globalThis.fetch;
   globalThis.fetch = ((input: string | URL) => {
     const uri = typeof input === "string" ? input : input.toString();
-    if (uri.includes("nominatim")) {
+    if (uri.includes("addressapi")) {
       return Promise.resolve(
-        new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
+        new Response(JSON.stringify({ count: 1, results: [{ lat: 49.45, lon: 11.08 }] }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }),
@@ -1226,6 +1250,33 @@ Deno.test("deleteBuilding deletes the building file (de-registering it by listin
   assert.ok(!aclDelBefore, "the building's .acl is NOT deleted before the file");
 });
 
+Deno.test("deleteBuilding removes the per-building files/ subtree (attachments)", async () => {
+  const uri = newBuildingUri(WEBID, "att");
+  const filesUri = `${uri.replace(/\.ttl$/, "/")}files/`;
+  const pdf = `${filesUri}contract.pdf`;
+  const { session, calls, store } = makeFakeSession({
+    webId: WEBID,
+    listContainers: true,
+    resources: {
+      [uri]: "<#att> a <x> .",
+      [pdf]: "binary",
+    },
+  });
+
+  await deleteBuilding(session, WEBID, `${uri}#att`);
+
+  assert.ok(!(pdf in store), "attachment binary was DELETEd");
+  assert.ok(
+    calls.some((c) => c.method === "DELETE" && c.url === pdf),
+    "a DELETE was issued for the attachment file",
+  );
+  assert.ok(
+    calls.some((c) => c.method === "DELETE" && c.url === filesUri),
+    "a DELETE was issued for the files/ container",
+  );
+  assert.ok(!(uri in store), "building file was DELETEd");
+});
+
 Deno.test("deleteBuilding refuses a building outside the user's own Pod", async () => {
   const { session } = makeSession();
   await assert.rejects(
@@ -1288,6 +1339,99 @@ Deno.test("writeEnergyYear writes the dataset and links it; deleteEnergyYear und
     null,
   );
   assert.equal(linkedAfterDelete.length, 0, "the link was removed from the building");
+});
+
+Deno.test("deleteEnergyYear also removes the link's sosa:hasFeatureOfInterest (no orphaned triples)", async () => {
+  const fileUri = newBuildingUri(WEBID, "b-foi-del");
+  const subjectUri = `${fileUri}#b-foi-del`;
+  const foi = `${fileUri}#pv`;
+  const { session, store } = makeSession({
+    [fileUri]: serializeBuildingToTurtle({ streetAddress: "X" }, fileUri),
+  });
+
+  await writeEnergyYear(session, fileUri, subjectUri, {
+    building: subjectUri,
+    year: 2098,
+    granularity: "P1Y",
+    scenario: "actual",
+    featureOfInterest: foi,
+    metrics: { electricityGeneration: 4321 },
+  });
+  assert.equal(
+    parse(store[fileUri]).getQuads(
+      null,
+      namedNode(`${SOSA_NS}hasFeatureOfInterest`),
+      null,
+      null,
+    ).length,
+    1,
+    "the write linked the dataset to its feature of interest",
+  );
+
+  await deleteEnergyYear(session, fileUri, subjectUri, {
+    year: 2098,
+    granularity: "P1Y",
+    scenario: "actual",
+    featureOfInterest: foi,
+  });
+  assert.equal(
+    parse(store[fileUri]).getQuads(
+      null,
+      namedNode(`${SOSA_NS}hasFeatureOfInterest`),
+      null,
+      null,
+    ).length,
+    0,
+    "the delete removed the feature-of-interest triple with the link",
+  );
+});
+
+Deno.test("updateBuilding rewrites dcterms:spatial when the edit carries a fresh regionAgs", async () => {
+  const fileUri = newBuildingUri(WEBID, "b-region");
+  const subjectUri = `${fileUri}#it`;
+  // A building geocoded in one Gemeinde…
+  const { session, store } = makeSession({
+    [fileUri]: serializeBuildingToTurtle(
+      { streetAddress: "Alt 1", regionAgs: "09564000" },
+      fileUri,
+    ),
+  });
+
+  // …edited to an address whose re-geocode resolved a DIFFERENT Gemeinde.
+  await updateBuilding(session, fileUri, subjectUri, {
+    streetAddress: "Neu 2",
+    regionAgs: "09562000",
+    regionConceptIri: "",
+  });
+
+  const regions = parse(store[fileUri]).getObjects(
+    namedNode(subjectUri),
+    namedNode(DCTERMS_SPATIAL),
+    null,
+  );
+  assert.equal(regions.length, 1, "exactly one region after the edit");
+  assert.match(regions[0].value, /09562000/, "the region follows the re-geocode");
+});
+
+Deno.test("updateBuilding leaves the stored region alone when the edit carries no region keys", async () => {
+  const fileUri = newBuildingUri(WEBID, "b-region-keep");
+  const subjectUri = `${fileUri}#it`;
+  const { session, store } = makeSession({
+    [fileUri]: serializeBuildingToTurtle(
+      { streetAddress: "Alt 1", regionAgs: "09564000" },
+      fileUri,
+    ),
+  });
+
+  await updateBuilding(session, fileUri, subjectUri, { yearOfConstruction: "1999" });
+
+  const regions = parse(store[fileUri]).getObjects(
+    namedNode(subjectUri),
+    namedNode(DCTERMS_SPATIAL),
+    null,
+  );
+  assert.equal(regions.length, 1, "a region-less edit keeps the stored region");
+  assert.match(regions[0].value, /09564000/);
 });
 
 Deno.test("deleteEnergyYear tolerates an already-missing dataset (404) and skips the PUT when nothing is linked", async () => {
@@ -1422,14 +1566,16 @@ Deno.test("EVERY OPCOST_FIELDS entry round-trips serialize→parse (no write-onl
   // serialized fine but silently never parsed — a write-only property.
   const uri = newBuildingUri(WEBID, "b-opcost-rt");
   const fields: Record<string, string> = { streetAddress: "X" };
-  for (const f of OPCOST_FIELDS) fields[`_opcost_${f}`] = `val-${f}`;
+  // Free text with '/' and '#': reading the literal through localName() once
+  // truncated "24/7 Wache" to "7 Wache".
+  for (const f of OPCOST_FIELDS) fields[`_opcost_${f}`] = `val-${f} / 24#7`;
   const b = parseBuildings(
     new Parser().parse(serializeBuildingToTurtle(fields, uri)),
   ).get(`${uri}#it`);
   for (const f of OPCOST_FIELDS) {
     assert.equal(
       b!.operatingCosts?.[f],
-      `val-${f}`,
+      `val-${f} / 24#7`,
       `operating-cost field "${f}" round-trips`,
     );
   }

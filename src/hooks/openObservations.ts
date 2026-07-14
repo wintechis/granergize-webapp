@@ -6,7 +6,9 @@
  *
  * Fetched ONLY when the open tier is ticked (the `enabled` gate), so it costs nothing for
  * the common owned/shared browsing. Hour-long `staleTime` (settlements are annual);
- * best-effort — a down/partial wrapper yields `[]`, never a toast.
+ * best-effort — every query is `meta.silent` (never a toast), but a failure still THROWS
+ * so React Query retries it on the next mount instead of caching the outage as an empty
+ * success for the hour.
  */
 import { useQuery } from "@tanstack/react-query";
 import type { MapCentre } from "../services/sources/openBuildings.ts";
@@ -19,7 +21,6 @@ import {
   type OpenObservationDetail,
 } from "../services/sources/openObservations.ts";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { logError } from "../lib/logError.ts";
 import { sourceKeys } from "../services/sources/sourceKeys.ts";
 
 /**
@@ -34,14 +35,8 @@ export function useOpenObservationDetail(
     queryKey: [...sourceKeys.openObservationDetail, iri],
     enabled: Boolean(iri),
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => {
-      try {
-        return await fetchOpenObservation(iri);
-      } catch (err) {
-        logError("fetch open observation (MaStR/netztransparenz)", err);
-        return null;
-      }
-    },
+    meta: { silent: true },
+    queryFn: () => fetchOpenObservation(iri),
   });
 }
 
@@ -57,15 +52,10 @@ export function useOpenObservations(
     queryKey: [...sourceKeys.openObservations, lat, long, radiusM],
     enabled: enabled && lat != null && long != null,
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => {
+    meta: { silent: true },
+    queryFn: () => {
       if (lat == null || long == null) return [];
-      try {
-        return await fetchNearbyOpenObservations({ lat, long }, radiusM);
-      } catch (err) {
-        // Best-effort: a down/partial wrapper must not sink the finder or toast.
-        logError("fetch open observations (netztransparenz)", err);
-        return [];
-      }
+      return fetchNearbyOpenObservations({ lat, long }, radiusM);
     },
   });
 }
@@ -83,13 +73,7 @@ export function useNearbyGeneration(installationIris: readonly string[]) {
     queryKey: [...sourceKeys.nearbyGeneration, sample],
     enabled: sample.length > 0,
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => {
-      try {
-        return await fetchNearbyGenerationTotal(sample);
-      } catch (err) {
-        logError("fetch nearby generation (netztransparenz)", err);
-        return null;
-      }
-    },
+    meta: { silent: true },
+    queryFn: () => fetchNearbyGenerationTotal(sample),
   });
 }

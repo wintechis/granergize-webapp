@@ -2,6 +2,7 @@ import { Box } from "@mui/material";
 import { MapContainer, Marker, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { detailBaseLayer } from "../lib/orthophoto.ts";
+import { useTileActivity } from "../hooks/tileActivity.ts";
 import { buildingPin } from "../lib/buildingPin.ts";
 
 /**
@@ -22,6 +23,7 @@ export default function LocatorMap(
   },
 ) {
   const base = detailBaseLayer(lat, long);
+  const tileEvents = useTileActivity();
   return (
     <Box
       sx={{
@@ -50,6 +52,7 @@ export default function LocatorMap(
           maxZoom={base.config.maxZoom}
           transparent={false}
           attribution={base.config.attribution}
+          eventHandlers={tileEvents}
         />
         <Marker position={[lat, long]} icon={buildingPin(shared)} />
       </MapContainer>

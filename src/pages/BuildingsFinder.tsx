@@ -187,13 +187,19 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
     });
   };
 
+  // In-flight disable (UI conventions: no inline spinner) — attachAnnualData
+  // fetches every building's datasets, so a double-click would double the load.
+  const [downloadingAll, setDownloadingAll] = useState(false);
   const handleDownloadAll = async () => {
-    if (ownedBuildings.length === 0) return;
+    if (ownedBuildings.length === 0 || downloadingAll) return;
+    setDownloadingAll(true);
     try {
       const enriched = await attachAnnualData(ownedBuildings, getGateway());
       downloadXlsx(await buildingsToXlsx(enriched), "buildings-mine.xlsx");
     } catch (error) {
       showNotification(formatError("actionExportBuildings", error), "error");
+    } finally {
+      setDownloadingAll(false);
     }
   };
 
@@ -227,7 +233,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               variant="outlined"
               startIcon={<DownloadIcon />}
               onClick={handleDownloadAll}
-              disabled={ownedBuildings.length === 0}
+              disabled={ownedBuildings.length === 0 || downloadingAll}
             >
               {t("bldgsDownloadAll")}
             </Button>

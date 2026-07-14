@@ -56,6 +56,11 @@ import { ELECTRICITY_COLOR } from "../constants/chartColors.ts";
 
 const TEMP_COLOR = "#d95f02"; // warm orange — the weather axis, distinct from energy
 
+// DWD annual data updates at most daily (sourceKeys contract: refresh by time,
+// never by a write) — without an explicit staleTime the default 0 refetches on
+// every remount.
+const DAY = 24 * 60 * 60 * 1000;
+
 /** The nearest DWD station to the building (rank 1) for mean temperature. Mirrors
  * `WeatherData.useWeatherStations` but takes only the closest, since the overlay
  * needs a single reference series. Opts into the activity store (the adapter fetch
@@ -66,6 +71,7 @@ function useNearestStations(building: Building) {
   return useQuery({
     queryKey: [...sourceKeys.overlayWeatherStation, lat, long],
     enabled: Boolean(lat) && Boolean(long),
+    staleTime: DAY,
     // A small ranked set of ACTIVE stations (not just the single nearest, which is often a
     // discontinued station whose series doesn't reach the building's energy years). The final
     // pick is by year-overlap in the component (pickStationForYears).
@@ -84,6 +90,7 @@ function useStationTemperatures(stationId: string | null) {
   return useQuery({
     queryKey: [...sourceKeys.overlayWeatherValues, stationId],
     enabled: Boolean(stationId),
+    staleTime: DAY,
     queryFn: () =>
       fetchStationValues(
         stationId as string,

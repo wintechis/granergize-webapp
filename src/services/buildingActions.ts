@@ -2,6 +2,8 @@ import type { PodGateway } from "./pod/podGateway.ts";
 import type { Building } from "../types.ts";
 import { deleteBuilding } from "./rdf/building/buildingSerializer.ts";
 import { formatResourceList, listContainedResources } from "./pod/podDelete.ts";
+import { readStoreOrEmpty } from "./pod/podFetch.ts";
+import { parseEnergyDatasetRefs } from "./energy/energyDataset.ts";
 import { getStorageRoot } from "./pod/solidUtils.ts";
 import { revokeAllBuildingRecipients } from "./interop/sharing.ts";
 import {
@@ -17,8 +19,9 @@ function buildingFileUriOf(building: Building): string {
 
 /**
  * Build the human-readable confirmation text for deleting an owned building —
- * enumerating exactly which resources will be removed (the building file + every
- * file in its per-building energy subtree). Pure (no DOM `confirm`, no write), so
+ * enumerating exactly which resources will be removed (the building file, every
+ * file in its `buildings/{id}/` subtree incl. attachments, and its linked
+ * energy dataset files). Pure (no DOM `confirm`, no write), so
  * the caller owns the actual confirmation UI and this stays unit-testable.
  *
  * Resource enumeration and storage-root resolution are best-effort: a listing or
@@ -49,6 +52,19 @@ export async function buildBuildingDeletionPreview(
     );
   } catch (err) {
     logError("list building resources for deletion preview", err);
+    /* preview only */
+  }
+  // The linked energy datasets live under observations/, outside the
+  // per-building subtree, but deleteBuilding removes them too — list them
+  // (dataset files only; a series' day-chunks are summarised by their file).
+  try {
+    const store = await readStoreOrEmpty(fileUri, gateway);
+    for (const ref of parseEnergyDatasetRefs(store, null)) {
+      const dsFile = ref.uri.split("#")[0];
+      if (!resources.includes(dsFile)) resources.push(dsFile);
+    }
+  } catch (err) {
+    logError("list energy datasets for deletion preview", err);
     /* preview only */
   }
 

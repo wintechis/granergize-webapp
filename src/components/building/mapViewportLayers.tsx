@@ -20,9 +20,10 @@ import { Building } from "../../types.ts";
 export function InvalidateOnActive({ active }: { active: boolean }) {
   const map = useMap();
   useEffect(() => {
-    if (active) {
-      setTimeout(() => map.invalidateSize(), 0);
-    }
+    if (!active) return;
+    // Cleared on unmount — a late call on a destroyed Leaflet map throws.
+    const t = setTimeout(() => map.invalidateSize(), 0);
+    return () => clearTimeout(t);
   }, [active, map]);
   return null;
 }
@@ -53,8 +54,13 @@ export function FitToBuildings(
       .map((b) => [b.lat as number, b.long as number] as [number, number]);
     if (pts.length === 0) return;
     done.current = true;
-    // Defer so it runs after invalidateSize() has corrected the container size.
-    setTimeout(() => map.fitBounds(L.latLngBounds(pts), { padding: [40, 40] }), 0);
+    // Defer so it runs after invalidateSize() has corrected the container size;
+    // cleared on unmount (a late call on a destroyed Leaflet map throws).
+    const t = setTimeout(
+      () => map.fitBounds(L.latLngBounds(pts), { padding: [40, 40] }),
+      0,
+    );
+    return () => clearTimeout(t);
   }, [active, buildings, map, searchParams]);
   return null;
 }
@@ -99,11 +105,11 @@ export function ViewportUrlSync() {
     // to `?c`/`?z` for a fresh deep link / shared map URL.
     const stored = getStoredViewport();
     if (stored) {
-      setTimeout(
+      const t = setTimeout(
         () => map.setView([stored.centre.lat, stored.centre.long], stored.zoom),
         0,
       );
-      return;
+      return () => clearTimeout(t);
     }
     const c = searchParams.get("c");
     const z = searchParams.get("z");
@@ -111,7 +117,8 @@ export function ViewportUrlSync() {
     const [lat, lng] = c.split(",").map(Number);
     const zoom = Number(z);
     if ([lat, lng, zoom].every(Number.isFinite)) {
-      setTimeout(() => map.setView([lat, lng], zoom), 0);
+      const t = setTimeout(() => map.setView([lat, lng], zoom), 0);
+      return () => clearTimeout(t);
     }
   }, [map, searchParams]);
   return null;

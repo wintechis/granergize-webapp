@@ -17,7 +17,6 @@ import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { resolveAgent, webIdFragment } from "../services/agents/agentResolver.ts";
 import { referencedAgentTiers } from "../services/agents/agentAppearances.ts";
 import type { SavedAgent } from "../services/savedAgents.ts";
-import { formatError } from "../lib/formatError.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { useListFacet } from "../hooks/useListFacet.ts";
 import { AGENT_TIERS, type Tier } from "../constants/tiers.ts";
@@ -105,8 +104,9 @@ export default function AgentsFinder({ session }: AgentsFinderProps) {
       .catch((e) => logError("upgrade added agent profile", e));
   };
 
-  const handleAddFromInput = async () => {
-    const webId = webIdInput.trim();
+  // Takes the WebID as a parameter (not from state): the scan path calls this in
+  // the same tick as its setWebIdInput, which the current render can't see yet.
+  const addWebId = async (webId: string) => {
     if (!/^https?:\/\//i.test(webId)) {
       showNotification(t("enterWebId"), "error");
       return;
@@ -114,23 +114,24 @@ export default function AgentsFinder({ session }: AgentsFinderProps) {
     try {
       await addToBook(webId);
       setWebIdInput("");
-    } catch (e) {
-      showNotification(formatError("actionAddAgent", e), "error");
+    } catch {
+      // The central toast (the hook's meta.action) already reported the
+      // failure; the catch only keeps the input intact for a retry.
     }
   };
+
+  const handleAddFromInput = () => void addWebId(webIdInput.trim());
 
   // A scanned WebID QR (e.g. on a solidcommunity.net profile page) adds directly; the
   // input keeps the value so a failed resolve stays visible and editable.
   const handleScan = (text: string) => {
     setScanning(false);
     setWebIdInput(text.trim());
-    void handleAddFromInput();
+    void addWebId(text.trim());
   };
 
-  const handleSaveReferenced = (webId: string) =>
-    addToBook(webId).catch((e) =>
-      showNotification(formatError("actionAddAgent", e), "error")
-    );
+  // Failure is toasted centrally (the hook's meta.action); just absorb the rejection.
+  const handleSaveReferenced = (webId: string) => addToBook(webId).catch(() => {});
 
   const handleRemove = (webId: string) =>
     removeAgentMut.mutate(webId, {

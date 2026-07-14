@@ -19,6 +19,7 @@ import {
   OWL_SAME_AS,
 } from "../rdf/vocabularies.ts";
 import { fetchWikidataLogo, wikidataEntityId } from "../agents/wikidataLogo.ts";
+import { getSourceGateway } from "../sources/sourceGateway.ts";
 import { EXT_BY_MIME, uploadPublicLogo } from "../pod/logoImage.ts";
 
 export { isSupportedLogoType } from "../pod/logoImage.ts";
@@ -267,9 +268,12 @@ export async function saveOrganisation(
   // the Commons origin is recorded in the profile Turtle (rather than only being
   // re-resolved at render time, where it leaves no trace). Best-effort and
   // network-bound, so it runs before the write; a failed resolve simply skips.
+  // Wikidata is a PUBLIC host: resolve over the plain source transport, never
+  // the Pod fetch — its Authorization/DPoP headers would go to a third party
+  // and trip a CORS preflight (see agentResolver's loadAgentStore).
   let wikidataLogo: string | undefined;
   if (sameAs && wikidataEntityId(sameAs)) {
-    wikidataLogo = await fetchWikidataLogo(sameAs, gateway.fetch);
+    wikidataLogo = await fetchWikidataLogo(sameAs, getSourceGateway().fetch);
   }
 
   await mutateProfile(docUri, gateway, (store) => {

@@ -33,6 +33,7 @@ import MagnitudeChoroplethLayer from "../region/MagnitudeChoroplethLayer.tsx";
 import MagnitudeLegend from "../region/MagnitudeLegend.tsx";
 import ViewWatch from "../region/ViewWatch.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
+import { useTileActivity } from "../../hooks/tileActivity.ts";
 
 const FRAMING = "magnitude" as const;
 const DAY = 24 * 60 * 60 * 1000;
@@ -51,6 +52,7 @@ export default function NeighbourhoodEnergyMap(
   { building }: { building: Building },
 ) {
   const t = useT();
+  const tileEvents = useTileActivity();
   const { lat, long } = building;
   const inBavaria = lat != null && long != null &&
     long >= BAVARIA.w && long <= BAVARIA.e && lat >= BAVARIA.s && lat <= BAVARIA.n;
@@ -124,6 +126,7 @@ export default function NeighbourhoodEnergyMap(
             layers={BASEMAP_DE.layers}
             format="image/png"
             attribution={BASEMAP_DE.attribution}
+            eventHandlers={tileEvents}
           />
           <ViewWatch onChange={(_zoom, b) => setBbox(b)} />
           {fc && (

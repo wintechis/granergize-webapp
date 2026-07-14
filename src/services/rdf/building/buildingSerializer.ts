@@ -28,9 +28,9 @@ import {
   DCTERMS_LICENSE,
   DCTERMS_SOURCE,
   FOAF_NAME,
-  OSM_ATTRIBUTION,
-  OSM_NOMINATIM_SOURCE,
-  OSM_ODBL_LICENSE,
+  ADDRESSAPI_DE_ATTRIBUTION,
+  ADDRESSAPI_DE_LICENSE,
+  GISCO_ADDRESSAPI_SOURCE,
   OWL_SAME_AS,
   PROV_AGENT,
   PROV_ATTRIBUTION,
@@ -72,7 +72,10 @@ import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
 import { fetchFresh } from "../../pod/podFetch.ts";
 import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
-import { listDirectChildren } from "../../pod/podDelete.ts";
+import {
+  deleteContainerRecursive,
+  listDirectChildren,
+} from "../../pod/podDelete.ts";
 import { lauConceptUrl } from "../../../constants/dataSources.ts";
 import { mintLocalIri } from "../rdfHelpers.ts";
 import { buildingFileUri, mintBuildingSubject } from "./buildingId.ts";
@@ -174,6 +177,10 @@ function addGeoPoint(
   const lat = fields.lat?.trim();
   const long = fields.long?.trim();
   if (!lat || !long) return;
+  // Fixed, readable blank-node labels ("point", "cert0", …) are safe because a
+  // serialization always targets ONE building document (labels are
+  // document-scoped). Don't merge two buildings' quads into one store/graph —
+  // their labels would collide; each building writes its own file.
   const point = blankNode("point");
   store.addQuad(subject, namedNode(GEO_LOCATION), point);
   store.addQuad(point, namedNode(RDF_TYPE_IRI), namedNode(GEO_POINT));
@@ -186,10 +193,10 @@ function addGeoPoint(
       namedNode(GRAN_GEOCODE_PRECISION),
       namedNode(GEOCODE_PRECISION_IRI[precision as GeocodePrecision]),
     );
-    // A geocodePrecision is set ONLY by the Nominatim geocoder (geocodeFields);
+    // A geocodePrecision is set ONLY by the addressapi geocoder (geocodeFields);
     // coordinates from other sources (a partner file, MaStR/LoD2 import, manual
-    // entry) carry none. So its presence marks OSM-derived coordinates — record
-    // that provenance + the ODbL attribution on the point itself.
+    // entry) carry none. So its presence marks register-derived coordinates —
+    // record that provenance + the BKG attribution on the point itself.
     addGeocodeProvenance(store, point);
   }
 }
@@ -217,9 +224,10 @@ function addRegion(
 }
 
 /**
- * Record, on a geocoded `geo:Point`, that its coordinates were derived from
- * OpenStreetMap via the Nominatim geocoder, with the ODbL licence and the
- * required attribution — so the obligation travels with shared building data.
+ * Record, on a geocoded `geo:Point`, that its coordinates were derived from the
+ * national address register via the GISCO Address API (linked-addressapi), with
+ * the dl-de/by-2-0 licence and the required BKG attribution — so the obligation
+ * travels with shared building data.
  */
 function addGeocodeProvenance(
   store: Store,
@@ -228,9 +236,9 @@ function addGeocodeProvenance(
   const src = blankNode("geocodeSource");
   store.addQuad(point, namedNode(PROV_WAS_DERIVED_FROM), src);
   store.addQuad(src, namedNode(RDF_TYPE_IRI), namedNode(PROV_ENTITY));
-  store.addQuad(src, namedNode(FOAF_NAME), literal(OSM_ATTRIBUTION));
-  store.addQuad(src, namedNode(DCTERMS_SOURCE), namedNode(OSM_NOMINATIM_SOURCE));
-  store.addQuad(src, namedNode(DCTERMS_LICENSE), namedNode(OSM_ODBL_LICENSE));
+  store.addQuad(src, namedNode(FOAF_NAME), literal(ADDRESSAPI_DE_ATTRIBUTION));
+  store.addQuad(src, namedNode(DCTERMS_SOURCE), namedNode(GISCO_ADDRESSAPI_SOURCE));
+  store.addQuad(src, namedNode(DCTERMS_LICENSE), namedNode(ADDRESSAPI_DE_LICENSE));
 }
 
 /**
@@ -600,6 +608,16 @@ export function serializeBuildingToTurtle(
   for (const ds of energyDatasets ?? []) {
     const node = namedNode(ds.uri);
     store.addQuad(subject, namedNode(`${CONSUMPTION_NS}hasEnergyDataset`), node);
+    // Keep every link dimension `linkEnergyDatasetInStore` writes — dropping the
+    // feature of interest here would fold a per-unit (<#pv>/<#battery>) series
+    // into the building total on the next full serialize.
+    if (ds.featureOfInterest) {
+      store.addQuad(
+        node,
+        namedNode(`${SOSA_NS}hasFeatureOfInterest`),
+        namedNode(ds.featureOfInterest),
+      );
+    }
     store.addQuad(
       node,
       namedNode(`${CONSUMPTION_NS}granularity`),
@@ -908,6 +926,9 @@ export async function deleteEnergyYear(
     for (const q of quads) s.removeQuad(q);
     s.removeQuads(s.getQuads(link, namedNode(`${CONSUMPTION_NS}granularity`), null, null));
     s.removeQuads(s.getQuads(link, namedNode(`${CONSUMPTION_NS}scenario`), null, null));
+    s.removeQuads(
+      s.getQuads(link, namedNode(`${SOSA_NS}hasFeatureOfInterest`), null, null),
+    );
   });
 }
 
@@ -1177,6 +1198,17 @@ export async function updateBuilding(
     if ("lat" in updatedFields || "long" in updatedFields) {
       replaceGeoPoint(store, subject, updatedFields);
     }
+    // Rewrite the region (dcterms:spatial) when the edit carries it — an address
+    // change re-geocodes and hands the fresh Gemeinde AGS in `regionAgs` (with
+    // `regionConceptIri` cleared); without this the building kept pointing at
+    // its OLD region forever. An edit that doesn't re-geocode omits both keys
+    // and leaves the stored region intact.
+    if ("regionAgs" in updatedFields || "regionConceptIri" in updatedFields) {
+      store.removeQuads(
+        store.getQuads(subject, namedNode(DCTERMS_SPATIAL), null, null),
+      );
+      addRegion(store, subject, updatedFields);
+    }
     // Replace the investor master-data blank nodes only when the edit actually
     // carries their keys — a partial edit without them leaves existing data intact.
     const keys = Object.keys(updatedFields);
@@ -1202,7 +1234,8 @@ export function newBuildingUri(webId: string, id: string): string {
 /**
  * Permanently delete a building the user owns: delete its (time-first) energy
  * datasets — each `cons:hasEnergyDataset` resource and, for a series, every
- * day-chunk under its year container — then the building file itself. Own
+ * day-chunk under its year container — its `buildings/{id}/` subtree (the
+ * uploaded attachments under `files/`), then the building file itself. Own
  * buildings are now discovered by *listing* the `buildings/` container, so
  * removing the file de-registers it — there's no registry to update. Refuses to
  * touch resources outside the user's own Pod (e.g. a building shared from
@@ -1235,6 +1268,13 @@ export async function deleteBuilding(
         .catch((err) => logError("delete energy dataset", err));
     }
   }
+
+  // The per-building subtree (`buildings/{id}/`, holding every uploaded
+  // attachment under `files/`) is part of what the deletion preview promises
+  // to remove. Delete it BEFORE the building file and let a failure propagate:
+  // the building then stays listed and the delete is retryable, instead of
+  // orphaning invisible (possibly still-shared) binaries on the Pod.
+  await deleteContainerRecursive(fileUri.replace(/\.ttl$/, "/"), gateway);
 
   // Delete the file directly — NOT its .acl first. Removing a resource's .acl
   // before the resource would briefly fall it back to the container's (possibly

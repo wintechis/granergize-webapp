@@ -14,7 +14,7 @@
  *
  * Discovery helpers assert the source declares the verb (the registry
  * `capabilities`), so a wrong source+verb pairing fails loudly rather than 404s.
- * Non-vocabulary reads (Nominatim JSON, the `geojson` bulk feed, a Commons image
+ * Non-vocabulary reads (the addressapi search JSON, the `geojson` bulk feed, a Commons image
  * blob) bypass these and use `gw.fetch` directly.
  */
 import type { Store } from "n3";
@@ -73,6 +73,16 @@ async function fetchRdf(
   return await derefUrl(gw, url, label);
 }
 
+/** A non-ok wrapper response, carrying the HTTP status so a caller can tell
+ *  DEFINITIVE absence (404/410 — cacheable as "not there") from a transient
+ *  failure (5xx — must stay retryable, never cached as an empty result). */
+export class DerefError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "DerefError";
+  }
+}
+
 async function derefUrl(
   gw: SourceGateway,
   url: string,
@@ -80,7 +90,7 @@ async function derefUrl(
 ): Promise<Store> {
   const res = await gw.fetch(url, { headers: { Accept: "text/turtle" } }, label);
   if (!res.ok) {
-    throw new Error(`${label}: ${res.status} for ${url}`);
+    throw new DerefError(res.status, `${label}: ${res.status} for ${url}`);
   }
   return parseRdfText(await res.text(), url);
 }

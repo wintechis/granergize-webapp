@@ -11,11 +11,12 @@
  * resolves to `undefined`.
  */
 
+import { sourceBase } from "../../constants/dataSources.ts";
+
 /** Wikidata's EntityData JSON endpoint sends `Access-Control-Allow-Origin: *`. */
-const ENTITY_DATA_BASE = "https://www.wikidata.org/wiki/Special:EntityData/";
+const entityDataBase = () => `${sourceBase("wikidata")}wiki/Special:EntityData/`;
 /** Commons `Special:FilePath` redirects a filename to the actual image file. */
-const COMMONS_FILEPATH_BASE =
-  "https://commons.wikimedia.org/wiki/Special:FilePath/";
+const commonsFilePathBase = () => `${sourceBase("commons")}wiki/Special:FilePath/`;
 /** "logo image" — preferred; "image" — generic fallback. */
 const P_LOGO = "P154";
 const P_IMAGE = "P18";
@@ -63,7 +64,7 @@ export async function fetchWikidataLogo(
   const id = wikidataEntityId(iri);
   if (!id) return undefined;
   try {
-    const res = await fetchFn(`${ENTITY_DATA_BASE}${id}.json`);
+    const res = await fetchFn(`${entityDataBase()}${id}.json`);
     if (!res.ok) return undefined;
     const json = await res.json();
     const entity = (json as { entities?: Record<string, unknown> })
@@ -71,7 +72,7 @@ export async function fetchWikidataLogo(
     const claims = (entity as { claims?: unknown })?.claims;
     const filename = commonsFilenameFromClaims(claims);
     if (!filename) return undefined;
-    return `${COMMONS_FILEPATH_BASE}${encodeURIComponent(filename)}`;
+    return `${commonsFilePathBase()}${encodeURIComponent(filename)}`;
   } catch {
     return undefined;
   }

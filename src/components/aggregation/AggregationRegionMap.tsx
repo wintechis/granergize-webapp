@@ -21,6 +21,7 @@ import {
 import { BASEMAP_DE } from "../../lib/orthophoto.ts";
 import MagnitudeChoroplethLayer from "../region/MagnitudeChoroplethLayer.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
+import { useTileActivity } from "../../hooks/tileActivity.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -51,6 +52,7 @@ export default function AggregationRegionMap(
   { extent }: { extent: SpatialExtent },
 ) {
   const t = useT();
+  const tileEvents = useTileActivity();
   const code = extent.region.match(/\/ags\/(\d+)$/)?.[1] ?? null;
   // Land + national show the Bundesland layer; Gemeinde/Kreis the Kreis layer.
   const grain: RegionGrain = extent.level === "kreis" || extent.level === "gemeinde"
@@ -110,6 +112,7 @@ export default function AggregationRegionMap(
             layers={BASEMAP_DE.layers}
             format="image/png"
             attribution={BASEMAP_DE.attribution}
+            eventHandlers={tileEvents}
           />
           {fc && (
             <MagnitudeChoroplethLayer

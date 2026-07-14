@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import TravelExploreIcon from "@mui/icons-material/TravelExplore";
-import { geocodeFields } from "../services/sources/geocode.ts";
+import { geocodePlace } from "../services/sources/regionGeometry.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
 
@@ -14,7 +14,9 @@ import { useNotification } from "../context/NotificationContext.tsx";
  * by the open-fetch consumers), plus a place-search box that geocodes a name and recentres
  * the map there (`?c`/`?z`) so the viewport fetch loads open data for that place. Rendered
  * only when the `open` tier is ticked. The default stays concentric; this is the deliberate
- * deviation (notes/data-architecture.md §Reaching the outer ring).
+ * deviation (notes/data-architecture.md §Reaching the outer ring). Place search resolves
+ * through the linked-lau Gemeinde name search (`geocodePlace`) — the addressapi geocoder
+ * is structured (full addresses only) and cannot place a bare town name.
  */
 export default function ExploreControl() {
   const t = useT();
@@ -37,7 +39,7 @@ export default function ExploreControl() {
     if (!place) return;
     setSearching(true);
     try {
-      const hit = await geocodeFields({ locality: place });
+      const hit = await geocodePlace(place);
       if (!hit) {
         showNotification(t("exploreNoMatch", { place }), "warning");
         return;

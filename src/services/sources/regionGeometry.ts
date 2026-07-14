@@ -304,6 +304,54 @@ export function parseRegionMatches(store: Store): RegionMatch[] {
   return out;
 }
 
+/** Collect the finite [lon, lat] pairs of a GeoJSON coordinates array (any nesting). */
+function collectPositions(coords: unknown, out: [number, number][]): void {
+  if (!Array.isArray(coords)) return;
+  if (coords.length >= 2 && typeof coords[0] === "number" && typeof coords[1] === "number") {
+    if (Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+      out.push([coords[0], coords[1]]);
+    }
+    return;
+  }
+  for (const c of coords) collectPositions(c, out);
+}
+
+/**
+ * Geocode a PLACE name (a municipality) to a map centre via the **linked-lau name
+ * search** — the addressapi geocoder is structured (full addresses only), so a
+ * place search resolves through the region classification instead. The search
+ * serves the matching Gemeinden as GeoJSON; the first match's bbox centre is the
+ * recentre point. Best-effort: `null` on a miss or error.
+ */
+export async function geocodePlace(
+  name: string,
+): Promise<{ lat: string; long: string } | null> {
+  try {
+    const url = `${sourceBase("lau")}${LAU_ROUTES.search}?q=${encodeURIComponent(name)}`;
+    // GeoJSON, not RDF — a non-vocabulary read via the gateway's bare fetch.
+    const res = await getSourceGateway().fetch(
+      url,
+      { headers: { Accept: "application/geo+json" } },
+      "place search",
+    );
+    if (!res.ok) return null;
+    const fc = await res.json() as { features?: { geometry?: { coordinates?: unknown } }[] };
+    const pos: [number, number][] = [];
+    collectPositions(fc.features?.[0]?.geometry?.coordinates, pos);
+    if (pos.length === 0) return null;
+    let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+    for (const [lon, lat] of pos) {
+      if (lon < w) w = lon;
+      if (lon > e) e = lon;
+      if (lat < s) s = lat;
+      if (lat > n) n = lat;
+    }
+    return { lat: String((s + n) / 2), long: String((w + e) / 2) };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Keyword-search the NUTS or LAU classification by region code/name, returning
  * the matching region concepts — the discovery half of the exploration path

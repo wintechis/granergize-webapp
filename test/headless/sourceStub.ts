@@ -2,10 +2,10 @@
 /**
  * Make the headless runner **hermetic on external sources**. Tier-2 is hermetic on
  * the Pod (a throwaway local CSS/JSS) but its task ops can still reach public
- * sources — `seedDemoBuildings` geocodes each demo building (Nominatim + the
- * linked-lau `/contains` region lookup). Before the SourceGateway port there was no
- * seam to redirect those, so `headless:local` silently hit `nominatim.openstreetmap.org`
- * / `wunderfacts.com` under Deno (the known gap; see plans/plan-test-lane-naming.md).
+ * sources — `seedDemoBuildings` geocodes each demo building (the addressapi register
+ * search + the linked-lau `/contains` region lookup). Before the SourceGateway port
+ * there was no seam to redirect those, so `headless:local` silently hit
+ * `wunderfacts.com` under Deno (the known gap; see plans/plan-test-lane-naming.md).
  *
  * This installs a fake {@link SourceGateway} (the same port the app reads through)
  * that serves deterministic fixtures for the reads the suite actually makes and 404s
@@ -30,10 +30,14 @@ const NUERNBERG = { lat: "49.4521", lon: "11.0767", ags: "09564000" };
 export function installHeadlessSourceStub(): void {
   const { gateway } = makeFakeSourceGateway({
     respond: (url) => {
-      // Nominatim geocode (JSON) → a fixed point, so a demo building maps offline.
-      if (url.includes("/search?") && url.includes("format=json")) {
+      // addressapi register search (JSON) → one unambiguous fixed point, so a
+      // demo building maps offline.
+      if (url.includes("search.json?") && url.includes("country=DE")) {
         return new Response(
-          JSON.stringify([{ lat: NUERNBERG.lat, lon: NUERNBERG.lon }]),
+          JSON.stringify({
+            count: 1,
+            results: [{ lat: Number(NUERNBERG.lat), lon: Number(NUERNBERG.lon) }],
+          }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }

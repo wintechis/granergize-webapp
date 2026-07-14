@@ -34,3 +34,19 @@ Deno.test("parsePlantSettlements: sums strommengeKWh per year across disposal fo
 Deno.test("parsePlantSettlements: an empty document → an empty map", () => {
   assert.equal(parsePlantSettlements(store("", BASE)).size, 0);
 });
+
+Deno.test("parsePlantSettlements: decimal kWh amounts keep their fraction", () => {
+  // The settled dump carries decimals; parseInt would silently truncate them.
+  const ttl = `
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<#it> rdf:type <../vocab#Plant> ;
+  <../vocab#hasSettlement>
+    [ rdf:type <../vocab#Settlement> ; <../vocab#disposalForm> "feed-in-tariff" ;
+      <../vocab#strommengeKWh> "1234.56"^^xsd:decimal ; <../vocab#year> "2023"^^xsd:gYear ] ,
+    [ rdf:type <../vocab#Settlement> ; <../vocab#disposalForm> "market-premium" ;
+      <../vocab#strommengeKWh> "0.44"^^xsd:decimal ; <../vocab#year> "2023"^^xsd:gYear ] .
+`;
+  const byYear = parsePlantSettlements(store(ttl, BASE));
+  assert.equal(byYear.get(2023), 1235);
+});

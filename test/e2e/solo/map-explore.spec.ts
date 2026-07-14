@@ -15,9 +15,9 @@ import { T } from "../helpers/timeouts.ts";
  * The open tier's opt-in **exploration** mode. With NO own building the open tier is empty
  * (the concentric default — nothing to anchor to). Toggling "Explore this area" + searching
  * a place anchors the open layers to the map viewport, so open data appears for that place.
- * LOCAL stubs the LoD2 `/nearby` summary + per-building roof deref and the Nominatim
- * geocode; REMOTE lets both fall through to the live hosts (Nürnberg sits on real LoD2
- * coverage). Self-cleaning; Alice (account A).
+ * LOCAL stubs the LoD2 `/nearby` summary + per-building roof deref and the linked-lau
+ * place search; REMOTE lets both fall through to the live hosts (Nürnberg sits on real
+ * LoD2 coverage). Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/solo/map-explore.spec.ts
  */
@@ -71,13 +71,12 @@ test.describe("open-data exploration mode", () => {
       }
       return route.fulfill({ status: 404, headers: CORS, body: "" });
     });
-    // The place-search geocode → Nürnberg. The app geocodes via the linked-osm Nominatim
-    // proxy (`sourceBase("osm")` = osmwrap.ontologycentral.com/nominatim/search.json,
-    // returning a GeoJSON FeatureCollection with `geometry.coordinates` = [lon, lat]) —
-    // NOT nominatim.openstreetmap.org. Stubbed in BOTH lanes: geocoding is rate-limited
-    // infra (the live proxy takes ~60 s, past the URL-recentre timeout), not the open-data
-    // source this spec asserts — that's the LIVE LoD2 rooftop layer above (`stubWhenLocal`).
-    await page.route(/\/nominatim\/search/, (route) =>
+    // The place search → Nürnberg. The app resolves a PLACE name via the linked-lau
+    // Gemeinde name search (`sourceBase("lau")` search, GeoJSON polygons; the addressapi
+    // geocoder is structured/full-address-only). Stubbed in BOTH lanes: place resolution
+    // is infra, not the open-data source this spec asserts — that's the LIVE LoD2
+    // rooftop layer above (`stubWhenLocal`).
+    await page.route(/\/lau\/search/, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/geo+json",
@@ -96,7 +95,7 @@ test.describe("open-data exploration mode", () => {
 
   test.afterAll(async () => {
     await page.unroute(/\/lod2-by\//).catch(() => {});
-    await page.unroute(/\/nominatim\/search/).catch(() => {});
+    await page.unroute(/\/lau\/search/).catch(() => {});
     await verifyAndReset(page, "map-explore");
     await page.close();
   });
@@ -124,9 +123,9 @@ test.describe("open-data exploration mode", () => {
     await page.getByRole("button", { name: t("exploreSearchBtn"), exact: true }).click();
 
     await expect(page).toHaveURL(/[?&]explore=1/, { timeout: T.action });
-    // Recentred to the Nürnberg area (`49.4x`) — matches both the LOCAL per-spec geocode
-    // stub (49.4521) and the REMOTE global Nominatim fake (hash-based 49.40–49.49; live
-    // Nominatim stays stubbed as rate-limited infra, not the open-data source under test).
+    // Recentred to the Nürnberg area (`49.4x`) — the per-spec /lau/search place stub
+    // (49.4521) is registered in BOTH lanes (place resolution is infra, not the
+    // open-data source under test).
     await expect(page).toHaveURL(/[?&]c=49\.4/, { timeout: T.action });
     await expect(openRows.first()).toBeVisible({ timeout: T.poll });
     expect(await openRows.count()).toBeGreaterThan(0);

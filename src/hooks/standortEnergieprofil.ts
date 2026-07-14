@@ -24,6 +24,8 @@ import {
   fetchAreaProfile,
 } from "../services/sources/standortEnergieprofil.ts";
 
+const DAY = 24 * 60 * 60 * 1000;
+
 export interface StandortEnergieprofil {
   /** The Energie-Atlas query (`data` is the per-Gemeinde profile, or `null`). */
   query: UseQueryResult<AreaProfile | null>;
@@ -42,7 +44,9 @@ export function useStandortEnergieprofil(
   const query = useQuery<AreaProfile | null>({
     queryKey: [...sourceKeys.standortEnergieprofil, ags],
     enabled: Boolean(ags),
-    staleTime: 1000 * 60 * 60,
+    // Same freshness as NeighbourhoodEnergyMap's per-Gemeinde queries — the key
+    // is shared, so a differing staleTime would make the two surfaces fight.
+    staleTime: DAY,
     queryFn: () => fetchAreaProfile(ags as string),
   });
   return { query, ags, installations };

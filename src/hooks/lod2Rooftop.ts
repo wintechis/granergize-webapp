@@ -5,9 +5,11 @@
  * per-building sibling of {@link useNearbyInstallations} and {@link useStandortEnergieprofil}.
  *
  * Best-effort: the wrapper is an external host that may be down, CORS-blocked, or only seeded
- * for the Bavarian pilot, so the fetch is caught and degraded to `null` (the panel then omits
- * the card) rather than thrown — otherwise the central `QueryCache.onError` toast would fire
- * for a non-critical context layer. The request still shows in the global activity indicator.
+ * for the Bavarian pilot, so every query here is `meta.silent` (no central toast for a
+ * non-critical context layer; the panel simply omits the card). Failures still THROW — a
+ * caught-to-`null` result would be cached as *success* for the hour-long staleTime, freezing
+ * a transient outage; an errored query retries on the next mount instead. The requests still
+ * show in the global activity indicator.
  */
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { Building } from "../types.ts";
@@ -22,7 +24,6 @@ import {
   type NearbyRooftopGeometry,
   type RooftopPotential,
 } from "../services/sources/lod2Rooftop.ts";
-import { logError } from "../lib/logError.ts";
 import { sourceKeys } from "../services/sources/sourceKeys.ts";
 
 /**
@@ -43,14 +44,8 @@ export function useOpenBuildingDetail(
     queryKey: [...sourceKeys.openBuildingDetail, iri],
     enabled: Boolean(iri),
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => {
-      try {
-        return await fetchOpenBuilding(iri);
-      } catch (err) {
-        logError("fetch open building (LoD2-BY)", err);
-        return null;
-      }
-    },
+    meta: { silent: true },
+    queryFn: () => fetchOpenBuilding(iri),
   });
 }
 
@@ -63,17 +58,12 @@ export function useLod2Rooftop(
     queryKey: [...sourceKeys.lod2Rooftop, lat, long, streetAddress],
     enabled: located,
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => {
+    meta: { silent: true },
+    queryFn: () => {
       if (lat == null || long == null) return null;
-      try {
-        // Pass the building's street address as the LoD2 shared key (prefer an
-        // address match over the merely-nearest building).
-        return await fetchRooftopPotential(lat, long, undefined, streetAddress);
-      } catch (err) {
-        // Best-effort: a down/partial wrapper must not sink the page or toast.
-        logError("fetch rooftop-PV potential", err);
-        return null;
-      }
+      // Pass the building's street address as the LoD2 shared key (prefer an
+      // address match over the merely-nearest building).
+      return fetchRooftopPotential(lat, long, undefined, streetAddress);
     },
   });
 }
@@ -93,14 +83,10 @@ export function useBuilding3d(
     queryKey: [...sourceKeys.building3d, lat, long],
     enabled: located,
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => {
+    meta: { silent: true },
+    queryFn: () => {
       if (lat == null || long == null) return null;
-      try {
-        return await fetchBuilding3d(lat, long);
-      } catch (err) {
-        logError("fetch building 3D geometry", err);
-        return null;
-      }
+      return fetchBuilding3d(lat, long);
     },
   });
 }
@@ -120,15 +106,10 @@ export function useNearbyRooftops(
     queryKey: [...sourceKeys.lod2NearbyRooftops, lat, long],
     enabled: located,
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => {
+    meta: { silent: true },
+    queryFn: () => {
       if (lat == null || long == null) return [];
-      try {
-        return await fetchNearbyRooftops(lat, long);
-      } catch (err) {
-        // Best-effort: a down/partial wrapper must not sink the page or toast.
-        logError("fetch nearby rooftops", err);
-        return [];
-      }
+      return fetchNearbyRooftops(lat, long);
     },
   });
 }
@@ -148,15 +129,10 @@ export function useNearbyRooftopGeometry(
     queryKey: [...sourceKeys.lod2NearbyRooftopGeom, lat, long],
     enabled: enabled && located,
     staleTime: 1000 * 60 * 60,
-    queryFn: async () => {
+    meta: { silent: true },
+    queryFn: () => {
       if (lat == null || long == null) return [];
-      try {
-        return await fetchNearbyRooftopGeometry(lat, long);
-      } catch (err) {
-        // Best-effort: a down/partial wrapper must not sink the page or toast.
-        logError("fetch nearby rooftop geometry", err);
-        return [];
-      }
+      return fetchNearbyRooftopGeometry(lat, long);
     },
   });
 }

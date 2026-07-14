@@ -2,6 +2,7 @@ import type { PodGateway } from "../pod/podGateway.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { queryKeys } from "../../lib/queryKeys.ts";
 import { fetchFresh } from "../pod/podFetch.ts";
+import { logError } from "../../lib/logError.ts";
 import {
   type EnergyDataset,
   type EnergyDatasetRef,
@@ -60,8 +61,17 @@ export async function fetchEnergyDatasetsShared(
   refs: readonly EnergyDatasetRef[],
   gateway: PodGateway,
 ): Promise<EnergyDataset[]> {
-  const loaded = await Promise.all(
+  // allSettled: one dataset's transient failure drops just that dataset from
+  // this batch (logged), never the whole view; the per-dataset query entry is
+  // in ERROR state (not a cached null success), so the next read retries it.
+  const loaded = await Promise.allSettled(
     refs.map((ref) => fetchEnergyDatasetShared(ref.uri, gateway)),
   );
-  return loaded.filter((ds): ds is EnergyDataset => ds !== null);
+  return loaded
+    .map((r, i) => {
+      if (r.status === "fulfilled") return r.value;
+      logError(`load energy dataset ${refs[i].uri}`, r.reason);
+      return null;
+    })
+    .filter((ds): ds is EnergyDataset => ds !== null);
 }

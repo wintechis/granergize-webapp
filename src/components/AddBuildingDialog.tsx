@@ -99,14 +99,15 @@ export default function AddBuildingDialog(
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Lets the user cancel a long upload (e.g. a 15-min year = ~365 daily files).
   const uploadAbort = useRef<AbortController | null>(null);
+  // The last chosen import file, retained so a manual format override can
+  // re-parse it (the file input itself is reset after every pick).
+  const lastFile = useRef<File | null>(null);
 
   // "Import from file" opens straight into the file picker. With the native
   // <dialog> there's no enter-transition hook, so fire it when the modal opens.
   useEffect(() => {
     if (open && autostartImport) fileInputRef.current?.click();
   }, [open, autostartImport]);
-
-  const isProcessing = uploading || parsing;
 
   const fields = buildingsList[activeIdx] ?? {};
   // One generic form: only address + coordinates are required, for any building.
@@ -164,6 +165,16 @@ export default function AddBuildingDialog(
       return next;
     });
 
+  const { onGeocode, busy: geocoding } = useGeocodeFields(
+    fields,
+    setField,
+    t("coordinatesUpdated"),
+  );
+
+  // geocoding joins the busy set: the dialog must not close under an in-flight
+  // geocode, whose late setField would otherwise land on the next open's form.
+  const isProcessing = uploading || parsing || geocoding;
+
   const removeBuilding = (idx: number) => {
     setBuildingsList((prev) => prev.filter((_, i) => i !== idx));
     setActiveIdx((prev) => (idx <= prev ? Math.max(0, prev - 1) : prev));
@@ -176,11 +187,20 @@ export default function AddBuildingDialog(
     setActiveIdx(0);
     setLastgangReadings(null);
     setUploadProgress(null);
+    lastFile.current = null;
     onClose();
   };
 
+  // Overriding the format re-parses the RETAINED file with the chosen layout —
+  // the override's whole point is recovering from a misdetection, so it must
+  // not depend on the (already reset) file input or re-run auto-detection.
   const handleFormatChange = (e: SelectChangeEvent<SpreadsheetFormat>) => {
-    setFormat(e.target.value as SpreadsheetFormat);
+    const chosen = e.target.value as SpreadsheetFormat;
+    setFormat(chosen);
+    if (lastFile.current) {
+      void importFile(lastFile.current, chosen);
+      return;
+    }
     setBuildingsList([{}]);
     setActiveIdx(0);
     setLastgangReadings(null);
@@ -189,14 +209,29 @@ export default function AddBuildingDialog(
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    lastFile.current = file;
+    try {
+      // Detect the sheet layout (so the user needn't pick a role) and reflect it
+      // in the format selector; the user can still override via the selector,
+      // which re-parses this file with the chosen layout.
+      const detected = await detectSpreadsheetFormat(file);
+      setFormat(detected);
+      await importFile(file, detected);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const importFile = async (file: File, format: SpreadsheetFormat) => {
     setParsing(true);
     try {
-      // Detect the sheet layout (so the user needn't pick a role) and reflect it in
-      // the format selector; the user can still override and re-choose the file.
-      const format = await detectSpreadsheetFormat(file);
-      setFormat(format);
       const parsed = await parseCsvToFields(file, format);
       if (parsed.length === 0) {
+        // Clear any previous file's parse results — leaving them on screen
+        // invites submitting file A's data believing it came from file B.
+        setBuildingsList([{}]);
+        setActiveIdx(0);
+        setLastgangReadings(null);
         showNotification(t("noBuildingsInFile"), "warning");
         return;
       }
@@ -234,19 +269,14 @@ export default function AddBuildingDialog(
 
       // Templates carry an address but no coordinates, yet lat/long are required
       // to place a building on the map (and to import an investor sheet at all).
-      // Geocode every parsed building that lacks them. Throttle to Nominatim's
-      // policy of AT MOST 1 request/second: a burst gets rate-limited (empty
-      // results), and since the form is valid only when EVERY building has
-      // coordinates, a single throttled miss would block the whole import. A
-      // building that still can't be resolved is left unmapped (and stays
-      // invalid, so the user can fix or geocode it manually).
-      let geocodedOne = false;
+      // Geocode every parsed building that lacks them (sequentially — polite to
+      // the register wrapper; no Nominatim-style 1 req/s throttle is needed any
+      // more). A building that still can't be resolved is left unmapped (and
+      // stays invalid, so the user can fix or geocode it manually).
       for (const b of cleanParsed) {
         if ((b.lat?.trim() && b.long?.trim()) || !(b.streetAddress || b.postalCode || b.locality)) {
           continue;
         }
-        if (geocodedOne) await new Promise((r) => setTimeout(r, 1100));
-        geocodedOne = true;
         const coords = await geocodeWithRegion(b);
         if (coords) {
           b.lat = coords.lat;
@@ -270,15 +300,8 @@ export default function AddBuildingDialog(
       showNotification(formatError("actionParseFile", err), "error");
     } finally {
       setParsing(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-
-  const { onGeocode, busy: geocoding } = useGeocodeFields(
-    fields,
-    setField,
-    t("coordinatesUpdated"),
-  );
 
   const handleSubmit = () => {
     const controller = new AbortController();

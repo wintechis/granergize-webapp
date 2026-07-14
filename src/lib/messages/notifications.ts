@@ -444,6 +444,71 @@ export const notifications = {
     de: "Hinzufügen des Agenten",
     fr: "l'ajout du agent",
   },
+  actionRemoveAgent: {
+    en: "remove the agent",
+    de: "Entfernen des Agenten",
+    fr: "la suppression de l'agent",
+  },
+  actionDeleteBuilding: {
+    en: "delete the building",
+    de: "Löschen des Gebäudes",
+    fr: "la suppression du bâtiment",
+  },
+  actionToggleVisibility: {
+    en: "change the building's visibility",
+    de: "Ändern der Sichtbarkeit des Gebäudes",
+    fr: "la modification de la visibilité du bâtiment",
+  },
+  actionRevokeBuildingAccess: {
+    en: "revoke building access",
+    de: "Entziehen des Gebäudezugriffs",
+    fr: "la révocation de l'accès au bâtiment",
+  },
+  actionDeleteAggregation: {
+    en: "delete the aggregation",
+    de: "Löschen der Aggregation",
+    fr: "la suppression de l'agrégation",
+  },
+  actionRefreshAggregation: {
+    en: "recompute the aggregation",
+    de: "Neuberechnen der Aggregation",
+    fr: "le recalcul de l'agrégation",
+  },
+  actionRevokeAggregationAccess: {
+    en: "revoke aggregation access",
+    de: "Entziehen des Aggregationszugriffs",
+    fr: "la révocation de l'accès à l'agrégation",
+  },
+  actionCreateRoom: {
+    en: "create the data room",
+    de: "Erstellen des Datenzimmers",
+    fr: "la création de la salle de données",
+  },
+  actionExitRoom: {
+    en: "leave the data room",
+    de: "Verlassen des Datenzimmers",
+    fr: "la sortie de la salle de données",
+  },
+  actionDeleteRoom: {
+    en: "delete the data room",
+    de: "Löschen des Datenzimmers",
+    fr: "la suppression de la salle de données",
+  },
+  actionAddRoom: {
+    en: "add the data room to your list",
+    de: "Hinzufügen des Datenzimmers zur Liste",
+    fr: "l'ajout de la salle de données à votre liste",
+  },
+  actionRemoveBookmark: {
+    en: "remove the data room from your list",
+    de: "Entfernen des Datenzimmers aus der Liste",
+    fr: "le retrait de la salle de données de votre liste",
+  },
+  actionSaveRoles: {
+    en: "save your roles",
+    de: "Speichern deiner Rollen",
+    fr: "l'enregistrement de vos rôles",
+  },
   // Agents flow notifications (the `showNotification` vocabulary — migrated per
   // area; the add-failure toast still goes through `formatError`, a later slice).
   enterWebId: {

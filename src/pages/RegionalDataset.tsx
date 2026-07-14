@@ -52,6 +52,9 @@ export default function RegionalDataset() {
     enabled: Boolean(table) && Boolean(ags),
     staleTime: 1000 * 60 * 60,
     queryFn: () => fetchRegionalObservations(table!, ags),
+    // Open-data read with its own inline empty state ("no data for this
+    // region") — a wrapper outage shows that, not an error toast.
+    meta: { silent: true },
   });
 
   // Table (this region's year series) ⇄ Map (the metric across all regions). Local state.

@@ -131,6 +131,10 @@ export default function CommandPaletteBody(
   // The second step: the form-eligible intent whose param form is shown in place
   // of the command list (null = the command list is shown).
   const [formIntent, setFormIntent] = useState<string | null>(null);
+  // The param form's close-guard state, reported up by IntentParamForm: dirty
+  // once a param holds a value (Escape confirms), busy while its invoke is in
+  // flight (closing suppressed) — the standard Modal guard semantics.
+  const [formGuard, setFormGuard] = useState({ dirty: false, busy: false });
   // Dev-mode JSON paste-and-launch (§10): the inline parse/dispatch error, shown
   // under the field when a pasted `{name,params}` can't be launched.
   const [launchError, setLaunchError] = useState<string | null>(null);
@@ -425,6 +429,8 @@ export default function CommandPaletteBody(
       onClose={close}
       title={null}
       dismissable
+      dirty={formIntent != null && formGuard.dirty}
+      busy={formIntent != null && formGuard.busy}
       maxWidth="sm"
     >
       {result
@@ -437,6 +443,7 @@ export default function CommandPaletteBody(
             name={formIntent}
             onDone={close}
             onCancel={() => setFormIntent(null)}
+            onGuardChange={setFormGuard}
           />
         )
         : (

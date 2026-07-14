@@ -11,6 +11,8 @@ import {
 } from "./organisation.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
 import { ConflictError } from "../pod/podWrite.ts";
+import { _setSourceGatewayForTesting } from "../sources/sourceGateway.ts";
+import { makeFakeSourceGateway } from "../testing/fakeSourceGateway.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE_DOC = "https://pod.example/profile/card";
@@ -186,51 +188,72 @@ const WIKIDATA = "https://www.wikidata.org/entity/Q42";
 const COMMONS_LOGO =
   "https://commons.wikimedia.org/wiki/Special:FilePath/Acme_logo.svg";
 
-Deno.test("saveOrganisation adopts a Wikidata→Commons logo with provenance when the org has none", async () => {
-  const writes: Write[] = [];
-  const session = makeSession({
-    [PROFILE_DOC]: `
+// The Wikidata EntityData JSON lookup goes over the PLAIN source gateway (a
+// public host must never see the Pod session's Authorization/DPoP), so the
+// fixture is installed there — NOT in the fake Pod session.
+const withWikidataQ42 = async (run: () => Promise<void>) => {
+  const fake = makeFakeSourceGateway({
+    respond: (url) =>
+      url.endsWith("/wiki/Special:EntityData/Q42.json")
+        ? new Response(JSON.stringify({
+          entities: {
+            Q42: {
+              claims: {
+                P154: [{ mainsnak: { datavalue: { value: "Acme_logo.svg" } } }],
+              },
+            },
+          },
+        }))
+        : undefined,
+  });
+  _setSourceGatewayForTesting(fake.gateway);
+  try {
+    await run();
+  } finally {
+    _setSourceGatewayForTesting(null);
+  }
+};
+
+Deno.test("saveOrganisation adopts a Wikidata→Commons logo with provenance when the org has none", () =>
+  withWikidataQ42(async () => {
+    const writes: Write[] = [];
+    const session = makeSession({
+      [PROFILE_DOC]: `
       @prefix org: <http://www.w3.org/ns/org#> .
       <${WEBID}> org:memberOf <${ORG}> .
       <${ORG}> a org:Organization .
     `,
-    // The Wikidata EntityData JSON the resolver fetches (P154 = logo image).
-    "https://www.wikidata.org/wiki/Special:EntityData/Q42.json": JSON.stringify({
-      entities: { Q42: { claims: { P154: [{ mainsnak: { datavalue: { value: "Acme_logo.svg" } } }] } } },
-    }),
-  }, writes);
+    }, writes);
 
-  await saveOrganisation(session, { name: "ACME", sameAs: WIKIDATA });
-  const ttl = writes[0].body as string;
+    await saveOrganisation(session, { name: "ACME", sameAs: WIKIDATA });
+    const ttl = writes[0].body as string;
 
-  // foaf:logo now points at the Commons file, with provenance back to Wikidata.
-  assert.deepEqual(objectsOf(ttl, ORG, FOAF_LOGO), [COMMONS_LOGO]);
-  assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, PROV_WAS_DERIVED_FROM), [WIKIDATA]);
-  assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, DCTERMS_SOURCE), [WIKIDATA]);
-});
+    // foaf:logo now points at the Commons file, with provenance back to Wikidata.
+    assert.deepEqual(objectsOf(ttl, ORG, FOAF_LOGO), [COMMONS_LOGO]);
+    assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, PROV_WAS_DERIVED_FROM), [WIKIDATA]);
+    assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, DCTERMS_SOURCE), [WIKIDATA]);
+  }));
 
-Deno.test("saveOrganisation does NOT overwrite an existing logo with the Wikidata one", async () => {
-  const writes: Write[] = [];
-  const own = "https://pod.example/profile/logo.svg";
-  const session = makeSession({
-    [PROFILE_DOC]: `
+Deno.test("saveOrganisation does NOT overwrite an existing logo with the Wikidata one", () =>
+  withWikidataQ42(async () => {
+    const writes: Write[] = [];
+    const own = "https://pod.example/profile/logo.svg";
+    const session = makeSession({
+      [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
       @prefix org: <http://www.w3.org/ns/org#> .
       <${WEBID}> org:memberOf <${ORG}> .
       <${ORG}> a org:Organization ; foaf:logo <${own}> .
     `,
-    "https://www.wikidata.org/wiki/Special:EntityData/Q42.json": JSON.stringify({
-      entities: { Q42: { claims: { P154: [{ mainsnak: { datavalue: { value: "Acme_logo.svg" } } }] } } },
-    }),
-  }, writes);
+    }, writes);
 
-  await saveOrganisation(session, { name: "ACME", sameAs: WIKIDATA });
-  const ttl = writes[0].body as string;
+    await saveOrganisation(session, { name: "ACME", sameAs: WIKIDATA });
+    const ttl = writes[0].body as string;
 
-  // The uploaded logo is preserved; the Commons one is not adopted.
-  assert.deepEqual(objectsOf(ttl, ORG, FOAF_LOGO), [own]);
-  assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, PROV_WAS_DERIVED_FROM), []);
-});
+    // The uploaded logo is preserved; the Commons one is not adopted.
+    assert.deepEqual(objectsOf(ttl, ORG, FOAF_LOGO), [own]);
+    assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, PROV_WAS_DERIVED_FROM), []);
+  }));
 
 Deno.test("uploadOrgLogo stores the image and links foaf:logo on the org node", async () => {
   const writes: Write[] = [];

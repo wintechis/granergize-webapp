@@ -28,6 +28,9 @@ export const MAX_CERTS = 10;
 
 /** BSP CSV column header (German) → Building field name */
 export const BSP_COL_MAP: Record<string, string> = {
+  // The measurement year of the sheet's consumption columns; absent in legacy
+  // partner files (the import then falls back to a default year).
+  "Messjahr": "_bsp_year",
   "Unternehmen": "companyName",
   "Gebäude-Name": "label",
   "Straße": "streetAddress",

@@ -252,7 +252,7 @@ export const energyRegional = {
     de: "Datenquelle:",
     fr: "Source des données :",
   },
-  // Coordinate attribution (geocoded via OpenStreetMap/Nominatim).
+  // Coordinate attribution (geocoded via the address register / linked-addressapi).
   coordsLabel: {
     en: "Coordinates:",
     de: "Koordinaten:",

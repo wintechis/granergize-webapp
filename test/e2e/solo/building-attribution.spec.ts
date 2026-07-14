@@ -13,14 +13,15 @@ import { assertCleanStart, clearFinderMemory, verifyAndReset } from "../helpers/
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Building coordinate attribution e2e. Coordinates GEOCODED from OpenStreetMap
- * (via Nominatim) carry the OSM/ODbL provenance in the building Turtle
- * (`geo:Point prov:wasDerivedFrom`); the building page surfaces it as a
- * "Coordinates: OpenStreetMap … (ODbL)" line — shown ONLY when a
- * `geocodePrecision` is set. This stubs Nominatim, geocodes a building via the
- * Add dialog's "Get coordinates" button (precision set → line shown), and
- * contrasts a building whose coordinates were entered DIRECTLY (no precision →
- * no line, so coords from a file/import/manual entry make no false OSM claim).
+ * Building coordinate attribution e2e. Coordinates GEOCODED from the national
+ * address register (GISCO Address API via linked-addressapi) carry the
+ * BKG/dl-de provenance in the building Turtle (`geo:Point prov:wasDerivedFrom`);
+ * the building page surfaces it as a "Coordinates: GISCO Address API …
+ * (dl-de/by-2.0)" line — shown ONLY when a `geocodePrecision` is set. This stubs
+ * the addressapi, geocodes a building via the Add dialog's "Get coordinates"
+ * button (precision set → line shown), and contrasts a building whose
+ * coordinates were entered DIRECTLY (no precision → no line, so coords from a
+ * file/import/manual entry make no false register claim).
  * Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/solo/building-attribution.spec.ts
@@ -33,7 +34,7 @@ const CORS = { "access-control-allow-origin": "*" };
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("building coordinate attribution (OSM / Nominatim)", () => {
+test.describe("building coordinate attribution (addressapi register)", () => {
   test.skip(
     !hasAccount(ACC),
     `Set WEBID_A_USERNAME / WEBID_A_PASSWORD (a throwaway Solid Pod) to run the building-attribution e2e.`,
@@ -45,19 +46,17 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "building-attribution");
     page.on("dialog", (d) => d.accept().catch(() => {}));
-    // Stub Nominatim: any address query resolves to fixed Nürnberg coordinates
-    // (+ permissive CORS, since the prod build calls the absolute OSM host).
-    await page.route(/\/nominatim\/search/, (route) =>
+    // Stub the addressapi: any address query resolves to fixed Nürnberg
+    // coordinates (+ permissive CORS, since the prod build calls the absolute
+    // wrapper host).
+    await page.route(/\/addressapi\/search/, (route) =>
       route.fulfill({
         status: 200,
-        contentType: "application/geo+json",
+        contentType: "application/json",
         headers: CORS,
         body: JSON.stringify({
-          type: "FeatureCollection",
-          features: [{
-            type: "Feature",
-            geometry: { type: "Point", coordinates: [11.0767, 49.4521] },
-          }],
+          count: 1,
+          results: [{ lat: 49.4521, lon: 11.0767 }],
         }),
       }));
     await login(page, ACC);
@@ -90,7 +89,7 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     await dialog.getByLabel(t("lblLocality")).fill("Nürnberg");
     await dialog.getByLabel(t("lblPostalCode")).fill("90451");
     await dialog.getByLabel(t("lblRegion")).fill("Bayern");
-    // Geocode → the latitude field populates from the stubbed Nominatim response.
+    // Geocode → the latitude field populates from the stubbed addressapi response.
     await dialog.getByRole("button", { name: t("addGetCoordinates") }).click();
     await expect(dialog.getByLabel(t("lblLatitude"))).not.toHaveValue("", {
       timeout: T.action,
@@ -105,13 +104,15 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     if (!id) throw new Error("building-attribution: missing geocoded building id");
 
     await page.goto(buildingRoute("building", id));
-    // The coordinate attribution: "Coordinates: OpenStreetMap (via linked-osm) (ODbL)".
+    // The coordinate attribution:
+    // "Coordinates: GISCO Address API (via linked-addressapi) (dl-de/by-2.0)".
     await expect(page.getByText(t("coordsLabel"))).toBeVisible({
       timeout: T.action,
     });
-    await expect(page.getByRole("link", { name: "OpenStreetMap (via linked-osm)" }))
-      .toBeVisible();
-    await expect(page.getByRole("link", { name: "ODbL" })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "GISCO Address API (via linked-addressapi)" }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "dl-de/by-2.0" })).toBeVisible();
 
     await page.goto("/");
     await openBuildingsList(page);

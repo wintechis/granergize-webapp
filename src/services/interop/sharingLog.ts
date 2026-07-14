@@ -14,7 +14,7 @@ import {
   XSD_NS,
 } from "../rdf/vocabularies.ts";
 import { podResources } from "../pod/solidUtils.ts";
-import { readStoreOrEmpty } from "../pod/podFetch.ts";
+import { readStoreOrAbsent } from "../pod/podFetch.ts";
 import { appendToContainer, ensureContainer } from "../pod/podWrite.ts";
 import { mapPooled } from "../../lib/pool.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
@@ -220,7 +220,11 @@ export async function loadSharingEvent(
   eventUri: string,
   gateway: PodGateway,
 ): Promise<SharingEvent[]> {
-  return parseSharingEvents(await readStoreOrEmpty(eventUri, gateway));
+  // OrAbsent, not OrEmpty: a transiently unreadable event must ERROR (React
+  // Query retries it on the next mount) — folded as "no events" it would be
+  // cached as success under `staleTime: Infinity`, making a revoked share
+  // reappear (or a fresh grant vanish) for the rest of the session.
+  return parseSharingEvents(await readStoreOrAbsent(eventUri, gateway));
 }
 
 /** Read every event resource in a log container (bounded concurrency). The headless

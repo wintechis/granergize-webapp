@@ -56,5 +56,8 @@ export async function loadSharedBuilding(
   const found = [...parsed.values()]
     .find((b) => buildingFileUri(b.uri) === fileUri) ?? [...parsed.values()][0];
   if (!found) return null;
+  // Default-graph parse → the parser recorded no source graph; consumers of
+  // `sourceUri ?? uri` would otherwise see the empty string (not nullish).
+  if (!found.sourceUri) found.sourceUri = fileUri;
   return found;
 }

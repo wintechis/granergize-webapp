@@ -58,10 +58,10 @@ export async function parseTtlReadings(
       )
       : [];
     if (!valueQs.length || !beginQs.length) return;
-    parsed.push({
-      begin: beginQs[0].object.value,
-      value: parseFloat(valueQs[0].object.value),
-    });
+    const value = parseFloat(valueQs[0].object.value);
+    // A malformed reading must not surface as NaN in charts/sums.
+    if (Number.isNaN(value)) return;
+    parsed.push({ begin: beginQs[0].object.value, value });
   });
 
   parsed.sort((a, b) => a.begin.localeCompare(b.begin));

@@ -374,9 +374,11 @@ export async function resolveAgentOrg(
     }
   }
   // A logo served from Wikimedia Commons (the persisted Commons URL or the
-  // render-time Wikidata fallback) is the attribution-bearing case.
+  // render-time Wikidata fallback) is the attribution-bearing case. Match on
+  // the REGISTERED Commons base (env-overridable), not a hardcoded host — a
+  // stubbed/overridden base would otherwise misclassify as "uploaded".
   const logoSource: ResolvedOrg["logoSource"] = logoUrl
-    ? (logoUrl.includes("commons.wikimedia.org") ? "commons" : "uploaded")
+    ? (logoUrl.startsWith(sourceBase("commons")) ? "commons" : "uploaded")
     : undefined;
   return {
     ...(name ? { name } : {}),

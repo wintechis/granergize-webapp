@@ -75,6 +75,7 @@ function invalidateBuildingData(qc: QueryClient): void {
 export function useDeleteBuilding() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionDeleteBuilding" },
     mutationFn: (building: Building) =>
       invoke("DeleteBuilding", { building }, getGateway()),
     // Drop the building from the list cache authoritatively on success, so the
@@ -118,6 +119,7 @@ export function useDeleteBuilding() {
 export function useCheckInbox() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionCheckShares" },
     mutationFn: () => invoke("DrainInbox", {}, getGateway()),
     onSettled: () => {
       // One log query feeds every "shared with me" reader (the lists derive
@@ -137,6 +139,7 @@ export function useCheckInbox() {
 export function useToggleVisibility() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionToggleVisibility" },
     mutationFn: (buildingUri: string) =>
       invoke("ToggleVisibility", { buildingUri }, getGateway()),
     onSettled: () => {
@@ -153,6 +156,7 @@ export function useToggleVisibility() {
 export function useRevokeBuildingAccess() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionRevokeBuildingAccess" },
     mutationFn: (vars: { buildingUri: string; webId: string }) =>
       invoke("RevokeBuildingAccess", vars, getGateway()),
     onSettled: () => {
@@ -164,6 +168,7 @@ export function useRevokeBuildingAccess() {
 export function useDeleteAggregation() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionDeleteAggregation" },
     // The core revokes every recipient first (notifying them, so the aggregation
     // drops off their "Aggregations shared with you"), THEN deletes the
     // definition/snapshot — that ordering is domain logic in the core.
@@ -182,6 +187,7 @@ export function useDeleteAggregation() {
 export function useRefreshAggregation() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionRefreshAggregation" },
     mutationFn: (aggregationId: string) =>
       invoke("RefreshAggregation", { aggregationId }, getGateway()),
     onSettled: () => {
@@ -198,6 +204,7 @@ export function useRefreshAggregation() {
 export function useRevokeAggregationAccess() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionRevokeAggregationAccess" },
     mutationFn: (vars: { snapshotUri: string; webId: string }) =>
       invoke("RevokeAggregationAccess", vars, getGateway()),
     onSettled: () => {
@@ -481,6 +488,7 @@ export function useSaveOrganisation() {
 export function useSaveAgent() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionAddAgent" },
     mutationFn: (vars: SavedAgent | { agent: SavedAgent; logo?: File | null }) => {
       const params = "agent" in vars ? vars : { agent: vars };
       return invoke("SaveAgent", params, getGateway());
@@ -493,6 +501,7 @@ export function useSaveAgent() {
 export function useRemoveAgent() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionRemoveAgent" },
     mutationFn: (webId: string) => invoke("RemoveAgent", { webId }, getGateway()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.agents }),
   });
@@ -530,6 +539,7 @@ export function useSeedDemoAgents() {
 export function useCreateRoom() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionCreateRoom" },
     mutationFn: (name?: string) => invoke("CreateRoom", { name }, getGateway()),
     onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.CreateRoom(res)),
   });
@@ -549,6 +559,9 @@ export function useSeedDemoRooms() {
 export function useEnterRoom() {
   const qc = useQueryClient();
   return useMutation({
+    // Silent: RoomDetail (the only caller) shows the contextual "room
+    // unreachable" toast in its onError — a central "Failed to …" would double up.
+    meta: { silent: true },
     mutationFn: (roomUri: string) => invoke("EnterRoom", { roomUri }, getGateway()),
     onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.EnterRoom(res)),
   });
@@ -557,6 +570,7 @@ export function useEnterRoom() {
 export function useExitRoom() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionExitRoom" },
     mutationFn: (roomUri: string) => invoke("ExitRoom", { roomUri }, getGateway()),
     onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.ExitRoom(res)),
   });
@@ -566,6 +580,7 @@ export function useExitRoom() {
 export function useDeleteRoom() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionDeleteRoom" },
     mutationFn: (roomUri: string) => invoke("DeleteRoom", { roomUri }, getGateway()),
     onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.DeleteRoom(res)),
   });
@@ -575,6 +590,7 @@ export function useDeleteRoom() {
 export function useAddRoom() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionAddRoom" },
     mutationFn: (input: string) => invoke("AddBookmark", { input }, getGateway()),
     onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.AddBookmark(res)),
   });
@@ -584,6 +600,7 @@ export function useAddRoom() {
 export function useRemoveBookmark() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionRemoveBookmark" },
     mutationFn: (roomUri: string) => invoke("RemoveBookmark", { roomUri }, getGateway()),
     onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.RemoveBookmark(res)),
   });
@@ -592,6 +609,7 @@ export function useRemoveBookmark() {
 export function useSaveRoles() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { action: "actionSaveRoles" },
     mutationFn: (vars: { room: string; roles: UserRole[] }) =>
       invoke("SaveRoles", vars, getGateway()),
     // Roles live in the room's log, not the registry — refresh just that.

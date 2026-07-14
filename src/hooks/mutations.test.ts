@@ -224,18 +224,18 @@ import { _setSourceGatewayForTesting } from "../services/sources/sourceGateway.t
 import { GRAN_NS, REC_BUILDING } from "../services/rdf/vocabularies.ts";
 
 /** A fake external-source gateway for the demo-seed geocoding path: the seed
- * resolves each demo address to coords (Nominatim) and then its Gemeinde region
+ * resolves each demo address to coords (addressapi) and then its Gemeinde region
  * (linked-lau `/contains`). Without this the reads fall through to the real
  * network, breaking the unit lane's no-I/O invariant. Returns a fixed point so
  * the seed runs deterministically offline. */
 function fakeSeedSources() {
   return makeFakeSourceGateway({
     respond: (url) => {
-      if (url.includes("nominatim") || url.includes("/search")) {
-        return new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+      if (url.includes("/search")) {
+        return new Response(
+          JSON.stringify({ count: 1, results: [{ lat: 49.45, lon: 11.08 }] }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
       }
       if (url.includes("/lau/contains")) {
         return new Response(

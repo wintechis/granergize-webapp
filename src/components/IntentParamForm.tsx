@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -54,6 +54,10 @@ interface IntentParamFormProps {
   onDone: () => void;
   /** Cancel (back to the command list / close). */
   onCancel: () => void;
+  /** Reports the form's guard state to the hosting Modal: `dirty` once any
+   *  param holds a value (Escape then confirms), `busy` while the invoke is in
+   *  flight (closing is suppressed). */
+  onGuardChange?: (state: { dirty: boolean; busy: boolean }) => void;
 }
 
 /** A collected param value: a string / boolean / string[] (years are gYear strings). */
@@ -63,6 +67,7 @@ export default function IntentParamForm({
   name,
   onDone,
   onCancel,
+  onGuardChange,
 }: IntentParamFormProps) {
   const t = useT();
   const invokeIntent = useInvokeIntent();
@@ -90,6 +95,16 @@ export default function IntentParamForm({
   const [busy, setBusy] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  // Report dirty (any param touched) + busy to the hosting Modal's close-guard.
+  const dirty = Object.values(values).some((v) =>
+    Array.isArray(v) ? v.length > 0 : typeof v === "boolean" ? v : v !== ""
+  );
+  useEffect(() => {
+    onGuardChange?.({ dirty, busy });
+    // onGuardChange is a stable palette setter; keying on it would re-fire per render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, busy]);
 
   const set = (pname: string, v: ParamValue) =>
     setValues((prev) => ({ ...prev, [pname]: v }));

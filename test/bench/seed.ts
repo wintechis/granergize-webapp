@@ -4,7 +4,7 @@
  * headless runner and the Tier-3 browser bench). Everything goes through the app's
  * OWN data-layer functions — so the benchmark times the real code paths, not a
  * shortcut — but takes the FAST routes: buildings are PUT with coordinates inline
- * (no Nominatim geocoding), and writes are pooled, so 500 buildings seed in seconds.
+ * (no geocoding), and writes are pooled, so 500 buildings seed in seconds.
  */
 import type { PodGateway } from "../../src/services/pod/podGateway.ts";
 import {

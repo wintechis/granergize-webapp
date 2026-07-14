@@ -23,6 +23,8 @@ export const sourceKeys = {
   regionalDataset: ["regionalDataset"] as const,
   /** The LfU/energy-atlas area profile for an AGS. */
   standortEnergieprofil: ["standortEnergieprofil"] as const,
+  /** A building's joined Bundesland/Kreis regional figures (the context panel). */
+  regionalContext: ["regionalContext"] as const,
   /** DWD weather stations near a point (the Weather page). */
   weatherStations: ["weatherStations"] as const,
   /** A station's weather values for a parameter (the Weather page). */

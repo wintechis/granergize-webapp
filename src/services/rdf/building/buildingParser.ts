@@ -322,7 +322,9 @@ export function parseBuildings(
           BUILDING_NS.length,
         ) as (typeof OPCOST_FIELDS)[number];
         if ((OPCOST_FIELDS as readonly string[]).includes(key)) {
-          oc[key] = localName(objVal);
+          // Written as plain free-text literals (addOperatingCosts) — reading
+          // through localName() truncated any value containing '/' or '#'.
+          oc[key] = objVal;
         }
       }
       return;

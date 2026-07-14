@@ -45,6 +45,7 @@ import { BASEMAP_DE } from "../../lib/orthophoto.ts";
 import MagnitudeChoroplethLayer from "../region/MagnitudeChoroplethLayer.tsx";
 import MagnitudeLegend from "../region/MagnitudeLegend.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
+import { useTileActivity } from "../../hooks/tileActivity.ts";
 
 const FRAMING = "magnitude" as const;
 const HOUR = 60 * 60 * 1000;
@@ -72,6 +73,7 @@ export default function AggregationsMap(
   },
 ) {
   const t = useT();
+  const tileEvents = useTileActivity();
 
   // Own + received snapshots (region + per-metric values). Keyed by the stable id/uri set;
   // per-item tolerant so one unreadable snapshot doesn't sink the map.
@@ -147,6 +149,8 @@ export default function AggregationsMap(
     enabled: !!regionalTable,
     staleTime: HOUR,
     queryFn: () => fetchRegionalChoropleth(regionalTable!),
+    // Open-data overlay values: an outage leaves the regions unshaded, never toasts.
+    meta: { silent: true },
   });
   const regionalMap = regional.data ?? EMPTY_REGIONAL;
 
@@ -226,6 +230,7 @@ export default function AggregationsMap(
             layers={BASEMAP_DE.layers}
             format="image/png"
             attribution={BASEMAP_DE.attribution}
+            eventHandlers={tileEvents}
           />
           {fc && (
             <MagnitudeChoroplethLayer

@@ -294,7 +294,7 @@ export default function EnergyYearEditor(
       return;
     }
     const metrics: AnnualMetrics = {};
-    for (const { key, label } of metricFields(building?.systems)) {
+    for (const { key, label } of metricFields(selectedBuilding?.systems)) {
       const raw = values[key];
       if (raw && raw.trim() !== "") {
         const n = parseFloat(raw);
@@ -315,6 +315,23 @@ export default function EnergyYearEditor(
     if (Object.keys(metrics).length === 0) {
       showNotification(t("enterFigure"), "error");
       return;
+    }
+    // A stored dataset exists for this (year, scenario) but its figures were
+    // never loaded into the form — the user typed ahead of the async dataset
+    // list, and the pre-fill effect deliberately kept their input. An empty
+    // field then means "untouched", not "delete" (the user never saw the stored
+    // value), so merge the stored metrics under the typed ones; otherwise the
+    // PUT would silently drop every metric the user didn't re-enter.
+    const storedUnloaded = existingByKey.get(dsKey(y, scenario));
+    if (storedUnloaded && loadedKey.current !== dsKey(y, scenario)) {
+      for (
+        const [k, v] of Object.entries(storedUnloaded.metrics ?? {}) as [
+          keyof AnnualMetrics,
+          number,
+        ][]
+      ) {
+        if (!(k in metrics)) metrics[k] = v;
+      }
     }
     // Building-less: write an UNBOUND observation (no building → no FoI). It surfaces
     // via the building-less observations list; there's no per-building cache to patch.
@@ -497,7 +514,7 @@ export default function EnergyYearEditor(
                     <TableRow>
                       <TableCell><strong>{t("lblYear")}</strong></TableCell>
                       <TableCell><strong>{t("lblScenario")}</strong></TableCell>
-                      {metricFields(building?.systems).map((m) => (
+                      {metricFields(selectedBuilding?.systems).map((m) => (
                         <TableCell key={m.key} align="right">
                           <strong>{m.short}</strong>
                         </TableCell>
@@ -510,7 +527,7 @@ export default function EnergyYearEditor(
                       <TableRow hover key={dsKey(d.year, d.scenario)}>
                         <TableCell>{d.year}</TableCell>
                         <TableCell>{scenarioLabel(d.scenario)}</TableCell>
-                        {metricFields(building?.systems).map((m) => {
+                        {metricFields(selectedBuilding?.systems).map((m) => {
                           const v = d.metrics?.[m.key];
                           return (
                             <TableCell key={m.key} align="right">
@@ -570,7 +587,7 @@ export default function EnergyYearEditor(
                 {t("eyEditingNote")}
               </Typography>
             )}
-            {metricFields(building?.systems).map(({ key, label, relevant }) => (
+            {metricFields(selectedBuilding?.systems).map(({ key, label, relevant }) => (
               <TextField
                 key={key}
                 label={label}

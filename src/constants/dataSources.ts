@@ -20,7 +20,7 @@
  */
 
 /** The discovery/deref verbs a source serves — the `SourceGateway` capability
- *  helpers (`src/services/sources/capabilities.ts`). Non-RDF reads (Nominatim
+ *  helpers (`src/services/sources/capabilities.ts`). Non-RDF reads (the addressapi
  *  JSON, the `geojson` bulk feed, a Commons image blob) are not in this set;
  *  they go through the gateway's bare `fetch`. */
 export type SourceCapability =
@@ -45,6 +45,7 @@ export type SourceId =
   | "dwd"
   | "osm"
   | "inspire"
+  | "addressapi"
   | "wikidata"
   | "commons";
 
@@ -80,12 +81,13 @@ export const SOURCES = {
     homepage: "https://www.openstreetmap.org/copyright",
     license: "ODbL",
     licenseHref: "https://opendatacommons.org/licenses/odbl/1-0/",
-    note:
-      "Building footprints (Overpass) and address geocoding (Nominatim), via linked-osm.",
+    // Build-tool source since the geocoder moved to linked-addressapi: the pipeline's
+    // L1 building footprints (Overpass) derive from it; the app itself no longer fetches it.
+    note: "Building footprints (Overpass), via linked-osm.",
     envKey: "VITE_OSM_API_URI",
     base: "https://osmwrap.ontologycentral.com/",
-    // Overpass features + Nominatim search are custom JSON endpoints (see geocode.ts /
-    // the pipeline's L1), not RDF capability helpers.
+    // Overpass features is a custom JSON endpoint (the pipeline's L1), not an RDF
+    // capability helper.
     capabilities: [],
   },
   inspire: {
@@ -186,6 +188,23 @@ export const SOURCES = {
     envKey: "VITE_LAU_API_URI",
     base: "https://wunderfacts.com/lau/",
     capabilities: ["deref", "contains", "search"],
+  },
+  addressapi: {
+    id: "addressapi",
+    name: "GISCO Address API (via linked-addressapi)",
+    homepage: "https://gisco-services.ec.europa.eu/addressapi/docs/",
+    // Per-country register licences; the app's DE addresses are BKG (dl-de/by-2.0).
+    license: "dl-de/by-2.0",
+    licenseHref: DL_DE_BY,
+    // The app's geocoder (geocode.ts: structured search → register address point) AND
+    // a build-tool source (the pipeline validates uncertain MaStR unit coordinates and
+    // reverse-geocodes address-less buildings against the register).
+    note:
+      "Address geocoding — register address points (national cadastral registers, via linked-addressapi).",
+    envKey: "VITE_ADDRESSAPI_API_URI",
+    base: "https://wunderfacts.com/addressapi/",
+    // search/reverse are custom LIDS endpoints, not RDF capability helpers.
+    capabilities: [],
   },
   wikidata: {
     id: "wikidata",

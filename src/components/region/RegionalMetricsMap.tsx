@@ -37,6 +37,7 @@ import MagnitudeChoroplethLayer from "./MagnitudeChoroplethLayer.tsx";
 import MagnitudeLegend from "./MagnitudeLegend.tsx";
 import ViewWatch from "./ViewWatch.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
+import { useTileActivity } from "../../hooks/tileActivity.ts";
 
 const FRAMING = "magnitude" as const;
 const HOUR = 60 * 60 * 1000;
@@ -60,6 +61,7 @@ export default function RegionalMetricsMap(
   },
 ) {
   const t = useT();
+  const tileEvents = useTileActivity();
   const [liveZoom, setLiveZoom] = useState(zoom);
   // The chosen metric per grain (Land / Kreis), seeded from `initialTableId`.
   const [selectedId, setSelectedId] = useState<Record<string, string>>(() => {
@@ -86,6 +88,8 @@ export default function RegionalMetricsMap(
     queryKey: [...sourceKeys.regionalChoropleth, table.tableId, table],
     queryFn: () => fetchRegionalChoropleth(table),
     staleTime: HOUR,
+    // Open-data overlay values: an outage leaves the regions unshaded, never toasts.
+    meta: { silent: true },
   });
   const regionalMap = values.data ?? EMPTY;
 
@@ -141,6 +145,7 @@ export default function RegionalMetricsMap(
             layers={BASEMAP_DE.layers}
             format="image/png"
             attribution={BASEMAP_DE.attribution}
+            eventHandlers={tileEvents}
           />
           <ViewWatch onChange={(z) => setLiveZoom(z)} />
           {marker && (

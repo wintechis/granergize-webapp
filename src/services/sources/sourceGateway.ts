@@ -2,7 +2,7 @@
  * The **public-source transport port** — the read-only, unauthenticated peer of
  * {@link ../pod/podGateway.ts | PodGateway}. Where `PodGateway` abstracts the
  * authed Solid transport, `SourceGateway` abstracts the public external sources
- * (the `linked-*` wrappers, Nominatim, Wikidata/Commons): a non-DPoP, retried,
+ * (the `linked-*` wrappers, Wikidata/Commons): a non-DPoP, retried,
  * activity-tracked `fetch` plus base resolution by source id.
  *
  * It is the single injectable seam for external reads. In the app it wraps

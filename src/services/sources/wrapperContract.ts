@@ -16,7 +16,6 @@ import { NETZTRANSPARENZ_ROUTES } from "./netztransparenz.ts";
 import { DWD_ROUTES } from "./linkedWeather.ts";
 import { ENERGIEATLAS_ROUTES } from "./standortEnergieprofil.ts";
 import { REGIONALSTATISTIK_ROUTES } from "./regionalCube.ts";
-import { OSM_ROUTES } from "./geocode.ts";
 
 /** One route the app depends on, and what it uses it for. */
 export interface RequiredRoute {
@@ -163,20 +162,8 @@ const CONTRACTS: Record<string, () => WrapperContract> = {
       lidsExamples: [],
     };
   },
-  osm: () => {
-    const b = sourceBase("osm");
-    return {
-      routesUrl: `${b}routes`,
-      requires: [
-        { route: OSM_ROUTES.nominatimSearch, purpose: "geocode addresses → coordinates (Nominatim proxy)" },
-      ],
-      // The geocoding route is a Nominatim proxy read as GeoJSON (`.json`); the app consumes the
-      // FeatureCollection, not a reified `#id` LIDS entity. Shown: the RDF form of a sample search.
-      lidsExamples: [
-        { label: "nominatim/search (Turtle)", url: `${b}nominatim/search.ttl?q=N%C3%BCrnberg&limit=1` },
-      ],
-    };
-  },
+  // NOTE linked-addressapi (the app's geocoder) has NO contract entry: the wrapper serves no
+  // `/routes` manifest to check against, so the Data-sources view shows only its live probe.
 };
 
 export function hasWrapperContract(id: string): boolean {

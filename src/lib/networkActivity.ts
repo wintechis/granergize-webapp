@@ -148,7 +148,7 @@ export function describeRequest(
   return `${method} ${where}`;
 }
 
-// Bare (non-Pod) fetches back off on transient throttling too (e.g. Nominatim
+// Bare (non-Pod) fetches back off on transient throttling too (e.g. a wrapper
 // rate-limits geocoding). Pod requests retry inside instrumentSessionFetch
 // instead — above @inrupt's fetch, so each retry gets a fresh DPoP proof.
 const retryingFetch = withRetry((input, init) => fetch(input, init));

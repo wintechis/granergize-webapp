@@ -84,9 +84,8 @@ export default function SharingFinder({ session }: SharingFinderProps) {
   // login/reload), then surface the outcome.
   const handleCheckInbox = () =>
     checkInbox.mutate(undefined, {
+      // Errors go to the central toast via the hook's meta.action.
       onSuccess: () => showNotification(msg("checkedForShares"), "success"),
-      onError: (err) =>
-        showNotification(formatError("actionCheckShares", err), "error"),
     });
 
   // The Solid containers that back this tab, so the user can open the raw RDF:

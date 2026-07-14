@@ -42,6 +42,11 @@ interface WeatherDataProps {
   building: Building;
 }
 
+// DWD annual data updates at most daily (sourceKeys contract: refresh by time,
+// never by a write) — without an explicit staleTime the default 0 refetches on
+// every remount.
+const DAY = 24 * 60 * 60 * 1000;
+
 
 // Map of parameter dataset paths to their catalog label id (resolved at render).
 const parameterTitles: Record<string, MessageId> = {
@@ -69,6 +74,7 @@ function useWeatherStations(building: Building) {
   return useQuery({
     queryKey: [...sourceKeys.weatherStations, lat, long],
     enabled: Boolean(lat) && Boolean(long),
+    staleTime: DAY,
     queryFn: () => fetchNearestStations(lat as number, long as number, 5),
   });
 }
@@ -78,6 +84,7 @@ function useWeatherValues(station: string | null, column: string) {
   return useQuery({
     queryKey: [...sourceKeys.weatherValues, station, column],
     enabled: Boolean(station),
+    staleTime: DAY,
     queryFn: () => fetchStationValues(station as string, column),
   });
 }
@@ -201,8 +208,8 @@ export default function WeatherData({ building }: WeatherDataProps) {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {values.map((item, index) => (
-                    <TableRow key={index}>
+                  {values.map((item) => (
+                    <TableRow key={item.date}>
                       <TableCell>
                         {new Date(item.date).getFullYear()}
                       </TableCell>

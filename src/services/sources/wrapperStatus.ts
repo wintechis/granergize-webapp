@@ -50,7 +50,7 @@ import {
   REGIONALSTATISTIK_ROUTES,
   regionalTableDataUrl,
 } from "./regionalCube.ts";
-import { OSM_ROUTES } from "./geocode.ts";
+import { ADDRESSAPI_ROUTES, parseAddressApiPoint } from "./addressApi.ts";
 
 export type WrapperHealth = "down" | "available" | "conformant";
 
@@ -329,31 +329,27 @@ async function probeRegionalstatistik(): Promise<WrapperStatus> {
 }
 
 /**
- * Probe **linked-osm**: a live `nominatim/search.json` geocode (the Nominatim proxy the app uses to
- * resolve addresses) must return a GeoJSON feature with finite `[lon, lat]` coordinates — the exact
- * shape `geocodeFields` reads. `down` on fetch failure; `conformant` when coordinates parse (and,
- * best-effort, `/routes` still lists `nominatim/search`); `available` otherwise. The geocoding
- * response is a GeoJSON FeatureCollection with no per-result IRI, so there is no example entity.
+ * Probe **linked-addressapi**: a live structured `search.json` geocode (the register lookup
+ * `geocodeFields` performs) must resolve a stable known address — BKG's own front door, from the
+ * wrapper's index examples — to an unambiguous register point, the exact shape `geocodeFields`
+ * reads. `down` on fetch failure; `conformant` when the point parses; `available` otherwise. The
+ * wrapper serves no `/routes` manifest, so there is no route-set check; the JSON search response
+ * reifies its results under a `#id` fragment but the probe reads the plain hit, so no example
+ * entity is surfaced.
  */
-async function probeOsm(): Promise<WrapperStatus> {
-  const url = `${sourceBase("osm")}${OSM_ROUTES.nominatimSearch}.json?q=${
-    encodeURIComponent("Nürnberg")
-  }&limit=1`;
-  let coords: [number, number] | undefined;
+async function probeAddressapi(): Promise<WrapperStatus> {
+  const url = `${sourceBase("addressapi")}${ADDRESSAPI_ROUTES.search}.json` +
+    `?country=DE&postcode=60598&road=RICHARD-STRAUSS-ALLEE&housenumber=11`;
   try {
-    const res = await getSourceGateway().fetch(url, {}, "osm geocode");
-    if (!res.ok) return { health: "down", detail: `nominatim/search → HTTP ${res.status}` };
-    const data = await res.json() as {
-      features?: { geometry?: { coordinates?: [number, number] } }[];
-    };
-    coords = data.features?.[0]?.geometry?.coordinates;
+    const res = await getSourceGateway().fetch(url, {}, "addressapi geocode");
+    if (!res.ok) return { health: "down", detail: `search → HTTP ${res.status}` };
+    if (!parseAddressApiPoint(await res.json())) {
+      return { health: "available", detail: "reachable, but no unambiguous register point parsed" };
+    }
   } catch (e) {
     return { health: "down", detail: shortErr(e) };
   }
-  if (!coords || coords.length < 2 || !Number.isFinite(coords[0]) || !Number.isFinite(coords[1])) {
-    return { health: "available", detail: "reachable, but no geocode feature matched the shape" };
-  }
-  return await verdictWithRoutes("osm", Object.values(OSM_ROUTES));
+  return { health: "conformant" };
 }
 
 /** Per-source probes. Extend as sources are added (starting with mastr). */
@@ -366,7 +362,7 @@ export const WRAPPER_PROBES: Partial<Record<SourceId, () => Promise<WrapperStatu
   dwd: probeWetterdienst,
   energieatlas: probeEnergieatlas,
   regionalstatistik: probeRegionalstatistik,
-  osm: probeOsm,
+  addressapi: probeAddressapi,
 };
 
 /** Whether a live-health probe is registered for a source id (bundled/non-fetchable ids like

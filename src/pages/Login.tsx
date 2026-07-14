@@ -130,9 +130,26 @@ export const Login: React.FC<LoginProps> = ({
   ],
   onLogin,
 }) => {
-  const [prevIdps, setPrevIdps] = useState<string[]>(
-    JSON.parse(localStorage.getItem("prevIdps") ?? "[]"),
-  );
+  // Lazy init (don't re-parse every render) + validated: corrupted/legacy
+  // localStorage must not crash the LOGIN screen (unparseable JSON throws,
+  // and a non-URI entry would crash the `new URL(idp).host` render below).
+  const [prevIdps, setPrevIdps] = useState<string[]>(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem("prevIdps") ?? "[]");
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((idp): idp is string => {
+        if (typeof idp !== "string") return false;
+        try {
+          new URL(idp);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    } catch {
+      return [];
+    }
+  });
 
   const [activeWebId, setActiveWebId] = useState<string>();
 

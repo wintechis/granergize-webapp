@@ -58,7 +58,7 @@
     rdfs:comment "ISO 8601 duration of one observation period (e.g. P1Y, PT15M)."@en ;
     rdfs:comment "ISO-8601-Dauer eines Beobachtungszeitraums (z. B. P1Y, PT15M)."@de ;
     rdfs:comment "Durée ISO 8601 d'une période d'observation (p. ex. P1Y, PT15M)."@fr ;
-    rdfs:domain :EnergyDataset ; rdfs:range xsd:string .
+    rdfs:domain :EnergyDataset ; rdfs:range xsd:duration .
 
 :scenario rdf:type owl:ObjectProperty ;
     rdfs:label "scenario"@en ; rdfs:label "Szenario"@de ; rdfs:label "scénario"@fr ;

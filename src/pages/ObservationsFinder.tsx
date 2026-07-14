@@ -396,7 +396,7 @@ export default function ObservationsFinder() {
   label={t("obsClearAria")}
   icon={<DeleteSweepIcon fontSize="small" />}
   color="error"
-  disabled={del.isPending}
+  disabled={clearObs.isPending}
   onClick={() => void handleClearObservations(b)}
 />
                     )}

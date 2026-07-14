@@ -45,58 +45,43 @@ const CORS = {
  * cross-internet GETs that no spec asserts; left un-stubbed they keep the app busy and
  * starve the lane. A 404 lets the app fall back (every enrichment is best-effort).
  *
- * **Nominatim geocoding is the exception** — it is NOT best-effort: building add / demo
- * seed geocode the address to coordinates, and a building with no coords paints no map
- * marker. So Nominatim is stubbed with deterministic FAKE coords (Nuremberg area, spread
- * by a hash of the query so distinct addresses don't stack), keeping the lane hermetic
- * *and* giving every seeded/added building a point. (Kept faked in BOTH lanes: live
- * Nominatim rate-limits to ~1 req/s and geocoding is infra, not an open-data source a
- * remote spec asserts — see the per-spec open-data stubs' `stubWhenLocal`.)
+ * **Geocoding is the exception** — it is NOT best-effort: building add / demo seed
+ * geocode the address to coordinates, and a building with no coords paints no map
+ * marker. So the addressapi register search is stubbed with deterministic FAKE coords
+ * (Nuremberg area, spread by a hash of the query so distinct addresses don't stack),
+ * keeping the lane hermetic *and* giving every seeded/added building a point. (Kept
+ * faked in BOTH lanes: geocoding is infra, not an open-data source a remote spec
+ * asserts — see the per-spec open-data stubs' `stubWhenLocal`.)
  *
  * The wrapper 404 catch-all is applied **only in the LOCAL lane**: `e2e:remote` is meant
  * to exercise the LIVE wrappers end-to-end (the open-data specs gate their own fixtures on
  * `stubWhenLocal`, so without lane-gating this global 404 would win in remote and silently
  * empty every wrapper read — masking the very live behaviour the remote lane exists to
- * check). Basemap tiles + Nominatim stay stubbed in both lanes (infra noise).
+ * check). Basemap tiles + geocoding stay stubbed in both lanes (infra noise).
  *
  * Applied at page creation alongside {@link stubBasemapTiles}. A spec that asserts a
  * specific source (e.g. the open-tier specs stubbing `/lod2-by/` or `/regionalstatistik/`,
- * or the geocode specs stubbing Nominatim with real-address coords) registers its own
+ * or the geocode specs stubbing the addressapi with real-address coords) registers its own
  * `page.route` AFTERWARDS — a later handler wins in Playwright.
  */
 export async function stubExternalData(page: Page): Promise<void> {
-  // Nominatim → fake but valid coords so geocoded buildings get a marker.
-  // Covers BOTH hosts the app has geocoded through: the OSM wrapper's
-  // nominatim proxy (osmwrap.ontologycentral.com/nominatim/, the current
-  // sourceBase("osm")) and nominatim.openstreetmap.org. Without the wrapper
-  // host, local-lane geocodes escaped to the real network and died in retry
-  // backoff — every seeding/import spec then timed out.
-  await page.route(
-    /nominatim\.openstreetmap\.org|osmwrap\.ontologycentral\.com\/nominatim\//,
-    (route) => {
-    const q = decodeURIComponent(
-      route.request().url().match(/[?&]q=([^&]*)/)?.[1] ?? "",
-    );
+  // addressapi register search → fake but valid coords so geocoded buildings
+  // get a marker. Hash the whole structured query (road/housenumber/postcode/
+  // city) so distinct addresses don't stack. The wrapper returns
+  // `{count, results}`; `count: 1` is what geocode.ts accepts (an unambiguous
+  // register hit).
+  await page.route(/\/addressapi\/search/, (route) => {
+    const q = route.request().url().split("?")[1] ?? "";
     let h = 0;
     for (let i = 0; i < q.length; i++) h = (h * 31 + q.charCodeAt(i)) >>> 0;
     const lat = Number((49.40 + (h % 100) / 1000).toFixed(6)); // ~49.40–49.50
     const lon = Number((11.00 + (Math.floor(h / 100) % 100) / 1000).toFixed(6)); // ~11.00–11.10
-    // The wrapper's proxy returns a GeoJSON FeatureCollection (geometry
-    // [lon, lat]) — the shape geocode.ts parses — NOT the classic Nominatim
-    // [{lat, lon}] array.
     return route.fulfill({
       status: 200,
-      headers: { ...CORS, "Content-Type": "application/geo+json" },
-      body: JSON.stringify({
-        type: "FeatureCollection",
-        features: [{
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [lon, lat] },
-        }],
-      }),
+      headers: { ...CORS, "Content-Type": "application/json" },
+      body: JSON.stringify({ count: 1, results: [{ lat, lon }] }),
     });
-    },
-  );
+  });
   // The open-data / regional wrappers + logos → 404 (best-effort enrichment; the app
   // falls back). Scoped to the specific wrapper PATHS, NOT the whole `wunderfacts.com`
   // host — `/dwd/` is deliberately left live (cube-calendar-weather asserts the

@@ -55,18 +55,15 @@ test.describe("energy resolution toggle", () => {
     page = await newCapturedPage(browser, "energy-resolutions");
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
-    // Keep the import independent of Nominatim's availability (the address is
-    // filled manually below, but address edits trigger a geocode attempt).
-    await page.route(/\/nominatim\/search/, (route) =>
+    // Keep the import independent of the addressapi's availability (the address
+    // is filled manually below, but address edits trigger a geocode attempt).
+    await page.route(/\/addressapi\/search/, (route) =>
       route.fulfill({
         status: 200,
-        contentType: "application/geo+json",
+        contentType: "application/json",
         body: JSON.stringify({
-          type: "FeatureCollection",
-          features: [{
-            type: "Feature",
-            geometry: { type: "Point", coordinates: [11.08, 49.45] },
-          }],
+          count: 1,
+          results: [{ lat: 49.45, lon: 11.08 }],
         }),
       }));
     await login(page, ACC);

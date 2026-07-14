@@ -108,8 +108,12 @@ function buildingRecord(
       const v = cellValue(exportValue(field, b[field as keyof Building]));
       if (v !== null) record[header] = v;
     }
-    const y = b.annualData?.[0];
+    // annualData is sorted ascending — export the LATEST year, and say which
+    // one, so a re-import lands the figures on the right year instead of the
+    // importer's default.
+    const y = b.annualData?.at(-1);
     if (y) {
+      record["Messjahr"] = y.year;
       const e = cellValue(y.electricityConsumption);
       const h = cellValue(y.heatConsumption);
       const w = cellValue(y.waterConsumption);
@@ -152,7 +156,7 @@ function buildingToFlatRecord(b: Building): Record<string, string | number> {
     (y) => y.wastewaterConsumption != null,
   );
   if (hasWastewater) {
-    const y = b.annualData?.[0];
+    const y = b.annualData?.at(-1); // ascending — take the latest year
     if (y) {
       set("_bsp_year", y.year);
       set("_bsp_elec", y.electricityConsumption);

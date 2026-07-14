@@ -3,77 +3,78 @@ import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
 import { fetchContainingGemeindeAgs } from "./regionGeometry.ts";
 import { logError } from "../../lib/logError.ts";
-import type { OsmRoute } from "../../generated/osm.routes.ts";
+import {
+  abbreviateRegisterCity,
+  ADDRESSAPI_ROUTES,
+  normalizeRegisterCity,
+  parseAddressApiPoint,
+  splitStreetAddress,
+} from "./addressApi.ts";
 
 /**
- * The linked-osm routes the app calls, checked at COMPILE TIME against the wrapper's DEPLOYED route
- * set (`src/generated/osm.routes.ts`, regenerated from the live `/routes` manifest — `deno task
- * gen:routes:osm`). The app only uses the Nominatim geocoding proxy (`nominatim/search`, read as
- * `.json`); a rename/removal upstream makes the literal unassignable to {@link OsmRoute}, so
- * `deno task check` fails rather than geocoding silently returning nothing. See
- * `explore/explore-wrapper-contract-drift.md`.
- */
-export const OSM_ROUTES = {
-  nominatimSearch: "nominatim/search",
-} as const satisfies Record<string, OsmRoute>;
-
-/**
- * Resolve building address fields to coordinates via Nominatim, returning the
- * lat/long and the *precision* a hit implies (so an approximately-placed building
- * — only its city resolved — is distinguishable from a rooftop match).
+ * Resolve building address fields to coordinates via `linked-addressapi` (the
+ * GISCO Address API wrapper — the European register of addresses, sourced from
+ * the national cadastral registers; DE: BKG). A hit is the register's OWN point
+ * for that address, so every resolution is `Address` precision — there is no
+ * Nominatim-style coarsening any more: the addressapi is a STRUCTURED geocoder
+ * (road + housenumber + postcode/city), and a partial address (no street, or no
+ * postcode/city) simply doesn't geocode.
  *
- * Tries progressively coarser queries (full street → postcode + city → city), so
- * a too-precise house number a geocoder can't place still yields an approximate
- * pin. Returns null when nothing resolves. Throttled to Nominatim's ≤1 req/s, but
- * only paid on a miss — a first-try hit (the common case) adds no delay.
+ * Query strategy (first unambiguous hit wins):
+ *   1. postcode-based — immune to the register's municipality spellings;
+ *   2. city-based, the city normalised toward the register's form
+ *      ({@link normalizeRegisterCity});
+ *   3. city-based with spelled-out prepositions abbreviated
+ *      ({@link abbreviateRegisterCity}: "Schwaig bei Nürnberg" → "SCHWAIG
+ *      B.NÜRNBERG") — the register's other convention.
  *
+ * Returns null when nothing resolves (or a query is road-level ambiguous).
  * Pure address→coords; {@link geocodeWithRegion} adds the region lookup on top.
  */
 export async function geocodeFields(
   fields: Record<string, string>,
 ): Promise<{ lat: string; long: string; precision: GeocodePrecision } | null> {
-  const street = fields.streetAddress?.trim();
+  const parts = splitStreetAddress(fields.streetAddress?.trim());
+  if (!parts) return null; // no road + housenumber → nothing to search for
   const postal = fields.postalCode?.trim();
   const city = fields.locality?.trim();
-  const region = fields.region?.trim();
-  // Progressively coarser candidates, each tagged with the precision a hit
-  // implies — included only when its distinguishing field is present.
-  const candidates: Array<{ precision: GeocodePrecision; parts: (string | undefined)[] }> = [];
-  if (street) candidates.push({ precision: "Address", parts: [street, postal, city, region] });
-  if (postal) candidates.push({ precision: "Postcode", parts: [postal, city, region] });
-  if (city) candidates.push({ precision: "City", parts: [city, region] });
 
-  const tried = new Set<string>();
-  let first = true;
-  for (const { precision, parts } of candidates) {
-    const query = parts.filter(Boolean).join(", ");
-    if (!query || tried.has(query)) continue; // skip a coarsening that didn't change the query
-    tried.add(query);
-    // Space retries to respect Nominatim's ≤1 req/s policy (only paid on a miss;
-    // a first-try hit — the common case — adds no delay).
-    if (!first) await new Promise((r) => setTimeout(r, 1100));
-    first = false;
+  // The register is queried per country (ISO2); the app's building stock and
+  // region model (Gemeinde AGS) are German, so DE is fixed here.
+  const base = `${sourceBase("addressapi")}${ADDRESSAPI_ROUTES.search}.json` +
+    `?country=DE&road=${encodeURIComponent(parts.road)}` +
+    `&housenumber=${encodeURIComponent(parts.housenumber)}`;
+  const candidates: string[] = [];
+  if (postal) candidates.push(`${base}&postcode=${encodeURIComponent(postal)}`);
+  if (city) {
+    const norm = normalizeRegisterCity(city);
+    candidates.push(`${base}&city=${encodeURIComponent(norm)}`);
+    const abbr = abbreviateRegisterCity(norm);
+    if (abbr !== norm) {
+      candidates.push(`${base}&city=${encodeURIComponent(abbr)}`);
+    }
+  }
+
+  for (const url of candidates) {
     try {
-      // linked-osm's Nominatim proxy returns a GeoJSON FeatureCollection (not RDF) — a
-      // non-vocabulary read, so it uses the gateway's bare fetch (env-overridable base via
-      // `sourceBase("osm")`). Each feature's geometry.coordinates is `[lon, lat]`.
-      const res = await getSourceGateway().fetch(
-        `${sourceBase("osm")}${OSM_ROUTES.nominatimSearch}.json?q=${
-          encodeURIComponent(query)
-        }&limit=1`,
-        { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
-        "geocode address",
-      );
-      const data = await res.json() as {
-        features?: { geometry?: { coordinates?: [number, number] } }[];
-      };
-      const coords = data.features?.[0]?.geometry?.coordinates;
-      if (coords && coords.length >= 2) {
-        return { lat: String(coords[1]), long: String(coords[0]), precision };
+      const res = await getSourceGateway().fetch(url, {}, "geocode address");
+      // A failing wrapper (5xx after the transport's transient retries) must not
+      // be read as "no match": falling through could mask an outage as a miss.
+      // Give up instead — the building saves without coordinates, retryable.
+      if (!res.ok) {
+        logError(
+          "geocode address",
+          new Error(`geocode ${res.status} ${res.statusText}`),
+        );
+        return null;
+      }
+      const p = parseAddressApiPoint(await res.json());
+      if (p) {
+        return { lat: String(p.lat), long: String(p.lon), precision: "Address" };
       }
     } catch (err) {
       logError("geocode address candidate", err);
-      // Try the next, coarser query.
+      // Try the next candidate spelling.
     }
   }
   return null;

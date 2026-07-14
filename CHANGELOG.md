@@ -2,6 +2,35 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-10] — Geocoding: Nominatim → the address register (`linked-addressapi`)
+
+The app's geocoder now resolves addresses against the **European register of
+addresses** (GISCO Address API via `linked-addressapi`,
+`wunderfacts.com/addressapi/`; DE data © GeoBasis-DE / BKG, dl-de/by-2.0) —
+a STRUCTURED geocoder, replacing the free-text linked-osm Nominatim proxy:
+
+- **`geocodeFields`** splits the street into road + housenumber and searches
+  postcode-first (immune to the register's abbreviated municipality
+  spellings), falling back to the normalised then abbreviated city forms
+  (`addressApi.ts`: `normalizeRegisterCity` / `abbreviateRegisterCity` —
+  "Schwaig bei Nürnberg" → "SCHWAIG B.NÜRNBERG"). A hit is the register's own
+  point, so every resolution is `Address` precision; only an unambiguous
+  (`count === 1`) match counts. Partial addresses (postcode-/city-only) no
+  longer geocode — there is no Nominatim-style coarsening, and no 1 req/s
+  throttle (the Excel-import geocode loop drops its delay).
+- **Place search** (Explore) can't use a structured geocoder, so it resolves
+  through the **linked-lau Gemeinde name search** instead (`geocodePlace`:
+  first match's polygon bbox centre).
+- **Provenance follows**: a geocoded `geo:Point`'s `prov:wasDerivedFrom` now
+  records the GISCO source, dl-de/by-2-0 licence, and BKG attribution (was
+  Nominatim/ODbL); the building page's "Coordinates:" note cites the new
+  source. linked-osm becomes a build-tool-only credit (Overpass footprints);
+  its Nominatim route contract, probe, and generated `osm.routes.ts` are
+  removed, replaced by a live addressapi search probe (the wrapper serves no
+  `/routes` manifest, so no compile-time contract). The pure helpers in
+  `services/sources/addressApi.ts` are shared with the logistikimmobilien
+  pipeline.
+
 ## [2026-07-04] — Weather: read DWD open data directly (`linked-dwd`)
 
 The weather panel now reads the **`linked-dwd`** wrapper

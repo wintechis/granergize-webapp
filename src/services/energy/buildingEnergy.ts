@@ -83,7 +83,9 @@ export async function resolveBuildingEnergy(
         const v = ds.metrics[key];
         if (v !== undefined) energyNeed[key] = v;
       }
-      if (Object.keys(energyNeed).length === 0) return null;
+      // This year carries no consumption metrics (e.g. generation-only) — keep
+      // scanning older years rather than declaring the building energy-less.
+      if (Object.keys(energyNeed).length === 0) continue;
       return {
         id: building.id,
         uri: building.uri as string,

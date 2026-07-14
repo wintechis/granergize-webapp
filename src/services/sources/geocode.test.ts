@@ -1,36 +1,37 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { geocodeFields, geocodeWithRegion } from "./geocode.ts";
+import {
+  abbreviateRegisterCity,
+  displayCaseRegisterStreet,
+  normalizeRegisterCity,
+  parseAddressApiPoint,
+  parseAddressApiResults,
+  splitStreetAddress,
+} from "./addressApi.ts";
 
-/** A linked-osm `/nominatim/search.json` GeoJSON FeatureCollection for one hit (or none) —
- *  geometry.coordinates is `[lon, lat]`. */
-function featureCollection(hit?: { lat: string; lon: string }): string {
-  return JSON.stringify({
-    type: "FeatureCollection",
-    features: hit
-      ? [{
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [Number(hit.lon), Number(hit.lat)] },
-      }]
-      : [],
-  });
+/** A linked-addressapi `search.json` response with `n` register hits at one point. */
+function searchResponse(n: number, hit = { lat: 49.45, lon: 11.07 }): string {
+  return JSON.stringify({ count: n, results: Array.from({ length: n }, () => hit) });
 }
 
 /**
  * Stub the global `fetch` (geocode goes through `trackedFetch` → bare `fetch`).
- * `hits` maps a `q=` value to a single result; anything else returns an empty
- * FeatureCollection (a miss, which drives the progressive coarsening). Records every
- * queried `q` so tests can assert the order / dedup.
+ * `hits` maps a stringified `postcode=…`/`city=…` discriminator to a hit count;
+ * an unmatched query returns `count: 0` (a miss, which drives the candidate
+ * spellings). Records every queried discriminator so tests can assert order.
  */
-function stubFetch(hits: Record<string, { lat: string; lon: string }>) {
+function stubFetch(hits: Record<string, number>) {
   const queried: string[] = [];
   const orig = globalThis.fetch;
   globalThis.fetch = ((input: string | URL | Request) => {
     const url = new URL(input.toString());
-    const q = url.searchParams.get("q") ?? "";
-    queried.push(q);
+    const key = url.searchParams.has("postcode")
+      ? `postcode=${url.searchParams.get("postcode")}`
+      : `city=${url.searchParams.get("city")}`;
+    queried.push(key);
     return Promise.resolve(
-      new Response(featureCollection(hits[q]), {
+      new Response(searchResponse(hits[key] ?? 0), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -39,80 +40,80 @@ function stubFetch(hits: Record<string, { lat: string; lon: string }>) {
   return { queried, restore: () => (globalThis.fetch = orig) };
 }
 
-Deno.test("geocodeFields returns an address-precision hit on the first try (no delay)", async () => {
-  const { queried, restore } = stubFetch({
-    "Hauptstr 1, 90402, Nürnberg, Bayern": { lat: "49.45", lon: "11.07" },
-  });
+Deno.test("geocodeFields resolves a full address postcode-first to Address precision", async () => {
+  const { queried, restore } = stubFetch({ "postcode=90402": 1 });
   try {
     const got = await geocodeFields({
-      streetAddress: "Hauptstr 1",
+      streetAddress: "Hauptstraße 1",
       postalCode: "90402",
       locality: "Nürnberg",
-      region: "Bayern",
     });
     assert.deepEqual(got, { lat: "49.45", long: "11.07", precision: "Address" });
-    assert.equal(queried.length, 1, "a first-try hit makes exactly one request");
+    assert.deepEqual(queried, ["postcode=90402"], "a postcode hit makes exactly one request");
   } finally {
     restore();
   }
 });
 
-Deno.test("geocodeFields coarsens to postcode when the full address misses", async () => {
-  // Address query misses; the next (coarser) postcode query hits.
-  const { queried, restore } = stubFetch({
-    "90402, Nürnberg": { lat: "49.45", lon: "11.07" },
-  });
+Deno.test("geocodeFields falls back to normalised then abbreviated city spellings", async () => {
+  // No postcode; the normalised spelling misses, the register's abbreviated one hits.
+  const { queried, restore } = stubFetch({ "city=SCHWAIG B.NÜRNBERG": 1 });
   try {
     const got = await geocodeFields({
-      streetAddress: "Nonexistent 999",
-      postalCode: "90402",
-      locality: "Nürnberg",
+      streetAddress: "Oberer Röthelweg 64",
+      locality: "Schwaig bei Nürnberg",
     });
-    assert.deepEqual(got, { lat: "49.45", long: "11.07", precision: "Postcode" });
-    assert.deepEqual(queried, ["Nonexistent 999, 90402, Nürnberg", "90402, Nürnberg"]);
+    assert.equal(got?.precision, "Address");
+    assert.deepEqual(queried, ["city=SCHWAIG BEI NÜRNBERG", "city=SCHWAIG B.NÜRNBERG"]);
   } finally {
     restore();
   }
 });
 
-Deno.test("geocodeFields tags a city-only resolution as city precision", async () => {
-  const { queried, restore } = stubFetch({ "Nürnberg": { lat: "49.45", lon: "11.07" } });
+Deno.test("geocodeFields treats an ambiguous (multi-hit) result as a miss", async () => {
+  // Road-level ambiguity (count > 1) must not place the building on an arbitrary hit.
+  const { restore } = stubFetch({ "postcode=90402": 90 });
   try {
-    const got = await geocodeFields({ locality: "Nürnberg" });
-    assert.equal(got?.precision, "City");
-    assert.equal(queried.length, 1);
+    assert.equal(
+      await geocodeFields({ streetAddress: "Hauptstraße 1", postalCode: "90402" }),
+      null,
+    );
   } finally {
     restore();
   }
 });
 
-Deno.test("geocodeFields returns null when nothing resolves", async () => {
-  const { restore } = stubFetch({});
-  try {
-    assert.equal(await geocodeFields({ locality: "Atlantis" }), null);
-  } finally {
-    restore();
-  }
-});
-
-Deno.test("geocodeFields returns null when no address fields are present", async () => {
+Deno.test("geocodeFields returns null without a splittable street address (no request)", async () => {
   const { queried, restore } = stubFetch({});
   try {
+    // The addressapi is structured: postcode- or city-only never geocodes.
+    assert.equal(await geocodeFields({ locality: "Nürnberg" }), null);
+    assert.equal(await geocodeFields({ streetAddress: "Musterstraße" }), null);
     assert.equal(await geocodeFields({}), null);
-    assert.equal(queried.length, 0, "no fields → no request");
+    assert.equal(queried.length, 0, "no full address → no request");
   } finally {
     restore();
   }
 });
 
-/** Stub Nominatim (a single hit) + the linked-lau `/contains` lookup (a SKOS reply). */
+Deno.test("geocodeFields returns null with a street but neither postcode nor city", async () => {
+  const { queried, restore } = stubFetch({});
+  try {
+    assert.equal(await geocodeFields({ streetAddress: "Hauptstraße 1" }), null);
+    assert.equal(queried.length, 0);
+  } finally {
+    restore();
+  }
+});
+
+/** Stub the addressapi search (a single hit) + the linked-lau `/contains` lookup (a SKOS reply). */
 function stubGeocodeAndContains(contains: Response) {
   const orig = globalThis.fetch;
   globalThis.fetch = ((input: string | URL | Request) => {
     const url = input.toString();
     if (url.includes("/contains")) return Promise.resolve(contains.clone());
     return Promise.resolve(
-      new Response(featureCollection({ lat: "49.45", lon: "11.07" }), {
+      new Response(searchResponse(1), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -120,6 +121,12 @@ function stubGeocodeAndContains(contains: Response) {
   }) as typeof fetch;
   return () => (globalThis.fetch = orig);
 }
+
+const FULL_ADDRESS = {
+  streetAddress: "Hauptstraße 1",
+  postalCode: "90402",
+  locality: "Nürnberg",
+};
 
 Deno.test("geocodeWithRegion adds the Gemeinde AGS from the /contains lookup", async () => {
   const restore = stubGeocodeAndContains(
@@ -130,9 +137,9 @@ Deno.test("geocodeWithRegion adds the Gemeinde AGS from the /contains lookup", a
     ),
   );
   try {
-    const got = await geocodeWithRegion({ locality: "Nürnberg" });
+    const got = await geocodeWithRegion(FULL_ADDRESS);
     assert.equal(got?.lat, "49.45");
-    assert.equal(got?.precision, "City");
+    assert.equal(got?.precision, "Address");
     assert.equal(got?.regionAgs, "09564000");
   } finally {
     restore();
@@ -142,10 +149,70 @@ Deno.test("geocodeWithRegion adds the Gemeinde AGS from the /contains lookup", a
 Deno.test("geocodeWithRegion: coords still returned when /contains has no region", async () => {
   const restore = stubGeocodeAndContains(new Response("", { status: 404 }));
   try {
-    const got = await geocodeWithRegion({ locality: "Nürnberg" });
+    const got = await geocodeWithRegion(FULL_ADDRESS);
     assert.equal(got?.lat, "49.45");
     assert.equal(got?.regionAgs, undefined);
   } finally {
     restore();
   }
+});
+
+// ---- pure addressApi.ts helpers ----------------------------------------------
+
+Deno.test("splitStreetAddress: greedy road / housenumber split", () => {
+  assert.deepEqual(splitStreetAddress("Rother Straße 1 a"), {
+    road: "Rother Straße",
+    housenumber: "1 a",
+  });
+  assert.deepEqual(splitStreetAddress("Straße des 17. Juni 5"), {
+    road: "Straße des 17. Juni",
+    housenumber: "5",
+  });
+  assert.equal(splitStreetAddress("Musterstraße"), undefined);
+  assert.equal(splitStreetAddress(undefined), undefined);
+});
+
+Deno.test("normalizeRegisterCity / abbreviateRegisterCity match the register's spellings", () => {
+  // Already-abbreviated source forms: only the dot spacing is tightened.
+  assert.equal(normalizeRegisterCity("Neunkirchen a. Sand"), "NEUNKIRCHEN A.SAND");
+  assert.equal(normalizeRegisterCity("Röthenbach a. d. Pegnitz"), "RÖTHENBACH A.D.PEGNITZ");
+  // Spelled-out prepositions survive normalisation ("FRANKFURT AM MAIN" is served
+  // spelled out) — the abbreviated variant is the retry.
+  const norm = normalizeRegisterCity("Schwaig bei Nürnberg");
+  assert.equal(norm, "SCHWAIG BEI NÜRNBERG");
+  assert.equal(abbreviateRegisterCity(norm), "SCHWAIG B.NÜRNBERG");
+  assert.equal(
+    abbreviateRegisterCity("RÖTHENBACH AN DER PEGNITZ"),
+    "RÖTHENBACH A.D.PEGNITZ",
+  );
+  assert.equal(abbreviateRegisterCity("NEUNKIRCHEN AM BRAND"), "NEUNKIRCHEN A.BRAND");
+  assert.equal(abbreviateRegisterCity("NÜRNBERG"), "NÜRNBERG"); // nothing to abbreviate
+});
+
+Deno.test("parseAddressApiResults / parseAddressApiPoint", () => {
+  const hit = {
+    lat: 49.3358783,
+    lon: 11.1136298,
+    thoroughfare: "ROTHER STRASSE",
+    locatorDesignator: "1 A",
+    postCode: "90530",
+    postName: "WENDELSTEIN",
+  };
+  assert.deepEqual(parseAddressApiResults({ count: 1, results: [hit] }), [hit]);
+  assert.deepEqual(parseAddressApiResults({ count: 1, results: [{ lat: 1 }] }), []); // no lon
+  assert.deepEqual(parseAddressApiResults(null), []);
+  assert.deepEqual(parseAddressApiPoint({ count: 1, results: [hit] }), {
+    lat: hit.lat,
+    lon: hit.lon,
+  });
+  // Ambiguous (road-level) and empty results are no point.
+  assert.equal(parseAddressApiPoint({ count: 2, results: [hit, hit] }), undefined);
+  assert.equal(parseAddressApiPoint({ count: 0, results: [] }), undefined);
+});
+
+Deno.test("displayCaseRegisterStreet restores display case incl. straße", () => {
+  assert.equal(displayCaseRegisterStreet("ROTHER STRASSE"), "Rother Straße");
+  assert.equal(displayCaseRegisterStreet("ZOLLHAUSSTRASSE"), "Zollhausstraße");
+  assert.equal(displayCaseRegisterStreet("DR.-MACK-STRASSE"), "Dr.-Mack-Straße");
+  assert.equal(displayCaseRegisterStreet("AM STEINACHER KREUZ"), "Am Steinacher Kreuz");
 });
