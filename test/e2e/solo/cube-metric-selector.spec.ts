@@ -156,8 +156,8 @@ test.describe("cube metric selector (the measure axis)", () => {
 
   // The plan's stronger generation claim: switching to generation should surface
   // buildings the consumption lens left blank (recolour them by the magnitude ramp).
-  // The demo seed's cold store (Hafenstraße 12) carries annual `electricityGeneration`
-  // from its 480 kWp rooftop PV, so under this metric it gets a magnitude band where a
+  // The demo seed's PV building (Steinauer Weg 7) carries annual `electricityGeneration`
+  // from its 1200 kWp rooftop PV, so under this metric it gets a magnitude band where a
   // pure-consumption building reads "none".
   test(
     "generation recolours buildings the consumption lens left blank",

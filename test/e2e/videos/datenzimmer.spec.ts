@@ -33,7 +33,7 @@ const OUT = VID_OUT;
 const A = account("A");
 const B = account("B");
 /** A demo building Alice shares by role (the logistics hall, richest data). */
-const BUILDING = "Nordostpark";
+const BUILDING = "Thomas-Dachser-Str.";
 
 async function controlSeed(path: string): Promise<Response> {
   const res = await fetch(

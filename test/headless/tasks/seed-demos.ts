@@ -26,6 +26,7 @@ import { restore, snapshot, type TaskContext } from "../taskContext.ts";
 import { appRoot, podResources } from "../../../src/services/pod/solidUtils.ts";
 import { deleteContainerRecursive } from "../../../src/services/pod/podDelete.ts";
 import { seedDemoBuildings } from "../../../src/services/rdf/building/buildingSerializer.ts";
+import { makeGeocodeOrAdoptCoords } from "../../../src/services/sources/geocode.ts";
 import {
   DEMO_AGENT_NAMES,
   DEMO_ROOM_COUNT,
@@ -48,7 +49,9 @@ export async function run(ctx: TaskContext): Promise<void> {
     for (let i = 1; i <= iters; i++) {
       // Fire all three at once — the concurrent burst the menu triggers.
       const [buildings, contacts, rooms] = await Promise.all([
-        seedDemoBuildings(a.session, a.webId),
+        // The demo set carries its own coordinates (the L.Immo extract), so the
+        // adopt-coords geocoder only hits linked-lau `/contains` (sourceStub).
+        seedDemoBuildings(a.session, a.webId, makeGeocodeOrAdoptCoords()),
         seedDemoAgents(a.session),
         seedDemoRooms(a.session),
       ]);

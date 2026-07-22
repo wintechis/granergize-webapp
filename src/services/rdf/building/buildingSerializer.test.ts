@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { geocodeWithRegion } from "../../sources/geocode.ts";
+import { makeGeocodeOrAdoptCoords } from "../../sources/geocode.ts";
+import { DEMO_BUILDINGS } from "./demoBuildings.generated.ts";
 import { DataFactory, Parser, Store } from "n3";
 import * as XLSX from "xlsx";
 import type { Building } from "../../../types.ts";
@@ -993,44 +994,36 @@ Deno.test("synthDayReadings yields a full UTC day of 15-minute slots", () => {
   assert.ok(r.every((x) => parseFloat(x.valueKwh) >= 0));
 });
 
-Deno.test("seedDemoBuildings seeds two buildings with different granularities", async () => {
+Deno.test("seedDemoBuildings seeds the full demo set across both granularities", async () => {
   const { session, calls } = makeSession();
 
-  // Stub the geocoder (global fetch) so the seed runs offline.
+  // Stub the region lookup (global fetch) so the seed runs offline. The specs
+  // carry their own coordinates, so the adopt-coords geocoder never queries the
+  // address register; its best-effort linked-lau `/contains` lookup 404s here.
   const realFetch = globalThis.fetch;
-  globalThis.fetch = ((input: string | URL) => {
-    const uri = typeof input === "string" ? input : input.toString();
-    if (uri.includes("addressapi")) {
-      return Promise.resolve(
-        new Response(JSON.stringify({ count: 1, results: [{ lat: 49.45, lon: 11.08 }] }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
-    }
-    return Promise.resolve(new Response("nope", { status: 404 }));
-  }) as typeof fetch;
+  globalThis.fetch = (() =>
+    Promise.resolve(new Response("nope", { status: 404 }))) as typeof fetch;
 
   let tally: { seeded: number; total: number };
   try {
     // The demo set spans both energy shapes (annual P1Y + 15-minute series).
-    tally = await seedDemoBuildings(session, WEBID, geocodeWithRegion);
+    tally = await seedDemoBuildings(session, WEBID, makeGeocodeOrAdoptCoords());
   } finally {
     globalThis.fetch = realFetch;
   }
-  assert.deepEqual(tally, { seeded: 4, total: 4 }, "full seed reports 4/4");
+  const N = DEMO_BUILDINGS.length;
+  assert.deepEqual(tally, { seeded: N, total: N }, `full seed reports ${N}/${N}`);
 
-  // Two building files written (under granergize/buildings/, not the energy files).
+  // One building file per spec (under granergize/buildings/, not the energy files).
   const buildingPuts = calls.filter((c) =>
     c.method === "PUT" &&
     /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
   );
-  // 2 investor + 2 user demo buildings.
-  assert.equal(buildingPuts.length, 4, "four demo buildings uploaded");
+  assert.equal(buildingPuts.length, N, "every demo building uploaded");
 
   // Daily 15-minute reading files are time-first under each year's month/day
-  // sub-containers (one file per series day; the two user demos carry multi-day
-  // series): `observations/<year>/<mm>/<dd>/<id>.ttl`.
+  // sub-containers (one file per series day; the series-carrying demos hold
+  // multi-day series): `observations/<year>/<mm>/<dd>/<id>.ttl`.
   const energyPuts = calls.filter((c) =>
     c.method === "PUT" &&
     /\/observations\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.ttl$/.test(c.url)
@@ -1038,10 +1031,11 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.ok(energyPuts.length >= 1, "15-min daily reading files uploaded");
 
   // Energy is NOT inline: each building links its datasets via cons:hasEnergyDataset
-  // and re-states the dataset's granularity/scenario. The two user demos link a
-  // PT15M series; the two investor demos link P1Y annual — and the first user demo
-  // (Lange Gasse) carries BOTH shapes, the constellation that surfaces the
-  // Annual | Time series toggle.
+  // and re-states the dataset's granularity/scenario. Expected shape counts come
+  // from the generated set itself, so a regenerated set can't silently drift.
+  const seriesCount = DEMO_BUILDINGS.filter((b) => b.energy !== "annual").length;
+  const annualCount = DEMO_BUILDINGS.filter((b) => b.energy !== "series").length;
+  const bothCount = DEMO_BUILDINGS.filter((b) => b.energy === "both").length;
   const bodies = buildingPuts.map((c) => c.body ?? "");
   // The granularity is re-stated on the building as a cons:granularity literal;
   // parse so the assertion is robust to the writer's prefix choices.
@@ -1052,18 +1046,18 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   const bodyGrans = bodies.map(granularitiesOf);
   assert.equal(
     bodyGrans.filter((g) => g.includes("PT15M")).length,
-    2,
-    "two buildings link a PT15M series dataset",
+    seriesCount,
+    "the series-carrying buildings link a PT15M series dataset",
   );
   assert.equal(
     bodyGrans.filter((g) => g.includes("P1Y")).length,
-    3,
-    "three buildings link P1Y annual datasets (the investors + the both-shapes user demo)",
+    annualCount,
+    "every annual-carrying building links P1Y annual datasets",
   );
   assert.equal(
     bodyGrans.filter((g) => g.includes("PT15M") && g.includes("P1Y")).length,
-    1,
-    "exactly one demo carries BOTH shapes (annual + series → the resolution toggle)",
+    bothCount,
+    "the both-shapes demos carry annual + series (the resolution toggle)",
   );
 
   // The annual aggregate's figures live in their own (time-first) cons:EnergyDataset
@@ -1080,24 +1074,27 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     "an annual dataset declares cons:ElectricityConsumption",
   );
 
-  // Self-operated demos (investor #1 and both user demos) carry operatedBy =
-  // the seeding user's WebID — the shared operator group that makes the
-  // Betreiber benchmark show on the demo data. The cold store (demo #2) stays
-  // outside the group, so the set also demonstrates a building WITHOUT it.
+  // Self-operated demos carry operatedBy = the seeding user's WebID — the
+  // shared operator group that makes the Betreiber benchmark show on the demo
+  // data. The rest stay outside the group, so the set also demonstrates
+  // buildings WITHOUT it.
+  const operatedCount = DEMO_BUILDINGS.filter((b) => b.selfOperated).length;
   const operated = bodies.filter((b) => b.includes("operatedBy"));
-  assert.equal(operated.length, 3, "three demo buildings are self-operated");
+  assert.equal(operated.length, operatedCount, "self-operated demos carry operatedBy");
+  assert.ok(operatedCount >= 2, "the Betreiber benchmark group has ≥2 members");
   assert.ok(
     operated.every((b) => b.includes(WEBID)),
     "operatedBy points at the seeding user's WebID",
   );
 
-  // The two series demos are owner-occupiers (ownedBy = the seeding user); the
-  // investor demos carry no ownedBy (their economic side is the fictional fund).
+  // The owner-occupier demos carry ownedBy = the seeding user; the rest carry
+  // no ownedBy.
+  const ownedCount = DEMO_BUILDINGS.filter((b) => b.selfOwned).length;
   const owned = bodies.filter((b) => b.includes("ownedBy"));
-  assert.equal(owned.length, 2, "the two series demos are self-owned");
+  assert.equal(owned.length, ownedCount, "the owner-occupier demos are self-owned");
 
-  // Demo #1 carries an extra planned (Soll) 2024 dataset next to the actual
-  // 2024 figures — the out-of-the-box Soll-Ist pair. Scenario is a dataset
+  // The flagship demo carries an extra planned (Soll) 2024 dataset next to the
+  // actual 2024 figures — the out-of-the-box Soll-Ist pair. Scenario is a dataset
   // property (cons:Planned), not encoded in the (time-first) path.
   const plannedPuts = calls.filter((c) =>
     c.method === "PUT" && /\/observations\/2024\/[^/]+\.ttl$/.test(c.url) &&
@@ -1126,27 +1123,28 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     );
   assert.equal(hadRoles.length, 0, "no building carries a prov:hadRole");
 
-  // The investor demo building carries a fully-populated detail panel: core
-  // master data, the investor block (incl. a controlled-vocab object property),
-  // one certification, and operating costs. Round-trip through the parser so the
-  // demo field NAMES stay in lockstep with buildingConfig (a rename breaks here).
-  const investorBody = bodies.find((b) => b.includes("Muster Logistik GmbH")) ?? "";
+  // The flagship demo (Dachser, LI-16074) carries a fully-populated detail
+  // panel: core master data, the investor block (incl. a controlled-vocab
+  // object property), one certification, and operating costs. Round-trip
+  // through the parser so the demo field NAMES stay in lockstep with
+  // buildingConfig (a rename breaks here).
+  const investorBody = bodies.find((b) => b.includes("LI-16074")) ?? "";
   const inv = [...parseBuildings(new Parser().parse(investorBody)).values()][0];
-  assert.ok(inv, "investor demo building parses");
-  assert.equal(inv.customer, "Muster Logistik GmbH");
-  assert.equal(inv.buildingCode, "NOP-84");
-  assert.equal(inv.numberOfLoadingDocks, 14);
+  assert.ok(inv, "flagship demo building parses");
+  assert.equal(inv.customer, "Dachser Group SE & Co. KG");
+  assert.equal(inv.buildingCode, "LI-16074");
+  assert.equal(inv.numberOfLoadingDocks, 30);
   assert.equal(inv.shiftRegime, "TwoShift");
-  assert.equal(inv.tenancyType, "MultiTenant");
+  assert.equal(inv.tenancyType, "SingleTenant");
   assert.equal(inv.indoorTemperatureClass, "MaxEighteenDegrees");
   // Heat generation is a :TechnicalSystem now (thermal capacity + commissioning year),
-  // not a boolean — the demo investor carries a gas boiler + a heat pump.
+  // not a boolean — the flagship carries a gas boiler + a heat pump.
   const hp = (inv.systems ?? []).find((s) => s.kind === "heatpump");
-  assert.ok(hp, "investor demo has a heat-pump system");
-  assert.equal(hp!.thermalCapacityKW, 120);
+  assert.ok(hp, "flagship demo has a heat-pump system");
+  assert.equal(hp!.thermalCapacityKW, 250);
   assert.ok(
     (inv.systems ?? []).some((s) => s.kind === "gasboiler"),
-    "investor demo has a gas-boiler system",
+    "flagship demo has a gas-boiler system",
   );
   const certs = inv.certifications as Array<{ type?: string; certificationLevel?: string }>;
   assert.equal(certs?.length, 1, "one certification");
@@ -1156,20 +1154,21 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.equal(opcosts?.propertyManagement, "Medium");
   assert.equal(opcosts?.operationInspectionAndMaintenance, "High");
 
-  // The user demo building attributes its operator to the seeding user (WEBID),
-  // so the agent-link → agent path resolves out of the box.
+  // The series demo buildings attribute their operator to the seeding user
+  // (WEBID), so the agent-link → agent path resolves out of the box.
   const userBody = bodies.find((b) => b.includes("PT15M")) ?? "";
   const usr = [...parseBuildings(new Parser().parse(userBody)).values()][0];
-  assert.equal(usr.operatedBy, WEBID, "user demo building operatedBy = seeder");
+  assert.equal(usr.operatedBy, WEBID, "series demo building operatedBy = seeder");
 });
 
 Deno.test("seedDemoBuildings counts a failed building instead of throwing — and never writes its building file (commit-last)", async () => {
-  // Fail the planned (Soll) dataset PUT: it belongs to exactly one demo (demo #1).
-  // The time-first path carries a random id, so it's matched by its body (the
-  // only planned-scenario dataset in the seed). The seed has no transactions;
-  // this asserts the substitute guarantees: the loop continues, the tally reports
-  // the shortfall, and the failed demo's discoverable building file is never
-  // written (its earlier dataset PUTs become inert orphans).
+  // Fail the planned (Soll) dataset PUT: it belongs to exactly one demo (the
+  // flagship). The time-first path carries a random id, so it's matched by its
+  // body (the only planned-scenario dataset in the seed). The seed has no
+  // transactions; this asserts the substitute guarantees: the loop continues,
+  // the tally reports the shortfall, and the failed demo's discoverable
+  // building file is never written (its earlier dataset PUTs become inert
+  // orphans).
   const { session, calls } = makeFakeSession({
     webId: WEBID,
     respond: (_url, init) =>
@@ -1179,37 +1178,33 @@ Deno.test("seedDemoBuildings counts a failed building instead of throwing — an
         : undefined,
   });
 
-  // Stub the geocoder (global fetch) so the seed runs offline.
+  // Stub the region lookup (global fetch) so the seed runs offline (the specs
+  // carry coordinates — no address-register query; `/contains` 404s).
   const realFetch = globalThis.fetch;
-  globalThis.fetch = ((input: string | URL) => {
-    const uri = typeof input === "string" ? input : input.toString();
-    if (uri.includes("addressapi")) {
-      return Promise.resolve(
-        new Response(JSON.stringify({ count: 1, results: [{ lat: 49.45, lon: 11.08 }] }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
-    }
-    return Promise.resolve(new Response("nope", { status: 404 }));
-  }) as typeof fetch;
+  globalThis.fetch = (() =>
+    Promise.resolve(new Response("nope", { status: 404 }))) as typeof fetch;
 
   let tally: { seeded: number; total: number };
   try {
-    tally = await seedDemoBuildings(session, WEBID, geocodeWithRegion);
+    tally = await seedDemoBuildings(session, WEBID, makeGeocodeOrAdoptCoords());
   } finally {
     globalThis.fetch = realFetch;
   }
 
-  assert.deepEqual(tally, { seeded: 3, total: 4 }, "partial seed reports 3/4");
+  const N = DEMO_BUILDINGS.length;
+  assert.deepEqual(
+    tally,
+    { seeded: N - 1, total: N },
+    `partial seed reports ${N - 1}/${N}`,
+  );
 
-  // Commit-last: the failed demo never reaches its building-file PUT, so only the
-  // three healthy demos are discoverable (top-level *.ttl under buildings/).
+  // Commit-last: the failed demo never reaches its building-file PUT, so only
+  // the healthy demos are discoverable (top-level *.ttl under buildings/).
   const buildingPuts = calls.filter((c) =>
     c.method === "PUT" &&
     /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
   );
-  assert.equal(buildingPuts.length, 3, "failed demo's building file not written");
+  assert.equal(buildingPuts.length, N - 1, "failed demo's building file not written");
   assert.ok(
     buildingPuts.every((c) =>
       parse(c.body ?? "").getQuads(

@@ -121,15 +121,25 @@ recipient learns of a grant. Event model and grant/revocation folding: see
 
 **Demo buildings (offered, not auto-seeded).** A fresh Pod (no `buildings/`
 container at all) is *offered* the demos via a dismissible banner (`useDemoOffer`
-in `queries.ts`); choosing "Add examples" calls `seedDemoBuildings(gateway, webId)`,
-which writes four real, *user-owned* demo buildings through the normal pipeline (all
-in Nürnberg, coordinates geocoded at seed time via Nominatim). The set spans every
-loader shape and panel state a new user should see: **Nordostpark 84** — an inline
-annual (`P1Y`) SOSA aggregate, self-operated, the full investor panel;
-**Hafenstraße 12** — annual but *not* self-operated, so no investor panel;
-**Lange Gasse 20** — *both* shapes (annual + a 15-minute `PT15M` series → the
-Annual | Time series toggle); **Pirckheimerstraße 68** — a `PT15M` series only (no
-annual, no toggle). Declining persists in `prefs.ttl` as `gran:demoSeedDeclined`,
+in `queries.ts`); choosing "Add examples" runs `seedDemoBuildings`, which writes
+the demo set through the normal pipeline as real, *user-owned* buildings. The set
+is **37 real logistics buildings** from the L.Immo online Nürnberg-region extract,
+generated into `demoBuildings.generated.ts` by `scripts/genDemoBuildings.ts`
+(`deno task gen:demo-buildings`; a freshness test pins data to generator). The
+extract carries master data + WGS84 coordinates — the seed *adopts* the
+coordinates instead of geocoding the address (`makeGeocodeOrAdoptCoords` in
+`geocode.ts`; the Gemeinde AGS is still resolved from them, with a per-run latch
+that stops the lookups after one hard linked-lau failure) — while all energy
+figures are deterministic synthetics (area-scaled annual 2022–2024 for every
+building). Feature coverage rides on picked buildings: **Thomas-Dachser-Str. 4**
+(the flagship) — annual + a planned (Soll) 2024 dataset → the Soll-Ist pair,
+self-operated, the full investor panel; **Steinauer Weg 7** — synthetic 1200 kWp
+PV + `electricityGeneration` → the generation map lens; **Am Tower 10** and
+**Koperstr. 3** — *both* shapes (annual + a 15-minute `PT15M` series → the
+Annual | Time series toggle), self-operated and self-owned. The browser test
+lanes seed a curated 6-building core subset (`VITE_DEMO_SEED=core`) so a
+per-spec seed stays fast; unit tests and the headless `seed-demos` task cover
+the full set. Declining persists in `prefs.ttl` as `gran:demoSeedDeclined`,
 so the banner doesn't nag on every login. Nothing is seeded silently.
 
 Origins (all via `podResources(webId)` unless noted): prefs `prefs.ts`; bookmarks

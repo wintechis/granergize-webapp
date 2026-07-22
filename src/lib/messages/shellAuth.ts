@@ -294,9 +294,9 @@ export const shellAuth = {
     fr: "Suppression annulée — certaines données ont peut-être déjà été supprimées",
   },
   onboardBanner: {
-    en: "No buildings yet — add a couple of example buildings (with energy data) to explore?",
-    de: "Noch keine Gebäude — ein paar Beispielgebäude (mit Energiedaten) zum Erkunden hinzufügen?",
-    fr: "Aucun bâtiment — ajouter quelques bâtiments d'exemple (avec données énergétiques) à explorer ?",
+    en: "No buildings yet — add example logistics buildings (with energy data) to explore?",
+    de: "Noch keine Gebäude — Beispiel-Logistikgebäude (mit Energiedaten) zum Erkunden hinzufügen?",
+    fr: "Aucun bâtiment — ajouter des bâtiments logistiques d'exemple (avec données énergétiques) à explorer ?",
   },
   demoAgentsAdded: {
     en: "Demo agents added",

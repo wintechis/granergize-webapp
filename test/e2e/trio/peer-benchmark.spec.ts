@@ -44,8 +44,8 @@ const C = account("C");
 // owners seed the *investor* demo and each shares a DIFFERENT building (distinct,
 // fixed energy → a meaningful, repeatable benchmark, not two identical copies).
 const OWNERS = [
-  { account: A, street: "Nordostpark 84" },
-  { account: B, street: "Hafenstraße 12" },
+  { account: A, street: "Thomas-Dachser-Str. 4" },
+  { account: B, street: "Steinauer Weg 7" },
 ];
 const STREET = OWNERS[0].street; // A's building — asserted on A's energy view below
 

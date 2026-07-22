@@ -58,7 +58,7 @@ test.describe("building details", () => {
     page.on("dialog", (d) => d.accept().catch(() => {})); // "Delete building" confirm
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page); // Nordostpark annual, for the energy-benchmark task
+    await ensureDemoBuildings(page); // Thomas-Dachser-Str. annual, for the energy-benchmark task
   });
 
   test.afterAll(async () => {
@@ -136,11 +136,11 @@ test.describe("building details", () => {
   test("the energy view benchmarks consumption against the portfolio average", async () => {
     test.setTimeout(T.testSolo);
 
-    // The demo investor building ("Nordostpark 84") carries an annual aggregate, so
+    // The flagship demo building ("Thomas-Dachser-Str. 4") carries an annual aggregate, so
     // its energy view renders the single annual table (with the comparison rows)
     // rather than the 15-min series chart.
     await openBuildingsList(page);
-    const annual = page.locator("li", { hasText: "Nordostpark" }).first();
+    const annual = page.locator("li", { hasText: "Thomas-Dachser-Str." }).first();
     await expect(annual).toBeVisible({ timeout: T.action });
     const id = await annual.getAttribute("data-building-id");
     expect(id, "the annual demo building's id").toBeTruthy();

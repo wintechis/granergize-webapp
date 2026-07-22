@@ -243,10 +243,11 @@ test.describe("handbuch screenshots", () => {
     await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
 
     // Dismiss the "Roles updated" toast, then ACCEPT the fresh-Pod onboarding
-    // banner's "Add examples": every figure is captured over the SAME four demo
+    // banner's "Add examples": every figure is captured over the SAME demo
     // buildings a reader gets from that banner (handbuch examples = app
-    // examples). The seed geocodes four Nürnberg addresses and writes the
-    // energy datasets (incl. a 21-day 15-min series), so the toast wait is
+    // examples; the handbuch build seeds the core subset, VITE_DEMO_SEED=core).
+    // The seed writes the buildings and their energy datasets (incl. multi-day
+    // 15-min series), so the toast wait is
     // generous. Time-boxed click: on an idempotent re-run against a non-fresh
     // Pod the banner doesn't show and the buildings already exist.
     await dismissToasts(page);
@@ -329,7 +330,7 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "contacts.png");
 
-    // --- Data: the four demo buildings (seeded via "Add examples" above) give
+    // --- Data: the demo buildings (seeded via "Add examples" above) give
     //     every later figure its content; the Add Building dialog lives on the
     //     Buildings tab's List view ---
     await page.getByRole("tab", { name: en("navBuildings") }).click();
@@ -387,20 +388,20 @@ test.describe("handbuch screenshots", () => {
       .toBeVisible({ timeout: 30_000 });
 
     // --- Energy-year editor: the per-year consumption form plus the "Stored
-    //     years" read-back table, opened on the Nordostpark demo — its table is
+    //     years" read-back table, opened on the flagship (Thomas-Dachser-Str.) demo — its table is
     //     populated out of the box (actual 2022–2024 AND the planned 2024, so
     //     the figure shows the Soll-Ist pair and the building-name header). The
     //     redesign moved energy entry off the finder row onto the building's
     //     OBSERVATION page (`/observation/:id`) AND replaced the modal with an
-    //     INLINE editor that swaps out the charts; resolve the Nordostpark id from
+    //     INLINE editor that swaps out the charts; resolve the flagship id from
     //     the list, route there, click "Edit energy years". ---
     await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByRole("button", { name: en("btnList") }).click();
-    const nordostparkRow = page.locator("li[data-building-id]")
-      .filter({ hasText: "Nordostpark" }).first();
-    await expect(nordostparkRow).toBeVisible({ timeout: 30_000 });
-    const nordId = await nordostparkRow.getAttribute("data-building-id");
-    await page.goto(buildingRoute("observation", nordId));
+    const flagshipRow = page.locator("li[data-building-id]")
+      .filter({ hasText: "Thomas-Dachser-Str." }).first();
+    await expect(flagshipRow).toBeVisible({ timeout: 30_000 });
+    const flagshipId = await flagshipRow.getAttribute("data-building-id");
+    await page.goto(buildingRoute("observation", flagshipId));
     await page.getByRole("button", { name: en("btnEditEnergyYears") }).click();
     // The editor is INLINE now (it replaces the charts view while open), not a
     // modal — wait for the year input (mirrors manage.ts addEnergyYear/closeEnergyEditor).
@@ -440,7 +441,7 @@ test.describe("handbuch screenshots", () => {
     } else {
       await dialog.getByLabel(en("aggNameLabel")).fill(VIEW_NAME);
       await dialog.getByLabel(en("aggSelectBuildings")).click();
-      for (const street of ["Nordostpark", "Hafenstraße"]) {
+      for (const street of ["Thomas-Dachser-Str.", "Steinauer Weg"]) {
         await page.getByRole("option").filter({ hasText: street }).first()
           .click({ timeout: 10_000 }).catch(() => {});
       }
@@ -472,13 +473,13 @@ test.describe("handbuch screenshots", () => {
 
     // --- The Buildings map finder (map-tabs.png): the map is a pure finder now
     //     (a marker click navigates to /building/:id; there is no detail pane).
-    //     Resolve the Nordostpark demo's id from the List for the energy shots
-    //     below, then show the map with all four demo markers settled. ---
+    //     Resolve the flagship demo's id from the List for the energy shots
+    //     below, then show the map with the demo markers settled. ---
     await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByRole("button", { name: en("btnList") }).click();
-    const nordRow = page.locator("li").filter({ hasText: "Nordostpark" }).first();
-    await expect(nordRow).toBeVisible({ timeout: 30_000 });
-    const buildingId = await nordRow.getAttribute("data-building-id");
+    const flagRow = page.locator("li").filter({ hasText: "Thomas-Dachser-Str." }).first();
+    await expect(flagRow).toBeVisible({ timeout: 30_000 });
+    const buildingId = await flagRow.getAttribute("data-building-id");
     await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
     const markers = page.locator(".leaflet-marker-icon");
     await markers.first().waitFor({ timeout: 20_000 }).catch(() => {});
@@ -518,9 +519,9 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "energy-lens.png");
 
     // --- Energy with the operator average (energy-data-tab.png): the
-    //     Nordostpark demo's observation page (`/observation/:id`) — the energy
-    //     surface now (the map's old "Energy data" tab is gone). Two
-    //     annual-carrying demos (Nordostpark + Lange Gasse) are self-operated, so
+    //     flagship demo's observation page (`/observation/:id`) — the energy
+    //     surface now (the map's old "Energy data" tab is gone). Several
+    //     annual-carrying demos (the flagship + the series buildings) are self-operated, so
     //     the AnnualEnergy table shows the "Operator average" row — the Betreiber
     //     benchmark of the handbuch's "Daten ansehen" section — plus the
     //     planned-2024 (Soll) row pair. ---

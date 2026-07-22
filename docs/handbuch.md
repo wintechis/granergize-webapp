@@ -878,7 +878,7 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
   Zeitreihen-Diagramme: Tagessummen und ein durchschnittliches Tagesprofil.
   Trägt ein Gebäude **beides** – Jahreswerte und Messreihe –, schalten Sie über
   den Umschalter **Annual | Time series** zwischen den Darstellungen um (so
-  z. B. beim Beispielgebäude Lange Gasse 20).
+  z. B. beim Beispielgebäude Am Tower 10).
 - **Weather data:** die zum Standort passenden Wetterdaten, die zur Einordnung des
   Verbrauchs (z. B. Heizgradtage) herangezogen werden können.
 

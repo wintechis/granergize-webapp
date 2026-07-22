@@ -3,7 +3,7 @@
 // returns the seeded count + the attempted total), so the outcome is a tally.
 import type { PodGateway } from "../../../services/pod/podGateway.ts";
 import { seedDemoBuildings } from "../../../services/rdf/building/buildingSerializer.ts";
-import { geocodeWithRegion } from "../../../services/sources/geocode.ts";
+import { makeGeocodeOrAdoptCoords } from "../../../services/sources/geocode.ts";
 import type { Tally } from "../../outcomes.ts";
 
 /**
@@ -16,6 +16,8 @@ import type { Tally } from "../../outcomes.ts";
 export async function seedDemoBuildingsCore(gateway: PodGateway): Promise<Tally> {
   const webId = gateway.webId;
   if (!webId) throw new Error("Not authenticated");
-  const { seeded, total } = await seedDemoBuildings(gateway, webId, geocodeWithRegion);
+  // One geocoder per run: its AGS-lookup latch (skip after linked-lau fails
+  // hard once) must reset between seed invocations.
+  const { seeded, total } = await seedDemoBuildings(gateway, webId, makeGeocodeOrAdoptCoords());
   return { done: seeded, total };
 }

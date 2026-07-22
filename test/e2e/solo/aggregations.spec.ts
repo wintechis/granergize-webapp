@@ -18,8 +18,8 @@ import { T } from "../helpers/timeouts.ts";
  * unified `cons:EnergyDataset` model renders end-to-end in a real browser: a
  * building's energy detail (annual table + bar chart) is fetched from the
  * separate dataset resources and drawn. It self-seeds an empty Pod in beforeAll
- * (ensureDemoBuildings with the `investor` kind) — the kind-specific demo seeds the
- * annual "Nordostpark" building this test renders (auto-loaded) — and so doesn't
+ * (ensureDemoBuildings) — the demo seed includes the annual "Thomas-Dachser-Str. 4"
+ * flagship building this test renders (auto-loaded) — and so doesn't
  * assume a pre-seeded Pod.
  *
  *   # tier 3 (local CSS, no creds):
@@ -67,7 +67,7 @@ test.describe("energy view smoke", () => {
     await login(page, ACC);
     await assertCleanStart(page);
     // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
-    // investor demo is the annual "Nordostpark" building this test renders).
+    // investor demo is the annual "Thomas-Dachser-Str. 4" building this test renders).
     await ensureDemoBuildings(page);
   });
 
@@ -85,12 +85,12 @@ test.describe("energy view smoke", () => {
   test("a building's Energy view renders from cons:EnergyDataset", async () => {
     test.setTimeout(T.testSolo);
 
-    // Target the annual demo building ("Nordostpark 84") specifically — it always
+    // Target the annual demo building ("Thomas-Dachser-Str. 4") specifically — it always
     // carries an annual aggregate, so its energy view renders the table + chart.
     // (`.first()` could land on a residual/empty building → "No energy data
     // available"; the annual one is the same building-details.spec.ts benchmarks.)
     await openBuildingsList(page);
-    const row = page.locator("li", { hasText: "Nordostpark" }).first();
+    const row = page.locator("li", { hasText: "Thomas-Dachser-Str." }).first();
     await expect(row).toBeVisible({ timeout: T.action });
     const id = await row.getAttribute("data-building-id");
     expect(id, "the annual demo building's id on Manage").toBeTruthy();

@@ -92,6 +92,11 @@ import {
   yearsIn,
 } from "../../xlsx/buildingTemplates.ts";
 import { OPCOST_FIELDS } from "./buildingConfig.ts";
+import type { DemoSpec } from "./demoSpec.ts";
+import {
+  DEMO_BUILDINGS,
+  DEMO_BUILDINGS_CORE,
+} from "./demoBuildings.generated.ts";
 
 const { namedNode, literal, blankNode } = DataFactory;
 
@@ -1306,253 +1311,39 @@ export async function deleteBuilding(
 
 // ── Demo seed ─────────────────────────────────────────────────────────────────
 
-/**
- * A demo building's master data and energy shape. The render/load paths key on
- * the data *shape* (the energy granularity), never a role. `annual`, when
- * present, holds the `_inv_*`/`_bsp_*` fields merged in for an
- * `energy: "annual"` (or `"both"`) building (turned into annual SOSA
- * observations); `"both"` carries annual aggregates AND a 15-minute series,
- * the shape that surfaces the Annual | Time series toggle.
- */
-interface DemoSpec {
-  fields: Record<string, string>;
-  energy: "annual" | "series" | "both";
-  annual?: Record<string, string>;
-  /** For a series-carrying shape: how many demo days (15-min) to synthesize. */
-  seriesDays?: number;
-  /**
-   * Set `operatedBy` to the seeding user's own WebID at seed time. Two effects:
-   * the agent-link → contact detail path resolves to a real profile out of the
-   * box, and every self-operated building with annual data joins ONE operator
-   * group — so the operator-average (Betreiber) benchmark shows on the demo data
-   * without any extra setup (it needs ≥2 buildings sharing an operator).
-   */
-  selfOperated?: boolean;
-  /**
-   * Set `ownedBy` to the seeding user's own WebID at seed time — the
-   * owner-occupier constellation. The agent links are independent axes: a demo
-   * can be operated-but-not-owned (the investor demos, owned economically by
-   * the fictional fund) or owned-and-operated (the small series buildings).
-   */
-  selfOwned?: boolean;
-  /**
-   * An extra planned (Soll) annual dataset, so the demo shows a Soll-Ist pair
-   * next to the actual figures of the same year out of the box.
-   */
-  planned?: { year: number; metrics: AnnualMetrics };
-}
-
-/**
- * Investor demo: an annual aggregate (one cons:EnergyDataset per year) with a
- * fully-populated investor master-data panel (block, a certification, operating
- * costs). This is the shape an investor org actually produces.
- */
-const DEMO_INVESTOR: DemoSpec = {
-  fields: {
-    streetAddress: "Nordostpark 84",
-    postalCode: "90411",
-    locality: "Nürnberg",
-    region: "Bayern",
-    // Core master data — gives a new user a fully-populated detail panel.
-    customer: "Muster Logistik GmbH",
-    investor: "Beispiel Real Estate Fund",
-    usedAs: "Logistics warehouse",
-    naceCode: "52.10",
-    buildingArea: "12500",
-    landArea: "20000",
-    officeArea: "1800",
-    yearOfConstruction: "2016",
-    // PV plant as a <#pv> :PVSystem node (presence ⇒ has PV).
-    _pv_capacityKW: "750",
-    _pv_commissioningYear: "2018",
-    // Investor block (controlled-vocab fields use local names, not labels).
-    buildingCode: "NOP-84",
-    hallArea: "10200",
-    officeSocialArea: "1500",
-    buildingHeight: "11.5",
-    numberOfLoadingDocks: "14",
-    yearOfRenovation: "2021",
-    leaseType: "Triple net",
-    tenantIndustry: "Contract logistics",
-    shiftRegime: "TwoShift", // investor:ShiftRegime → "2-Shift"
-    tenancyType: "MultiTenant", // investor:TenancyType → "Multi Tenant"
-    indoorTemperatureClass: "MaxEighteenDegrees", // → "≤18 °C"
-    // Heat generation: a gas boiler + a heat pump, each a :TechnicalSystem with a thermal
-    // nameplate + commissioning year (district heating absent).
-    _gasboiler_present: "true",
-    _gasboiler_thermalCapacityKW: "320",
-    _gasboiler_commissioningYear: "2008",
-    _heatpump_present: "true",
-    _heatpump_thermalCapacityKW: "120",
-    _heatpump_commissioningYear: "2019",
-    // One certification (type drives investor:<Type>Certification).
-    _cert_0_type: "DGNB",
-    _cert_0_level: "Gold",
-    _cert_0_scope: "New construction",
-    // A few operating-cost categories (one investor:hasOperatingCosts node).
-    _opcost_propertyManagement: "Medium",
-    _opcost_security: "High",
-    _opcost_operationInspectionAndMaintenance: "High",
-  },
-  energy: "annual",
-  selfOperated: true,
-  // Multi-year `_inv_*` energy (electricity/heat in kWh, water in m³).
-  annual: {
-    _inv_elec_2022: "118000", _inv_elec_2023: "121500", _inv_elec_2024: "115200",
-    _inv_heat_2022: "240000", _inv_heat_2023: "232000", _inv_heat_2024: "228500",
-    _inv_water_2022: "1450", _inv_water_2023: "1500", _inv_water_2024: "1410",
-  },
-  // Planned (Soll) 2024 next to the actual 2024 figures — the demo data shows
-  // the Soll-Ist comparison out of the box (the actuals run slightly over plan).
-  planned: {
-    year: 2024,
-    metrics: {
-      electricityConsumption: 110000,
-      heatConsumption: 220000,
-      waterConsumption: 1400,
-    },
-  },
+// The demo set (37 real logistics buildings from the L.Immo Nürnberg extract,
+// with deterministic synthetic energy) is generated — see
+// `scripts/genDemoBuildings.ts` / `demoBuildings.generated.ts`. The browser
+// test lanes seed the curated core subset instead (`VITE_DEMO_SEED=core`, set
+// in the e2e task commands): same code path, smaller write burst — the full
+// set stays covered by the unit seed tests and the headless `seed-demos` task.
+// Env read mirrors `APP_DIR` in `solidUtils.ts` (Vite `import.meta.env` with a
+// Deno/Node fallback so the test runtimes see it too).
+const DEMO_ENV =
+  (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+const DEMO_RUNTIME_GLOBALS = globalThis as unknown as {
+  Deno?: { env?: { get?: (key: string) => string | undefined } };
+  process?: { env?: Record<string, string | undefined> };
 };
-
-/** Investor demo #2: a cold store — electricity-heavy, low heat. */
-const DEMO_INVESTOR_2: DemoSpec = {
-  fields: {
-    streetAddress: "Hafenstraße 12",
-    postalCode: "90451",
-    locality: "Nürnberg",
-    region: "Bayern",
-    customer: "Frischlager Franken GmbH",
-    investor: "Beispiel Real Estate Fund",
-    usedAs: "Cold storage",
-    naceCode: "52.10",
-    buildingArea: "7400",
-    landArea: "12000",
-    officeArea: "600",
-    yearOfConstruction: "2018",
-    _pv_capacityKW: "480",
-    _pv_commissioningYear: "2019",
-    buildingCode: "HAF-12",
-    hallArea: "6800",
-    officeSocialArea: "550",
-    buildingHeight: "12.0",
-    numberOfLoadingDocks: "6",
-    leaseType: "Triple net",
-    tenantIndustry: "Food logistics",
-    shiftRegime: "ThreeShift",
-    tenancyType: "SingleTenant",
-    indoorTemperatureClass: "MaxTwelveDegrees",
-    // Heat generation: a heat pump (cold store — electric-driven heat).
-    _heatpump_present: "true",
-    _heatpump_thermalCapacityKW: "90",
-    _heatpump_commissioningYear: "2018",
-    _cert_0_type: "LEED",
-    _cert_0_level: "Silver",
-    _cert_0_scope: "New construction",
-    _opcost_propertyManagement: "Medium",
-    _opcost_operationInspectionAndMaintenance: "Medium",
-  },
-  // Deliberately NOT self-operated: the cold store stays outside the operator
-  // group, so the demo set also shows a building WITHOUT the Betreiber benchmark.
-  energy: "annual",
-  annual: {
-    _inv_elec_2022: "210000", _inv_elec_2023: "205000", _inv_elec_2024: "198000",
-    _inv_heat_2022: "60000", _inv_heat_2023: "58000", _inv_heat_2024: "55000",
-    _inv_water_2022: "640", _inv_water_2023: "660", _inv_water_2024: "650",
-    // The 480 kWp rooftop PV's annual yield (commissioned 2019): the one demo
-    // building carrying electricity GENERATION, so the map's generation lens
-    // (`metricElectricityGeneration`, magnitude-framed) has data to colour — a
-    // building the consumption lens leaves blank surfaces under generation.
-    _inv_gen_2022: "452000", _inv_gen_2023: "458000", _inv_gen_2024: "449000",
-  },
-};
+const DEMO_SEED_MODE = DEMO_ENV?.VITE_DEMO_SEED ??
+  DEMO_RUNTIME_GLOBALS.Deno?.env?.get?.("VITE_DEMO_SEED") ??
+  DEMO_RUNTIME_GLOBALS.process?.env?.VITE_DEMO_SEED;
+const DEMO_SET: readonly DemoSpec[] = DEMO_SEED_MODE === "core"
+  ? DEMO_BUILDINGS_CORE
+  : DEMO_BUILDINGS;
 
 /**
- * User demo: a 15-minute load-profile series (lazy-loaded, time-series chart)
- * PLUS a couple of annual years — the one demo carrying BOTH energy shapes, so
- * the Annual | Time series toggle shows on the demo data out of the box.
- * Light metadata otherwise — the shape an end user produces. Self-operated, so
- * the agent-link → agent path resolves out of the box.
- */
-const DEMO_USER: DemoSpec = {
-  fields: {
-    streetAddress: "Lange Gasse 20",
-    postalCode: "90403",
-    locality: "Nürnberg",
-    region: "Bayern",
-    customer: "Atelier Lange Gasse",
-    usedAs: "Office",
-    buildingArea: "1400",
-    yearOfConstruction: "1998",
-  },
-  energy: "both",
-  selfOperated: true,
-  selfOwned: true, // owner-occupier: the small office is owned AND operated
-  // Two weeks of demo days — enough to populate the Day View, Daily Totals and
-  // Average Profile with weekday/weekend variation, while keeping the seed's
-  // request count low (each day is one Pod write; throttling providers such as
-  // solidcommunity.net rate-limit bursts).
-  seriesDays: 14,
-  // The annual aggregates next to the series (a small 1400 m² office's scale).
-  // They make this the SECOND member of the operator group (with the investor
-  // demo), so the Betreiber benchmark shows on the demo data.
-  annual: {
-    _inv_elec_2023: "48200", _inv_elec_2024: "46900",
-    _inv_heat_2023: "142000", _inv_heat_2024: "138500",
-    _inv_water_2023: "260", _inv_water_2024: "255",
-  },
-};
-
-/** User demo #2: a small workshop, a lighter (one-week) load profile. */
-const DEMO_USER_2: DemoSpec = {
-  fields: {
-    streetAddress: "Pirckheimerstraße 68",
-    postalCode: "90408",
-    locality: "Nürnberg",
-    region: "Bayern",
-    customer: "Werkstatt Pirckheimer",
-    usedAs: "Workshop",
-    buildingArea: "850",
-    yearOfConstruction: "2005",
-    _pv_capacityKW: "120",
-    _pv_commissioningYear: "2021",
-  },
-  energy: "series",
-  selfOperated: true,
-  selfOwned: true, // owner-occupier, like DEMO_USER
-  seriesDays: 7,
-};
-
-/**
- * The demo building set — deliberately small (each building costs several Pod
- * writes and throttling providers such as solidcommunity.net rate-limit bursts),
- * but still one demo per special case:
- *  - DEMO_INVESTOR — annual aggregates with the fully-populated investor panel
- *    (cert, operating costs), a planned (Soll) dataset → the Soll-Ist pair, and
- *    a member of the operator group;
- *  - DEMO_INVESTOR_2 — annual but NOT self-operated → a building WITHOUT the
- *    Betreiber benchmark;
- *  - DEMO_USER — the one demo carrying BOTH shapes (Annual | Time series
- *    toggle), owner-occupier, and the operator group's second member;
- *  - DEMO_USER_2 — a series-ONLY building (no annual data, no toggle).
- * The buildings are ordinary owned resources the user can delete.
- */
-const DEMO_BUILDINGS: DemoSpec[] = [
-  DEMO_INVESTOR,
-  DEMO_INVESTOR_2,
-  DEMO_USER,
-  DEMO_USER_2,
-];
-
-/**
- * Seed the example buildings (see {@link DEMO_BUILDINGS}) into the user's pod, as
- * ordinary owned resources the user can delete. Coordinates are geocoded at seed
- * time; a building that can't be geocoded is still created (just unmapped).
+ * Seed the example buildings (see `demoBuildings.generated.ts`) into the user's
+ * pod, as ordinary owned resources the user can delete. The specs carry their
+ * own coordinates (from the extract), which the injected geocoder adopts while
+ * still resolving the region AGS; a building whose lookup fails entirely is
+ * still created (just unmapped).
  * Best-effort: per-building failures are logged, never thrown, so a network hiccup
  * can't block login — but they ARE counted: the returned tally lets the caller
- * report a partial seed ("Added 3 of 4") instead of a blanket success. Within one
+ * report a partial seed ("Added 35 of 37") instead of a blanket success. Within one
  * building the writes are ordered commit-last (datasets first, the discoverable
  * building file last), so a failed building leaves only inert orphan files.
- * The geocoder is **injected** (the caller passes `geocodeWithRegion`) so this
+ * The geocoder is **injected** (the caller passes a fresh `makeGeocodeOrAdoptCoords()`) so this
  * RDF/serialization module does no network I/O of its own — that keeps it free of
  * any `services/sources/` import (rdf↔sources stays acyclic).
  * @operation mutation
@@ -1567,7 +1358,7 @@ export async function seedDemoBuildings(
   >,
 ): Promise<{ seeded: number; total: number }> {
   let seeded = 0;
-  for (const demo of DEMO_BUILDINGS) {
+  for (const demo of DEMO_SET) {
     try {
       const coords = await geocode(demo.fields);
       let fields: Record<string, string> = coords
@@ -1665,6 +1456,6 @@ export async function seedDemoBuildings(
       );
     }
   }
-  return { seeded, total: DEMO_BUILDINGS.length };
+  return { seeded, total: DEMO_SET.length };
 }
 

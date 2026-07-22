@@ -15,8 +15,8 @@ import { Demo } from "./demoPolish.ts";
  *
  *   deno task videos
  *
- * The seeded "Nordostpark" demo building is in Nürnberg (Bayern) and is geocoded at
- * seed time, so the panel populates: the Energie-Atlas serves Bavaria and MaStR is
+ * The seeded "Thomas-Dachser-Str." demo building is in Nürnberg (Bayern) with
+ * coordinates carried in the demo data, so the panel populates: the Energie-Atlas serves Bavaria and MaStR is
  * nationwide. The panel is read-only, so this is a pure showcase — no data entry.
  *
  * Same recording discipline as `soll-ist.spec.ts`: noisy setup on the fixture page,
@@ -30,7 +30,7 @@ const E2E_LOCAL = !!ENV?.E2E_LOCAL;
 const OUT = VID_OUT;
 const ACC = account("A");
 /** The Bavarian demo building whose location the radar reads. */
-const BUILDING = "Nordostpark";
+const BUILDING = "Thomas-Dachser-Str.";
 
 async function controlSeed(path: string): Promise<Response> {
   const res = await fetch(
@@ -55,7 +55,7 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     test.setTimeout(900_000);
 
     // --- Setup (fixture page, video discarded): login, identities, demo
-    //     buildings (geocoded at seed time, so Nordostpark gets coordinates). ---
+    //     buildings (their coordinates ship in the demo data). ---
     await login(page, ACC);
     await controlSeed("/seed-profiles");
     await page.reload();
@@ -99,7 +99,7 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
 
     // --- Scene 1: reach the building via the command palette's LLM launcher — type
     //     the request in natural language; the launcher translates it to a ShowBuilding
-    //     intent and resolves the NAME ("Nordostpark") to the building's id, then jumps
+    //     intent and resolves the NAME ("Thomas-Dachser-Str.") to the building's id, then jumps
     //     there. The launch navigates CLIENT-SIDE, so the warm session + demo overlay
     //     survive. ---
     await demo.scene(

@@ -18,8 +18,8 @@ import { T } from "../helpers/timeouts.ts";
  * "Overlay weather" toggle superimposes the nearest DWD station's temperature on the
  * shared year axis.
  *
- * Both target the demo's small office (DEMO_USER, "Lange Gasse 20"): it is the one demo
- * building carrying BOTH energy shapes — annual aggregates (2023-2024) AND a PT15M series
+ * Both target the demo's parcel hub ("Am Tower 10"): a demo
+ * building carrying BOTH energy shapes — annual aggregates (2022-2024) AND a PT15M series
  * (seeded for 2024-06) — so the Annual | Time series toggle shows and the calendar has a
  * month of readings. The binning/alignment maths is proved in `energyCalendar.test.ts` /
  * `energyWeather.test.ts`; this is the UI proof the surfaces render.
@@ -41,7 +41,7 @@ import { T } from "../helpers/timeouts.ts";
  * `deno task e2e:local` run when one is free.
  */
 
-const ADDR = "Lange Gasse 20"; // DEMO_USER — the only demo with BOTH energy shapes
+const ADDR = "Am Tower 10"; // the 14-day series demo — carries BOTH energy shapes
 const ACC = account("A"); // Alice -- solo specs use one account
 
 const CORS = { "access-control-allow-origin": "*" };

@@ -34,7 +34,7 @@ const A = account("A");
 const B = account("B");
 const C = account("C");
 /** A's hall that contributes to (and is judged against) the benchmark. */
-const BUILDING = "Nordostpark";
+const BUILDING = "Thomas-Dachser-Str.";
 const VIEW_NAME = "Energie-Benchmark";
 /** The "Gebäude <id>" prefix the shared-with-you list shows for a received building. */
 const SHARED_PREFIX = new RegExp(`^${vt("shareBuildingN", { id: "" }).trim()} `);

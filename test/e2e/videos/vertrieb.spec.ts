@@ -33,7 +33,7 @@ const OUT = VID_OUT;
 const A = account("A");
 const B = account("B");
 /** A's hall that gets shared (the logistics demo, richest master data). */
-const BUILDING = "Nordostpark";
+const BUILDING = "Thomas-Dachser-Str.";
 /** The "Gebäude <id>" prefix the shared-with-you list shows for a received building. */
 const SHARED_PREFIX = new RegExp(`^${vt("shareBuildingN", { id: "" }).trim()} `);
 

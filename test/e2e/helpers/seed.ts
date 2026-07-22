@@ -8,10 +8,14 @@ import { openBuildingsList } from "./manage.ts";
  * Pod through the in-app action so specs never assume a pre-seeded Pod (a
  * freshly-wiped Pod reseeds itself on the next run).
  *
- * The demo seed is a fixed set spanning both data shapes — the annual investor
- * "Nordostpark" buildings AND a 15-minute user series — independent of any role
- * (roles live only in data rooms now). So `building-details` / `aggregations` find the
- * Nordostpark building, and specs that just need "any building" are satisfied too.
+ * The demo seed is a fixed set spanning both data shapes — annual aggregates
+ * (the "Thomas-Dachser-Str. 4" flagship) AND 15-minute series — independent of
+ * any role (roles live only in data rooms now). So `building-details` /
+ * `aggregations` find the flagship building, and specs that just need "any
+ * building" are satisfied too. The browser lanes seed the curated CORE subset
+ * of the L.Immo demo set (`VITE_DEMO_SEED=core`, baked into the build by the
+ * e2e tasks / set for the dev server in `playwright.config.ts`) — the full
+ * 37-building seed would take minutes per spec on a throttled remote Pod.
  *
  * Idempotent: a Pod that already lists buildings (incl. residue left by an earlier
  * spec whose cleanup was slow) returns quickly. The banner is suppressed once the
@@ -51,7 +55,14 @@ export async function ensureDemoBuildings(page: Page): Promise<void> {
   }
   await addExamples.click();
 
-  // Wait for the seed to fully settle: at least one building, and the count stable
+  // Primary end signal: the seed's completion toast. On a slow Pod the gap
+  // between two building writes can exceed the stability interval below, so the
+  // count check alone could read a still-growing listing. Best-effort — the
+  // toast auto-hides, so a missed window just falls through.
+  await page.getByText(t("demoBuildingsAdded")).waitFor({ timeout: T.poll })
+    .catch(() => {});
+
+  // Then wait for the seed to fully settle: at least one building, and the count stable
   // across a 1s interval — so the listing has stopped growing before the caller
   // reads it (no magic number, tolerant of pre-existing residue).
   await expect(async () => {

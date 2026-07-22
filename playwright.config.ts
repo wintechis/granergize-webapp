@@ -89,6 +89,16 @@ if (!LOCAL && !process.env.VITE_POD_APP_DIR) {
   process.env.VITE_POD_APP_DIR = `granergize-e2e-${randomUUID()}`;
 }
 
+// Both browser lanes seed the curated CORE demo subset (6 buildings) instead of
+// the full 37-building L.Immo set — the full seed is ~320 Pod writes per
+// seeding spec, minutes on a throttled remote Pod. Same code path as prod,
+// only the set size differs; the full set stays covered by the unit seed tests
+// and the headless `seed-demos` task. For Tier 4 the dev server (started below)
+// picks this up; for Tier 3 the same value is baked at build time by the
+// `e2e:local`/`videos`/`handbuch`/`bench:ui` task commands. An explicit
+// VITE_DEMO_SEED always wins.
+process.env.VITE_DEMO_SEED ??= "core";
+
 const CHROME = { ...devices["Desktop Chrome"] };
 const FIREFOX = { ...devices["Desktop Firefox"] };
 // ── e2e spec layout ──────────────────────────────────────────────────────────

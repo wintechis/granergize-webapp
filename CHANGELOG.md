@@ -2,6 +2,46 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-07-21] — Demo seed: the four fictional demos → 37 real logistics buildings (L.Immo extract)
+
+The example-building seed (onboarding banner / dev-mode "Add example
+buildings") now writes **37 real logistics buildings** from the L.Immo online
+Nürnberg-region extract instead of the four hand-written fictional demos:
+
+- **Generated data module**: `scripts/genDemoBuildings.ts` (`deno task
+  gen:demo-buildings`) reads the committed extract
+  (`scripts/data/L.Immo-online-Objektdaten-Auszug Nürnberg_2025-07-01.xlsx`)
+  and emits `demoBuildings.generated.ts`; a freshness test pins the module to
+  the generator + source (SHA-256 in the header). The `DemoSpec` interface
+  moved to its own `demoSpec.ts`.
+- **Deterministic synthetic energy**: the extract is master-data-only, so
+  annual electricity/heat/water 2022–2024 are synthesized at GENERATION time
+  (area × WZ-code intensity × age factor, FNV-1a jitter — no runtime
+  randomness). Feature coverage rides on picked buildings:
+  Thomas-Dachser-Str. 4 (flagship — planned/Soll 2024 pair, investor panel,
+  self-operated), Steinauer Weg 7 (1200 kWp PV + generation), Am Tower 10 and
+  Koperstr. 3 (both shapes → the Annual | Time series toggle).
+- **Coordinates ship in the data**: the seed now injects
+  `makeGeocodeOrAdoptCoords()` (new in `geocode.ts`) — fields carrying finite
+  lat/long are adopted without querying the address register, while the
+  Gemeinde AGS is still resolved from them; address-less callers fall through
+  to the register search unchanged (the dialogs' "Geocode" button still
+  re-geocodes edited addresses). The AGS lookup carries a per-run latch:
+  after one transport-level linked-lau failure (wrapper down → in the
+  browser every attempt burns the full ~50 s transient-retry backoff) the
+  remaining buildings of the run skip the lookup, so a downed wrapper costs
+  the seed one backoff window instead of one per building.
+- **Browser lanes seed a core subset**: the full 37-building seed is ~320 Pod
+  writes — minutes per seeding spec on a throttled remote Pod — so both e2e
+  lanes set `VITE_DEMO_SEED=core` (6 curated buildings covering every
+  asserted shape; baked into the Tier-3 build by the task commands, set for
+  the Tier-4 dev server in `playwright.config.ts`). The full set stays
+  proven by the unit seed tests and the headless `seed-demos` task (which
+  also regains its missing third argument — the injected geocoder).
+- Specs, screenshots, videos, Landing hero, handbuch and
+  `notes/storage-layout.md` follow the new addresses (Nordostpark 84 →
+  Thomas-Dachser-Str. 4 etc.).
+
 ## [2026-07-10] — Geocoding: Nominatim → the address register (`linked-addressapi`)
 
 The app's geocoder now resolves addresses against the **European register of

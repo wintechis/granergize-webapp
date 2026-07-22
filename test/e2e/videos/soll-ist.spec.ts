@@ -34,7 +34,7 @@ const E2E_LOCAL = !!ENV?.E2E_LOCAL;
 const OUT = VID_OUT;
 const ACC = account("A");
 /** The demo building the year is entered on (richest of the seeded four). */
-const BUILDING = "Nordostpark";
+const BUILDING = "Thomas-Dachser-Str.";
 const YEAR = "2025";
 
 async function controlSeed(path: string): Promise<Response> {
