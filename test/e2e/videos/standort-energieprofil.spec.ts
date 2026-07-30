@@ -1,7 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { vt, VID_LOCALE, VID_OUT } from "./lang.ts";
+import { VID_LANG, VID_LOCALE, VID_OUT, vt } from "./lang.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo } from "./demoPolish.ts";
 
@@ -61,11 +62,10 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     await page.reload();
     await expect(page.getByRole("tab", { name: vt("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
-    const addExamples = page.getByRole("button", { name: vt("onboardAddExamples") });
-    await expect(addExamples).toBeVisible({ timeout: 60_000 });
-    await addExamples.click();
-    await expect(page.getByText(vt("demoBuildingsAdded")).first())
-      .toBeVisible({ timeout: 300_000 });
+    // Example buildings arrive through the file importer (there is no demo
+    // seed): the helper drives the same "Autofill from file" flow a reader
+    // would, in the video's locale.
+    await importExampleBuildings(page, { lang: VID_LANG });
     await page.getByRole("tab", { name: vt("navBuildings") }).click();
     await page.getByRole("button", { name: vt("btnList") }).click();
     const setupRow = page.locator("li", { hasText: BUILDING }).first();

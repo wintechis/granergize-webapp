@@ -248,10 +248,6 @@ test.describe("handbuch video: Prolog", () => {
     );
     await demoA.click(stageA.getByRole("tab", { name: vt("navBuildings") }));
     await demoA.click(stageA.getByRole("button", { name: vt("btnList") }));
-    // Fresh Pod: the empty Buildings finder offers a demo-seed prompt; decline it
-    // so the "Create Building" toolbar action is reachable.
-    await stageA.getByRole("button", { name: vt("btnNoThanks") })
-      .click({ timeout: 5_000 }).catch(() => {});
     await demoA.click(
       stageA.getByRole("button", { name: vt("addBuildingBtn") }).first(),
     );

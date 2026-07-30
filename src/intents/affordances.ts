@@ -219,10 +219,6 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   RemoveAgent: { applies: always },
   SeedDemoAgents: { applies: always },
   // ── Account-scope ────────────────────────────────────────────────────────────
-  SeedDemoBuildings: { applies: always },
-  // Fired by the onboarding banner directly — no per-object menu or palette
-  // surface offers "decline the demo offer" as a verb.
-  DeclineDemoOffer: { applies: never },
   DeleteAppData: { applies: always },
   RestoreArchive: { applies: always },
   ExportArchive: { applies: always },

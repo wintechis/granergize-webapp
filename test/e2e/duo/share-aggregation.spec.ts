@@ -8,7 +8,7 @@ import {
   deleteAllOwnedRooms,
   removeAllBookmarkedRooms,
 } from "../helpers/rooms.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
 import {
   assignUserRole,
@@ -70,7 +70,7 @@ test.describe("aggregation sharing across two pods", () => {
 
       // A self-seeds buildings (so the aggregation picker isn't empty) + builds
       // the aggregation, then shares it directly to B's WebID.
-      await ensureDemoBuildings(a.page);
+      await importExampleBuildings(a.page);
       await ensureAggregation(a.page);
       await shareAggregationByWebId(a.page, bWebId);
       await b1.ctx.close(); // inbox provisioned; B re-logs in fresh below
@@ -153,7 +153,7 @@ test.describe("aggregation sharing across two pods", () => {
       // only offers roles that exist among the buildings' provenance — a "user"
       // building would leave the Role dropdown without an "Investor" option, so
       // ensureAggregation's role selection would hang.
-      await ensureDemoBuildings(a.page);
+      await importExampleBuildings(a.page);
       await ensureAggregation(a.page);
       const aggregationRow = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
         .first();

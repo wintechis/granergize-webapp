@@ -95,8 +95,8 @@ Deno.test("account-scope verbs apply regardless of devMode (the exposure gate is
 
 Deno.test("the affordance table encodes NO dev-gating (exposure is the one dev gate)", () => {
   // Dev-exposure was once encoded twice — catalog `exposure: "developer"` AND
-  // an affordance-side devOnly guard — and the two disagreed (SeedDemoBuildings
-  // was exposure-developer yet applies-always). The guard table answers only
+  // an affordance-side devOnly guard — and the two disagreed (a seeder was
+  // exposure-developer yet applies-always). The guard table answers only
   // OBJECT applicability now: for every verb, the answer must not depend on
   // the viewer's devMode (applicableIntents applies the exposure gate once).
   for (const [name, a] of Object.entries(INTENT_AFFORDANCES)) {

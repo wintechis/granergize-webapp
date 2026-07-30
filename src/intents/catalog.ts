@@ -397,21 +397,6 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   // ── Account-scope ────────────────────────────────────────────────────────────
   {
-    name: "SeedDemoBuildings",
-    action: "actionAddDemoBuildings",
-    effect: "write",
-    entity: "building",
-    exposure: "developer",
-    hook: "useSeedDemoBuildings",
-  },
-  {
-    name: "DeclineDemoOffer", // dismiss the fresh-Pod demo-buildings offer (persisted)
-    action: "actionDeclineDemos",
-    effect: "write",
-    entity: "appData",
-    hook: "useDeclineDemoOffer",
-  },
-  {
     name: "DeleteAppData",
     action: "actionDeleteAppData",
     effect: "write",

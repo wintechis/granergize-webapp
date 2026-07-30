@@ -1,7 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { ROLE_USER, vt, VID_LOCALE, VID_OUT } from "./lang.ts";
+import { ROLE_USER, VID_LANG, VID_LOCALE, VID_OUT, vt } from "./lang.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { buildingRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
@@ -88,11 +89,10 @@ test.describe("handbuch video: Datenzimmer", () => {
       .toBeVisible({ timeout: 60_000 });
     // Dev mode defaults OFF in a fresh context — no setDevMode needed (its
     // account-menu locators are English-only, which a de-DE context would miss).
-    const addExamples = page.getByRole("button", { name: vt("onboardAddExamples") });
-    await expect(addExamples).toBeVisible({ timeout: 60_000 });
-    await addExamples.click();
-    await expect(page.getByText(vt("demoBuildingsAdded")).first())
-      .toBeVisible({ timeout: 300_000 });
+    // Example buildings arrive through the file importer (there is no demo
+    // seed): the helper drives the same "Autofill from file" flow a reader
+    // would, in the video's locale.
+    await importExampleBuildings(page, { lang: VID_LANG });
 
     // --- Setup B: a logged-in context of B's own (German; self-provisions B's
     //     inbox so the role-targeted grant can be delivered). ---

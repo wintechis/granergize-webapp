@@ -82,7 +82,6 @@ import { buildingFileUri, mintBuildingSubject } from "./buildingId.ts";
 import {
   generateEnergyDayTtl,
   type LastgangReading,
-  synthDayReadings,
 } from "../../xlsx/energySeriesXlsx.ts";
 import {
   INV_YEAR_ROW_STEMS,
@@ -92,11 +91,6 @@ import {
   yearsIn,
 } from "../../xlsx/buildingTemplates.ts";
 import { OPCOST_FIELDS } from "./buildingConfig.ts";
-import type { DemoSpec } from "./demoSpec.ts";
-import {
-  DEMO_BUILDINGS,
-  DEMO_BUILDINGS_CORE,
-} from "./demoBuildings.generated.ts";
 
 const { namedNode, literal, blankNode } = DataFactory;
 
@@ -1308,154 +1302,3 @@ export async function deleteBuilding(
     if (children === null || !children.includes(fileUri)) return;
   }
 }
-
-// ── Demo seed ─────────────────────────────────────────────────────────────────
-
-// The demo set (37 real logistics buildings from the L.Immo Nürnberg extract,
-// with deterministic synthetic energy) is generated — see
-// `scripts/genDemoBuildings.ts` / `demoBuildings.generated.ts`. The browser
-// test lanes seed the curated core subset instead (`VITE_DEMO_SEED=core`, set
-// in the e2e task commands): same code path, smaller write burst — the full
-// set stays covered by the unit seed tests and the headless `seed-demos` task.
-// Env read mirrors `APP_DIR` in `solidUtils.ts` (Vite `import.meta.env` with a
-// Deno/Node fallback so the test runtimes see it too).
-const DEMO_ENV =
-  (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-const DEMO_RUNTIME_GLOBALS = globalThis as unknown as {
-  Deno?: { env?: { get?: (key: string) => string | undefined } };
-  process?: { env?: Record<string, string | undefined> };
-};
-const DEMO_SEED_MODE = DEMO_ENV?.VITE_DEMO_SEED ??
-  DEMO_RUNTIME_GLOBALS.Deno?.env?.get?.("VITE_DEMO_SEED") ??
-  DEMO_RUNTIME_GLOBALS.process?.env?.VITE_DEMO_SEED;
-const DEMO_SET: readonly DemoSpec[] = DEMO_SEED_MODE === "core"
-  ? DEMO_BUILDINGS_CORE
-  : DEMO_BUILDINGS;
-
-/**
- * Seed the example buildings (see `demoBuildings.generated.ts`) into the user's
- * pod, as ordinary owned resources the user can delete. The specs carry their
- * own coordinates (from the extract), which the injected geocoder adopts while
- * still resolving the region AGS; a building whose lookup fails entirely is
- * still created (just unmapped).
- * Best-effort: per-building failures are logged, never thrown, so a network hiccup
- * can't block login — but they ARE counted: the returned tally lets the caller
- * report a partial seed ("Added 35 of 37") instead of a blanket success. Within one
- * building the writes are ordered commit-last (datasets first, the discoverable
- * building file last), so a failed building leaves only inert orphan files.
- * The geocoder is **injected** (the caller passes a fresh `makeGeocodeOrAdoptCoords()`) so this
- * RDF/serialization module does no network I/O of its own — that keeps it free of
- * any `services/sources/` import (rdf↔sources stays acyclic).
- * @operation mutation
- */
-export async function seedDemoBuildings(
-  gateway: PodGateway,
-  webId: string,
-  geocode: (
-    fields: Record<string, string>,
-  ) => Promise<
-    { lat: string; long: string; precision: GeocodePrecision; regionAgs?: string } | null
-  >,
-): Promise<{ seeded: number; total: number }> {
-  let seeded = 0;
-  for (const demo of DEMO_SET) {
-    try {
-      const coords = await geocode(demo.fields);
-      let fields: Record<string, string> = coords
-        ? {
-          ...demo.fields,
-          lat: coords.lat,
-          long: coords.long,
-          geocodePrecision: coords.precision,
-          ...(coords.regionAgs ? { regionAgs: coords.regionAgs } : {}),
-        }
-        : { ...demo.fields };
-      // Attribute the operator/owner to the seeding user (see {@link DemoSpec}'s
-      // `selfOperated`/`selfOwned`: real profile resolution + the shared
-      // operator group that makes the Betreiber benchmark show on the demo data).
-      if (demo.selfOperated) fields = { ...fields, operatedBy: webId };
-      if (demo.selfOwned) fields = { ...fields, ownedBy: webId };
-      // A collision-free FILE name (several demo buildings are written in a
-      // tight loop); identity is the subject IRI, not the uuid.
-      const uri = newBuildingUri(webId, crypto.randomUUID());
-      const subjectUri = mintBuildingSubject(uri);
-
-      let series:
-        | { year: number; days: Array<{ date: string; readings: LastgangReading[] }>; label: string }
-        | undefined;
-
-      if (demo.energy !== "series") {
-        // Annual aggregate (P1Y) — written as one cons:EnergyDataset per year.
-        fields = { ...fields, ...(demo.annual ?? {}) };
-      }
-      if (demo.energy !== "annual") {
-        // 15-minute series (PT15M): `seriesDays` demo days from 2024-06-01, so the
-        // Day View, Daily Totals and Average Profile are all populated. Each day is
-        // scaled by a deterministic weekday/weekend factor (offices idle at the
-        // weekend), so the totals and average profile vary instead of being flat.
-        const n = demo.seriesDays ?? 14;
-        const start = new Date("2024-06-01T00:00:00Z").getTime();
-        const days: Array<{ date: string; readings: LastgangReading[] }> = [];
-        for (let i = 0; i < n; i++) {
-          const date = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
-          const dow = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0 Sun … 6 Sat
-          const factor = dow === 0 || dow === 6 ? 0.5 : 0.9 + (i % 5) * 0.05;
-          const readings = synthDayReadings(date).map((r) => ({
-            ...r,
-            valueKwh: (parseFloat(r.valueKwh) * factor).toFixed(6),
-          }));
-          days.push({ date, readings });
-        }
-        series = { year: 2024, days, label: fields.streetAddress ?? "" };
-      }
-
-      // Write the energy dataset resources, then the building (with the links).
-      const energyLinks = await writeBuildingEnergy(
-        gateway,
-        uri,
-        subjectUri,
-        fields,
-        series,
-      );
-      if (demo.planned) {
-        // The extra planned (Soll) dataset — its own time-first resource.
-        const root = observationsRootForBuilding(uri);
-        const fileUri = datasetFileUri(root, demo.planned.year, mintDatasetId());
-        await ensureContainer(seriesContainerUri(root, demo.planned.year), gateway);
-        const put = await gateway.fetch(fileUri, {
-          method: "PUT",
-          headers: { "Content-Type": "text/turtle" },
-          body: serializeEnergyDataset({
-            building: subjectUri,
-            year: demo.planned.year,
-            granularity: "P1Y",
-            scenario: "planned",
-            metrics: demo.planned.metrics,
-          }),
-        });
-        if (!put.ok) {
-          throw new Error(
-            `Energy upload failed (${fileUri}): ${put.status} ${put.statusText}`,
-          );
-        }
-        energyLinks.push({
-          uri: datasetNodeUri(fileUri),
-          granularity: "P1Y",
-          scenario: "planned",
-        });
-      }
-      const ttl = serializeBuildingToTurtle(fields, uri, energyLinks, {
-        agent: webId,
-      });
-      await uploadBuilding(gateway, uri, ttl, webId);
-      seeded++;
-    } catch (err) {
-      console.error(
-        `Failed to seed demo building ${demo.fields.streetAddress}:`,
-        err,
-      );
-    }
-  }
-  return { seeded, total: DEMO_SET.length };
-}
-

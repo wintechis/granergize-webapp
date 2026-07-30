@@ -50,9 +50,7 @@ import { saveAgentCore } from "./cores/agent/SaveAgent.ts";
 import { removeAgentCore } from "./cores/agent/RemoveAgent.ts";
 import { seedDemoAgentsCore } from "./cores/agent/SeedDemoAgents.ts";
 import { saveOrganisationCore } from "./cores/organisation/SaveOrganisation.ts";
-import { seedDemoBuildingsCore } from "./cores/building/SeedDemoBuildings.ts";
 import { deleteAppDataCore } from "./cores/appData/DeleteAppData.ts";
-import { declineDemoOfferCore } from "./cores/appData/DeclineDemoOffer.ts";
 import { restoreArchiveCore } from "./cores/appData/RestoreArchive.ts";
 
 /**
@@ -115,14 +113,6 @@ export const WRITE_CORES = {
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: saveOrganisationCore,
   // ── Account ──────────────────────────────────────────────────────────────────
-  DeclineDemoOffer: (s: PodGateway, p: Record<never, never>) => {
-    void p;
-    return declineDemoOfferCore(s);
-  },
-  SeedDemoBuildings: (s: PodGateway, p: Record<never, never>) => {
-    void p;
-    return seedDemoBuildingsCore(s);
-  },
   DeleteAppData: deleteAppDataCore,
   RestoreArchive: restoreArchiveCore,
 } as const;

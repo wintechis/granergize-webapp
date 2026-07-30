@@ -3,8 +3,8 @@ import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { buildingRoute, openBuildingsList } from "../helpers/manage.ts";
+import { importSeriesBuilding } from "../helpers/seed.ts";
+import { addEnergyYear, buildingRoute, openBuildingsList } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -18,10 +18,11 @@ import { T } from "../helpers/timeouts.ts";
  * "Overlay weather" toggle superimposes the nearest DWD station's temperature on the
  * shared year axis.
  *
- * Both target the demo's parcel hub ("Am Tower 10"): a demo
- * building carrying BOTH energy shapes — annual aggregates (2022-2024) AND a PT15M series
- * (seeded for 2024-06) — so the Annual | Time series toggle shows and the calendar has a
- * month of readings. The binning/alignment maths is proved in `energyCalendar.test.ts` /
+ * Both target ONE building carrying BOTH energy shapes. A file import can't produce
+ * that in one go — a Lastgang (15-min) file always mints its own building — so the
+ * setup composes it the way a user would: import the bundled load-profile example
+ * (14 days from 2024-06), then enter two annual years on the same building. The
+ * Annual | Time series toggle then shows and the calendar has a fortnight of readings. The binning/alignment maths is proved in `energyCalendar.test.ts` /
  * `energyWeather.test.ts`; this is the UI proof the surfaces render.
  *
  * The weather reads (linked-dwd) are stubbed per-spec (`page.route`), so the
@@ -41,7 +42,9 @@ import { T } from "../helpers/timeouts.ts";
  * `deno task e2e:local` run when one is free.
  */
 
-const ADDR = "Am Tower 10"; // the 14-day series demo — carries BOTH energy shapes
+// Distinct from every street in the core example file — this building is composed
+// by this spec (imported series + entered annual years), not imported from it.
+const ADDR = "Serienprofil E2E Str. 1";
 const ACC = account("A"); // Alice -- solo specs use one account
 
 const CORS = { "access-control-allow-origin": "*" };
@@ -49,7 +52,7 @@ const CORS = { "access-control-allow-origin": "*" };
 // linked-dwd stub fixtures (the wrapper's served Turtle shapes; see
 // `linkedWeather.ts`). `near?` → one nearby `dwd:WeatherStation` with a distance;
 // `values?` → two annual `sosa:Observation`s (mean temperature) for 2023-2024, the
-// years the demo office carries energy for, so the energy×weather overlay aligns.
+// years the setup enters annual energy for, so the energy×weather overlay aligns.
 const WEATHER_STATIONS_TTL = `@prefix dwd: <https://opendata.dwd.de/#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix schema: <http://schema.org/> .
@@ -87,7 +90,7 @@ test.describe("cube calendar heatmap + weather overlay", () => {
   let id = "";
 
   test.beforeAll(async ({ browser }) => {
-    // The demo seed writes the PT15M day files (a burst of PUTs) on top of login —
+    // The series import writes the PT15M day files (a burst of PUTs) on top of login —
     // give the setup the long-operation budget.
     test.setTimeout(T.longOp);
     page = await newCapturedPage(browser, "cube-calendar-weather");
@@ -108,14 +111,18 @@ test.describe("cube calendar heatmap + weather overlay", () => {
       route.fulfill({ status: 404, headers: CORS, body: "" }));
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page);
+    // Compose the both-shapes building: the bundled 15-minute load profile first,
+    // then the annual years the weather overlay aligns against.
+    await importSeriesBuilding(page, ADDR);
+    await addEnergyYear(page, ADDR, "2023", "48200");
+    await addEnergyYear(page, ADDR, "2024", "46900");
 
     // Resolve the both-shapes building's id from the Buildings list row.
     await openBuildingsList(page);
     const row = page.locator("li[data-building-id]", { hasText: ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
     id = (await row.getAttribute("data-building-id")) ?? "";
-    expect(id, `the demo office "${ADDR}" id`).toBeTruthy();
+    expect(id, `the both-shapes building "${ADDR}" id`).toBeTruthy();
   });
 
   test.afterAll(async () => {

@@ -31,8 +31,12 @@ export const E2E_LANG: Lang = ((): Lang => {
  * specs; `en`/`de`/`fr` remain for the few specs that assert a SPECIFIC language
  * regardless of the run (e.g. `i18n.spec.ts`'s before/after switch).
  */
-export function t(id: MessageId, params?: MessageParams): string {
-  return translate(E2E_LANG, id, params);
+export function t(
+  id: MessageId,
+  params?: MessageParams,
+  lang: Lang = E2E_LANG,
+): string {
+  return translate(lang, id, params);
 }
 
 /**
@@ -63,8 +67,8 @@ export function en(id: MessageId, params?: MessageParams): string {
  * the spec doesn't pin (e.g. "Add all {count} contributors", where the count
  * varies). Literal text is escaped; each unfilled `{param}` becomes `.+`.
  */
-export function tPattern(id: MessageId): RegExp {
-  const raw = translate(E2E_LANG, id);
+export function tPattern(id: MessageId, lang: Lang = E2E_LANG): RegExp {
+  const raw = translate(lang, id);
   const escaped = raw
     .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     .replace(/\\{[a-zA-Z]+\\}/g, ".*");
@@ -76,10 +80,10 @@ export function tPattern(id: MessageId): RegExp {
  * "Add {n} Buildings" (import, the plural form), matched in the run language. The
  * count is a wildcard since the spec doesn't pin how many the fixture imports.
  */
-export function addBuildingSubmitRe(): RegExp {
+export function addBuildingSubmitRe(lang: Lang = E2E_LANG): RegExp {
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const manual = esc(translate(E2E_LANG, "addBuildingBtn"));
-  const plural = esc(translate(E2E_LANG, "addBuildingsCount", { count: 7 }))
+  const manual = esc(translate(lang, "addBuildingBtn"));
+  const plural = esc(translate(lang, "addBuildingsCount", { count: 7 }))
     .replace(/7/, "\\d+");
   return new RegExp(`^(${manual}|${plural})$`);
 }
@@ -89,10 +93,10 @@ export function addBuildingSubmitRe(): RegExp {
  * singular ("Building added") or the plural ("{count} buildings added") form, with
  * the count wildcarded since the fixture's import size isn't pinned.
  */
-export function buildingsAddedRe(): RegExp {
+export function buildingsAddedRe(lang: Lang = E2E_LANG): RegExp {
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const one = esc(translate(E2E_LANG, "addBuildingAddedCount", { count: 1 }));
-  const many = esc(translate(E2E_LANG, "addBuildingAddedCount", { count: 7 }))
+  const one = esc(translate(lang, "addBuildingAddedCount", { count: 1 }));
+  const many = esc(translate(lang, "addBuildingAddedCount", { count: 7 }))
     .replace(/7/, "\\d+");
   return new RegExp(`(${one}|${many})`);
 }

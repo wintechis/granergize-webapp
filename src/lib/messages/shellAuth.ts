@@ -205,11 +205,6 @@ export const shellAuth = {
     de: "Keine Herkunft aufgezeichnet.",
     fr: "Aucune provenance enregistrée.",
   },
-  menuAddBuildings: {
-    en: "Add example buildings and energy data",
-    de: "Beispielgebäude und Energiedaten hinzufügen",
-    fr: "Ajouter des bâtiments et données d'exemple",
-  },
   menuAddAgents: {
     en: "Add example agents and rooms",
     de: "Beispielagenten und -datenräume hinzufügen",
@@ -276,8 +271,6 @@ export const shellAuth = {
     de: "Alle App-Daten werden gelöscht…",
     fr: "Suppression de toutes les données…",
   },
-  onboardAddExamples: { en: "Add examples", de: "Beispiele hinzufügen", fr: "Ajouter des exemples" },
-  btnNoThanks: { en: "No thanks", de: "Nein danke", fr: "Non merci" },
   appErrorLoadingData: {
     en: "Error loading data: {error}",
     de: "Fehler beim Laden der Daten: {error}",
@@ -292,11 +285,6 @@ export const shellAuth = {
     en: "Removal cancelled — some data may already be deleted",
     de: "Entfernung abgebrochen — einige Daten wurden möglicherweise bereits gelöscht",
     fr: "Suppression annulée — certaines données ont peut-être déjà été supprimées",
-  },
-  onboardBanner: {
-    en: "No buildings yet — add example logistics buildings (with energy data) to explore?",
-    de: "Noch keine Gebäude — Beispiel-Logistikgebäude (mit Energiedaten) zum Erkunden hinzufügen?",
-    fr: "Aucun bâtiment — ajouter des bâtiments logistiques d'exemple (avec données énergétiques) à explorer ?",
   },
   demoAgentsAdded: {
     en: "Demo agents added",

@@ -160,6 +160,27 @@ export const dialogsShare = {
     de: "Koordinaten ermitteln",
     fr: "Obtenir les coordonnées",
   },
+  // "Try an example file" — the bundled example workbooks (constants/exampleFiles.ts).
+  addExamplesLead: {
+    en: "…or try one of the bundled example files:",
+    de: "…oder eine der mitgelieferten Beispieldateien ausprobieren:",
+    fr: "…ou essayez l'un des fichiers d'exemple fournis :",
+  },
+  exampleLimmo: {
+    en: "Logistics portfolio Nürnberg — 37 buildings with energy data",
+    de: "Logistikportfolio Nürnberg — 37 Gebäude mit Energiedaten",
+    fr: "Portefeuille logistique de Nuremberg — 37 bâtiments avec données énergétiques",
+  },
+  examplePortfolio: {
+    en: "Sample portfolio (row-label sheet) — 4 fictional buildings, no coordinates",
+    de: "Beispiel-Portfolio (Zeilenbeschriftungs-Blatt) — 4 fiktive Gebäude, ohne Koordinaten",
+    fr: "Portefeuille d'exemple (feuille à libellés) — 4 bâtiments fictifs, sans coordonnées",
+  },
+  exampleLastgang: {
+    en: "15-minute load profile (Lastgang) — Am Tower 10",
+    de: "15-Minuten-Lastgang — Am Tower 10",
+    fr: "Profil de charge de 15 minutes (Lastgang) — Am Tower 10",
+  },
   // Sharing finder body.
   shareAggFallbackName: {
     en: "Shared aggregation",

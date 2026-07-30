@@ -26,11 +26,12 @@ export const navFinders = {
     fr: "Enregistrer dans les agents",
   },
   buildingsEmpty: {
-    en: "No buildings yet. Add one, or autofill it from a file.",
+    en:
+      "No buildings yet. Add one, or autofill from a file — \"Autofill from file\" also offers example files to try.",
     de:
-      "Noch keine Gebäude. Füge eines hinzu oder fülle es automatisch aus einer Datei.",
+      "Noch keine Gebäude. Füge eines hinzu oder fülle automatisch aus einer Datei — unter „Automatisch aus Datei“ stehen auch Beispieldateien zum Ausprobieren bereit.",
     fr:
-      "Aucun bâtiment pour l'instant. Ajoutez-en un, ou remplissez-le automatiquement à partir d'un fichier.",
+      "Aucun bâtiment pour l'instant. Ajoutez-en un, ou remplissez automatiquement à partir d'un fichier — « Remplir depuis un fichier » propose aussi des fichiers d'exemple à essayer.",
   },
   observationsEmpty: {
     en:

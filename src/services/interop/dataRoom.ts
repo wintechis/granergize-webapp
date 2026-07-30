@@ -174,7 +174,7 @@ export async function enterRoom(
 ): Promise<void> {
   const room = normalizeRoomUri(roomUri);
   // `makeCurrent` governs the single-valued "current room" pointer in prefs.ttl.
-  // A BULK creation (the demo seed) must pass false: making each of N rooms current
+  // A BULK creation (the demo-rooms seeder) must pass false: making each of N rooms current
   // rewrites prefs.ttl N times — concurrently with the buildings seed also writing
   // prefs.ttl — which races the conditional PUT past its retry budget and silently
   // drops rooms (an "Added n of total" partial). Joining + bookmarking each room is

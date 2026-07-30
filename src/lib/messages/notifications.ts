@@ -212,11 +212,6 @@ export const notifications = {
     de: "Koordinaten aktualisiert",
     fr: "Coordonnées mises à jour",
   },
-  demoBuildingsAdded: {
-    en: "Demo buildings and energy data added",
-    de: "Beispielgebäude und Energiedaten hinzugefügt",
-    fr: "Bâtiments et données énergétiques de démonstration ajoutés",
-  },
   allDataRemoved: {
     en: "All app data deleted",
     de: "Alle App-Daten gelöscht",
@@ -256,12 +251,6 @@ export const notifications = {
     en: "Archived {count} resource(s)",
     de: "{count} Ressource(n) archiviert",
     fr: "{count} ressource(s) archivée(s)",
-  },
-  demoBuildingsPartial: {
-    en: "Added {seeded} of {total} demo buildings (with energy data)",
-    de: "{seeded} von {total} Beispielgebäuden hinzugefügt (mit Energiedaten)",
-    fr:
-      "{seeded} bâtiments de démonstration sur {total} ajoutés (avec données énergétiques)",
   },
   // The two classified-warning sentences (session-expiry gate + optimistic-lock
   // conflict) — complete sentences about an app-level state, not "Failed to …".
@@ -303,11 +292,6 @@ export const notifications = {
     en: "delete energy data",
     de: "Löschen der Energiedaten",
     fr: "la suppression des données énergétiques",
-  },
-  actionDeclineDemos: {
-    en: "dismiss the demo-data offer",
-    de: "Ablehnen des Demodaten-Angebots",
-    fr: "le refus de l'offre de données de démonstration",
   },
   actionClearObservations: {
     en: "clear the building's observations",
@@ -363,11 +347,6 @@ export const notifications = {
     en: "add demo data rooms",
     de: "Hinzufügen der Beispiel-Datenzimmer",
     fr: "l'ajout des salles de données de démonstration",
-  },
-  actionAddDemoBuildings: {
-    en: "add demo buildings and energy data",
-    de: "Hinzufügen der Beispielgebäude und Energiedaten",
-    fr: "l'ajout des bâtiments et données énergétiques de démonstration",
   },
   actionDeleteAppData: {
     en: "delete app data",
@@ -428,6 +407,11 @@ export const notifications = {
     en: "parse the file",
     de: "Einlesen der Datei",
     fr: "l'analyse du fichier",
+  },
+  actionLoadExample: {
+    en: "load the example file",
+    de: "Laden der Beispieldatei",
+    fr: "le chargement du fichier d'exemple",
   },
   actionReadArchive: {
     en: "read the archive",

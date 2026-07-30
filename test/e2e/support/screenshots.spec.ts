@@ -8,7 +8,8 @@ import {
   webIdOf,
 } from "../helpers/login.ts";
 import { freshPage } from "../helpers/twoPod.ts";
-import { buildingRoute } from "../helpers/manage.ts";
+import { addEnergyYear, buildingRoute } from "../helpers/manage.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
 import { en } from "../helpers/i18n.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
@@ -158,19 +159,15 @@ test.describe("handbuch screenshots", () => {
     await setDevMode(page, false);
 
     // --- Post-login first start (erster-start.png — handbuch figure): after
-    //     login the app lands on the Explore map, and on a fresh Pod the
-    //     onboarding banner offers the demo buildings ("No buildings yet — add a
-    //     couple of example buildings to explore?"). Captured BEFORE that banner's
-    //     "Add examples" is accepted further down, so the figure shows the empty
-    //     starting state a first-time user actually sees — the app opens on
-    //     adding buildings. On the local tier the header already carries the
-    //     seeded org logo + avatar (from /seed-profiles). Best-effort: on an
-    //     idempotent re-run against a non-fresh Pod the banner is absent and the
-    //     map already has markers, so the committed figure is kept. ---
+    //     login the app lands on the Explore map, empty on a fresh Pod.
+    //     Captured BEFORE the example buildings are imported further down, so
+    //     the figure shows the empty starting state a first-time user actually
+    //     sees. On the local tier the header already carries the seeded org
+    //     logo + avatar (from /seed-profiles). Best-effort: on an idempotent
+    //     re-run against a non-fresh Pod the map already has markers, so the
+    //     committed figure is kept. ---
     await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
-    await page.getByRole("button", { name: en("onboardAddExamples") })
-      .waitFor({ timeout: 15_000 }).catch(() => {});
     await waitForMapTiles(page);
     await page.waitForTimeout(800);
     await shot(page, "erster-start.png");
@@ -236,28 +233,23 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "room.png");
     // Back to the app shell (the room page is a standalone route without tabs) so
-    // the onboarding "Add examples" banner (on the Buildings Map) is reachable.
+    // the Buildings Map is reachable.
     await page.goto("/");
     await expect(page.getByRole("tab", { name: en("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
     await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
 
-    // Dismiss the "Roles updated" toast, then ACCEPT the fresh-Pod onboarding
-    // banner's "Add examples": every figure is captured over the SAME demo
-    // buildings a reader gets from that banner (handbuch examples = app
-    // examples; the handbuch build seeds the core subset, VITE_DEMO_SEED=core).
-    // The seed writes the buildings and their energy datasets (incl. multi-day
-    // 15-min series), so the toast wait is
-    // generous. Time-boxed click: on an idempotent re-run against a non-fresh
-    // Pod the banner doesn't show and the buildings already exist.
+    // Dismiss the "Roles updated" toast, then import the example buildings the
+    // same way a reader does — Add building → "Autofill from file" (handbuch
+    // examples = app examples; the helper imports the core example file, and is
+    // idempotent against a non-fresh Pod). The planned (Soll) 2024 figure a
+    // spreadsheet layout can't carry is entered afterwards, so the Soll-Ist
+    // figure below has its pair.
     await dismissToasts(page);
-    const addExamples = page.getByRole("button", { name: en("onboardAddExamples") });
-    if (await addExamples.count()) {
-      await addExamples.click({ timeout: 8_000 }).catch(() => {});
-      await expect(page.getByText(en("demoBuildingsAdded")).first())
-        .toBeVisible({ timeout: 300_000 });
-      await dismissToasts(page);
-    }
+    await importExampleBuildings(page);
+    await dismissToasts(page);
+    await addEnergyYear(page, "Thomas-Dachser-Str. 4", "2024", "1739500", "planned");
+    await dismissToasts(page);
 
     // Local tier: seed the BSP contribution + computation over the demo
     // buildings — A's and two of B's buildings shared (energy included) to C
@@ -330,7 +322,7 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "contacts.png");
 
-    // --- Data: the demo buildings (seeded via "Add examples" above) give
+    // --- Data: the example buildings (imported above) give
     //     every later figure its content; the Add Building dialog lives on the
     //     Buildings tab's List view ---
     await page.getByRole("tab", { name: en("navBuildings") }).click();
@@ -388,9 +380,10 @@ test.describe("handbuch screenshots", () => {
       .toBeVisible({ timeout: 30_000 });
 
     // --- Energy-year editor: the per-year consumption form plus the "Stored
-    //     years" read-back table, opened on the flagship (Thomas-Dachser-Str.) demo — its table is
-    //     populated out of the box (actual 2022–2024 AND the planned 2024, so
-    //     the figure shows the Soll-Ist pair and the building-name header). The
+    //     years" read-back table, opened on the flagship (Thomas-Dachser-Str.)
+    //     example building — its table is populated (actual 2022–2024 from the
+    //     imported file AND the planned 2024 entered in the setup, so the figure
+    //     shows the Soll-Ist pair and the building-name header). The
     //     redesign moved energy entry off the finder row onto the building's
     //     OBSERVATION page (`/observation/:id`) AND replaced the modal with an
     //     INLINE editor that swaps out the charts; resolve the flagship id from

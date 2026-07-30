@@ -1,7 +1,5 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { makeGeocodeOrAdoptCoords } from "../../sources/geocode.ts";
-import { DEMO_BUILDINGS } from "./demoBuildings.generated.ts";
 import { DataFactory, Parser, Store } from "n3";
 import * as XLSX from "xlsx";
 import type { Building } from "../../../types.ts";
@@ -10,7 +8,6 @@ import {
   deleteBuilding,
   deleteEnergyYear,
   newBuildingUri,
-  seedDemoBuildings,
   serializeBuildingToTurtle,
   updateBuilding,
   uploadBuilding,
@@ -981,7 +978,7 @@ Deno.test("toggleBuildingVisibility unhides an already-hidden building", async (
   );
 });
 
-// ── synthetic readings + full demo seed ─────────────────────────────────────────
+// ── synthetic readings ──────────────────────────────────────────────────────────
 
 Deno.test("synthDayReadings yields a full UTC day of 15-minute slots", () => {
   const r = synthDayReadings("2024-06-03");
@@ -993,232 +990,6 @@ Deno.test("synthDayReadings yields a full UTC day of 15-minute slots", () => {
   // values are non-negative kWh-per-slot strings
   assert.ok(r.every((x) => parseFloat(x.valueKwh) >= 0));
 });
-
-Deno.test("seedDemoBuildings seeds the full demo set across both granularities", async () => {
-  const { session, calls } = makeSession();
-
-  // Stub the region lookup (global fetch) so the seed runs offline. The specs
-  // carry their own coordinates, so the adopt-coords geocoder never queries the
-  // address register; its best-effort linked-lau `/contains` lookup 404s here.
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = (() =>
-    Promise.resolve(new Response("nope", { status: 404 }))) as typeof fetch;
-
-  let tally: { seeded: number; total: number };
-  try {
-    // The demo set spans both energy shapes (annual P1Y + 15-minute series).
-    tally = await seedDemoBuildings(session, WEBID, makeGeocodeOrAdoptCoords());
-  } finally {
-    globalThis.fetch = realFetch;
-  }
-  const N = DEMO_BUILDINGS.length;
-  assert.deepEqual(tally, { seeded: N, total: N }, `full seed reports ${N}/${N}`);
-
-  // One building file per spec (under granergize/buildings/, not the energy files).
-  const buildingPuts = calls.filter((c) =>
-    c.method === "PUT" &&
-    /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
-  );
-  assert.equal(buildingPuts.length, N, "every demo building uploaded");
-
-  // Daily 15-minute reading files are time-first under each year's month/day
-  // sub-containers (one file per series day; the series-carrying demos hold
-  // multi-day series): `observations/<year>/<mm>/<dd>/<id>.ttl`.
-  const energyPuts = calls.filter((c) =>
-    c.method === "PUT" &&
-    /\/observations\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.ttl$/.test(c.url)
-  );
-  assert.ok(energyPuts.length >= 1, "15-min daily reading files uploaded");
-
-  // Energy is NOT inline: each building links its datasets via cons:hasEnergyDataset
-  // and re-states the dataset's granularity/scenario. Expected shape counts come
-  // from the generated set itself, so a regenerated set can't silently drift.
-  const seriesCount = DEMO_BUILDINGS.filter((b) => b.energy !== "annual").length;
-  const annualCount = DEMO_BUILDINGS.filter((b) => b.energy !== "series").length;
-  const bothCount = DEMO_BUILDINGS.filter((b) => b.energy === "both").length;
-  const bodies = buildingPuts.map((c) => c.body ?? "");
-  // The granularity is re-stated on the building as a cons:granularity literal;
-  // parse so the assertion is robust to the writer's prefix choices.
-  const granularitiesOf = (body: string): string[] =>
-    parse(body)
-      .getObjects(null, namedNode(`${CONSUMPTION_NS}granularity`), null)
-      .map((o) => o.value);
-  const bodyGrans = bodies.map(granularitiesOf);
-  assert.equal(
-    bodyGrans.filter((g) => g.includes("PT15M")).length,
-    seriesCount,
-    "the series-carrying buildings link a PT15M series dataset",
-  );
-  assert.equal(
-    bodyGrans.filter((g) => g.includes("P1Y")).length,
-    annualCount,
-    "every annual-carrying building links P1Y annual datasets",
-  );
-  assert.equal(
-    bodyGrans.filter((g) => g.includes("PT15M") && g.includes("P1Y")).length,
-    bothCount,
-    "the both-shapes demos carry annual + series (the resolution toggle)",
-  );
-
-  // The annual aggregate's figures live in their own (time-first) cons:EnergyDataset
-  // resources (unified metric IRIs), not inline in the building file.
-  const annualFiles = calls
-    .filter((c) =>
-      c.method === "PUT" && /\/observations\/\d{4}\/[^/]+\.ttl$/.test(c.url) &&
-      (c.body ?? "").includes(`cons:granularity "P1Y"`)
-    )
-    .map((c) => c.body ?? "");
-  assert.ok(annualFiles.length >= 1, "annual dataset resources written");
-  assert.ok(
-    annualFiles.some((b) => b.includes("ElectricityConsumption")),
-    "an annual dataset declares cons:ElectricityConsumption",
-  );
-
-  // Self-operated demos carry operatedBy = the seeding user's WebID — the
-  // shared operator group that makes the Betreiber benchmark show on the demo
-  // data. The rest stay outside the group, so the set also demonstrates
-  // buildings WITHOUT it.
-  const operatedCount = DEMO_BUILDINGS.filter((b) => b.selfOperated).length;
-  const operated = bodies.filter((b) => b.includes("operatedBy"));
-  assert.equal(operated.length, operatedCount, "self-operated demos carry operatedBy");
-  assert.ok(operatedCount >= 2, "the Betreiber benchmark group has ≥2 members");
-  assert.ok(
-    operated.every((b) => b.includes(WEBID)),
-    "operatedBy points at the seeding user's WebID",
-  );
-
-  // The owner-occupier demos carry ownedBy = the seeding user; the rest carry
-  // no ownedBy.
-  const ownedCount = DEMO_BUILDINGS.filter((b) => b.selfOwned).length;
-  const owned = bodies.filter((b) => b.includes("ownedBy"));
-  assert.equal(owned.length, ownedCount, "the owner-occupier demos are self-owned");
-
-  // The flagship demo carries an extra planned (Soll) 2024 dataset next to the
-  // actual 2024 figures — the out-of-the-box Soll-Ist pair. Scenario is a dataset
-  // property (cons:Planned), not encoded in the (time-first) path.
-  const plannedPuts = calls.filter((c) =>
-    c.method === "PUT" && /\/observations\/2024\/[^/]+\.ttl$/.test(c.url) &&
-    (c.body ?? "").includes("cons:scenario cons:Planned")
-  );
-  assert.equal(plannedPuts.length, 1, "one planned 2024 dataset written");
-  assert.ok(
-    (plannedPuts[0].body ?? "").includes("ElectricityConsumption"),
-    "the planned dataset carries metric observations",
-  );
-  const plannedScenario = `${CONSUMPTION_NS}Planned`;
-  assert.equal(
-    bodies.filter((b) =>
-      parse(b).getQuads(null, namedNode(`${CONSUMPTION_NS}scenario`), namedNode(plannedScenario), null)
-        .length > 0
-    ).length,
-    1,
-    "exactly one building re-states a planned dataset link",
-  );
-
-  // The building files carry a PROV qualified attribution to the producing agent,
-  // but NO producing-role (prov:hadRole) — roles live only in data rooms now.
-  const hadRoles = bodies
-    .flatMap((b) =>
-      parse(b).getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
-    );
-  assert.equal(hadRoles.length, 0, "no building carries a prov:hadRole");
-
-  // The flagship demo (Dachser, LI-16074) carries a fully-populated detail
-  // panel: core master data, the investor block (incl. a controlled-vocab
-  // object property), one certification, and operating costs. Round-trip
-  // through the parser so the demo field NAMES stay in lockstep with
-  // buildingConfig (a rename breaks here).
-  const investorBody = bodies.find((b) => b.includes("LI-16074")) ?? "";
-  const inv = [...parseBuildings(new Parser().parse(investorBody)).values()][0];
-  assert.ok(inv, "flagship demo building parses");
-  assert.equal(inv.customer, "Dachser Group SE & Co. KG");
-  assert.equal(inv.buildingCode, "LI-16074");
-  assert.equal(inv.numberOfLoadingDocks, 30);
-  assert.equal(inv.shiftRegime, "TwoShift");
-  assert.equal(inv.tenancyType, "SingleTenant");
-  assert.equal(inv.indoorTemperatureClass, "MaxEighteenDegrees");
-  // Heat generation is a :TechnicalSystem now (thermal capacity + commissioning year),
-  // not a boolean — the flagship carries a gas boiler + a heat pump.
-  const hp = (inv.systems ?? []).find((s) => s.kind === "heatpump");
-  assert.ok(hp, "flagship demo has a heat-pump system");
-  assert.equal(hp!.thermalCapacityKW, 250);
-  assert.ok(
-    (inv.systems ?? []).some((s) => s.kind === "gasboiler"),
-    "flagship demo has a gas-boiler system",
-  );
-  const certs = inv.certifications as Array<{ type?: string; certificationLevel?: string }>;
-  assert.equal(certs?.length, 1, "one certification");
-  assert.equal(certs[0].type, "DGNB");
-  assert.equal(certs[0].certificationLevel, "Gold");
-  const opcosts = inv.operatingCosts as Record<string, unknown> | undefined;
-  assert.equal(opcosts?.propertyManagement, "Medium");
-  assert.equal(opcosts?.operationInspectionAndMaintenance, "High");
-
-  // The series demo buildings attribute their operator to the seeding user
-  // (WEBID), so the agent-link → agent path resolves out of the box.
-  const userBody = bodies.find((b) => b.includes("PT15M")) ?? "";
-  const usr = [...parseBuildings(new Parser().parse(userBody)).values()][0];
-  assert.equal(usr.operatedBy, WEBID, "series demo building operatedBy = seeder");
-});
-
-Deno.test("seedDemoBuildings counts a failed building instead of throwing — and never writes its building file (commit-last)", async () => {
-  // Fail the planned (Soll) dataset PUT: it belongs to exactly one demo (the
-  // flagship). The time-first path carries a random id, so it's matched by its
-  // body (the only planned-scenario dataset in the seed). The seed has no
-  // transactions; this asserts the substitute guarantees: the loop continues,
-  // the tally reports the shortfall, and the failed demo's discoverable
-  // building file is never written (its earlier dataset PUTs become inert
-  // orphans).
-  const { session, calls } = makeFakeSession({
-    webId: WEBID,
-    respond: (_url, init) =>
-      (init?.method ?? "GET").toUpperCase() === "PUT" &&
-        String(init?.body ?? "").includes("cons:scenario cons:Planned")
-        ? new Response("boom", { status: 500 })
-        : undefined,
-  });
-
-  // Stub the region lookup (global fetch) so the seed runs offline (the specs
-  // carry coordinates — no address-register query; `/contains` 404s).
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = (() =>
-    Promise.resolve(new Response("nope", { status: 404 }))) as typeof fetch;
-
-  let tally: { seeded: number; total: number };
-  try {
-    tally = await seedDemoBuildings(session, WEBID, makeGeocodeOrAdoptCoords());
-  } finally {
-    globalThis.fetch = realFetch;
-  }
-
-  const N = DEMO_BUILDINGS.length;
-  assert.deepEqual(
-    tally,
-    { seeded: N - 1, total: N },
-    `partial seed reports ${N - 1}/${N}`,
-  );
-
-  // Commit-last: the failed demo never reaches its building-file PUT, so only
-  // the healthy demos are discoverable (top-level *.ttl under buildings/).
-  const buildingPuts = calls.filter((c) =>
-    c.method === "PUT" &&
-    /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
-  );
-  assert.equal(buildingPuts.length, N - 1, "failed demo's building file not written");
-  assert.ok(
-    buildingPuts.every((c) =>
-      parse(c.body ?? "").getQuads(
-        null,
-        namedNode(`${CONSUMPTION_NS}scenario`),
-        namedNode(`${CONSUMPTION_NS}Planned`),
-        null,
-      ).length === 0
-    ),
-    "no surviving building links the failed planned dataset",
-  );
-});
-
-// ── delete a building (hard delete) ─────────────────────────────────────────────
 
 Deno.test("deleteBuilding deletes the building file (de-registering it by listing)", async () => {
   const uri = newBuildingUri(WEBID, "gone");

@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { metricT, t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import {
   addBuilding,
   addEnergyYear,
@@ -18,9 +18,9 @@ import { T } from "../helpers/timeouts.ts";
  * unified `cons:EnergyDataset` model renders end-to-end in a real browser: a
  * building's energy detail (annual table + bar chart) is fetched from the
  * separate dataset resources and drawn. It self-seeds an empty Pod in beforeAll
- * (ensureDemoBuildings) — the demo seed includes the annual "Thomas-Dachser-Str. 4"
- * flagship building this test renders (auto-loaded) — and so doesn't
- * assume a pre-seeded Pod.
+ * (importExampleBuildings) — the core example file includes the annual
+ * "Thomas-Dachser-Str. 4" flagship building this test renders (auto-loaded) — and so
+ * doesn't assume a pre-seeded Pod.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/solo/aggregations.spec.ts
@@ -66,9 +66,9 @@ test.describe("energy view smoke", () => {
       }));
     await login(page, ACC);
     await assertCleanStart(page);
-    // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
-    // investor demo is the annual "Thomas-Dachser-Str. 4" building this test renders).
-    await ensureDemoBuildings(page);
+    // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the core
+    // example file brings the annual "Thomas-Dachser-Str. 4" building this test renders).
+    await importExampleBuildings(page);
   });
 
   test.beforeEach(async () => {

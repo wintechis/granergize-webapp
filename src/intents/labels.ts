@@ -39,7 +39,6 @@ export const INTENT_LABEL_KEY = {
   // host button; the dev seeders / inbox-check / sharing-rebuild → their
   // account-menu / share-tab labels.
   CreateRoom: "roomHostBtn",
-  SeedDemoBuildings: "menuAddBuildings",
   SeedDemoAgents: "intentSeedDemoAgents",
   SeedDemoRooms: "intentSeedDemoRooms",
   DrainInbox: "shareCheckForNew",

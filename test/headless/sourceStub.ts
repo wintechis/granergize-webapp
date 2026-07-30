@@ -2,7 +2,7 @@
 /**
  * Make the headless runner **hermetic on external sources**. Tier-2 is hermetic on
  * the Pod (a throwaway local CSS/JSS) but its task ops can still reach public
- * sources — `seedDemoBuildings` geocodes each demo building (the addressapi register
+ * sources — the file-import geocoder resolves each building (the addressapi register
  * search + the linked-lau `/contains` region lookup). Before the SourceGateway port
  * there was no seam to redirect those, so `headless:local` silently hit
  * `wunderfacts.com` under Deno (the known gap; see plans/plan-test-lane-naming.md).

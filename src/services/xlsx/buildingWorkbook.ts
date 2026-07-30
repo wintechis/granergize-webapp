@@ -27,7 +27,7 @@ import { BUILDING_NS } from "../rdf/vocabularies.ts";
 // values only, never styling.
 // ---------------------------------------------------------------------------
 
-type Cell = string | number | null;
+export type Cell = string | number | null;
 
 function cellValue(v: unknown): Cell {
   if (v === undefined || v === null || v === "") return null;
@@ -226,7 +226,7 @@ async function loadExceljs(): Promise<Exceljs> {
  * one-cell-anchor extent zero-sized). Images live in the drawing layer — they
  * occupy no cells, so import is unaffected. Anchors are fractional col/row
  * coordinates. */
-function placeLogo(
+export function placeLogo(
   ws: Worksheet,
   tl: { col: number; row: number },
   br: { col: number; row: number },
@@ -246,8 +246,11 @@ function placeLogo(
  * Header-row + data-rows table sheet (benchmark / generic / combined export):
  * brand-filled bold header in row 1 (the row the importer reads the column
  * names from), zebra-striped data rows, fitted column widths, frozen header.
+ * Exported (with {@link newSheet}/{@link sheetToBytes}) for the example-file
+ * generator (`scripts/genExampleFiles.ts`), which emits the bundled import
+ * examples through the same writer the in-app export uses.
  */
-function writeTableSheet(
+export function writeTableSheet(
   ws: Worksheet,
   records: Record<string, string | number>[],
 ): void {
@@ -327,14 +330,66 @@ function writeInvestorSheet(ws: Worksheet, rows: Cell[][]): void {
   placeLogo(ws, { col: 3.3, row: 0.1 }, { col: 3.95, row: 0.9 });
 }
 
-async function newSheet(): Promise<Worksheet> {
+/**
+ * Multi-building investor row-label sheet: the {@link writeInvestorSheet}
+ * layout with one value column per building (cols D… — the columns
+ * `parseCsvToFields("investor")` reads). Used by the example-file generator
+ * (`scripts/genExampleFiles.ts`) for the bundled portfolio workbook; the
+ * in-app single-building export stays on {@link writeInvestorSheet}.
+ * `rows` are full sheet rows (`[null, label, null, v1, v2, …]`).
+ */
+export function writeInvestorPortfolioSheet(
+  ws: Worksheet,
+  rows: Cell[][],
+  buildingCount: number,
+): void {
+  ws.getColumn(1).width = 3;
+  ws.getColumn(2).width = 52;
+  ws.getColumn(3).width = 3;
+  for (let i = 0; i < buildingCount; i++) ws.getColumn(4 + i).width = 20;
+  const nCols = 3 + buildingCount;
+
+  const title = ws.addRow(["Gebäudedaten"]);
+  ws.mergeCells(1, 1, 1, nCols);
+  const titleCell = title.getCell(1);
+  titleCell.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
+  titleCell.fill = BRAND_FILL;
+  titleCell.alignment = { vertical: "middle", indent: 1 };
+  title.height = 30;
+
+  ws.addRow([]);
+  const headerCells: Cell[] = [null, "Datenfeld", null];
+  for (let i = 0; i < buildingCount; i++) headerCells.push(`Objekt ${i + 1}`);
+  const header = ws.addRow(headerCells);
+  header.eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.border = {
+      bottom: { style: "medium", color: { argb: BRAND } },
+    };
+  });
+
+  for (const [i, r] of rows.entries()) {
+    const row = ws.addRow(r);
+    if (i % 2 === 1) {
+      for (let c = 2; c <= nCols; c++) row.getCell(c).fill = ZEBRA_FILL;
+    }
+  }
+  // Badge in the title band's right corner (as in writeInvestorSheet).
+  placeLogo(
+    ws,
+    { col: nCols - 0.7, row: 0.1 },
+    { col: nCols - 0.05, row: 0.9 },
+  );
+}
+
+export async function newSheet(): Promise<Worksheet> {
   const ExcelJS = await loadExceljs();
   const wb = new ExcelJS.Workbook();
   wb.creator = "Granergize";
   return wb.addWorksheet(msg("xlsxSheetBuildings"));
 }
 
-async function sheetToBytes(ws: Worksheet): Promise<ArrayBuffer> {
+export async function sheetToBytes(ws: Worksheet): Promise<ArrayBuffer> {
   const out = await ws.workbook.xlsx.writeBuffer();
   const u8 = out instanceof Uint8Array ? out : new Uint8Array(out);
   // Plain ArrayBuffer copy so it drops straight into `new Blob([...])`.

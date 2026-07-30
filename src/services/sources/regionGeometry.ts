@@ -226,7 +226,7 @@ export async function fetchContainingGemeindeAgs(
  * {@link fetchContainingGemeindeAgs}, except a TRANSPORT failure (network/CORS
  * rejection, wrapper 5xx) throws instead of reading as "no region" — a definitive
  * 404/410 ("nothing contains the point") still returns `null`. A bulk caller (the
- * demo seed's {@link ../geocode.ts | makeGeocodeOrAdoptCoords}) needs the
+ * file import's {@link ../geocode.ts | makeGeocodeOrAdoptCoords}) needs the
  * distinction: with the wrapper down, every attempt costs the full transient-retry
  * backoff, so after one hard failure it stops asking for the rest of the run.
  */

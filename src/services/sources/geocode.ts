@@ -100,7 +100,7 @@ export async function geocodeWithRegion(
 }
 
 /** The point→Gemeinde-AGS lookup {@link withRegionAgs} enriches through — the
- *  seed geocoder substitutes a latched variant. */
+ *  import geocoder substitutes a latched variant. */
 type AgsLookup = (lat: number, long: number) => Promise<string | null>;
 
 /** Best-effort AGS enrichment of already-resolved coordinates (shared by
@@ -122,19 +122,19 @@ async function withRegionAgs<
 }
 
 /**
- * Build the demo-seed geocoder: like {@link geocodeWithRegion}, except fields
- * that already CARRY coordinates (the L.Immo extract ships lat/long) adopt them
- * instead of querying the address register; the region AGS is still resolved
- * from them. Not for the dialogs' "Geocode" button ({@link geocodeWithRegion}
- * there): an edited address with stale form coordinates must re-geocode, not
- * adopt.
+ * Build the file-import geocoder (the Autofill-from-file parse loop): like
+ * {@link geocodeWithRegion}, except fields that already CARRY coordinates
+ * (e.g. the bundled L.Immo example ships lat/long) adopt them instead of
+ * querying the address register; the region AGS is still resolved from them.
+ * Not for the dialogs' "Geocode" button ({@link geocodeWithRegion} there): an
+ * edited address with stale form coordinates must re-geocode, not adopt.
  *
  * A factory, not a plain function, because the AGS lookup carries a per-run
  * LATCH: after one transport-level failure (linked-lau down — in the browser
  * each such attempt costs the full transient-retry backoff, ~50 s of network
  * `TypeError` retries) the remaining buildings of the run skip the lookup
  * instead of each paying it again. A definitive "no region contains the point"
- * (404) does not latch. Build one geocoder per seed run.
+ * (404) does not latch. Build one geocoder per import run.
  */
 export function makeGeocodeOrAdoptCoords(): (
   fields: Record<string, string>,

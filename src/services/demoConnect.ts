@@ -7,8 +7,9 @@ import { FOAF_AGENT, FOAF_NAME } from "./rdf/vocabularies.ts";
 import { logError } from "../lib/logError.ts";
 
 /**
- * Dev-mode demo seeding for the Connect tab (agents + data rooms), the
- * sibling of `seedDemoBuildings`: fills the lists with enough entries to
+ * Dev-mode demo seeding for the Connect tab (agents + data rooms) — the one
+ * remaining programmatic seeder (example BUILDINGS arrive through the file
+ * importer instead): fills the lists with enough entries to
  * exercise layout and paging on a real Pod. 21 of each — one more than a list
  * page (see `DEFAULT_PAGE_SIZE`), so the pager and its spillover page show.
  */
@@ -51,7 +52,7 @@ export const DEMO_ROOM_COUNT = 21;
  * Seed the demo contacts: write each fixture profile, then add it to the
  * address book. Idempotent — re-running re-PUTs the same profiles and
  * `saveAgent` updates in place rather than duplicating. Best-effort per
- * contact like `seedDemoBuildings`: failures are logged and tallied, and only
+ * contact: failures are logged and tallied, and only
  * a total failure throws.
  * @operation mutation
  */

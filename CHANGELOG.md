@@ -2,6 +2,54 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [Unreleased] — The demo seed is gone: example data now arrives through the importer
+
+The hard-coded example buildings are removed. The same data — the 37 real
+L.Immo logistics buildings and the earlier fictional set — is now shipped as
+**bundled xlsx files the user imports** through the ordinary "Autofill from
+file" flow, so example data takes exactly the path a customer's own
+spreadsheet takes:
+
+- **Offer surface**: the Add-building import sub-flow lists "…or try one of the
+  bundled example files" (`src/constants/exampleFiles.ts`); a click fetches the
+  workbook from `public/examples/` and feeds it through the same
+  `detectSpreadsheetFormat` → `parseCsvToFields` path as an uploaded file. The
+  fresh-Pod onboarding banner is gone (with `useDemoOffer`,
+  `useSeedDemoBuildings`, `useDeclineDemoOffer`, the `SeedDemoBuildings` /
+  `DeclineDemoOffer` intents, `OnboardingBanner.tsx` and the dev-mode "Add
+  example buildings" menu item); the Buildings empty state carries the guidance
+  instead.
+- **Generator**: `scripts/genExampleFiles.ts` (`deno task gen:examples`,
+  replacing `gen:demo-buildings`) transforms the committed L.Immo extract into
+  `public/examples/limmo-nuernberg.xlsx` (all 37, generic flat layout, the same
+  deterministic synthetic annual energy 2022–2024), plus
+  `beispiel-portfolio.xlsx` (the fictional 4 as an investor row-label sheet,
+  no coordinates → demonstrates geocode-on-import),
+  `lastgang-am-tower-10.xlsx` (a 14-day 15-minute profile) and the e2e core
+  fixture `test/e2e/fixtures/limmo-core.xlsx` (6 buildings). xlsx bytes aren't
+  stable across writes, so `genExampleFiles.test.ts` pins freshness by
+  comparing PARSED records — which makes it the import-contract test too.
+- **What a spreadsheet can't carry** is supplied around it: `operatedBy` /
+  `ownedBy` self-links (the reader's WebID is unknown at generation — the
+  example loader applies them per `buildingCode`, keeping the operator group
+  the Betreiber benchmark needs), planned (Soll) datasets (entered in the
+  energy editor), and annual + 15-minute series on ONE building (a Lastgang
+  file always mints its own building, so the e2e composes it).
+- **Import fixes on the way through**: the parse loop now uses one
+  `makeGeocodeOrAdoptCoords()` per run, so coordinate-carrying rows also get
+  their Gemeinde AGS resolved (they were skipped entirely before) with the
+  latch limiting a downed linked-lau to one backoff window; and the
+  "ignored columns" warning no longer fires on `lat`/`long`/`regionAgs`/`id`
+  or the `_pv_*`/`_heatpump_*`/… system fields the serializer actually reads.
+- **Prefs**: `gran:demoSeedDeclined` is no longer read or written (the term
+  stays in the published vocab; an old Pod's triple is inert — the
+  read-modify-write leaves unknown triples alone).
+- **Tests**: `VITE_DEMO_SEED` is gone from `playwright.config.ts` and the 8
+  deno tasks — the core fixture, not a build flag, keeps the e2e import small.
+  `ensureDemoBuildings` → `importExampleBuildings` / `importSeriesBuilding`
+  (which drive the real dialog and stub the register + linked-lau); the
+  headless `seed-demos` task keeps its concurrency burst for contacts + rooms.
+
 ## [2026-07-21] — Demo seed: the four fictional demos → 37 real logistics buildings (L.Immo extract)
 
 The example-building seed (onboarding banner / dev-mode "Add example

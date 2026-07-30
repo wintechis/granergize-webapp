@@ -496,24 +496,21 @@ installieren.
 
 **Was beim ersten Start passiert:** Bei der ersten Anmeldung ist Ihr Dashboard
 zunächst leer – es werden keine Daten vorausgesetzt und nichts im Voraus
-angelegt. Für einen schnellen Einstieg bietet Ihnen die Granergize-App an, **vier
-beispielhafte Demo-Gebäude** hinzuzufügen („Add examples"); diesen Hinweis
-können Sie auch ausblenden. Er erscheint nur, solange Sie weder eigene noch
-mit Ihnen geteilte Gebäude haben; schlägt das Anlegen einzelner Beispiele fehl
-(etwa durch eine instabile Verbindung), meldet die Anwendung, wie viele der
-vier Gebäude angelegt wurden, und das Angebot bleibt zum erneuten Versuch
-verfügbar. Die Beispiele decken beide Datenformen ab – zwei
-Gebäude mit Jahreswerten (2022–2024) und vollständigen Stammdaten, zwei mit
-15-Minuten-Messreihen (eines davon trägt zusätzlich Jahreswerte). Zwei der
-Gebäude mit Jahreswerten teilen sich denselben Betreiber und eines enthält
-zusätzlich geplante (Soll-)Werte, sodass Betreiber-Durchschnitt und
-Soll-Ist-Vergleich direkt an den Beispieldaten sichtbar sind. Die Abbildungen in diesem Handbuch zeigen genau diese
-Demo-Gebäude. Die benötigte Ordnerstruktur unter `granergize/`
+angelegt. Für einen schnellen Einstieg liegen der Anwendung **Beispieldateien**
+bei: Öffnen Sie „Autofill from file" und wählen Sie unter „…or try one of the
+bundled example files" eine davon aus. Sie werden genauso eingelesen wie eine
+eigene Excel-Datei – Sie sehen die erkannten Gebäude also vor dem Speichern und
+bestätigen mit „Add Buildings". Zur Wahl stehen ein **Logistikportfolio
+Nürnberg** (37 reale Logistikgebäude mit Jahreswerten 2022–2024), ein
+**Beispiel-Portfolio** aus vier fiktiven Gebäuden im Zeilenbeschriftungs-Format
+(ohne Koordinaten – die Anwendung ermittelt sie beim Import) und ein
+**15-Minuten-Lastgang**. Die Abbildungen in diesem Handbuch zeigen genau diese
+Beispielgebäude. Die benötigte Ordnerstruktur unter `granergize/`
 legt die Anwendung automatisch an, sobald Sie Ihr erstes Gebäude speichern – Sie
 müssen sich darum nicht kümmern. Anschließend können Sie eigene Gebäudedaten
 hinzufügen und mit der eigentlichen Arbeit beginnen.
 
-![Nach der Anmeldung: Die App öffnet sich auf der Karte (Tab „Explore"); auf einem leeren Pod bietet ein Hinweisbalken an, beispielhafte Gebäude hinzuzufügen – der Einstieg beginnt mit dem Anlegen von Gebäuden.](figures/erster-start.png){width=100%}
+![Nach der Anmeldung: Die App öffnet sich auf der Karte (Tab „Explore"); auf einem leeren Pod ist sie noch leer – der Einstieg beginnt mit dem Anlegen oder Einlesen von Gebäuden.](figures/erster-start.png){width=100%}
 
 ## Ihre Organisation festlegen
 
@@ -781,7 +778,8 @@ Ein gesondertes Template wird **nicht benötigt**: Laden Sie ein vorhandenes
 Gebäude über „Download this building's data" als Excel-Datei herunter – diese
 Datei lässt sich (auch ausgefüllt mit eigenen Werten) über „Autofill from file"
 wieder einlesen und dient damit zugleich als Vorlage. Für einen schnellen Start
-eignen sich dazu auch die Demo-Gebäude („Add examples").
+eignen sich auch die mitgelieferten Beispieldateien, die „Autofill from file"
+direkt zum Ausprobieren anbietet.
 
 Nachdem Sie die Felder ausgefüllt bzw. die Datei eingelesen haben, klicken Sie auf
 „Add Building". Die eingegebenen Daten werden automatisch in das richtige Format
@@ -877,8 +875,8 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
   (z. B. aus einem Lastgang-Import), zeigt dieser Reiter stattdessen
   Zeitreihen-Diagramme: Tagessummen und ein durchschnittliches Tagesprofil.
   Trägt ein Gebäude **beides** – Jahreswerte und Messreihe –, schalten Sie über
-  den Umschalter **Annual | Time series** zwischen den Darstellungen um (so
-  z. B. beim Beispielgebäude Am Tower 10).
+  den Umschalter **Annual | Time series** zwischen den Darstellungen um (etwa
+  wenn Sie zum importierten Lastgang-Beispiel noch Jahreswerte erfassen).
 - **Weather data:** die zum Standort passenden Wetterdaten, die zur Einordnung des
   Verbrauchs (z. B. Heizgradtage) herangezogen werden können.
 

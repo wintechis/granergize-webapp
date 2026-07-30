@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { t, tPattern } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import {
   aggregationsList,
   buildingRoute,
@@ -82,7 +82,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       const o = await freshPage(browser, owner.account);
       o.page.on("dialog", (d) => d.accept());
       try {
-        await ensureDemoBuildings(o.page);
+        await importExampleBuildings(o.page);
         await shareByWebId(o.page, owner.street, cWebId);
       } finally {
         await o.ctx.close();

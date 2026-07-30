@@ -45,7 +45,7 @@ const CORS = {
  * cross-internet GETs that no spec asserts; left un-stubbed they keep the app busy and
  * starve the lane. A 404 lets the app fall back (every enrichment is best-effort).
  *
- * **Geocoding is the exception** — it is NOT best-effort: building add / demo seed
+ * **Geocoding is the exception** — it is NOT best-effort: building add / file import
  * geocode the address to coordinates, and a building with no coords paints no map
  * marker. So the addressapi register search is stubbed with deterministic FAKE coords
  * (Nuremberg area, spread by a hash of the query so distinct addresses don't stack),

@@ -4,7 +4,7 @@ import { t, tPattern } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingIds, buildingRows, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { menuAction, setDevMode } from "../helpers/accountMenu.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -50,7 +50,7 @@ test.describe("archive backup/restore", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page); // any building; download → wipe → restore
+    await importExampleBuildings(page); // any building; download → wipe → restore
   });
 
   test.afterAll(async () => {
@@ -93,9 +93,9 @@ test.describe("archive backup/restore", () => {
     await expect(page.getByText(t("allDataRemoved"))).toBeVisible({
       timeout: T.action,
     });
-    // The buildings are gone (the fresh-Pod "Add examples" offer returns).
+    // The buildings are gone (the empty-state guidance is back).
     await openManage(page);
-    await expect(page.getByRole("button", { name: t("onboardAddExamples") })).toBeVisible({
+    await expect(page.getByText(t("buildingsEmpty"))).toBeVisible({
       timeout: T.action,
     });
 

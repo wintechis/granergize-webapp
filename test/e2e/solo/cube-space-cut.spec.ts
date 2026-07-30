@@ -3,7 +3,7 @@ import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { openObservationsView } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -19,9 +19,8 @@ import { T } from "../helpers/timeouts.ts";
  * a cell navigates to that building's `/observation` (energy) page, consistent with
  * the map markers. (Compare-years was dropped.)
  *
- * Seed: the standard investor demo (`ensureDemoBuildings`) — multi-year annual buildings
- * (2022-2024) plus the office (2023-2024), so the matrix has several rows × ≥2 year
- * columns. The matrix maths is proved in `energyMatrix.test.ts`; this is the UI proof the
+ * Seed: the core example file (`importExampleBuildings`) — six multi-year annual
+ * buildings (2022-2024), so the matrix has several rows × ≥2 year columns. The matrix maths is proved in `energyMatrix.test.ts`; this is the UI proof the
  * grid renders and the cells reach the DOM.
  *
  *   # tier 3 (local CSS, no creds):
@@ -52,7 +51,7 @@ test.describe("cube over-time heatmap (portfolio over time)", () => {
     page = await newCapturedPage(browser, "cube-space-cut");
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page);
+    await importExampleBuildings(page);
   });
 
   test.afterAll(async () => {

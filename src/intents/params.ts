@@ -240,11 +240,8 @@ export const INTENT_PARAMS = {
     logo: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
   },
   // ── Account ──────────────────────────────────────────────────────────────────
-  // SeedDemoBuildings is paramless (collection-wide; the core reads the WebID off
-  // the gateway). DeleteAppData's only param is the runtime-only `signal` → empty.
+  // DeleteAppData's only param is the runtime-only `signal` → empty.
   // RestoreArchive's `bytes` is an opaque Uint8Array → placeholder.
-  SeedDemoBuildings: {},
-  DeclineDemoOffer: {},
   DeleteAppData: {},
   RestoreArchive: {
     bytes: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
@@ -330,8 +327,6 @@ const _paramKeysMatch: {
   RemoveAgent: true,
   SeedDemoAgents: true,
   SaveOrganisation: true,
-  SeedDemoBuildings: true,
-  DeclineDemoOffer: true,
   DeleteAppData: true,
   RestoreArchive: true,
   ExportArchive: true,

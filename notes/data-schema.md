@@ -241,12 +241,14 @@ field-schema predicate, object-property range, and controlled-vocab instance is 
 there, so the code and the published vocab can't drift. The documents on the Pod (under
 the public `gra/` base) are a publish target; the app never fetches them at runtime.
 
-### B. Demo data — offered, not auto-seeded
+### B. Example data — imported, never seeded
 
-A fresh Pod loads empty — nothing is silently seeded. Instead the UI **offers** demo
-data via a banner (`useDemoOffer`); on accept, `seedDemoBuildings`
-(`buildingSerializer.ts`) writes four real owned buildings in Nürnberg spanning every
-loader shape the app dispatches on — annual aggregate, 15-minute `PT15M` series, and
-one carrying *both* — so a new user immediately sees them. Pod layout, own-building
-discovery, the exact demo set, and the banner mechanics are owned by
-[`storage-layout.md`](./storage-layout.md).
+A fresh Pod loads empty — nothing is silently seeded, and there is no programmatic
+demo seed. The examples are bundled **xlsx files** the user imports through the
+ordinary "Autofill from file" flow ("Try an example file" in the Add-building
+dialog), so they take the same path as a customer's own spreadsheet and land as
+real owned buildings. Between the L.Immo example (annual aggregates) and the
+Lastgang example (a 15-minute `PT15M` series) they cover every loader shape the
+app dispatches on; the *both*-shapes building is composed by adding annual years
+to an imported series building. The files, their generator and what a spreadsheet
+layout cannot carry are owned by [`storage-layout.md`](./storage-layout.md).

@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { buildingIds, buildingRoute, openBuildingsList } from "../helpers/manage.ts";
 import { assertCleanStart, clearFinderMemory, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -39,7 +39,7 @@ test.describe("redesign: building page", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page);
+    await importExampleBuildings(page);
     const ids = await buildingIds(page);
     id = ids[0] ?? "";
     expect(id, "a demo building exists after seeding").toBeTruthy();

@@ -15,8 +15,6 @@ interface AccountMenuProps {
   onProfile: () => void;
   onOrganisation: () => void;
   /** Dev: demo fixtures. */
-  onSeedBuildings: () => void;
-  seedBuildingsBusy: boolean;
   onSeedConnect: () => void;
   seedConnectBusy: boolean;
   /** Dev: archive + sharing maintenance (share one busy flag — they must not interleave). */
@@ -48,8 +46,6 @@ export default function AccountMenu({
   onClose,
   onProfile,
   onOrganisation,
-  onSeedBuildings,
-  seedBuildingsBusy,
   onSeedConnect,
   seedConnectBusy,
   onDownloadArchive,
@@ -139,13 +135,6 @@ export default function AccountMenu({
 
       {/* Dev: demo fixtures */}
       {devMode && <Divider />}
-      {devMode && (
-        <MenuItem onClick={onSeedBuildings} disabled={seedBuildingsBusy}>
-          {seedBuildingsBusy
-            ? t("addingEllipsis")
-            : t("menuAddBuildings")}
-        </MenuItem>
-      )}
       {devMode && (
         <MenuItem
           onClick={onSeedConnect}

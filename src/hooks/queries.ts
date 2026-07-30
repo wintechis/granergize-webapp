@@ -26,10 +26,8 @@ import {
 } from "../services/energy/buildingEnergy.ts";
 import {
   getStorageRoot,
-  podResources,
   resolveStorageRoot,
 } from "../services/pod/solidUtils.ts";
-import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
   type ActiveGrant,
   activeGrantsFrom,
@@ -443,7 +441,7 @@ export function useBuildings() {
  * once right after a write (see `notes/query-key-coverage.md`). Folding the link
  * fingerprint in makes the refetch fall out of the data, not out of each mutation
  * remembering to invalidate. (It also still AUTO-refetches when the building set
- * changes — e.g. the demo seed adding buildings.) `useBuildinglessObservations` still
+ * changes — e.g. a file import adding buildings.) `useBuildinglessObservations` still
  * keys on it; `useEnergy` and `useAnnualEnergyByYear` now fan out per-building
  * (`buildingEnergyKeyFor`). */
 /**
@@ -898,29 +896,6 @@ export function useAnnualEnergyByYear(
     })),
     combine,
   });
-}
-
-/**
- * Whether to offer the fresh-Pod demo buildings: true when the user's OWN
- * buildings container is absent or empty AND the demo hasn't been declined
- * (`prefs.demoSeedDeclined`). A render-driven probe (lists the container + reads
- * prefs) rather than a hand-rolled effect; the dashboard layers a session-local
- * "dismissed" flag over it so seeding/declining hides the banner instantly. Read
- * once per load (no invalidation): the dismissal covers the in-session hide, a
- * reload re-probes.
- */
-export function useDemoOffer() {
-  return useWebIdQuery(
-    queryKeys.demoOffer,
-    async (session, webId) => {
-      const [children, prefs] = await Promise.all([
-        listDirectChildren(podResources(webId).buildings, session),
-        readPrefs(session),
-      ]);
-      const empty = children === null || children.length === 0;
-      return empty && !prefs.demoSeedDeclined;
-    },
-  );
 }
 
 /**

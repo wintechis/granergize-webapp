@@ -3,7 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { agentFieldT, t } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import {
   buildingRoute,
   clickSectionAction,
@@ -58,7 +58,7 @@ test.describe("building details", () => {
     page.on("dialog", (d) => d.accept().catch(() => {})); // "Delete building" confirm
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page); // Thomas-Dachser-Str. annual, for the energy-benchmark task
+    await importExampleBuildings(page); // Thomas-Dachser-Str. annual, for the energy-benchmark task
   });
 
   test.afterAll(async () => {

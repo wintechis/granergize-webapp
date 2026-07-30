@@ -87,7 +87,7 @@ export async function removeInaccessibleBuildingSources(
  * registry: adding a building is a single PUT, so the listing can't desync. A
  * *missing* container (404, `null` from listDirectChildren) means a fresh Pod —
  * the demo buildings are no longer seeded here (silently); instead the UI offers
- * them via a banner (see `useDemoSeedPrompt` / `seedDemoBuildings`). So a fresh
+ * them as importable example files (see `constants/exampleFiles.ts`). So a fresh
  * Pod simply loads empty until the user chooses.
  */
 export async function listOwnBuildings(
