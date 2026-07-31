@@ -44,17 +44,20 @@ interface AppShellProps {
 }
 
 /**
- * The five finder routes, in top-nav order. Each is a routed finder page; the
+ * The finder routes, in top-nav order. Each is a routed finder page; the
  * shell's `<Outlet/>` renders the active one. The active finder is read from the
  * pathname (no `?tab=` state — the route IS the active finder). The Buildings
  * map is a pure finder: a marker click navigates to the building's detail page
  * (`/building/:id`), like a List row.
+ *
+ * Aggregations lost its tab in Step 2 of `plans/plan-cube-centered-ui.md`: saved
+ * views are a *projection* of Explore now (`/observations?view=aggregations`),
+ * reached by its view switcher — `/aggregations` redirects there.
  */
 const NAV: { labelId: MessageId; path: string }[] = [
   { labelId: "navBuildings", path: FINDERS.buildings },
   { labelId: "navObservations", path: FINDERS.observations },
   { labelId: "navAgents", path: FINDERS.agents },
-  { labelId: "navAggregations", path: FINDERS.aggregations },
   { labelId: "navSharing", path: FINDERS.sharing },
   { labelId: "navMeet", path: FINDERS.rooms },
 ];

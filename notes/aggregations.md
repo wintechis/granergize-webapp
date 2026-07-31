@@ -139,7 +139,7 @@ Aggregation sharing is the building-sharing flow applied to the **snapshot only*
   present), the metrics for that shape, the aggregation type, and — for the user/monthly
   case — a month (its picker lists each building's series container to find available
   months). Create then computes the first snapshot.
-- **Finder** — `AggregationsFinder` lists the definitions (`useAggregationDefinitions`)
+- **Collection** — `AggregationsPanel` lists the definitions (`useAggregationDefinitions`)
   with view / refresh / share / delete actions and a multi-select source-tier facet
   (`AGGREGATION_TIERS` = `mine` / `shared` / `open`): own definitions are `mine`,
   aggregations **shared with you** (received snapshots, `useSharedAggregations`) are
@@ -148,7 +148,18 @@ Aggregation sharing is the building-sharing flow applied to the **snapshot only*
   URI-synced guises (`?guise=`): the **list** (default), a region **map** choropleth,
   and a cross-year **timeline** — the latter two keyed on the `spatialExtent` recorded
   above. (The Sharing finder itself is only a lean audit of incoming *building* grants —
-  see [`sharing.md`](./sharing.md).)
+  see [`sharing.md`](./sharing.md).) The panel is **not its own route** any more: Step 2
+  of [`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) folded it into
+  **Explore** as the saved-views projection (`/observations?view=aggregations`) — an
+  aggregation IS a saved cube coordinate + roll-up spec — with `/aggregations` kept as a
+  redirect (see [`ui-state.md`](./ui-state.md)).
+- **Materialized cells** — a snapshot is also a *cell* of the same cube, so Explore's
+  pivot renders the readable snapshots (own + received, benchmarks included) as a
+  trailing "computed figures" section beside the live rows: shaped by
+  `services/cube/snapshotCells.ts`, placed at the year its `metricPeriod` (or the
+  definition's monthly `period`) covers, labelled with the Ø's member count and — for a
+  benchmark — its `computedBy` producer. Labelled cells only: no drill (a snapshot hides
+  its members), no banding, and never part of the live rows' peer sets.
 - **Detail** — the standalone `/aggregation` route (the `Aggregation` page; the id rides
   in `?ref=` relative / `?uri=` absolute) loads the definition + snapshot and renders a
   bar chart + table. Being a full-page route outside the app shell, it keeps its own

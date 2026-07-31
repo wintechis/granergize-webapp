@@ -78,12 +78,36 @@ export async function openObservationsView(
 }
 
 /**
- * Open the **Aggregations** finder (`/aggregations`) — the redesign split it out
- * of the old Buildings/Manage list into its own top-nav finder. Used by the
- * create / share / detail aggregation flows.
+ * Open the **saved views** (aggregations) surface. It lost its own top-nav tab in
+ * Step 2 of `plans/plan-cube-centered-ui.md`: aggregations are a *projection* of
+ * Explore now (`/observations?view=aggregations`), so reaching them is the Explore
+ * tab plus the "Aggregations" button in the cube's View group (`obsViewAria` — the
+ * Buildings/Explore maps carry their own toggles, so the click stays scoped).
+ * `/aggregations` still redirects here, but the specs drive the real UI path.
+ * Signature unchanged, so every create / share / detail aggregation flow follows.
  */
 export async function openAggregations(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: t("navAggregations") }).click();
+  const viewButton = page
+    .getByLabel(t("obsViewAria"))
+    .getByRole("button", { name: t("navAggregations"), exact: true });
+  // The postcondition is the PANEL being up (its own heading), not a `?view=` param:
+  // the view axis is session-remembered, so a bare tab re-entry can already land on
+  // this projection — and a MUI exclusive toggle ignores a click on the selected
+  // button, so nothing would be written.
+  const heading = page.getByRole("heading", {
+    name: t("navAggregations"),
+    exact: true,
+  });
+  // Retried as a PAIR: a fresh `goto("/")` can still have the silent session-restore
+  // redirect (prompt=none through the IdP) in flight, which lands the app back on the
+  // restored route and undoes a tab click made mid-flight — leaving the second click
+  // waiting for a View group that isn't mounted. Re-clicking the tab converges (same
+  // guard as `findOwnBuildingRow`); a re-entry is idempotent.
+  await expect(async () => {
+    await page.getByRole("tab", { name: t("navObservations") }).click();
+    await viewButton.click({ timeout: T.quick });
+    await expect(heading).toBeVisible({ timeout: T.quick });
+  }).toPass({ timeout: T.visible });
 }
 
 /**

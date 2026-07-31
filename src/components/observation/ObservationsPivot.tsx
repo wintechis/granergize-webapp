@@ -38,6 +38,14 @@ import {
   resolveCoordinate,
   rowsToParams,
 } from "../../services/cube/coordinate.ts";
+import {
+  materializedRows,
+  type SnapshotSource,
+} from "../../services/cube/snapshotCells.ts";
+import {
+  useAggregationDefinitions,
+  useAggregationSnapshots,
+} from "../../hooks/queries.ts";
 import { bandColor, bandLabelKey } from "../../constants/lensBand.ts";
 import { ellipsis } from "../../constants/listStyles.ts";
 import { type MessageId } from "../../lib/messages.ts";
@@ -51,6 +59,13 @@ import { useT } from "../../context/I18nProvider.tsx";
  * over-time matrix fixes rows to buildings, this makes the feature axis's roll-up ladder
  * (`notes/observation-cube-sketch.md`) directly navigable; the columns stay years and the
  * cell stays the selected `?m=` metric.
+ *
+ * Below the live rows sits the **materialized** section: the aggregation snapshots the
+ * user can read (own, received, benchmarks) shaped by `cube/snapshotCells.ts` — figures
+ * someone already computed, placed at the year their period covers. They are labelled
+ * cells only: no drill (a snapshot hides its members by design), no tint, and they never
+ * enter the live rows' tercile peer sets. Their figure is the aggregate as stored (kWh),
+ * not the per-m² intensity the live consumption cells show, so the tooltip says so.
  *
  * A pure render over `buildPivot` (unit-tested) and the same `EnergyByBuildingYear` cube
  * the map's lens loads, so a building-level cell colours identically to the map and the
@@ -170,6 +185,58 @@ export default function ObservationsPivot(
     });
     // A rolled-up cell says what it stands for: the Ø and its member count.
     return level === "building" ? title : `${title} · ${t("pivotCellAverage", { count: cell.n })}`;
+  };
+
+  // The materialized cells: every readable snapshot (own + received + benchmarks),
+  // joined with its definition's monthly period where it has one (a snapshot records
+  // only a benchmark's `metricPeriod`), then shaped against this grid's year columns.
+  // The fan-out is gated on this view being mounted — the pivot IS the explicit act.
+  const snapshotsQuery = useAggregationSnapshots();
+  const definitionsQuery = useAggregationDefinitions();
+  const periodById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const d of definitionsQuery.data ?? []) if (d.period) map.set(d.id, d.period);
+    return map;
+  }, [definitionsQuery.data]);
+  const snapshotSources: SnapshotSource[] = useMemo(
+    () =>
+      (snapshotsQuery.data ?? []).map((s) => ({
+        id: s.id,
+        name: s.name,
+        values: s.values,
+        buildingCount: s.buildingCount,
+        metricPeriod: s.metricPeriod,
+        period: periodById.get(s.id),
+        computedBy: s.computedBy,
+      })),
+    [snapshotsQuery.data, periodById],
+  );
+  const materialized = useMemo(
+    () => materializedRows(snapshotSources, metric, grid?.years ?? []),
+    [snapshotSources, metric, grid],
+  );
+
+  // A materialized cell's label: the full coordinate, the Ø's member count, and — for a
+  // benchmark — the agent that produced it (principle 4: every figure is labelled).
+  const snapshotTitle = (
+    row: (typeof materialized)[number],
+    year: number,
+    value: number | null,
+  ): string => {
+    const shared = { feature: row.label, metric: t(metricLabelKey(metric)), year };
+    if (value == null) return t("pivotCellGap", shared);
+    const parts = [
+      t("pivotSnapshotTooltip", {
+        name: row.label,
+        metric: t(metricLabelKey(metric)),
+        year,
+        value: Math.round(value).toLocaleString(),
+        unit: "kWh",
+      }),
+    ];
+    if (row.members > 0) parts.push(t("pivotCellAverage", { count: row.members }));
+    if (row.computedBy) parts.push(t("pivotSnapshotBy", { agent: row.computedBy }));
+    return parts.join(" · ");
   };
 
   const selector = (
@@ -338,6 +405,58 @@ export default function ObservationsPivot(
               </Box>
             );
           })}
+
+          {/* The materialized section: already-computed figures, set apart by a
+              section label and rendered flat (no band tint, no drill target). */}
+          {materialized.length > 0 && (
+            <>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ gridColumn: "1 / -1", mt: 2 }}
+              >
+                {t("pivotMaterialized")}
+              </Typography>
+              {materialized.map((row) => (
+                <Box key={row.key} sx={{ display: "contents" }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    title={row.label}
+                    sx={{ ...ellipsis, pr: 1, maxWidth: NAME_COL }}
+                  >
+                    {row.label}
+                  </Typography>
+                  {row.cells.map((cell) => {
+                    const has = cell.value != null;
+                    const title = snapshotTitle(row, cell.year, cell.value);
+                    return (
+                      <Tooltip key={cell.year} title={title} arrow>
+                        <Box
+                          role="img"
+                          aria-label={title}
+                          sx={{
+                            height: CELL_H,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 0.5,
+                            backgroundColor: has ? "action.hover" : undefined,
+                            border: has ? "none" : "1px dashed",
+                            borderColor: "divider",
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary">
+                            {has ? compact(cell.value!) : "—"}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
+                    );
+                  })}
+                </Box>
+              ))}
+            </>
+          )}
         </Box>
       </Box>
     </Box>

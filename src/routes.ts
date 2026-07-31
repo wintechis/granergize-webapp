@@ -7,8 +7,10 @@
  * strings.
  *
  * Naming follows the locked URI grammar (`plans/plan-app-design-overhaul.md` §4):
- * `/observations` + `/aggregations` are the generic class names; `/buildings` is
- * kept concrete for now (the generic `Place` generalisation is deferred).
+ * `/observations` + `/aggregation(s)` are the generic class names; `/buildings` is
+ * kept concrete for now (the generic `Place` generalisation is deferred). The
+ * collection `/aggregations` is an alias since Step 2 of the cube-centered plan (see
+ * {@link ALIASES}); the `/aggregation` detail route is unaffected.
  *
  * A resource id is either storage-RELATIVE (own — e.g. `buildings/abc.ttl#it`) or
  * an ABSOLUTE IRI (foreign/shared — e.g. `https://bob.example/…#it`). Detail URLs
@@ -23,7 +25,6 @@ import { isAbsoluteIri } from "./services/rdf/building/buildingId.ts";
 export const FINDERS = {
   buildings: "/buildings",
   observations: "/observations",
-  aggregations: "/aggregations",
   rooms: "/rooms",
   agents: "/agents",
   sharing: "/sharing",
@@ -31,14 +32,32 @@ export const FINDERS = {
 
 /**
  * Route **aliases** — paths that keep working while their canonical target is still
- * elsewhere. `/explore` names the Explore surface (the analytical cube view, Step 1 of
- * `plans/plan-cube-centered-ui.md`); its canonical path is still
- * {@link FINDERS.observations}, so the alias redirects there carrying the cube
- * coordinate (the query string) across. The two swap roles in Step 3.
+ * elsewhere. Both are real served paths (so `index.html`'s base detection must list
+ * their segments), both redirect carrying the incoming query string across.
+ *
+ * - `/explore` names the Explore surface (the analytical cube view, Step 1 of
+ *   `plans/plan-cube-centered-ui.md`); its canonical path is still
+ *   {@link FINDERS.observations}, and the two swap roles in Step 3.
+ * - `/aggregations` was the Aggregations finder's own top-nav route until Step 2
+ *   folded it into Explore as the saved-views projection; it now redirects onto
+ *   {@link AGGREGATIONS_VIEW}, MERGING `?view=aggregations` into whatever the link
+ *   carried (`guise`, `q`, `offset`, `tiers`, `action`), so every old bookmark, deep
+ *   link and palette route lands on the same surface it always did. The
+ *   `/aggregation` DETAIL route is untouched.
  */
 export const ALIASES = {
   explore: "/explore",
+  aggregations: "/aggregations",
 } as const;
+
+/**
+ * The Explore surface at its **saved views** projection — the folded former
+ * Aggregations finder (`?view=aggregations`, the view axis in
+ * `services/cube/observationsAxes.ts`). Back-links, the palette's navigation verb and
+ * the create-aggregation hand-off target this directly rather than the
+ * {@link ALIASES.aggregations} redirect, so they cost no extra hop.
+ */
+export const AGGREGATIONS_VIEW = `${FINDERS.observations}?view=aggregations`;
 
 /**
  * Detail route *patterns* — bare paths, for the route table. The resource id is no
@@ -117,7 +136,7 @@ export type DialogAction =
   | "edit" // Building page → inline master-data editor
   | "share" // Building page → Share dialog
   | "enter-energy" // Observation page → Energy-year dialog (add/edit a year)
-  | "create-aggregation" // Aggregations finder → Create aggregation dialog
+  | "create-aggregation" // Explore's saved views → Create aggregation dialog
   | "share-aggregation"; // Aggregation detail → Share aggregation dialog
 
 /** The `?action=` query-param name a surface reads (see {@link DialogAction}). */

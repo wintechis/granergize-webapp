@@ -11,7 +11,7 @@ import { T } from "./timeouts.ts";
  *
  * Architectural note: `CommandPalette` is mounted ONCE, in the app-shell
  * (`AppShell.tsx`), so ⌘K is live on the finder routes (`/buildings`,
- * `/aggregations`, …). A **form-eligible** verb (`ShareBuilding`, `AddBookmark`,
+ * `/observations?view=aggregations`, …). A **form-eligible** verb (`ShareBuilding`, `AddBookmark`,
  * `ShareAggregation`, the revoke/remove/room verbs — see `lib/paramForm.ts`)
  * surfaces in the palette WITHOUT a focused object and, on select, opens the
  * schema-driven **{@link IntentParamForm}** in place of the command list: the

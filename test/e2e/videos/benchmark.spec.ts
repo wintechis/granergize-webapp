@@ -257,7 +257,13 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       "create-view",
       "C erstellt eine Ansicht der Art „Geteilte Gebäude vergleichen“ über die geteilten Gebäude",
     );
-    await demoC.click(stageC.getByRole("tab", { name: vt("navAggregations") }));
+    // Saved views are an Explore projection now (Step 2 of plan-cube-centered-ui):
+    // the Explore tab, then the "Aggregations" button in the cube View group.
+    await stageC.getByRole("tab", { name: vt("navObservations") }).click();
+    await demoC.click(
+      stageC.getByLabel(vt("obsViewAria"))
+        .getByRole("button", { name: vt("navAggregations"), exact: true }),
+    );
     await demoC.click(stageC.getByRole("button", { name: vt("aggCreateTitle") }));
     const dlg = stageC.getByRole("dialog");
     await expect(dlg).toBeVisible({ timeout: 10_000 });
@@ -329,14 +335,17 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
 
     // ============ Clip payoff: back at A. ============
     await page.reload();
-    await page.getByRole("tab", { name: vt("navAggregations") }).click();
+    await page.getByRole("tab", { name: vt("navObservations") }).click();
+    await page.getByLabel(vt("obsViewAria"))
+      .getByRole("button", { name: vt("navAggregations"), exact: true })
+      .click();
     await expect(receivedAggs(page).getByText(VIEW_NAME))
       .toBeVisible({ timeout: 120_000 });
 
     const stageA2 = await page.context().newPage();
     const t0p = Date.now();
     await stageA2.goto("/");
-    await expect(stageA2.getByRole("tab", { name: vt("navAggregations") }))
+    await expect(stageA2.getByRole("tab", { name: vt("navObservations") }))
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageA2);
@@ -346,7 +355,11 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       "returned",
       "Zurück bei A: Die Ansicht von C liegt im Aggregationen-Finder unter „Mit mir geteilt“",
     );
-    await demoP.click(stageA2.getByRole("tab", { name: vt("navAggregations") }));
+    await stageA2.getByRole("tab", { name: vt("navObservations") }).click();
+    await demoP.click(
+      stageA2.getByLabel(vt("obsViewAria"))
+        .getByRole("button", { name: vt("navAggregations"), exact: true }),
+    );
     await expect(receivedAggs(stageA2).getByText(VIEW_NAME))
       .toBeVisible({ timeout: 60_000 });
     await demoP.moveTo(receivedAggs(stageA2).getByText(VIEW_NAME));

@@ -24,7 +24,7 @@ import {
   regionalGeoUrl,
 } from "../services/sources/regionalCube.ts";
 import { bundeslandName } from "../services/sources/region.ts";
-import { FINDERS } from "../routes.ts";
+import { AGGREGATIONS_VIEW } from "../routes.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import RegionalMetricsMap from "../components/region/RegionalMetricsMap.tsx";
 import { useT } from "../context/I18nProvider.tsx";
@@ -60,7 +60,7 @@ export default function RegionalDataset() {
   // Table (this region's year series) ⇄ Map (the metric across all regions). Local state.
   const [view, setView] = useState<"table" | "map">("table");
 
-  const back = <RefLink to={FINDERS.aggregations}>{t("regDatasetBack")}</RefLink>;
+  const back = <RefLink to={AGGREGATIONS_VIEW}>{t("regDatasetBack")}</RefLink>;
 
   if (!table) {
     return (

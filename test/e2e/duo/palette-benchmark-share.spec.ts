@@ -22,7 +22,8 @@ import { T } from "../helpers/timeouts.ts";
  * the registry-driven menu"). Two throwaway Pods:
  *
  *   1. CREATE — A opens the ⌘K command palette in the shell and selects "Create
- *      aggregation"; the palette routes to `/aggregations?action=create-aggregation`,
+ *      aggregation"; the palette routes to Explore's saved-views projection
+ *      (`/observations?view=aggregations&action=create-aggregation`),
  *      auto-opening the CreateAggregationDialog. A names the aggregation, picks a
  *      building, and creates it. (CreateAggregation is an always-applicable
  *      collection verb, so it IS reachable from ⌘K in the shell with no focus.)
@@ -70,7 +71,8 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
       await openAggregations(a.page);
       await runPaletteCommand(a.page, t("aggCreateTitle"), tPattern("aggCreateTitle"));
 
-      // The palette routed to /aggregations?action=create-aggregation, auto-opening
+      // The palette routed to the saved-views projection with
+      // ?action=create-aggregation, auto-opening
       // the dialog.
       await expect(a.page).toHaveURL(
         new RegExp(`${ACTION_PARAM}=create-aggregation`),

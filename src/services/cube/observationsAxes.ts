@@ -14,6 +14,11 @@
  *                 buildings, or their Gemeinde / Kreis / Land / Bund roll-up (Ø over
  *                 the region's buildings), optionally scoped by a drill-down to one
  *                 region (`?in=`, an AGS prefix). See `cube/pivot.ts`.
+ * - `aggregations` — the **saved views** projection: the folded former Aggregations
+ *                 finder (own definitions / received snapshots / open regional
+ *                 datasets), keeping its own sub-axis `?guise=list|map|timeline`
+ *                 (the region choropleth is the regional projection of this cube).
+ *                 Step 2 of `plans/plan-cube-centered-ui.md`.
  *
  * Pure + React-free → Tier-1 testable. Shares `?m=` (metric) and `?y=` (year, read
  * inside `BuildingsMap`) with the energy views; the map viewport (`?c=`/`?z=`) and the
@@ -21,7 +26,13 @@
  */
 import { type PivotRowLevel, prefixValidAt } from "./pivot.ts";
 
-export type ObsView = "map" | "list" | "overtime" | "overyears" | "pivot";
+export type ObsView =
+  | "map"
+  | "list"
+  | "overtime"
+  | "overyears"
+  | "pivot"
+  | "aggregations";
 
 /** The default view (omitted from the URL): the geographic energy map. */
 export const DEFAULT_VIEW: ObsView = "map";
@@ -32,6 +43,7 @@ const VIEWS: ReadonlySet<string> = new Set<ObsView>([
   "overtime",
   "overyears",
   "pivot",
+  "aggregations",
 ]);
 
 /**
@@ -122,8 +134,14 @@ export function inToParams(
   return sp;
 }
 
-/** The metric selector shows on every energy view — i.e. all but the plain List. */
-export const showsMetric = (view: ObsView): boolean => view !== "list";
+/**
+ * The metric selector shows on every energy view — i.e. all but the plain List and the
+ * saved-views (aggregations) projection, which lenses on its own recorded metrics
+ * (each saved view carries the metrics it was defined over) rather than the cube's
+ * `?m=` measure axis.
+ */
+export const showsMetric = (view: ObsView): boolean =>
+  view !== "list" && view !== "aggregations";
 
 /** The year slider shows only on the map (the heatmap + over-years span every year at
  *  once). The slider itself lives inside `BuildingsMap`; this just documents the rule. */

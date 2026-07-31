@@ -15,7 +15,9 @@ import { T } from "../helpers/timeouts.ts";
  * `/building/:id` and `/observation/:id` (no clicking) opens them after a reload,
  * and the observation page's Weather section deep-links the same way. (The map is
  * a pure finder now — a marker click NAVIGATES to `/building/:id`; the old
- * `?b=`/`?dt=` map-detail sub-state is gone.)
+ * `?b=`/`?dt=` map-detail sub-state is gone.) The folded `/aggregations` route is
+ * covered too: it redirects into Explore's `?view=aggregations` projection carrying
+ * the rest of the query string.
  *
  * The tab test needs no data, so it runs first and is independent of the (Tier-3
  * CSS) write flakiness. The selection tests add one throwaway building idempotently
@@ -182,6 +184,26 @@ test.describe("URI-encoded navigational state survives reload", () => {
   });
   // (The Observations `?view=` round-trip is covered by cube-space-cut.spec.ts, which
   // seeds energy via ensureDemoBuildings so the View toggle is present.)
+
+  // Step 2 of plan-cube-centered-ui: the Aggregations finder folded into Explore as
+  // its `?view=aggregations` projection, and `/aggregations` stayed as a redirect. A
+  // deep link must land on the folded surface WITH its other params intact (here the
+  // projection's own `?guise=` sub-axis) — and, being ordinary URI state, survive a
+  // reload.
+  test("the /aggregations deep link redirects into Explore, keeping ?guise=", async () => {
+    test.setTimeout(T.testSolo);
+    await page.goto("/aggregations?guise=timeline");
+    await expect(page).toHaveURL(/\/observations\?/, { timeout: T.action });
+    await expect(page).toHaveURL(/view=aggregations/, { timeout: T.action });
+    await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
+    // The folded surface renders (its own heading inside the Explore finder).
+    await expect(page.getByRole("heading", { name: t("navAggregations") }))
+      .toBeVisible({ timeout: T.action });
+
+    await page.reload();
+    await expect(page).toHaveURL(/view=aggregations/, { timeout: T.action });
+    await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
+  });
 
   test("the map viewport (centre+zoom) is written to the URL", async () => {
     test.setTimeout(T.testSolo);

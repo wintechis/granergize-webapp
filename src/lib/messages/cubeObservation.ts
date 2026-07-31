@@ -254,6 +254,31 @@ export const cubeObservation = {
     de: { one: "Ø aus {count} Gebäude", other: "Ø aus {count} Gebäuden" },
     fr: { one: "Ø de {count} bâtiment", other: "Ø de {count} bâtiments" },
   },
+  // Materialized cells — the aggregation snapshots rendered beside the live rows
+  // (`services/cube/snapshotCells.ts`): a labelled figure someone already computed,
+  // with its Ø count and, for a benchmark, the agent that produced it.
+  pivotMaterialized: {
+    en: "Computed figures",
+    de: "Berechnete Werte",
+    fr: "Valeurs calculées",
+  },
+  pivotSnapshotTooltip: {
+    en: "{name} — {metric} {year}: {value} {unit}",
+    de: "{name} — {metric} {year}: {value} {unit}",
+    fr: "{name} — {metric} {year} : {value} {unit}",
+  },
+  pivotSnapshotBy: {
+    en: "Computed by {agent}",
+    de: "Berechnet von {agent}",
+    fr: "Calculé par {agent}",
+  },
+  // The Explore → saved-views hand-off: save the cut you are looking at as an
+  // aggregation (opens the create dialog on the saved-views projection).
+  obsSaveAsAggregation: {
+    en: "Save as aggregation",
+    de: "Als Aggregation speichern",
+    fr: "Enregistrer comme agrégation",
+  },
   pivotEmpty: {
     en:
       "No annual energy data yet. Add energy years to your buildings to pivot them " +

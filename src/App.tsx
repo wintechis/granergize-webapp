@@ -28,7 +28,6 @@ import { isOpenObservationIri } from "./services/sources/openObservations.ts";
 // loading policy — see CLAUDE.md.)
 const BuildingsFinder = lazy(() => import("./pages/BuildingsFinder.tsx"));
 const ObservationsFinder = lazy(() => import("./pages/ObservationsFinder.tsx"));
-const AggregationsFinder = lazy(() => import("./pages/AggregationsFinder.tsx"));
 const RoomsFinder = lazy(() => import("./pages/RoomsFinder.tsx"));
 const AgentsFinder = lazy(() => import("./pages/AgentsFinder.tsx"));
 const SharingFinder = lazy(() => import("./pages/SharingFinder.tsx"));
@@ -271,6 +270,21 @@ function ExploreAlias() {
   return <Navigate to={`${FINDERS.observations}${search}`} replace />;
 }
 
+/**
+ * The `/aggregations` alias: the former Aggregations finder, folded into Explore as its
+ * saved-views projection (Step 2 of `plans/plan-cube-centered-ui.md`). The incoming query
+ * string is MERGED rather than replaced — `?guise=`, `?q=`, `?offset=`, `?tiers=` and a
+ * palette-routed `?action=create-aggregation` all ride along onto the folded surface, so
+ * old bookmarks and deep links keep their state. `replace` keeps the redirect out of the
+ * history (Back returns to where the user came from, not into the redirect again).
+ */
+function AggregationsAlias() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set("view", "aggregations");
+  return <Navigate to={`${FINDERS.observations}?${params}`} replace />;
+}
+
 interface AppProps {
   onLogout: (
     opts?: { suppressAutoLogin?: boolean; logoutType?: "app" | "idp" },
@@ -370,7 +384,6 @@ function App({ onLogout, session }: AppProps) {
   const finderRoutes: { path: string; element: ReactNode }[] = [
     { path: FINDERS.buildings, element: <BuildingsFinder session={session} /> },
     { path: FINDERS.observations, element: <ObservationsFinder /> },
-    { path: FINDERS.aggregations, element: <AggregationsFinder session={session} /> },
     { path: FINDERS.rooms, element: <RoomsFinder session={session} /> },
     { path: FINDERS.agents, element: <AgentsFinder session={session} /> },
     { path: FINDERS.sharing, element: <SharingFinder session={session} /> },
@@ -382,6 +395,7 @@ function App({ onLogout, session }: AppProps) {
         <Route element={<AppShell onLogout={onLogout} session={session} />}>
           <Route path={HOME} element={<Navigate to={FINDERS.buildings} replace />} />
           <Route path={ALIASES.explore} element={<ExploreAlias />} />
+          <Route path={ALIASES.aggregations} element={<AggregationsAlias />} />
           {finderRoutes.map((r) => (
             <Route
               key={r.path}

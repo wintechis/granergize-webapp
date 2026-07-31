@@ -16,20 +16,32 @@ stay consistent.
 
 Routing is a `BrowserRouter` (`src/App.tsx`) with a `basename` (`appBasename()`), so
 the app works under the subpath it is deployed at. The **route IS the active finder**
-— there is no `?tab=` param. The six finder (collection) routes are the home tabs
+— there is no `?tab=` param. The five finder (collection) routes are the home tabs
 (`AppShell.tsx` `NAV`):
 
 - `/buildings` — owned + shared building markers and the actionable List
-- `/observations` — the energy cube (geographic energy, summary list, heatmap, trend),
-  presented as **Explore** (the nav tab + finder title; the text lives under the
-  historical `navObservations` message id, so every consumer follows it). `/explore`
-  is an additive **alias** that redirects here (`Navigate replace`, carrying the query
-  string, so a deep link keeps its coordinate); `/observations` stays canonical until
-  Step 3 of [`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) swaps them.
-- `/aggregations` — saved aggregations (own / shared / open regional datasets)
+- `/observations` — the energy cube (geographic energy, summary list, heatmap, trend,
+  pivot, **saved views**), presented as **Explore** (the nav tab + finder title; the
+  text lives under the historical `navObservations` message id, so every consumer
+  follows it). `/explore` is an additive **alias** that redirects here (`Navigate
+  replace`, carrying the query string, so a deep link keeps its coordinate);
+  `/observations` stays canonical until Step 3 of
+  [`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) swaps them.
 - `/sharing` — a lean audit of incoming building grants + the inbox
 - `/agents` — the address book + referenced agents
 - `/rooms` — data rooms
+
+**`/aggregations` is no longer a finder route.** Step 2 of
+[`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) folded the Aggregations
+finder into Explore as its **saved views** projection (`?view=aggregations`,
+`components/aggregation/AggregationsPanel.tsx`): an aggregation *is* a saved cube
+coordinate plus a roll-up spec, so its collection is a view of the cube, not a separate
+tab. The path stays as an **alias** that redirects onto
+`/observations?view=aggregations`, **merging** `view` into the incoming query string so
+`guise`/`q`/`offset`/`tiers`/`action` all ride along (`ALIASES` in `src/routes.ts`,
+`AggregationsAlias` in `App.tsx`). Code that links to the collection uses
+`AGGREGATIONS_VIEW` (the folded path) directly, so back-links and the palette cost no
+redirect hop; the `/aggregation` **detail** route is untouched.
 
 The standalone full-page detail routes carry the resource id **as a query param** —
 `?ref=` for a storage-relative (own) id, `?uri=` for an absolute (foreign/shared) IRI
@@ -84,12 +96,16 @@ Encoded now:
 - `space` — the **Buildings** finder's spatial axis: `map | rows` (absent → map).
   Buildings is space/identity only — owned/shared markers and the List — so it carries
   no energy params (its marker colour is hardcoded `ownership`, not a URI axis).
-- `view` — the **Observations** finder's view axis: `map | list | overtime | overyears |
-  pivot` (absent → map). `map` = geographic energy markers banded at the chosen year;
-  `list` = the per-building summary; `overtime` = the buildings × years efficiency
-  heatmap (with a trailing year-over-year trend column); `overyears` = the metric's raw
-  figures over the years, one line per building; `pivot` = the same rows × years grid
-  with the row level chosen (`rows`, below).
+- `view` — the **Observations/Explore** finder's view axis: `map | list | overtime |
+  overyears | pivot | aggregations` (absent → map). `map` = geographic energy markers
+  banded at the chosen year; `list` = the per-building summary; `overtime` = the
+  buildings × years efficiency heatmap (with a trailing year-over-year trend column);
+  `overyears` = the metric's raw figures over the years, one line per building; `pivot`
+  = the same rows × years grid with the row level chosen (`rows`, below);
+  `aggregations` = the **saved views** projection (the folded Aggregations finder,
+  with its own `guise` sub-axis below). The saved-views projection renders a different
+  collection, so Explore's own search / tier facet / metric selector stand down for it
+  (`showsMetric` is false) and the annual energy cube isn't loaded.
 - `rows` — the **pivot** view's row level: `building | gemeinde | kreis | land | bund`
   (absent → `building`), i.e. how far up the cube's feature ladder the rows are rolled
   up; a region cell is the Ø over that region's buildings. Owned by
@@ -107,9 +123,11 @@ Encoded now:
   heatmap and the pivot span every year, so they only **mark** the held year's column
   (a theme-token emphasis on its header) — the coordinate reads the same across the
   projections without any of them writing it.
-- `guise` — the **Aggregations** finder's collection guise: `list | map | timeline`
-  (absent → list); `map` = a region choropleth, `timeline` = a cross-year view, both
-  keyed on the aggregation's recorded spatial extent.
+- `guise` — the **saved views** projection's collection guise (`view=aggregations`, the
+  projection's own sub-axis): `list | map | timeline` (absent → list); `map` = a region
+  choropleth — the cube at a region feature level, i.e. the regional projection —
+  `timeline` = a cross-year view, both keyed on the aggregation's recorded spatial
+  extent. Ignored on every other view.
 - `c` / `z` — the map viewport (centre / zoom), shared by both map surfaces.
 - `q` / `offset` — a finder's keyword search and list-pager position
   (`useListSearch` / `usePaging`); every single-list finder uses the bare names.
@@ -136,7 +154,7 @@ query), so what shows then is whatever the param's default is.
 
 The **finder view selectors are remembered for the browsing session** (`sessionStorage`,
 `src/lib/facetMemory.ts`): the source-tier facet (`tiers`) and the view axis (`view` on
-Observations, `space` on Buildings, `guise` on Aggregations). These are the buttons a user
+Observations/Explore, `space` on Buildings, `guise` on Explore's saved views). These are the buttons a user
 expects to stick — "show me shared + open, in the list, while I work" — as they move
 between finders. Read precedence is **URL > remembered > hardcoded default**: a deep link
 / Back that carries the param still wins (sharing a specific view is unaffected), but a
@@ -261,7 +279,7 @@ targets carry no back affordance, so they are never stamped (`isDetailRoute`).
   the `mapViewport` module store (survives the finder's unmount), not URL-encoded.
 - Ephemeral: the tile-loading token.
 
-### Observations finder — `src/pages/ObservationsFinder.tsx` (+ `BuildingsMap colour="energy"`, `ObservationsMatrix`, `ObservationsOverYears`, `ObservationsPivot`)
+### Observations finder (Explore) — `src/pages/ObservationsFinder.tsx` (+ `BuildingsMap colour="energy"`, `ObservationsMatrix`, `ObservationsOverYears`, `ObservationsPivot`, `AggregationsPanel`)
 
 - Navigational: the view axis → `view`; the pivot's row level → `rows`; the energy
   metric → `m`; the map's time-cut year → `y`; paging → `offset`. Every surface (map
@@ -270,18 +288,24 @@ targets carry no back affordance, so they are never stamped (`isDetailRoute`).
   it has no target.
 - Preserved component state (see §Preserved component state): the map viewport.
 - Ephemeral: the drag-local draft year and the play/pause flag, the energy intensities
-  derived per building, the tile-loading token.
+  derived per building, the tile-loading token; in the pivot, the materialized
+  (snapshot) rows derived from the read snapshots (`cube/snapshotCells.ts`) — labelled
+  cells with no state of their own.
 - Children: `WeatherData` (a section on the observation page) encodes its selected
   parameter and station in the URI (`wp`/`ws`, `weatherParams.ts`); `UserEnergyChart`
   encodes its view, day and month (`tab`/`day`/`month`, `seriesChartParams.ts`);
   `BuildingDetail`, `EnergyDetail` and `AnnualEnergy` hold only fetched and derived data.
 
-### Aggregations finder — `src/pages/AggregationsFinder.tsx`
+#### Saved views (aggregations) projection — `src/components/aggregation/AggregationsPanel.tsx`
+
+Explore at `view=aggregations` (formerly the `/aggregations` finder). Its params sit on
+the SAME Explore URI, so the cube coordinate you came from rides along untouched.
 
 - Navigational: the collection guise → `guise` (list / map / timeline); search + paging
   → `q`/`offset`; the source-tier facet → `tiers` (own `mine`, received `shared`, open
-  regional `open`); the create dialog → `action=create-aggregation`. A row opens
-  `/aggregation` (or `/regional` for an open dataset).
+  regional `open`); the create dialog → `action=create-aggregation` (the palette's
+  route, and Explore's "Save as aggregation" hand-off from the map/pivot views). A row
+  opens `/aggregation` (or `/regional` for an open dataset).
 - Deferred-navigational: the map/timeline viewport.
 - Ephemeral: everything inside `CreateAggregationDialog` / `ShareAggregationDialog`.
 
@@ -290,8 +314,8 @@ targets carry no back affordance, so they are never stamped (`isDetailRoute`).
 - Navigational: the list-pager position → `offset` (incoming building grants).
 - Ephemeral: per-row visibility toggle in flight, the lazily fetched shared building,
   the inbox-check and "download all" busy flags. (The shared *content* is browsed in
-  its own finder — buildings in Buildings, aggregations in Aggregations — at the
-  `shared` tier; this finder is the relationship audit.)
+  its own finder — buildings in Buildings, aggregations in Explore's saved views — at
+  the `shared` tier; this finder is the relationship audit.)
 
 ### Agents finder — `src/pages/AgentsFinder.tsx`
 
