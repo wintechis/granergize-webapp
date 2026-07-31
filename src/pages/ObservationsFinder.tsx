@@ -19,7 +19,7 @@ import BuildingPicker from "../components/BuildingPicker.tsx";
 import { useLocation, useSearchParams } from "react-router-dom";
 import type { Building } from "../types.ts";
 import type { BuildinglessObservation } from "../services/energy/energyDataset.ts";
-import { ACTION_PARAM, observationRoute } from "../routes.ts";
+import { ACTION_PARAM, FINDERS, observationRoute } from "../routes.ts";
 import {
   useAnnualEnergyByYear,
   useBuildinglessObservations,
@@ -87,8 +87,9 @@ const AggregationsPanel = lazy(() =>
 
 
 /**
- * The Observations finder (`/observations`, presented as **Explore** — the `/explore`
- * alias redirects here until Step 3 of `plans/plan-cube-centered-ui.md` swaps them):
+ * The Observations finder (`/explore`, presented as **Explore** — Step 3 of
+ * `plans/plan-cube-centered-ui.md` made that the canonical path and `/` land here;
+ * the former `/observations` redirects onto it):
  * the **energy cube** over the
  * per-building, per-year measured time-series. Buildings is the space/identity view;
  * energy lives here, its natural home. A flat View axis (`?view=`, see
@@ -142,8 +143,9 @@ export default function ObservationsFinder() {
       (prev) => metricToParams(clampMetric(m), prev),
       { replace: true },
     );
-  // The finder renders only on /observations; the map is "active" on the Map view.
-  const onObservations = useLocation().pathname === "/observations";
+  // The finder renders only on its own route (`FINDERS.explore` — never a string
+  // literal, so the check follows a path rename); the map is "active" on the Map view.
+  const onObservations = useLocation().pathname === FINDERS.explore;
   // The saved-views projection renders a different collection (aggregations), so the
   // observation-collection chrome and body stand down for it.
   const savedViews = view === "aggregations";

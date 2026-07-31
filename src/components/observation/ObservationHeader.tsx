@@ -26,7 +26,7 @@ export default function ObservationHeader(
   return (
     <Box>
       <Box sx={{ mb: 1 }}>
-        <BackLink fallback={FINDERS.observations} />
+        <BackLink fallback={FINDERS.explore} />
       </Box>
       <Stack
         direction={{ xs: "column", sm: "row" }}

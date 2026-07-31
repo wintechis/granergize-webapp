@@ -150,7 +150,7 @@ Aggregation sharing is the building-sharing flow applied to the **snapshot only*
   above. (The Sharing finder itself is only a lean audit of incoming *building* grants —
   see [`sharing.md`](./sharing.md).) The panel is **not its own route** any more: Step 2
   of [`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) folded it into
-  **Explore** as the saved-views projection (`/observations?view=aggregations`) — an
+  **Explore** as the saved-views projection (`/explore?view=aggregations`) — an
   aggregation IS a saved cube coordinate + roll-up spec — with `/aggregations` kept as a
   redirect (see [`ui-state.md`](./ui-state.md)).
 - **Materialized cells** — a snapshot is also a *cell* of the same cube, so Explore's

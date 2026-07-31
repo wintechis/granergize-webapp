@@ -17,18 +17,21 @@ stay consistent.
 Routing is a `BrowserRouter` (`src/App.tsx`) with a `basename` (`appBasename()`), so
 the app works under the subpath it is deployed at. The **route IS the active finder**
 — there is no `?tab=` param. The five finder (collection) routes are the home tabs
-(`AppShell.tsx` `NAV`):
+(`AppShell.tsx` `NAV`, listed here in nav order):
 
-- `/buildings` — owned + shared building markers and the actionable List
-- `/observations` — the energy cube (geographic energy, summary list, heatmap, trend,
+- `/explore` — the energy cube (geographic energy, summary list, heatmap, trend,
   pivot, **saved views**), presented as **Explore** (the nav tab + finder title; the
-  text lives under the historical `navObservations` message id, so every consumer
-  follows it). `/explore` is an additive **alias** that redirects here (`Navigate
-  replace`, carrying the query string, so a deep link keeps its coordinate);
-  `/observations` stays canonical until Step 3 of
-  [`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) swaps them.
-- `/sharing` — a lean audit of incoming building grants + the inbox
+  text lives under the historical `navObservations` message id, and the page component
+  is still `ObservationsFinder`, so every consumer follows it). **`/` lands here** and
+  the tab leads the nav — Step 3 of
+  [`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) flipped the centre of
+  gravity onto the cube. The former canonical `/observations` is now the **alias**,
+  redirecting here (`Navigate replace`, carrying the query string VERBATIM, so a deep
+  link keeps its coordinate and projection); the `/observation` DETAIL route is
+  untouched.
+- `/buildings` — owned + shared building markers and the actionable List
 - `/agents` — the address book + referenced agents
+- `/sharing` — a lean audit of incoming building grants + the inbox
 - `/rooms` — data rooms
 
 **`/aggregations` is no longer a finder route.** Step 2 of
@@ -37,7 +40,7 @@ finder into Explore as its **saved views** projection (`?view=aggregations`,
 `components/aggregation/AggregationsPanel.tsx`): an aggregation *is* a saved cube
 coordinate plus a roll-up spec, so its collection is a view of the cube, not a separate
 tab. The path stays as an **alias** that redirects onto
-`/observations?view=aggregations`, **merging** `view` into the incoming query string so
+`/explore?view=aggregations`, **merging** `view` into the incoming query string so
 `guise`/`q`/`offset`/`tiers`/`action` all ride along (`ALIASES` in `src/routes.ts`,
 `AggregationsAlias` in `App.tsx`). Code that links to the collection uses
 `AGGREGATIONS_VIEW` (the folded path) directly, so back-links and the palette cost no
@@ -279,7 +282,7 @@ targets carry no back affordance, so they are never stamped (`isDetailRoute`).
   the `mapViewport` module store (survives the finder's unmount), not URL-encoded.
 - Ephemeral: the tile-loading token.
 
-### Observations finder (Explore) — `src/pages/ObservationsFinder.tsx` (+ `BuildingsMap colour="energy"`, `ObservationsMatrix`, `ObservationsOverYears`, `ObservationsPivot`, `AggregationsPanel`)
+### Explore finder (`/explore`) — `src/pages/ObservationsFinder.tsx` (+ `BuildingsMap colour="energy"`, `ObservationsMatrix`, `ObservationsOverYears`, `ObservationsPivot`, `AggregationsPanel`)
 
 - Navigational: the view axis → `view`; the pivot's row level → `rows`; the energy
   metric → `m`; the map's time-cut year → `y`; paging → `offset`. Every surface (map

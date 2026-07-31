@@ -112,7 +112,14 @@ Deno.test("a builder output matches its bare detail pattern", () => {
   // the two from drifting apart.
   assert.equal(DETAIL_PATTERNS.building, "/building");
   assert.equal(buildingRoute("x").startsWith("/building?ref="), true);
-  assert.equal(FINDERS.observations, "/observations");
+  // Step 3 of plan-cube-centered-ui flipped the analytical surface's canonical path:
+  // `/explore` is the finder, `/observations` the alias that redirects onto it. Pin
+  // BOTH sides of the swap (the alias must not silently disappear — old deep links
+  // and bookmarks depend on it being a served path).
+  assert.equal(FINDERS.explore, "/explore");
+  assert.equal(ALIASES.observations, "/observations");
+  // The DETAIL route keeps the singular class name — the swap is collection-only.
+  assert.equal(DETAIL_PATTERNS.observation, "/observation");
 });
 
 Deno.test("observationUnitRoute appends the ?unit= focus param", () => {

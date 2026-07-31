@@ -30,7 +30,7 @@ export const NAVIGATE_CORES = {
   // ── Collections (no params; goTo may pass an arg — harmlessly ignored) ───────
   ShowDashboard: () => HOME,
   ShowBuildings: () => FINDERS.buildings,
-  ShowObservations: () => FINDERS.observations,
+  ShowObservations: () => FINDERS.explore,
   ShowAggregations: () => AGGREGATIONS_VIEW,
   ShowRooms: () => FINDERS.rooms,
   ShowAgents: () => FINDERS.agents,

@@ -7,10 +7,12 @@
  * strings.
  *
  * Naming follows the locked URI grammar (`plans/plan-app-design-overhaul.md` §4):
- * `/observations` + `/aggregation(s)` are the generic class names; `/buildings` is
- * kept concrete for now (the generic `Place` generalisation is deferred). The
- * collection `/aggregations` is an alias since Step 2 of the cube-centered plan (see
- * {@link ALIASES}); the `/aggregation` detail route is unaffected.
+ * `/aggregation` is the generic class name; `/buildings` is kept concrete for now
+ * (the generic `Place` generalisation is deferred). The analytical collection is
+ * `/explore` since Step 3 of the cube-centered plan flipped the centre — the older
+ * class name `/observations` and the collection `/aggregations` are both aliases now
+ * (see {@link ALIASES}); the `/observation` and `/aggregation` DETAIL routes are
+ * unaffected.
  *
  * A resource id is either storage-RELATIVE (own — e.g. `buildings/abc.ttl#it`) or
  * an ABSOLUTE IRI (foreign/shared — e.g. `https://bob.example/…#it`). Detail URLs
@@ -21,23 +23,33 @@
  */
 import { isAbsoluteIri } from "./services/rdf/building/buildingId.ts";
 
-/** Finder (collection) routes. */
+/**
+ * Finder (collection) routes, in top-nav order (`AppShell.tsx` `NAV`).
+ *
+ * {@link FINDERS.explore} leads: Step 3 of `plans/plan-cube-centered-ui.md` flipped
+ * the app's centre of gravity onto the cube, so `/` lands there and `/explore` is the
+ * CANONICAL path of the analytical surface (the page component is still
+ * `ObservationsFinder`). The former canonical `/observations` lives on as an alias
+ * (see {@link ALIASES}).
+ */
 export const FINDERS = {
+  explore: "/explore",
   buildings: "/buildings",
-  observations: "/observations",
-  rooms: "/rooms",
   agents: "/agents",
   sharing: "/sharing",
+  rooms: "/rooms",
 } as const;
 
 /**
- * Route **aliases** — paths that keep working while their canonical target is still
- * elsewhere. Both are real served paths (so `index.html`'s base detection must list
- * their segments), both redirect carrying the incoming query string across.
+ * Route **aliases** — former canonical paths that keep working after their surface
+ * moved. Both are real served paths (so `index.html`'s base detection must list their
+ * segments), both redirect carrying the incoming query string across.
  *
- * - `/explore` names the Explore surface (the analytical cube view, Step 1 of
- *   `plans/plan-cube-centered-ui.md`); its canonical path is still
- *   {@link FINDERS.observations}, and the two swap roles in Step 3.
+ * - `/observations` was the Explore surface's canonical path until Step 3 of
+ *   `plans/plan-cube-centered-ui.md` swapped it with `/explore`
+ *   ({@link FINDERS.explore}). It redirects there with the query string carried
+ *   VERBATIM, so a deep link keeps its cube coordinate (`?m=`/`?y=`/`?rows=`/`?in=`)
+ *   and its projection (`?view=`). The `/observation` DETAIL route is untouched.
  * - `/aggregations` was the Aggregations finder's own top-nav route until Step 2
  *   folded it into Explore as the saved-views projection; it now redirects onto
  *   {@link AGGREGATIONS_VIEW}, MERGING `?view=aggregations` into whatever the link
@@ -46,7 +58,7 @@ export const FINDERS = {
  *   `/aggregation` DETAIL route is untouched.
  */
 export const ALIASES = {
-  explore: "/explore",
+  observations: "/observations",
   aggregations: "/aggregations",
 } as const;
 
@@ -57,7 +69,7 @@ export const ALIASES = {
  * the create-aggregation hand-off target this directly rather than the
  * {@link ALIASES.aggregations} redirect, so they cost no extra hop.
  */
-export const AGGREGATIONS_VIEW = `${FINDERS.observations}?view=aggregations`;
+export const AGGREGATIONS_VIEW = `${FINDERS.explore}?view=aggregations`;
 
 /**
  * Detail route *patterns* — bare paths, for the route table. The resource id is no

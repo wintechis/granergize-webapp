@@ -119,7 +119,7 @@ test.describe("open observations (netztransparenz)", () => {
     // (`?tiers`): the join fetch fires around that building (bbox → see → netztransparenz,
     // all through the stubs).
     await addBuilding(page, ADDR);
-    await page.goto("/observations?view=list&tiers=mine,shared,open");
+    await page.goto("/explore?view=list&tiers=mine,shared,open");
 
     await expect(page.getByRole("heading", { name: t("obsOpenSection") }))
       .toBeVisible({ timeout: T.poll });

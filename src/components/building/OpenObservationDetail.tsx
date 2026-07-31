@@ -47,7 +47,7 @@ export default function OpenObservationDetail({ iri }: { iri: string }) {
     : [SOURCES.mastr];
   return (
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
-      <BackLink fallback={FINDERS.observations} />
+      <BackLink fallback={FINDERS.explore} />
       {isLoading && (
         <Typography variant="body2">{t("loadingEllipsis")}</Typography>
       )}

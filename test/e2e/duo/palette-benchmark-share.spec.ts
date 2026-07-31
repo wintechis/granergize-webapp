@@ -23,7 +23,7 @@ import { T } from "../helpers/timeouts.ts";
  *
  *   1. CREATE — A opens the ⌘K command palette in the shell and selects "Create
  *      aggregation"; the palette routes to Explore's saved-views projection
- *      (`/observations?view=aggregations&action=create-aggregation`),
+ *      (`/explore?view=aggregations&action=create-aggregation`),
  *      auto-opening the CreateAggregationDialog. A names the aggregation, picks a
  *      building, and creates it. (CreateAggregation is an always-applicable
  *      collection verb, so it IS reachable from ⌘K in the shell with no focus.)

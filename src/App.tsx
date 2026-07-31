@@ -260,14 +260,15 @@ function RoomWrapper() {
 }
 
 /**
- * The `/explore` alias: the Explore surface's future canonical path, redirecting onto
- * the Observations finder that still owns it (see {@link ALIASES}). The query string
- * rides along, so a deep link keeps its cube coordinate (`?m=`/`?y=`/`?rows=`/`?in=`)
- * and its projection (`?view=`).
+ * The `/observations` alias: the Explore surface's FORMER canonical path, redirecting
+ * onto `/explore` since Step 3 of `plans/plan-cube-centered-ui.md` swapped the two (see
+ * {@link ALIASES}). The query string rides along VERBATIM, so a deep link keeps its cube
+ * coordinate (`?m=`/`?y=`/`?rows=`/`?in=`) and its projection (`?view=`). `replace` keeps
+ * the redirect out of the history.
  */
-function ExploreAlias() {
+function ObservationsAlias() {
   const { search } = useLocation();
-  return <Navigate to={`${FINDERS.observations}${search}`} replace />;
+  return <Navigate to={`${FINDERS.explore}${search}`} replace />;
 }
 
 /**
@@ -282,7 +283,7 @@ function AggregationsAlias() {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   params.set("view", "aggregations");
-  return <Navigate to={`${FINDERS.observations}?${params}`} replace />;
+  return <Navigate to={`${FINDERS.explore}?${params}`} replace />;
 }
 
 interface AppProps {
@@ -380,10 +381,11 @@ function App({ onLogout, session }: AppProps) {
 
   // The five FINDER routes share the persistent app chrome (top-nav + header):
   // they are children of one shell route whose <Outlet/> swaps the active finder
-  // while the nav stays mounted. "/" redirects to the Buildings finder.
+  // while the nav stays mounted. "/" redirects to the Explore finder (Step 3 of
+  // `plans/plan-cube-centered-ui.md` — the cube is the surface you land on).
   const finderRoutes: { path: string; element: ReactNode }[] = [
+    { path: FINDERS.explore, element: <ObservationsFinder /> },
     { path: FINDERS.buildings, element: <BuildingsFinder session={session} /> },
-    { path: FINDERS.observations, element: <ObservationsFinder /> },
     { path: FINDERS.rooms, element: <RoomsFinder session={session} /> },
     { path: FINDERS.agents, element: <AgentsFinder session={session} /> },
     { path: FINDERS.sharing, element: <SharingFinder session={session} /> },
@@ -393,8 +395,8 @@ function App({ onLogout, session }: AppProps) {
     <BrowserRouter basename={appBasename()}>
       <Routes>
         <Route element={<AppShell onLogout={onLogout} session={session} />}>
-          <Route path={HOME} element={<Navigate to={FINDERS.buildings} replace />} />
-          <Route path={ALIASES.explore} element={<ExploreAlias />} />
+          <Route path={HOME} element={<Navigate to={FINDERS.explore} replace />} />
+          <Route path={ALIASES.observations} element={<ObservationsAlias />} />
           <Route path={ALIASES.aggregations} element={<AggregationsAlias />} />
           {finderRoutes.map((r) => (
             <Route

@@ -15,9 +15,11 @@ import { T } from "../helpers/timeouts.ts";
  * `/building/:id` and `/observation/:id` (no clicking) opens them after a reload,
  * and the observation page's Weather section deep-links the same way. (The map is
  * a pure finder now — a marker click NAVIGATES to `/building/:id`; the old
- * `?b=`/`?dt=` map-detail sub-state is gone.) The folded `/aggregations` route is
- * covered too: it redirects into Explore's `?view=aggregations` projection carrying
- * the rest of the query string.
+ * `?b=`/`?dt=` map-detail sub-state is gone.) The two **redirect** routes are covered
+ * too: the folded `/aggregations` lands in Explore's `?view=aggregations` projection
+ * carrying the rest of the query string, and the former canonical `/observations`
+ * lands on `/explore` with its cube coordinate intact (Step 3 of
+ * `plans/plan-cube-centered-ui.md` swapped the two).
  *
  * The tab test needs no data, so it runs first and is independent of the (Tier-3
  * CSS) write flakiness. The selection tests add one throwaway building idempotently
@@ -114,7 +116,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
 
   test("the active finder is restored after a reload", async () => {
     test.setTimeout(T.testSolo);
-    // Pick a non-default finder (Rooms) — the app lands on /buildings, so
+    // Pick a non-default finder (Rooms) — the app lands on /explore, so
     // restoring Rooms proves the route round-trips, not just the default.
     const roomsTab = page.getByRole("tab", { name: t("navMeet") });
     await roomsTab.click();
@@ -193,7 +195,8 @@ test.describe("URI-encoded navigational state survives reload", () => {
   test("the /aggregations deep link redirects into Explore, keeping ?guise=", async () => {
     test.setTimeout(T.testSolo);
     await page.goto("/aggregations?guise=timeline");
-    await expect(page).toHaveURL(/\/observations\?/, { timeout: T.action });
+    // Explore's canonical path is `/explore` since Step 3 of plan-cube-centered-ui.
+    await expect(page).toHaveURL(/\/explore\?/, { timeout: T.action });
     await expect(page).toHaveURL(/view=aggregations/, { timeout: T.action });
     await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
     // The folded surface renders (its own heading inside the Explore finder).
@@ -203,6 +206,38 @@ test.describe("URI-encoded navigational state survives reload", () => {
     await page.reload();
     await expect(page).toHaveURL(/view=aggregations/, { timeout: T.action });
     await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
+  });
+
+  // Step 3 of plan-cube-centered-ui: `/explore` became the canonical Explore path and
+  // the former `/observations` became the redirect (the reverse of Step 1). Same
+  // contract as the `/aggregations` test above — an old bookmark/deep link must land on
+  // the surface with its cube COORDINATE intact (here the pivot projection + its row
+  // level), and, being ordinary URI state, survive a reload.
+  test("the old /observations deep link redirects to /explore, keeping the coordinate", async () => {
+    test.setTimeout(T.testSolo);
+    await page.goto("/observations?view=pivot&rows=land");
+    await expect(page).toHaveURL(/\/explore\?/, { timeout: T.action });
+    await expect(page).toHaveURL(/view=pivot/, { timeout: T.action });
+    await expect(page).toHaveURL(/rows=land/, { timeout: T.action });
+    // The redirect is `replace`, so it left no history entry to bounce back into.
+    await expect(page).not.toHaveURL(/\/observations/, { timeout: T.action });
+
+    await page.reload();
+    await expect(page).toHaveURL(/\/explore\?/, { timeout: T.action });
+    await expect(page).toHaveURL(/view=pivot/, { timeout: T.action });
+    await expect(page).toHaveURL(/rows=land/, { timeout: T.action });
+  });
+
+  // The centre flipped: "/" is Explore now, not the Buildings finder. Guards the home
+  // landing itself (every spec's `goto("/")` depends on it) — asserted on the URL AND
+  // on the rendered surface (the Explore tab selected), so a bare redirect that landed
+  // on the wrong finder can't pass.
+  test("home lands on Explore", async () => {
+    test.setTimeout(T.testSolo);
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/explore/, { timeout: T.action });
+    await expect(page.getByRole("tab", { name: t("navObservations") }))
+      .toHaveAttribute("aria-selected", "true", { timeout: T.action });
   });
 
   test("the map viewport (centre+zoom) is written to the URL", async () => {
