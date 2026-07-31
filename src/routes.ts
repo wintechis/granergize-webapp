@@ -72,6 +72,15 @@ export const ALIASES = {
 export const AGGREGATIONS_VIEW = `${FINDERS.explore}?view=aggregations`;
 
 /**
+ * The saved-views projection at its **choropleth** guise ({@link AGGREGATIONS_VIEW} +
+ * `?guise=map`) — the cube rendered at a region feature level. The regional dataset
+ * page's "explore this" affordance targets it: the page shows ONE region's series, this
+ * shows the same measure across every region. The guise is written explicitly because
+ * it is session-remembered, so absence would restore whatever guise was last picked.
+ */
+export const AGGREGATIONS_MAP_VIEW = `${AGGREGATIONS_VIEW}&guise=map`;
+
+/**
  * Detail route *patterns* — bare paths, for the route table. The resource id is no
  * longer a path segment; it's a query param (see {@link detailRoute}), so the route
  * matches the bare path and the page reads `?uri=`/`?ref=`.

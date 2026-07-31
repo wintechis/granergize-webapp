@@ -272,6 +272,15 @@ export const cubeObservation = {
     de: "Berechnet von {agent}",
     fr: "Calculé par {agent}",
   },
+  // The entity-page → Explore hand-off ("explore this"): jump into the Explore
+  // surface at the coordinate this page's entity sits at (`cube/exploreContext.ts`).
+  // ONE label for every detail page that offers it, so the affordance reads the same
+  // on a building, an observation and a regional dataset.
+  showInExplore: {
+    en: "Show in Explore",
+    de: "In Erkunden anzeigen",
+    fr: "Afficher dans Explorer",
+  },
   // The Explore → saved-views hand-off: save the cut you are looking at as an
   // aggregation (opens the create dialog on the saved-views projection).
   obsSaveAsAggregation: {

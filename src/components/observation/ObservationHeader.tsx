@@ -1,9 +1,14 @@
 import { Box, Stack, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
+import ExploreIcon from "@mui/icons-material/Explore";
 import type { Building } from "../../types.ts";
+import { msg } from "../../lib/messages.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { buildingRoute, FINDERS } from "../../routes.ts";
 import { BackLink, RefLink } from "../detail/DetailView.tsx";
+import IconAction from "../IconAction.tsx";
+import { exploreOverTimeTarget } from "../../services/cube/exploreContext.ts";
 import EnergyEntryButton from "./EnergyEntryButton.tsx";
 
 /**
@@ -23,6 +28,10 @@ export default function ObservationHeader(
   },
 ) {
   const shared = building.isShared ?? false;
+  // "Explore this": the over-time heatmap — where this building's years sit beside its
+  // peers'. The page pins no measure of its own, so the target carries no `?m=` and the
+  // heatmap opens on the standing metric (`cube/exploreContext.ts`).
+  const navigate = useNavigate();
   return (
     <Box>
       <Box sx={{ mb: 1 }}>
@@ -41,6 +50,11 @@ export default function ObservationHeader(
           >
             <ElectricBoltIcon color="action" />
             <Typography variant="h5">{buildingDisplayName(building)}</Typography>
+            <IconAction
+              label={msg("showInExplore")}
+              icon={<ExploreIcon fontSize="small" />}
+              onClick={() => void navigate(exploreOverTimeTarget().to)}
+            />
           </Stack>
           <Typography variant="body2" color="text.secondary">
             Energy{year ? ` · latest year ${year}` : ""}

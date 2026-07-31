@@ -1,8 +1,10 @@
 import { msg } from "../../lib/messages.ts";
+import { useNavigate } from "react-router-dom";
 import { Box, Stack, Typography } from "@mui/material";
 import TierBadge from "../TierBadge.tsx";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import DownloadIcon from "@mui/icons-material/Download";
+import ExploreIcon from "@mui/icons-material/Explore";
 import type { Building } from "../../types.ts";
 import {
   buildingAddressLine,
@@ -28,6 +30,8 @@ import {
 import { downloadXlsx } from "../../lib/download.ts";
 import { formatError } from "../../lib/formatError.ts";
 import { ProvenanceMarker } from "../ProvenanceMarker.tsx";
+import { exploreBuildingTarget } from "../../services/cube/exploreContext.ts";
+import { setStoredViewport } from "../../lib/mapViewport.ts";
 
 /**
  * The building page's header: a breadcrumb back to the buildings list, the
@@ -46,6 +50,17 @@ export default function BuildingHeader({ building }: { building: Building }) {
   const sourceUri = buildingFileUri(building.sourceUri ?? building.uri);
   const hasCoords = building.lat != null && building.long != null;
   const { showNotification } = useNotification();
+
+  // "Explore this": jump into the Explore surface at this building's coordinate — the
+  // pivot cut to its Gemeinde, or the map framed on it (`cube/exploreContext.ts`). A map
+  // target also primes the in-session viewport store, which otherwise wins over the
+  // `?c`/`?z` seed once Explore's map has been panned this session.
+  const navigate = useNavigate();
+  const showInExplore = () => {
+    const { to, viewport } = exploreBuildingTarget(building);
+    if (viewport) setStoredViewport(viewport.centre, viewport.zoom);
+    void navigate(to);
+  };
 
   // The authoritative LoD2-BY (LDBV) address for this coordinate, where the dump covers it —
   // shown alongside the building's recorded/OSM-geocoded address. Shares the `useBuilding3d`
@@ -98,6 +113,11 @@ export default function BuildingHeader({ building }: { building: Building }) {
             <CorporateFareIcon color="action" />
             <Typography variant="h5">{name}</Typography>
             <TierBadge tier={shared ? "shared" : "mine"} />
+            <IconAction
+              label={msg("showInExplore")}
+              icon={<ExploreIcon fontSize="small" />}
+              onClick={showInExplore}
+            />
             <IconAction
               label={msg("bhDownloadData")}
               icon={<DownloadIcon fontSize="small" />}

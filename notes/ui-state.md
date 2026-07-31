@@ -34,6 +34,15 @@ the app works under the subpath it is deployed at. The **route IS the active fin
 - `/sharing` — a lean audit of incoming building grants + the inbox
 - `/rooms` — data rooms
 
+The four routes after Explore are the **manage cluster** — the dimension editors and
+the visibility mask, deliberately entity-shaped. The cluster is expressed by nav ORDER
+alone (Explore first, Step 3) plus the `NAV` docblock in `AppShell.tsx`: Step 4 of
+[`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) considered and rejected a
+visual separator inside the MUI `Tabs` — `Tabs` owns its children (indicator geometry,
+roving focus, `value` matching), so a non-`Tab` child would be a bespoke widget fighting
+the component. That step also VERIFIED the other half: Buildings carries no energy lens
+(the earlier finder redesign had already moved it), so there was nothing to shed.
+
 **`/aggregations` is no longer a finder route.** Step 2 of
 [`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) folded the Aggregations
 finder into Explore as its **saved views** projection (`?view=aggregations`,
@@ -333,3 +342,34 @@ the SAME Explore URI, so the cube coordinate you came from rides along untouched
 - Pod-persistent, not a query param: the active room (see the exception above).
 - Ephemeral: the draft roles before saving, the room input fields, the QR-scanner
   visibility.
+
+### Detail pages — the "explore this" affordances
+
+An entity page is a drill *endpoint* ("this cell's neighborhood"); the way back OUT
+into the cube is one shared affordance — an `IconAction` (the `IconButton size="small"`
++ `Tooltip` + `aria-label` primitive) labelled `showInExplore`, sitting in the page's
+title row. It is **navigational state only**: a click navigates to an Explore URI built
+from the axes above — it adds no param, no page state, and is visible in both modes
+(user content, not raw storage). The targets are built by the pure, unit-tested
+`src/services/cube/exploreContext.ts` (plus `AGGREGATIONS_MAP_VIEW` in `routes.ts`), so
+no component spells a URI:
+
+- `/building` (`BuildingHeader`) → `?view=pivot&in=<the building's 8-digit Gemeinde
+  AGS>` — its own row beside its municipality's peers, `rows` left at its omitted
+  `building` default. A scope is emitted only when `resolveIn` (the same resolver
+  Explore reads it back with) accepts it; otherwise, and for a building with no region,
+  the target is the map framed on its coordinates (`?view=map&c=&z=16`) or the plain
+  map. The map branch also primes the `mapViewport` store, because that store outranks
+  the `?c`/`?z` seed on re-mount (see §Preserved component state).
+- `/observation` (`ObservationHeader`) → `?view=overtime`, the buildings × years
+  heatmap. The page pins no measure, so no `?m=` rides along.
+- `/regional` (`RegionalDataset`) → `?view=aggregations&guise=map`, the region
+  choropleth. Distinct from the page's back link, which targets the saved-views list.
+- `/aggregation` has NO such affordance: its back link already returns to
+  `AGGREGATIONS_VIEW`, and an aggregation *is* a saved coordinate — a second control to
+  the same collection would double up.
+
+`view` and `guise` are written EXPLICITLY here even where the value is the axis default,
+because both are session-remembered (`facetMemory`): absence would mean "whatever you
+last picked", not "the default". A default that is *not* remembered (`rows`) stays
+omitted as usual.
