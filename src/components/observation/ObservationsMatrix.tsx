@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -13,7 +13,11 @@ import {
   buildEnergyMatrix,
   type MatrixCell,
 } from "../../services/energy/energyMatrix.ts";
-import { type EnergyByBuildingYear } from "../../services/energy/energyTimeCut.ts";
+import {
+  type EnergyByBuildingYear,
+  selectableYears,
+} from "../../services/energy/energyTimeCut.ts";
+import { resolveYear } from "../../services/cube/coordinate.ts";
 import {
   type EnergyTrend,
   trendForBuildings,
@@ -81,6 +85,15 @@ export default function ObservationsMatrix(
   // Drill into the observation page, recording the matrix as the back trail.
   const go = (route: string) => navigate(route, { state: trailState(route) });
   const t = useT();
+  const [searchParams] = useSearchParams();
+  // The held time cut of the cube coordinate (`services/cube/coordinate.ts`) — the same
+  // `?y=` the map slider writes (absent → the latest reachable year). This view spans
+  // every year, so it only MARKS that column; it never writes the year.
+  const heldYear = useMemo(
+    () =>
+      resolveYear(searchParams, energyByYear ? selectableYears(energyByYear) : []),
+    [searchParams, energyByYear],
+  );
   const matrix = useMemo(
     () =>
       energyByYear
@@ -135,17 +148,29 @@ export default function ObservationsMatrix(
           width: "max-content",
         }}
       >
-        {/* Header row: a blank corner, the year columns, then the Trend column. */}
+        {/* Header row: a blank corner, the year columns, then the Trend column. The
+            held `?y=` column (the map slider's time cut) carries the coordinate's
+            emphasis, exactly as the pivot marks it. */}
         <Box />
-        {years.map((y) => (
-          <Typography
-            key={y}
-            variant="caption"
-            sx={{ textAlign: "center", color: "text.secondary" }}
-          >
-            {String(y).slice(-2)}
-          </Typography>
-        ))}
+        {years.map((y) => {
+          const held = y === heldYear;
+          return (
+            <Typography
+              key={y}
+              variant="caption"
+              title={held ? t("cubeHeldYear") : undefined}
+              sx={{
+                textAlign: "center",
+                color: held ? "text.primary" : "text.secondary",
+                borderBottom: "2px solid",
+                // Transparent off the held column, so marking it shifts no layout.
+                borderColor: held ? "primary.main" : "transparent",
+              }}
+            >
+              {String(y).slice(-2)}
+            </Typography>
+          );
+        })}
         <Typography
           variant="caption"
           sx={{ pl: 1, color: "text.secondary" }}

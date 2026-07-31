@@ -56,11 +56,16 @@ import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";
 import ObservationsOverYears from "../components/observation/ObservationsOverYears.tsx";
+import ObservationsPivot from "../components/observation/ObservationsPivot.tsx";
 import {
   resolveView,
   showsMetric,
   viewToParams,
 } from "../services/cube/observationsAxes.ts";
+import {
+  metricToParams,
+  resolveMetric,
+} from "../services/cube/coordinate.ts";
 import {
   clampMetric,
   metricLabelKey,
@@ -75,7 +80,9 @@ const BuildingsMap = lazy(() => import("../components/building/BuildingsMap.tsx"
 
 
 /**
- * The Observations finder (`/observations`): the **energy cube** over the
+ * The Observations finder (`/observations`, presented as **Explore** — the `/explore`
+ * alias redirects here until Step 3 of `plans/plan-cube-centered-ui.md` swaps them):
+ * the **energy cube** over the
  * per-building, per-year measured time-series. Buildings is the space/identity view;
  * energy lives here, its natural home. A flat View axis (`?view=`, see
  * `services/cube/observationsAxes.ts`) selects:
@@ -86,6 +93,9 @@ const BuildingsMap = lazy(() => import("../components/building/BuildingsMap.tsx"
  *   flagging each building's year-over-year direction (`ObservationsMatrix`);
  * - **Over years** — the metric's figures over the years, a line per building
  *   (fact-first temporal; `ObservationsOverYears`).
+ * - **Pivot** — the same rows × years grid with the row level chosen (`?rows=`):
+ *   buildings, or their Gemeinde/Kreis/Land/Bund roll-up, a region row drilling one
+ *   level down scoped to itself (`?in=`) (`ObservationsPivot`).
  *
  * The energy views share one `?m=` metric; the year `?y=` lives inside `BuildingsMap`.
  */
@@ -100,13 +110,14 @@ export default function ObservationsFinder() {
     rememberValue("view", next);
     setSearchParams((prev) => viewToParams(next, prev));
   };
-  const metric = clampMetric(searchParams.get("m"));
+  // The measure axis of the cube coordinate (`services/cube/coordinate.ts`) — read and
+  // written through it, so every projection lenses on the same resolved metric.
+  const metric = resolveMetric(searchParams);
   const setMetric = (m: string) =>
-    setSearchParams((prev) => {
-      const sp = new URLSearchParams(prev);
-      sp.set("m", m);
-      return sp;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => metricToParams(clampMetric(m), prev),
+      { replace: true },
+    );
   // The finder renders only on /observations; the map is "active" on the Map view.
   const onObservations = useLocation().pathname === "/observations";
 
@@ -156,7 +167,7 @@ export default function ObservationsFinder() {
   // re-shape the per-year energy cube, banded against the filtered set as peers.
   // Loaded only when those views are up — the Map view's `BuildingsMap` owns its own
   // (React-Query-deduped) load.
-  const energyOn = view === "overtime" || view === "overyears";
+  const energyOn = view === "overtime" || view === "overyears" || view === "pivot";
   const { data: energyByYear } = useAnnualEnergyByYear(withObservations, energyOn);
   const visibleIds = new Set(filtered.map((b) => b.id));
 
@@ -290,6 +301,7 @@ export default function ObservationsFinder() {
                 { value: "list", label: t("btnList") },
                 { value: "overtime", label: t("obsViewOvertime") },
                 { value: "overyears", label: t("obsViewOveryears") },
+                { value: "pivot", label: t("obsViewPivot") },
               ],
             }}
           />
@@ -349,6 +361,19 @@ export default function ObservationsFinder() {
                 buildings={filtered}
                 energyByYear={energyByYear}
                 visibleIds={visibleIds}
+                metric={metric}
+              />
+            </Box>
+          )}
+          {/* Pivot: the same grid with a chosen row level (buildings or their
+              Gemeinde/Kreis/Land/Bund roll-up, `?rows=`, drill scope `?in=`); it
+              pages nothing — the roll-up itself is what keeps the row count
+              readable. */}
+          {!isLoading && view === "pivot" && filtered.length > 0 && (
+            <Box sx={{ minHeight: 0, overflow: "auto" }}>
+              <ObservationsPivot
+                buildings={filtered}
+                energyByYear={energyByYear}
                 metric={metric}
               />
             </Box>

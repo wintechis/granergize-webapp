@@ -1,13 +1,18 @@
 import { sessionGateway } from "./services/pod/podGateway.ts";
 import { msg } from "./lib/messages.ts";
 import { lazy, type ReactNode, Suspense, useEffect, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Navigate,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import {
   getStorageRoot,
   resolveStorageRoot,
 } from "./services/pod/solidUtils.ts";
-import { DETAIL_PATTERNS, FINDERS, HOME } from "./routes.ts";
+import { ALIASES, DETAIL_PATTERNS, FINDERS, HOME } from "./routes.ts";
 import AppShell from "./pages/AppShell.tsx";
 import OpenBuildingDetail from "./components/building/OpenBuildingDetail.tsx";
 import OpenObservationDetail from "./components/building/OpenObservationDetail.tsx";
@@ -255,6 +260,17 @@ function RoomWrapper() {
   );
 }
 
+/**
+ * The `/explore` alias: the Explore surface's future canonical path, redirecting onto
+ * the Observations finder that still owns it (see {@link ALIASES}). The query string
+ * rides along, so a deep link keeps its cube coordinate (`?m=`/`?y=`/`?rows=`/`?in=`)
+ * and its projection (`?view=`).
+ */
+function ExploreAlias() {
+  const { search } = useLocation();
+  return <Navigate to={`${FINDERS.observations}${search}`} replace />;
+}
+
 interface AppProps {
   onLogout: (
     opts?: { suppressAutoLogin?: boolean; logoutType?: "app" | "idp" },
@@ -365,6 +381,7 @@ function App({ onLogout, session }: AppProps) {
       <Routes>
         <Route element={<AppShell onLogout={onLogout} session={session} />}>
           <Route path={HOME} element={<Navigate to={FINDERS.buildings} replace />} />
+          <Route path={ALIASES.explore} element={<ExploreAlias />} />
           {finderRoutes.map((r) => (
             <Route
               key={r.path}

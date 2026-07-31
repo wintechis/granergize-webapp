@@ -20,7 +20,12 @@ the app works under the subpath it is deployed at. The **route IS the active fin
 (`AppShell.tsx` `NAV`):
 
 - `/buildings` — owned + shared building markers and the actionable List
-- `/observations` — the energy cube (geographic energy, summary list, heatmap, trend)
+- `/observations` — the energy cube (geographic energy, summary list, heatmap, trend),
+  presented as **Explore** (the nav tab + finder title; the text lives under the
+  historical `navObservations` message id, so every consumer follows it). `/explore`
+  is an additive **alias** that redirects here (`Navigate replace`, carrying the query
+  string, so a deep link keeps its coordinate); `/observations` stays canonical until
+  Step 3 of [`plan-cube-centered-ui.md`](../plans/plan-cube-centered-ui.md) swaps them.
 - `/aggregations` — saved aggregations (own / shared / open regional datasets)
 - `/sharing` — a lean audit of incoming building grants + the inbox
 - `/agents` — the address book + referenced agents
@@ -66,21 +71,42 @@ pure axis resolvers (`src/services/cube/exploreAxes.ts`,
 `observationsAxes.ts`) own the read/serialize so they stay Tier-1 testable. Slugs are
 human-readable; defaults are omitted from the URI for clean links.
 
+The four params that make up the **cube coordinate** — the measure `m`, the time cut
+`y`, the row level `rows` and the drill scope `in` — are read and written through one
+composing module, `src/services/cube/coordinate.ts` (`CubeCoordinate`,
+`resolveCoordinate`, `metricToParams`/`yearToParams`), so every projection of the
+Explore surface resolves the same coordinate rather than decoding a param apiece. It
+adds no rules of its own: it composes `clampMetric`, `clampYear`, `resolveRows` and
+`resolveIn`.
+
 Encoded now:
 
 - `space` — the **Buildings** finder's spatial axis: `map | rows` (absent → map).
   Buildings is space/identity only — owned/shared markers and the List — so it carries
   no energy params (its marker colour is hardcoded `ownership`, not a URI axis).
-- `view` — the **Observations** finder's view axis: `map | list | overtime | overyears`
-  (absent → map). `map` = geographic energy markers banded at the chosen year; `list` =
-  the per-building summary; `overtime` = the buildings × years efficiency heatmap (with
-  a trailing year-over-year trend column); `overyears` = the metric's raw figures over
-  the years, one line per building.
+- `view` — the **Observations** finder's view axis: `map | list | overtime | overyears |
+  pivot` (absent → map). `map` = geographic energy markers banded at the chosen year;
+  `list` = the per-building summary; `overtime` = the buildings × years efficiency
+  heatmap (with a trailing year-over-year trend column); `overyears` = the metric's raw
+  figures over the years, one line per building; `pivot` = the same rows × years grid
+  with the row level chosen (`rows`, below).
+- `rows` — the **pivot** view's row level: `building | gemeinde | kreis | land | bund`
+  (absent → `building`), i.e. how far up the cube's feature ladder the rows are rolled
+  up; a region cell is the Ø over that region's buildings. Owned by
+  `observationsAxes.ts`; ignored on every other view.
+- `in` — the **pivot** view's drill-down scope: the AGS prefix of the region the grid is
+  confined to, set by clicking a region row's label (rows drop one level, scoped to that
+  region) and cleared by the scope chip. Only read when coarser than `rows`
+  (`prefixValidAt` — a finer/equal scope would mislabel the rows), so a hand-edited
+  combination degrades to unscoped. Picking a level by hand also clears it.
 - `m` — the energy metric (the cube's measure axis), shown/written by the metric
   selector on every Observations energy view except the plain List; one shared choice.
 - `y` — the Observations map's energy time-cut year (the year the energy colour bands
   by). Clamped on read to the reachable year set; absent → the latest year. Set by the
-  year slider (and its play/pause animation) inside `BuildingsMap`.
+  year slider (and its play/pause animation) inside `BuildingsMap`. The over-time
+  heatmap and the pivot span every year, so they only **mark** the held year's column
+  (a theme-token emphasis on its header) — the coordinate reads the same across the
+  projections without any of them writing it.
 - `guise` — the **Aggregations** finder's collection guise: `list | map | timeline`
   (absent → list); `map` = a region choropleth, `timeline` = a cross-year view, both
   keyed on the aggregation's recorded spatial extent.
@@ -235,11 +261,13 @@ targets carry no back affordance, so they are never stamped (`isDetailRoute`).
   the `mapViewport` module store (survives the finder's unmount), not URL-encoded.
 - Ephemeral: the tile-loading token.
 
-### Observations finder — `src/pages/ObservationsFinder.tsx` (+ `BuildingsMap colour="energy"`, `ObservationsMatrix`, `ObservationsOverYears`)
+### Observations finder — `src/pages/ObservationsFinder.tsx` (+ `BuildingsMap colour="energy"`, `ObservationsMatrix`, `ObservationsOverYears`, `ObservationsPivot`)
 
-- Navigational: the view axis → `view`; the energy metric → `m`; the map's time-cut
-  year → `y`; paging → `offset`. Every surface (map markers, list rows, heatmap cells,
-  trend rows) navigates to `/building` or `/observation`.
+- Navigational: the view axis → `view`; the pivot's row level → `rows`; the energy
+  metric → `m`; the map's time-cut year → `y`; paging → `offset`. Every surface (map
+  markers, list rows, heatmap cells, trend rows, building-level pivot cells) navigates
+  to `/building` or `/observation`; a pivot region row is a roll-up, not a resource, so
+  it has no target.
 - Preserved component state (see §Preserved component state): the map viewport.
 - Ephemeral: the drag-local draft year and the play/pause flag, the energy intensities
   derived per building, the tile-loading token.

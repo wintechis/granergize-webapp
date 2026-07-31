@@ -28,13 +28,16 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import { useTileActivity } from "../../hooks/tileActivity.ts";
 import {
-  clampYear,
   type LensBand,
   selectableYears,
   yearLens,
 } from "../../services/energy/energyTimeCut.ts";
 import {
-  clampMetric,
+  resolveMetric,
+  resolveYear,
+  yearToParams,
+} from "../../services/cube/coordinate.ts";
+import {
   magnitudeCategoriserFor,
   type MetricFraming,
   metricFraming,
@@ -183,11 +186,11 @@ export default function BuildingsMap(
 
   // The selected observed property (the cube's measure axis) — URI-encoded
   // navigational state (`?m=`), like the year, so a metric choice is shareable and
-  // survives a reload. Decoded through `clampMetric` (an unknown/stale value falls
-  // back to the default electricity consumption). Every cube surface honours this
-  // ONE choice.
+  // survives a reload. Read through the cube coordinate (`services/cube/coordinate.ts`;
+  // an unknown/stale value falls back to the default electricity consumption). Every
+  // cube surface honours this ONE choice.
   const metric = useMemo(
-    () => clampMetric(searchParams.get("m")),
+    () => resolveMetric(searchParams),
     [searchParams],
   );
   const framing = metricFraming(metric);
@@ -200,17 +203,14 @@ export default function BuildingsMap(
   );
 
   // The selected year is URI-encoded navigational state (`?y=`), so a time-cut is
-  // shareable and survives a reload. Clamp the decoded value to the selectable
+  // shareable and survives a reload. Resolved through the cube coordinate
+  // (`services/cube/coordinate.ts`), which clamps the decoded value to the selectable
   // set — a stale/shared link can't select a year no building has — defaulting to
   // the latest (the map's pre-slider behaviour). Held in component state so
   // dragging is smooth; the URL is written on commit (see onYearChangeCommitted).
-  const urlYear = useMemo(() => {
-    const raw = searchParams.get("y");
-    return raw != null && Number.isFinite(Number(raw)) ? Number(raw) : null;
-  }, [searchParams]);
   const selectedYear = useMemo(
-    () => clampYear(years, urlYear),
-    [years, urlYear],
+    () => resolveYear(searchParams, years),
+    [searchParams, years],
   );
 
   // Drag-local year so the slider tracks the thumb at 60fps without rewriting the
@@ -228,11 +228,7 @@ export default function BuildingsMap(
   const [playing, setPlaying] = useState(false);
 
   const writeYear = (year: number) => {
-    setSearchParams((prev) => {
-      const sp = new URLSearchParams(prev);
-      sp.set("y", String(year));
-      return sp;
-    }, { replace: true });
+    setSearchParams((prev) => yearToParams(year, prev), { replace: true });
   };
 
   // Animation: a timer stepping the selected year over the range, wrapping at the
@@ -245,13 +241,13 @@ export default function BuildingsMap(
   useEffect(() => {
     if (!animating) return;
     const id = setInterval(() => {
-      const cur = clampYear(years, urlYear) ?? years[0];
+      const cur = selectedYear ?? years[0];
       const next = years[(years.indexOf(cur) + 1) % years.length];
       writeYear(next);
     }, 1200);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animating, years, urlYear]);
+  }, [animating, years, selectedYear]);
 
   // The visible peer set (ids) the lens categorises against — panning re-frames
   // it, year-scrubbing re-cuts the cube. The categoriser is parameterised by the

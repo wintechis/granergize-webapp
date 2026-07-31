@@ -17,7 +17,7 @@ Deno.test("resolveView: empty / unknown → the default (map)", () => {
 });
 
 Deno.test("resolveView: each known view passes through", () => {
-  for (const v of ["map", "list", "overtime", "overyears"] as ObsView[]) {
+  for (const v of ["map", "list", "overtime", "overyears", "pivot"] as ObsView[]) {
     assert.equal(resolveView(p(`view=${v}`)), v);
   }
 });
@@ -40,11 +40,13 @@ Deno.test("showsMetric: everything but the plain List", () => {
   assert.equal(showsMetric("map"), true);
   assert.equal(showsMetric("overtime"), true);
   assert.equal(showsMetric("overyears"), true);
+  assert.equal(showsMetric("pivot"), true);
 });
 
 Deno.test("showsYearSlider: only the map (heatmap + over-years span all years)", () => {
   assert.equal(showsYearSlider("map"), true);
   assert.equal(showsYearSlider("overtime"), false);
   assert.equal(showsYearSlider("overyears"), false);
+  assert.equal(showsYearSlider("pivot"), false);
   assert.equal(showsYearSlider("list"), false);
 });

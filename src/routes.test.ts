@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 import {
   aggregationRoute,
   agentRoute,
+  ALIASES,
   backTarget,
   buildingRoute,
   DETAIL_PATTERNS,
@@ -59,11 +60,16 @@ Deno.test("index.html KNOWN_ROUTE_SEGMENTS exactly mirrors the route table", asy
   assert.ok(block, "KNOWN_ROUTE_SEGMENTS array not found in index.html");
   const listed = [...block![1].matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
 
-  // The first path segment of every finder + detail route (HOME "/" has none).
+  // The first path segment of every finder + detail + alias route (HOME "/" has none);
+  // an alias is a real served path, so a deep link to it must detect the base too.
   const firstSegment = (p: string) => p.replace(/^\//, "").split("/")[0];
   const expected = [
     ...new Set(
-      [...Object.values(FINDERS), ...Object.values(DETAIL_PATTERNS)]
+      [
+        ...Object.values(FINDERS),
+        ...Object.values(DETAIL_PATTERNS),
+        ...Object.values(ALIASES),
+      ]
         .map(firstSegment)
         .filter((s) => s.length > 0),
     ),
@@ -72,7 +78,7 @@ Deno.test("index.html KNOWN_ROUTE_SEGMENTS exactly mirrors the route table", asy
   assert.deepEqual(
     listed,
     expected,
-    "index.html KNOWN_ROUTE_SEGMENTS is out of sync with routes.ts (FINDERS + DETAIL_PATTERNS)",
+    "index.html KNOWN_ROUTE_SEGMENTS is out of sync with routes.ts (FINDERS + DETAIL_PATTERNS + ALIASES)",
   );
 });
 

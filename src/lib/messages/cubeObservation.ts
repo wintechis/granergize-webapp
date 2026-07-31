@@ -209,6 +209,62 @@ export const cubeObservation = {
   },
   obsViewOveryears: { en: "Over years", de: "Über die Jahre", fr: "Au fil des ans" },
   obsViewTrend: { en: "Trend", de: "Trend", fr: "Tendance" },
+  // The year column the grids emphasise: the time cut held across the views (the map
+  // slider's `?y=`, or the latest reachable year while none is picked).
+  cubeHeldYear: {
+    en: "The year held across the views",
+    de: "Das über die Ansichten gehaltene Jahr",
+    fr: "L'année retenue dans toutes les vues",
+  },
+  // Pivot view — the rows × years grid whose row level is chosen (`?rows=`). The
+  // region options reuse the choropleth level labels below; only the finest grain
+  // and the no-region bucket need their own wording.
+  obsViewPivot: { en: "Pivot", de: "Pivot", fr: "Tableau croisé" },
+  pivotRowsLabel: { en: "Rows", de: "Zeilen", fr: "Lignes" },
+  pivotRowsBuilding: { en: "Buildings", de: "Gebäude", fr: "Bâtiments" },
+  pivotRowsBund: { en: "National (Bund)", de: "Bund", fr: "National" },
+  pivotRowBund: { en: "Germany", de: "Deutschland", fr: "Allemagne" },
+  pivotDrillInto: {
+    en: "Drill down into {feature}",
+    de: "{feature} aufschlüsseln",
+    fr: "Détailler {feature}",
+  },
+  pivotScope: {
+    en: "Within {region}",
+    de: "Innerhalb von {region}",
+    fr: "Dans {region}",
+  },
+  pivotRowUnassigned: {
+    en: "Without a region",
+    de: "Ohne Region",
+    fr: "Sans région",
+  },
+  pivotCellTooltip: {
+    en: "{feature} — {metric} {year}: {value} {unit} ({band})",
+    de: "{feature} — {metric} {year}: {value} {unit} ({band})",
+    fr: "{feature} — {metric} {year} : {value} {unit} ({band})",
+  },
+  pivotCellGap: {
+    en: "{feature} — {metric} {year}: no data",
+    de: "{feature} — {metric} {year}: keine Daten",
+    fr: "{feature} — {metric} {year} : aucune donnée",
+  },
+  pivotCellAverage: {
+    en: { one: "Ø of {count} building", other: "Ø of {count} buildings" },
+    de: { one: "Ø aus {count} Gebäude", other: "Ø aus {count} Gebäuden" },
+    fr: { one: "Ø de {count} bâtiment", other: "Ø de {count} bâtiments" },
+  },
+  pivotEmpty: {
+    en:
+      "No annual energy data yet. Add energy years to your buildings to pivot them " +
+      "by building or region here.",
+    de:
+      "Noch keine Jahresenergiedaten. Füge deinen Gebäuden Energiejahre hinzu, um sie " +
+      "hier nach Gebäude oder Region auszuwerten.",
+    fr:
+      "Aucune donnée énergétique annuelle pour l'instant. Ajoutez des années " +
+      "énergétiques à vos bâtiments pour les croiser par bâtiment ou par région ici.",
+  },
   trendImproving: {
     en: "Improving",
     de: "Verbessert sich",

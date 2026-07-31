@@ -30,12 +30,13 @@
     <script>
       (function () {
         // The first path segment of every app route — keep in sync with
-        // src/routes.ts (FINDERS + DETAIL_PATTERNS). Guarded by routes.test.ts so a
-        // route rename/addition that forgets this list fails the unit suite (a missing
-        // segment makes a deep link / reload on that route mis-detect the app base).
+        // src/routes.ts (FINDERS + DETAIL_PATTERNS + ALIASES). Guarded by
+        // routes.test.ts so a route rename/addition that forgets this list fails the
+        // unit suite (a missing segment makes a deep link / reload on that route
+        // mis-detect the app base).
         var KNOWN_ROUTE_SEGMENTS = [
           "building", "buildings",
-          "observation", "observations",
+          "observation", "observations", "explore",
           "aggregation", "aggregations",
           "agent", "agents",
           "room", "rooms",

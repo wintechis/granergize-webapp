@@ -30,6 +30,17 @@ export const FINDERS = {
 } as const;
 
 /**
+ * Route **aliases** — paths that keep working while their canonical target is still
+ * elsewhere. `/explore` names the Explore surface (the analytical cube view, Step 1 of
+ * `plans/plan-cube-centered-ui.md`); its canonical path is still
+ * {@link FINDERS.observations}, so the alias redirects there carrying the cube
+ * coordinate (the query string) across. The two swap roles in Step 3.
+ */
+export const ALIASES = {
+  explore: "/explore",
+} as const;
+
+/**
  * Detail route *patterns* — bare paths, for the route table. The resource id is no
  * longer a path segment; it's a query param (see {@link detailRoute}), so the route
  * matches the bare path and the page reads `?uri=`/`?ref=`.
