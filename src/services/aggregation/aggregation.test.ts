@@ -171,6 +171,41 @@ Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot
   assert.equal(loaded?.values.electricityConsumption, 1410);
 });
 
+Deno.test("a plain (non-benchmark) snapshot still records its metricPeriod", async () => {
+  // The period is the snapshot's TIME coordinate, not a benchmark field — it used
+  // to be written only inside the benchmark branch, which kept annual aggregations
+  // off the pivot's year axis.
+  const { session, store } = makeSession();
+  const v = await createAggregationDefinition(session, "Plain", [], "average", [
+    "heatConsumption",
+  ]);
+  await storeComputedSnapshot(session, {
+    id: v.id,
+    name: "Plain",
+    aggregationType: "average",
+    computedAt: "2026-06-08T10:00:00Z",
+    buildingCount: 2,
+    metrics: ["heatConsumption"],
+    values: { heatConsumption: 5 },
+    metricPeriod: "2024",
+  });
+  const snapUri = getSnapshotUri(WEBID, v.id);
+  const s = parse(store[snapUri]);
+  const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+  assert.equal(
+    s.getQuads(null, RDF_TYPE, `${CONSUMPTION_NS}BenchmarkResult`, null).length,
+    0,
+    "not a benchmark",
+  );
+  assert.equal(
+    s.getObjects(null, `${CONSUMPTION_NS}metricPeriod`, null)[0]?.value,
+    "2024",
+  );
+  const loaded = await loadComputedSnapshot(session, snapUri);
+  assert.equal(loaded?.isBenchmark, undefined);
+  assert.equal(loaded?.metricPeriod, "2024");
+});
+
 Deno.test("a plain (non-benchmark) snapshot has no benchmark fields", async () => {
   const { session } = makeSession();
   const v = await createAggregationDefinition(session, "Plain", [], "average", ["heatConsumption"]);

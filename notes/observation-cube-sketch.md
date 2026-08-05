@@ -108,7 +108,11 @@ materialization boundary is an explicit fetch.**
 - **Base cells** — the building's annual datasets: fetched per source, fold-on-read.
 - **Finest time level** (`PT15M`) — stored, but lazy-loaded on drill-down only.
 - **Rolled-up cells** — `AggregationSnapshot`s persisted on the Pod; recompute = refresh
-  the materialized cell. Benchmarks are snapshots materialized *by another agent*.
+  the materialized cell. Benchmarks are snapshots materialized *by another agent*. Every
+  snapshot records its own time coordinate (`cons:metricPeriod` — the year it covers, or
+  the month for a monthly aggregation), so it can be placed on the time axis at all; a
+  snapshot written before that was universal carries none and stays off the pivot's year
+  axis until recomputed.
 - **External cells** — pre-materialized by the regional-statistics wrapper (`qb:`), read
   through its adapter; never rolled up client-side.
 

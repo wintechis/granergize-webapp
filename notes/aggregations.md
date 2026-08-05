@@ -64,6 +64,7 @@ Values are stored at full precision; display rounding is the UI's job.
    cons:aggregationType "average" ;
    cons:computedAt      "2026-…"^^xsd:dateTime ;
    cons:buildingCount   5 ;                            # how many buildings, not which
+   cons:metricPeriod    "2024"^^xsd:gYear ;            # the period the figures cover
    cons:includesMetric  "electricityConsumption" , "heatConsumption" ;
    sosa:hasMember [ a sosa:Observation ;
         sosa:observedProperty cons:ElectricityConsumption ;
@@ -78,6 +79,15 @@ Values are stored at full precision; display rounding is the UI's job.
 Only metrics with a known `sosa:observedProperty` + unit (`metricInfo`, sourced from
 `ENERGY_METRICS`) become members; a metric without one is simply absent from the
 collection.
+
+**Time coordinate.** Every snapshot records `cons:metricPeriod` — the period its figures
+cover, `xsd:gYear` for an annual aggregation (the latest year actually aggregated, see
+*Computation*) and `xsd:gYearMonth` for a monthly one (the definition's month). It is the
+snapshot's coordinate on the cube's time axis, so a snapshot without it can't be placed
+and stays off the pivot's year axis (`snapshotCells.ts`) — which is the case for
+snapshots computed before the property became universal, until they are recomputed; there
+is no migration. It used to be written for benchmarks only, hence the property once being
+domained on `cons:BenchmarkResult`.
 
 ## Computation
 
@@ -103,10 +113,10 @@ aggregation must be on the owner's own Pod (no cross-Pod aggregation).
 
 **Benchmark flag.** A benchmark aggregation records `cons:benchmark true` **on the
 definition** — the same record-the-dimension-at-the-source principle as the sharing log.
-Every compute derives the snapshot's `cons:BenchmarkResult` typing (plus `cons:computedBy`
-and a `cons:metricPeriod` derived from the years actually aggregated) from that persisted
-flag, so a plain refresh cannot strip the benchmark typing; there are no call-site
-benchmark options. See *Peer benchmark* below.
+Every compute derives the snapshot's `cons:BenchmarkResult` typing (plus `cons:computedBy`)
+from that persisted flag, so a plain refresh cannot strip the benchmark typing; there are
+no call-site benchmark options. The covered period is *not* part of this — every snapshot
+carries `cons:metricPeriod` (above). See *Peer benchmark* below.
 
 **Spatial extent.** When a definition's member set rolls up to a single region, the
 aggregation records that region as `cons:spatialExtent` (the region IRI) plus a
@@ -158,8 +168,10 @@ Aggregation sharing is the building-sharing flow applied to the **snapshot only*
   trailing "computed figures" section beside the live rows: shaped by
   `services/cube/snapshotCells.ts`, placed at the year its `metricPeriod` (or the
   definition's monthly `period`) covers, labelled with the Ø's member count and — for a
-  benchmark — its `computedBy` producer. Labelled cells only: no drill (a snapshot hides
-  its members), no banding, and never part of the live rows' peer sets.
+  benchmark — its `computedBy` producer. Every snapshot records that period, so plain
+  annual aggregations appear there alongside benchmarks (snapshots stored before that was
+  true only once recomputed). Labelled cells only: no drill (a snapshot hides its
+  members), no banding, and never part of the live rows' peer sets.
 - **Detail** — the standalone `/aggregation` route (the `Aggregation` page; the id rides
   in `?ref=` relative / `?uri=` absolute) loads the definition + snapshot and renders a
   bar chart + table. Being a full-page route outside the app shell, it keeps its own
@@ -212,8 +224,9 @@ the rest show an em-dash.
 **Boundary & vocabulary.** The benchmark exposes only aggregate values and a contributor
 count, so no source building is reconstructable — the same definition/snapshot split the
 feature enforces, preserved. The snapshot self-describes as a benchmark (an owned
-`cons:BenchmarkResult` class — a specialisation of the snapshot — plus `cons:computedBy`
-and `cons:metricPeriod`), versioned and conformance-tested with the code. Replay of the
+`cons:BenchmarkResult` class — a specialisation of the snapshot — plus `cons:computedBy`;
+the covered period rides in the snapshot's own `cons:metricPeriod`), versioned and
+conformance-tested with the code. Replay of the
 sharing log stays same-Pod. Verified at the integration tier (two owners share, the BSP
 computes and shares back, an owner reads the averages) and as its own browser benchmarking
 spec; `summarizeContributors` and `pickBenchmark` carry offline-fixture unit tests.

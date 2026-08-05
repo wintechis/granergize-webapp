@@ -101,8 +101,8 @@ async function resolveBuildingRefs(
 
 /**
  * Load energy data for a single building. Returns the metrics of the latest
- * actual annual dataset plus the YEAR they cover (so a benchmark compute can
- * derive its bench:metricPeriod from the data it actually aggregated).
+ * actual annual dataset plus the YEAR they cover (so the compute can derive the
+ * snapshot's cons:metricPeriod from the data it actually aggregated).
  */
 async function loadBuildingEnergyData(
   buildingUri: string,
@@ -280,11 +280,13 @@ async function loadUserBuildingMonthlyTotal(
 /**
  * Compute aggregated values for an aggregation definition.
  *
- * A definition flagged `benchmark` yields a snapshot additionally typed
- * bench:BenchmarkResult, carrying the computing agent and the period covered.
- * The flag lives ON the definition (not in call-site options), so every
- * recompute — including a plain refresh — preserves the benchmark typing; the
- * covered year is derived from the data actually aggregated.
+ * EVERY snapshot carries its time coordinate (`metricPeriod`) — the period its
+ * figures cover — because a snapshot is a cell of the observation cube and needs
+ * a year to sit at (see notes/observation-cube-sketch.md §Materialization). The
+ * benchmark typing is the only thing gated on the definition's `benchmark` flag:
+ * such a snapshot is additionally typed bench:BenchmarkResult and names the
+ * computing agent. The flag lives ON the definition (not in call-site options),
+ * so every recompute — including a plain refresh — preserves that typing.
  * @operation query
  */
 export async function computeAggregation(
@@ -293,14 +295,14 @@ export async function computeAggregation(
 ): Promise<AggregationSnapshot> {
   const { id, name, buildingUris, aggregationType, metrics, period, benchmark } =
     aggregationDefinition;
-  const benchmarkFields = (metricPeriod?: string) =>
-    benchmark
-      ? {
-        isBenchmark: true as const,
-        computedBy: gateway.webId,
-        ...(metricPeriod ? { metricPeriod } : {}),
-      }
-      : {};
+  // The snapshot's TIME coordinate, independent of the benchmark question: omitted
+  // only when the compute couldn't establish a period at all (annual path, nothing
+  // loadable) — a snapshot without it stays off the pivot's year axis.
+  const periodFields = (metricPeriod?: string) => metricPeriod ? { metricPeriod } : {};
+  // Benchmark-only: the extra typing + the computing agent.
+  const benchmarkFields = benchmark
+    ? { isBenchmark: true as const, computedBy: gateway.webId }
+    : {};
 
   // The region the members roll up to. A definition that already carries a spatialExtent — the
   // user's chosen region level at create (Slice 6) — wins; otherwise infer the finest shared
@@ -330,8 +332,9 @@ export async function computeAggregation(
       values: monthlyTotals.length > 0
         ? { electricity: aggregateValues(monthlyTotals, aggregationType) }
         : {},
-      // A monthly benchmark's covered period is the month itself.
-      ...benchmarkFields(period),
+      // A monthly aggregation's covered period is the month itself, as declared.
+      ...periodFields(period),
+      ...benchmarkFields,
       ...extentFields,
     };
 
@@ -377,9 +380,12 @@ export async function computeAggregation(
     buildingCount: energyDataResults.length,
     values: aggregatedValues,
     // The year the aggregated figures cover = the latest annual year actually
-    // used (per-building latest, max across buildings) — derived, not stored,
-    // so it stays truthful when a building gains a newer year.
-    ...benchmarkFields(latestYear === undefined ? undefined : String(latestYear)),
+    // used (per-building latest, max across buildings). Derived from the data at
+    // compute time — never copied from the definition — and then recorded on the
+    // snapshot, so it stays truthful when a building gains a newer year and a
+    // recompute moves the cell to it. Absent only when nothing was loadable.
+    ...periodFields(latestYear === undefined ? undefined : String(latestYear)),
+    ...benchmarkFields,
     ...extentFields,
   };
 
