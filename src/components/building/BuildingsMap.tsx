@@ -44,16 +44,16 @@ import {
 } from "../../services/energy/energyMetric.ts";
 import { bandColor, bandLabelKey, legendBands } from "../../constants/lensBand.ts";
 import { useT } from "../../context/I18nProvider.tsx";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import MagnitudeChoroplethLayer from "../region/MagnitudeChoroplethLayer.tsx";
 import MagnitudeLegend from "../region/MagnitudeLegend.tsx";
 import {
-  fetchRegionAgs,
   fetchRegionGeometry,
   type RegionFeatureProps,
   type RegionGrain,
 } from "../../services/sources/regionGeometry.ts";
 import { buildingsByRegion } from "./buildingsByRegion.ts";
+import { useBuildingsWithRegionAgs } from "../../hooks/regional.ts";
 import { dominantBand } from "./markerClusterTint.ts";
 import { BuildingMarker, type MapLens } from "./BuildingMarker.tsx";
 import {
@@ -291,50 +291,15 @@ export default function BuildingsMap(
     meta: { silent: true },
   });
   // Resolve each shown building's region AGS by dereferencing its dcterms:spatial
-  // concept — the authoritative bare AGS is the concept's own dcterms:identifier
-  // (memoised per IRI in fetchRegionAgs). Only while the choropleth is actually shown.
-  const conceptIris = useMemo(
-    () => [
-      ...new Set(
-        shownBuildings
-          .map((b) => b.regionConceptIri)
-          .filter((x): x is string => !!x),
-      ),
-    ],
-    [shownBuildings],
+  // concept (the shared hook — the pivot's roll-up joins regions the same way), then
+  // group into regions. Only while the choropleth is actually shown.
+  const locatedBuildings = useBuildingsWithRegionAgs(
+    shownBuildings,
+    showChoropleth && active,
   );
-  const agsQueries = useQueries({
-    queries: conceptIris.map((iri) => ({
-      queryKey: [...sourceKeys.regionAgs, iri],
-      queryFn: () => fetchRegionAgs(iri),
-      enabled: showChoropleth && active,
-      staleTime: Infinity, // region codes are immutable
-    })),
-  });
-  // Destructure the (referentially-unstable) query results to plain data + a stable
-  // signature, then a concept→AGS lookup.
-  const agsData = agsQueries.map((q) => q.data);
-  const agsSig = agsData.join("|");
-  const agsByConcept = new Map<string, string>();
-  conceptIris.forEach((iri, i) => {
-    const a = agsData[i];
-    if (a) agsByConcept.set(iri, a);
-  });
-  // Group the shown buildings into regions, filling each building's AGS from its
-  // resolved concept (a freshly geocoded building already carries its own regionAgs).
   const regionGrouping = useMemo(
-    () =>
-      buildingsByRegion(
-        shownBuildings.map((b) =>
-          b.regionAgs || !b.regionConceptIri
-            ? b
-            : { ...b, regionAgs: agsByConcept.get(b.regionConceptIri) }
-        ),
-        grain,
-      ),
-    // agsByConcept is rebuilt each render, but its content is captured by agsSig.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shownBuildings, grain, agsSig],
+    () => buildingsByRegion(locatedBuildings, grain),
+    [locatedBuildings, grain],
   );
   // Ownership lens shades by building COUNT (a magnitude ramp over the per-region counts);
   // energy lens shades each region by its DOMINANT band (the rule the clusters use).

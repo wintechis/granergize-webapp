@@ -1,5 +1,5 @@
 import type React from "react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
@@ -43,13 +43,23 @@ import {
   type SnapshotSource,
 } from "../../services/cube/snapshotCells.ts";
 import {
+  regionalGrainFor,
+  type RegionalRow,
+  regionalRows,
+} from "../../services/cube/regionalCells.ts";
+import {
   useAggregationDefinitions,
   useAggregationSnapshots,
 } from "../../hooks/queries.ts";
+import {
+  useBuildingsWithRegionAgs,
+  useRegionalPivotTables,
+} from "../../hooks/regional.ts";
+import { regionalTableDataUrl } from "../../services/sources/regionalCube.ts";
 import { bandColor, bandLabelKey } from "../../constants/lensBand.ts";
 import { ellipsis } from "../../constants/listStyles.ts";
 import { type MessageId } from "../../lib/messages.ts";
-import { RefLink } from "../detail/DetailView.tsx";
+import { RdfSourceLink, RefLink } from "../detail/DetailView.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 
 /**
@@ -66,6 +76,12 @@ import { useT } from "../../context/I18nProvider.tsx";
  * cells only: no drill (a snapshot hides its members by design), no tint, and they never
  * enter the live rows' tercile peer sets. Their figure is the aggregate as stored (kWh),
  * not the per-m² intensity the live consumption cells show, so the tooltip says so.
+ *
+ * Below THAT, at a Land/Kreis row level, sits the **official statistics** section — the
+ * external `qb:` cells of `linked-regionalstatistik` shaped by `cube/regionalCells.ts`:
+ * the cube's drill-across. Same one-way rule as the snapshots (labelled, flat, never in
+ * a peer set), except each row is a different *measure* — so it names its indicator and
+ * its own unit, and cites the statistical offices as its source.
  *
  * A pure render over `buildPivot` (unit-tested) and the same `EnergyByBuildingYear` cube
  * the map's lens loads, so a building-level cell colours identically to the map and the
@@ -146,27 +162,39 @@ export default function ObservationsPivot(
   const clearScope = () =>
     setSearchParams((prev) => inToParams(null, prev), { replace: true });
 
+  // The region join key: a loaded building stores only its `dcterms:spatial` concept,
+  // so the bare AGS the ladder groups by is resolved from it (the shared hook the map's
+  // choropleth uses). Gated on the join being needed — a plain building-level grid with
+  // no scope never asks.
+  const located = useBuildingsWithRegionAgs(
+    buildings,
+    level !== "building" || Boolean(scope),
+  );
+
   const grid = useMemo(
     () =>
       energyByYear
         ? buildPivot(
-          scope ? withinRegion(buildings, scope) : buildings,
+          scope ? withinRegion(located, scope) : located,
           energyByYear,
           metric,
           level,
         )
         : null,
-    [buildings, scope, energyByYear, metric, level],
+    [located, scope, energyByYear, metric, level],
   );
 
   // Region rows are unnamed only for the no-AGS bucket and the national row, which are
   // named here (the shaping module stays i18n-free).
-  const rowLabel = (row: PivotRow) =>
-    row.key === UNASSIGNED_KEY
-      ? t("pivotRowUnassigned")
-      : row.key === BUND_KEY
-      ? t("pivotRowBund")
-      : row.label;
+  const rowLabel = useCallback(
+    (row: PivotRow) =>
+      row.key === UNASSIGNED_KEY
+        ? t("pivotRowUnassigned")
+        : row.key === BUND_KEY
+        ? t("pivotRowBund")
+        : row.label,
+    [t],
+  );
 
   // The cell unit follows the framing: consumption is a per-m² intensity, a generation
   // magnitude is the absolute figure (as in the over-time matrix).
@@ -239,6 +267,35 @@ export default function ObservationsPivot(
     return parts.join(" · ");
   };
 
+  // The external cells: the official regional statistics (`qb:`) for the regions on
+  // screen — the cube's DRILL-ACROSS (`services/cube/regionalCells.ts`). A second
+  // cube sharing our feature + time axes but not the property axis, so its rows carry
+  // their own indicator name and unit, and no tint/drill. Fetched only where the two
+  // cubes meet (a Land/Kreis row level), one GET per table.
+  const regionalTables = useRegionalPivotTables(regionalGrainFor(level));
+  const regional = useMemo(
+    () =>
+      regionalRows(
+        regionalTables,
+        (grid?.rows ?? []).map((r) => ({ key: r.key, label: rowLabel(r) })),
+        grid?.years ?? [],
+        level,
+      ),
+    [regionalTables, grid, rowLabel, level],
+  );
+  // An external cell's label: region, indicator, year, figure and ITS unit — the
+  // full coordinate, since this row's measure is not the grid's selected metric.
+  const regionalTitle = (row: RegionalRow, year: number, value: number | null): string => {
+    const shared = { feature: row.regionLabel, metric: t(row.labelId), year };
+    return value == null ? t("pivotCellGap", shared) : t("pivotOfficialCell", {
+      region: row.regionLabel,
+      indicator: t(row.labelId),
+      year,
+      value: value.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+      unit: row.unit,
+    });
+  };
+
   const selector = (
     <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
       <TextField
@@ -258,7 +315,7 @@ export default function ObservationsPivot(
       {scope && (
         <Chip
           size="small"
-          label={t("pivotScope", { region: scopeLabel(buildings, scope) })}
+          label={t("pivotScope", { region: scopeLabel(located, scope) })}
           onDelete={clearScope}
         />
       )}
@@ -455,6 +512,76 @@ export default function ObservationsPivot(
                   })}
                 </Box>
               ))}
+            </>
+          )}
+
+          {/* The drill-across section: official statistics for the regions on
+              screen — labelled rows in their own indicator + unit, flat (no band
+              tint, no drill), with the statistics office cited as the source. */}
+          {regional.length > 0 && (
+            <>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ gridColumn: "1 / -1", mt: 2 }}
+              >
+                {t("pivotOfficial")}
+              </Typography>
+              {regional.map((row) => {
+                const label = t("pivotOfficialRow", {
+                  region: row.regionLabel,
+                  indicator: t(row.labelId),
+                  unit: row.unit,
+                });
+                return (
+                  <Box key={row.key} sx={{ display: "contents" }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      title={label}
+                      sx={{ ...ellipsis, pr: 1, maxWidth: NAME_COL }}
+                    >
+                      {label}
+                    </Typography>
+                    {row.cells.map((cell) => {
+                      const has = cell.value != null;
+                      const title = regionalTitle(row, cell.year, cell.value);
+                      return (
+                        <Tooltip key={cell.year} title={title} arrow>
+                          <Box
+                            role="img"
+                            aria-label={title}
+                            sx={{
+                              height: CELL_H,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderRadius: 0.5,
+                              backgroundColor: has ? "action.hover" : undefined,
+                              border: has ? "none" : "1px dashed",
+                              borderColor: "divider",
+                            }}
+                          >
+                            <Typography variant="caption" color="text.secondary">
+                              {has ? compact(cell.value!) : "—"}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+                );
+              })}
+              {/* Provenance (the agent axis: the statistical offices), plus the
+                  dereferenceable table documents in Developer mode. */}
+              <Box sx={{ gridColumn: "1 / -1", mt: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {t("regDataSource")}
+                </Typography>
+                {[...new Set(regional.map((r) => r.tableId))].map((tableId) => (
+                  <RdfSourceLink key={tableId} href={regionalTableDataUrl(tableId)} />
+                ))}
+              </Box>
             </>
           )}
         </Box>

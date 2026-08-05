@@ -300,9 +300,13 @@ targets carry no back affordance, so they are never stamped (`isDetailRoute`).
   it has no target.
 - Preserved component state (see §Preserved component state): the map viewport.
 - Ephemeral: the drag-local draft year and the play/pause flag, the energy intensities
-  derived per building, the tile-loading token; in the pivot, the materialized
-  (snapshot) rows derived from the read snapshots (`cube/snapshotCells.ts`) — labelled
-  cells with no state of their own.
+  derived per building, the tile-loading token; in the pivot, its two trailing sections
+  — the materialized (snapshot) rows derived from the read snapshots
+  (`cube/snapshotCells.ts`) and, at a Land/Kreis row level, the official-statistics rows
+  derived from the fetched regionalstatistik tables (`cube/regionalCells.ts`, the
+  drill-across) — both labelled cells with no state of their own. Neither widens the
+  grid's year columns, and the external section simply isn't there until its tables
+  have loaded (no spinner; the header indicator carries the fetch).
 - Children: `WeatherData` (a section on the observation page) encodes its selected
   parameter and station in the URI (`wp`/`ws`, `weatherParams.ts`); `UserEnergyChart`
   encodes its view, day and month (`tab`/`day`/`month`, `seriesChartParams.ts`);

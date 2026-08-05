@@ -97,6 +97,7 @@ and shared back — the same cell shape, different `computedBy`
 | **dice** | restrict several axes at once | Observations finder filters (list view) |
 | **roll-up** | buildings → set/region, readings → fn(value) | `aggregationComputer` + `regionRollup`; snapshot = the result |
 | **drill-down** | year → `PT15M` on the time axis; a region row → one feature level finer, scoped to it | `EnergyResolutionSwitch` (annual ⇄ time series); the pivot's region-row drill (`?in=`) |
+| **drill-across** | join a second cube sharing the feature + time axes (its own measures) | the external `qb:` regionalstatistik cells: the pivot's trailing "Official statistics" rows at a Land/Kreis row level (`cube/regionalCells.ts`), and the regional-context section on the detail pages |
 | **pivot** | swap which axis is rows vs series | `overtime` (buildings × years heatmap) vs `overyears` (time x-axis, building series); `pivot` moves the row axis up the feature ladder (`?rows=`) — `observationsAxes.ts`, `pivot.ts` |
 
 ## Materialization — which cells are stored
@@ -114,7 +115,10 @@ materialization boundary is an explicit fetch.**
   snapshot written before that was universal carries none and stays off the pivot's year
   axis until recomputed.
 - **External cells** — pre-materialized by the regional-statistics wrapper (`qb:`), read
-  through its adapter; never rolled up client-side.
+  through its adapter; never rolled up client-side. One GET serves a whole table (all
+  regions × all years), so the Explore drill-across costs one tracked fetch per table —
+  and only at a row level whose grain the source publishes (Land/Kreis), which is the
+  explicit act that crosses the boundary.
 
 ## Non-dimensions
 

@@ -272,6 +272,25 @@ export const cubeObservation = {
     de: "Berechnet von {agent}",
     fr: "Calculé par {agent}",
   },
+  // External cells — the official regional statistics (`qb:` cube) rendered beside
+  // the live grid at a Land/Kreis row level (`services/cube/regionalCells.ts`): the
+  // cube's drill-across. Its indicators keep their own names (the `reg*` ids) and
+  // units, so each row states both.
+  pivotOfficial: {
+    en: "Official statistics",
+    de: "Amtliche Statistik",
+    fr: "Statistiques officielles",
+  },
+  pivotOfficialRow: {
+    en: "{region} — {indicator} ({unit})",
+    de: "{region} — {indicator} ({unit})",
+    fr: "{region} — {indicator} ({unit})",
+  },
+  pivotOfficialCell: {
+    en: "{region} — {indicator} {year}: {value} {unit}",
+    de: "{region} — {indicator} {year}: {value} {unit}",
+    fr: "{region} — {indicator} {year} : {value} {unit}",
+  },
   // The entity-page → Explore hand-off ("explore this"): jump into the Explore
   // surface at the coordinate this page's entity sits at (`cube/exploreContext.ts`).
   // ONE label for every detail page that offers it, so the affordance reads the same

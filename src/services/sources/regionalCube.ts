@@ -293,6 +293,67 @@ export async function fetchRegionalObservations(
   return parseRegionalObservations(store, table, agsCode);
 }
 
+/** The region's **AGS code** read back out of a geo-dimension object IRI, per the
+ *  table's geo style (the inverse of the per-style suffix match in
+ *  {@link parseRegionalObservations}); `""` when the IRI carries none. */
+function agsOf(geo: string, geoCodeStyle: "ags" | "frag"): string {
+  return geoCodeStyle === "ags"
+    ? (geo.match(/\/ags\/([^/]+)$/)?.[1] ?? "")
+    : (geo.includes("#") ? geo.slice(geo.lastIndexOf("#") + 1) : "");
+}
+
+/**
+ * Parse a Data Cube document into the **full year series per region** — one pass
+ * over the whole table. The many-regions sibling of
+ * {@link parseRegionalObservations} (one region, every year) and of
+ * {@link parseRegionalChoropleth} (every region, ONE year): the pivot's
+ * drill-across needs every region of the grid across every year column, and the
+ * wrapper serves the whole table in ONE GET, so it is parsed once instead of
+ * re-scanned per region. Each series is sorted by year. Pure; the network-free
+ * half of {@link fetchRegionalSeries}.
+ */
+export function parseRegionalSeries(
+  store: Store,
+  table: RegionalTable,
+): Map<string, RegionalObservation[]> {
+  const geoDimSuffix = table.geoDimSuffix ?? "#dim-geo";
+  const geoCodeStyle = table.geoCodeStyle ?? "ags";
+  const selectors = table.selectors ?? [];
+
+  const byAgs = new Map<string, RegionalObservation[]>();
+  for (const { subject } of store.getQuads(null, RDF_TYPE, `${QB_NS}Observation`, null)) {
+    const c = extractCells(store, subject, geoDimSuffix, selectors);
+    if (
+      !selectorsMatch(c, selectors) || c.year == null || Number.isNaN(c.year) ||
+      c.value == null || Number.isNaN(c.value)
+    ) continue;
+    const ags = agsOf(c.geo, geoCodeStyle);
+    if (!ags) continue;
+    const series = byAgs.get(ags);
+    const observation = { year: c.year, value: c.value, unit: c.unit };
+    if (series) series.push(observation);
+    else byAgs.set(ags, [observation]);
+  }
+  for (const series of byAgs.values()) series.sort((a, b) => a.year - b.year);
+  return byAgs;
+}
+
+/**
+ * Fetch + parse every region's full series of a table — ONE GET serves the whole
+ * drill-across (all regions × all years). Throws on a non-OK response (the
+ * caller's query surfaces it).
+ */
+export async function fetchRegionalSeries(
+  table: RegionalTable,
+): Promise<Map<string, RegionalObservation[]>> {
+  const store = await deref(
+    getSourceGateway(),
+    regionalTableDataUrl(table.tableId),
+    `regional series ${table.tableId}`,
+  );
+  return parseRegionalSeries(store, table);
+}
+
 /**
  * Parse a Data Cube document into ONE value **per region** — the choropleth's
  * whole-table read (the inverse of {@link parseRegionalObservations}, which filters
@@ -320,11 +381,7 @@ export function parseRegionalChoropleth(
       c.value == null || Number.isNaN(c.value)
     ) continue;
     if (maxYear != null && c.year > maxYear) continue;
-    // Extract the AGS code from the geo dimension's object IRI (inverse of the
-    // per-style suffix match in parseRegionalObservations).
-    const ags = geoCodeStyle === "ags"
-      ? (c.geo.match(/\/ags\/([^/]+)$/)?.[1] ?? "")
-      : (c.geo.includes("#") ? c.geo.slice(c.geo.lastIndexOf("#") + 1) : "");
+    const ags = agsOf(c.geo, geoCodeStyle);
     if (!ags) continue;
     const prev = byAgs.get(ags);
     if (!prev || c.year > prev.year) {
