@@ -7,8 +7,10 @@ import { Building } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
-import { type EnergyMetricKey } from "../../services/energy/energyDataset.ts";
-import { DEFAULT_METRIC } from "../../services/energy/energyMetric.ts";
+import {
+  DEFAULT_METRIC,
+  type SelectableMetricKey,
+} from "../../services/energy/energyMetric.ts";
 import {
   buildEnergyMatrix,
   type MatrixCell,
@@ -74,7 +76,7 @@ interface ObservationsMatrixProps {
   /** Ids the lens frames its per-year peer set against (the visible set). */
   visibleIds: ReadonlySet<string>;
   /** The selected observed property (the cube's measure axis). */
-  metric?: EnergyMetricKey;
+  metric?: SelectableMetricKey;
 }
 
 export default function ObservationsMatrix(

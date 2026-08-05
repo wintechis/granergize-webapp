@@ -19,6 +19,16 @@ Deno.test("resolveMetric: absent / unknown → the default measure", () => {
   assert.equal(resolveMetric(p("m=heatConsumption")), "heatConsumption");
 });
 
+Deno.test("resolveMetric / metricToParams: the derived total round-trips on ?m=", () => {
+  // The property ladder's rollup rung is a first-class value of the measure axis, so a
+  // shared link carrying it resolves to it (not to the default).
+  assert.equal(resolveMetric(p("m=energyTotal")), "energyTotal");
+  const out = metricToParams("energyTotal", p("view=pivot&rows=kreis"));
+  assert.equal(out.get("m"), "energyTotal");
+  assert.equal(out.get("rows"), "kreis", "the other axes survive");
+  assert.equal(resolveMetric(out), "energyTotal");
+});
+
 Deno.test("requestedYear: the raw read, before clamping", () => {
   assert.equal(requestedYear(p("")), null);
   assert.equal(requestedYear(p("y=zzz")), null);

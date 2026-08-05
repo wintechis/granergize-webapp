@@ -1,5 +1,8 @@
-import { type EnergyMetricKey } from "../energy/energyDataset.ts";
-import { clampMetric, DEFAULT_METRIC } from "../energy/energyMetric.ts";
+import {
+  clampMetric,
+  DEFAULT_METRIC,
+  type SelectableMetricKey,
+} from "../energy/energyMetric.ts";
 import { clampYear } from "../energy/energyTimeCut.ts";
 import { type PivotRowLevel } from "./pivot.ts";
 import {
@@ -33,7 +36,7 @@ import {
  *  confined to (`?in=`). */
 export interface CubeCoordinate {
   /** The observed property the cells carry (the measure axis). */
-  readonly metric: EnergyMetricKey;
+  readonly metric: SelectableMetricKey;
   /** The held year — the time cut the map bands at and the grids mark. `null` when no
    *  year is reachable (an empty cube). */
   readonly year: number | null;
@@ -54,7 +57,7 @@ export const DEFAULT_COORDINATE: CubeCoordinate = {
 
 /** Read the measure axis from `?m=`; an unknown/stale value falls back to the default
  *  metric, so a shared link can never select a metric the views can't lens on. */
-export function resolveMetric(params: URLSearchParams): EnergyMetricKey {
+export function resolveMetric(params: URLSearchParams): SelectableMetricKey {
   return clampMetric(params.get("m"));
 }
 
@@ -103,7 +106,7 @@ export function resolveCoordinate(
  *  written even at its default — the selector is a standing choice the user made, and
  *  the map/grid links carry it verbatim. */
 export function metricToParams(
-  metric: EnergyMetricKey,
+  metric: SelectableMetricKey,
   prev: URLSearchParams,
 ): URLSearchParams {
   const sp = new URLSearchParams(prev);

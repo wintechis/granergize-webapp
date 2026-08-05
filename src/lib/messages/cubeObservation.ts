@@ -96,6 +96,13 @@ export const cubeObservation = {
     fr: "Électricité",
   },
   metricHeatConsumption: { en: "Heat", de: "Wärme", fr: "Chaleur" },
+  // The property ladder's rollup rung — a DERIVED measure (electricity + heat, the two
+  // kWh carriers), labelled so the figure is never an unexplained total.
+  metricEnergyTotal: {
+    en: "Total energy (electricity + heat)",
+    de: "Gesamtenergie (Strom + Wärme)",
+    fr: "Énergie totale (électricité + chaleur)",
+  },
   metricWaterConsumption: { en: "Water", de: "Wasser", fr: "Eau" },
   metricWastewaterConsumption: {
     en: "Wastewater",

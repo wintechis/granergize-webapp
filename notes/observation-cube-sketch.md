@@ -41,7 +41,7 @@ up a ladder.
 | --- | --- | --- | --- |
 | **feature** (space) | one building | ad-hoc set (`buildingUris`) → Gemeinde (LAU) → Kreis → Land → Bund | `regionRollup.ts` (`RegionLevel`), `SpatialExtent` |
 | **time** | `PT15M` timestamp | year → period (multi-year span of a definition) | `splitEnergyDatasets` / `EnergyResolutionSwitch`, `period` on `AggregationDefinition` |
-| **property** (metric) | one carrier (electricity, gas, water, heat, …) | all-carriers intensity total (the map lens) | `?m=` axis (`observationsAxes.ts`), consumption vocabulary IRIs |
+| **property** (metric) | one carrier (electricity, gas, water, heat, …) | the labelled `energyTotal` pseudo-metric — total energy = electricity + heat, the two kWh carriers (water/wastewater are m³, generation is an output, so neither is summed in); sum of the PRESENT carriers, normalised per m² once like its constituents | `?m=` axis (`coordinate.ts` / `observationsAxes.ts`), `SelectableMetricKey` + `metricValueAtYear` in `energy/energyMetric.ts` (a DISPLAY rollup — never stored: `EnergyMetricKey`, snapshots and exports stay carrier-only), consumption vocabulary IRIs |
 | **agent** | producing organisation | — (flat, degenerate) | `Building.attributedTo` (`prov:agent`) |
 
 ## The star schema around a cell

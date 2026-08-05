@@ -33,6 +33,11 @@ import { T } from "../helpers/timeouts.ts";
  * that Kreis's cube table. The other Kreis tables are left to 404 — a failing table
  * must simply be absent from the section, never sink it.
  *
+ * The THIRD test covers the property axis's rollup rung — the derived `energyTotal`
+ * pseudo-metric (electricity + heat, `energy/energyMetric.ts`): selecting it on the
+ * measure axis writes `?m=energyTotal` and the grid's cells carry its label, so the
+ * total is a labelled cell like any other (never an unexplained figure).
+ *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/solo/cube-pivot.spec.ts
  *   # tier 4 (real Pods):
@@ -237,5 +242,35 @@ test.describe("cube pivot (feature-ladder roll-up)", () => {
     await expect(page.getByRole("button", { name: /—\s.*\d{4}\s*:/ }).first())
       .toBeVisible({ timeout: T.action });
     await expect(page.getByText(t("pivotOfficial"))).toHaveCount(0);
+  });
+
+  test("the derived total is selectable on ?m= and labels its cells", async () => {
+    test.setTimeout(T.testSolo);
+    await page.goto("/");
+    await openObservationsView(page, "pivot");
+
+    // The property ladder's rollup rung, restored as a LABELLED pseudo-metric: pick
+    // "Total energy (electricity + heat)" from the same measure-axis selector every
+    // other metric uses.
+    const metricSelect = page.getByRole("combobox", { name: t("metricSelectLabel") });
+    await metricSelect.click();
+    await page
+      .getByRole("option", { name: t("metricEnergyTotal"), exact: true })
+      .click();
+    // It is a first-class value of the measure axis (shareable, reload-proof).
+    await expect.poll(() => new URL(page.url()).searchParams.get("m"), {
+      timeout: T.action,
+    }).toBe("energyTotal");
+    await expect(metricSelect)
+      .toHaveText(new RegExp(rx(t("metricEnergyTotal"))), { timeout: T.action });
+
+    // …and the grid's cells NAME it — a total is never an unexplained figure. At least
+    // one carries a per-m² value (the demo buildings carry electricity and/or heat).
+    const totalCells = page.getByRole("button", {
+      name: new RegExp(`—\\s*${rx(t("metricEnergyTotal"))}\\s+\\d{4}\\s*:\\s*\\d`),
+    });
+    await expect(async () => {
+      expect(await totalCells.count()).toBeGreaterThan(0);
+    }).toPass({ timeout: T.poll, intervals: [1_500] });
   });
 });

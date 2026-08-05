@@ -11,11 +11,11 @@ import Typography from "@mui/material/Typography";
 import { Building } from "../../types.ts";
 import { observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
-import { type EnergyMetricKey } from "../../services/energy/energyDataset.ts";
 import {
   DEFAULT_METRIC,
   metricLabelKey,
   type MetricFraming,
+  type SelectableMetricKey,
 } from "../../services/energy/energyMetric.ts";
 import {
   type EnergyByBuildingYear,
@@ -123,7 +123,7 @@ interface ObservationsPivotProps {
   /** The per-building annual cube (from `useAnnualEnergyByYear`). */
   energyByYear: EnergyByBuildingYear | undefined;
   /** The selected observed property (the cube's measure axis). */
-  metric?: EnergyMetricKey;
+  metric?: SelectableMetricKey;
 }
 
 export default function ObservationsPivot(

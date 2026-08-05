@@ -1,12 +1,12 @@
 import { Building } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
-import { type EnergyMetricKey } from "../energy/energyDataset.ts";
 import { categoriserFor } from "../energy/energyCategory.ts";
 import {
   DEFAULT_METRIC,
   magnitudeCategoriserFor,
   type MetricFraming,
   metricFraming,
+  type SelectableMetricKey,
 } from "../energy/energyMetric.ts";
 import {
   type EnergyByBuildingYear,
@@ -268,7 +268,7 @@ function prune(
 export function buildPivot(
   buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
-  metric: EnergyMetricKey = DEFAULT_METRIC,
+  metric: SelectableMetricKey = DEFAULT_METRIC,
   level: PivotRowLevel = "building",
 ): PivotGrid {
   const years = selectableYears(energyByBuilding);

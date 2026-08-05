@@ -129,6 +129,12 @@ Encoded now:
   combination degrades to unscoped. Picking a level by hand also clears it.
 - `m` — the energy metric (the cube's measure axis), shown/written by the metric
   selector on every Observations energy view except the plain List; one shared choice.
+  Values: the stored carriers `electricityConsumption` / `heatConsumption` /
+  `waterConsumption` / `wastewaterConsumption` / `electricityGeneration`, plus the
+  **derived** `energyTotal` (the property ladder's rollup rung: electricity + heat,
+  tier-framed like its constituents). Clamped on read (`clampMetric`) — an unknown value
+  falls back to `electricityConsumption`. `energyTotal` is a display rollup only: no
+  snapshot records it, so at that metric the pivot's "Computed figures" section is empty.
 - `y` — the Observations map's energy time-cut year (the year the energy colour bands
   by). Clamped on read to the reachable year set; absent → the latest year. Set by the
   year slider (and its play/pause animation) inside `BuildingsMap`. The over-time

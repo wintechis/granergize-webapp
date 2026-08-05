@@ -162,6 +162,29 @@ Deno.test("buildPivot: no reachable years → an empty grid, not a padded one", 
   assert.deepEqual(grid.rows, []);
 });
 
+Deno.test("buildPivot: the derived total rolls up like any other tier metric", () => {
+  // The cube helper writes electricity only, so the two-carrier cube is spelled out.
+  const both: EnergyByBuildingYear = new Map([
+    ["b1", new Map([[2023, { electricityConsumption: 1000, heatConsumption: 500 }]])],
+    // b2 carries only heat — the sparse case: it contributes that carrier alone.
+    ["b2", new Map([[2023, { heatConsumption: 900 }]])],
+  ]);
+  const rows = buildPivot([b("b1", "09564000"), b("b2", "09564000")], both, "energyTotal");
+  assert.equal(rows.framing, "tier");
+  assert.equal(rows.rows.find((r) => r.key === "b1")!.cells[0].value, 15);
+  assert.equal(rows.rows.find((r) => r.key === "b2")!.cells[0].value, 9);
+  // Rolled up to the Gemeinde: the Ø of the two per-m² totals, over both members.
+  const region = buildPivot(
+    [b("b1", "09564000"), b("b2", "09564000")],
+    both,
+    "energyTotal",
+    "gemeinde",
+  );
+  assert.equal(region.rows.length, 1);
+  assert.equal(region.rows[0].cells[0].value, 12);
+  assert.equal(region.rows[0].cells[0].n, 2);
+});
+
 Deno.test("buildPivot: the bund level is one national row over the AGS-carrying buildings", () => {
   const grid = buildPivot(
     [b("b1", "09564000"), b("b2", "05315000"), b("b3")],
