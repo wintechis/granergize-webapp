@@ -59,10 +59,14 @@ import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx
 import ObservationsOverYears from "../components/observation/ObservationsOverYears.tsx";
 import ObservationsPivot from "../components/observation/ObservationsPivot.tsx";
 import {
+  resolveSeries,
   resolveView,
+  seriesToParams,
   showsMetric,
+  showsSeriesDrill,
   viewToParams,
 } from "../services/cube/observationsAxes.ts";
+import { splitEnergyDatasets } from "../lib/energyResolution.ts";
 import {
   metricToParams,
   resolveMetric,
@@ -83,6 +87,12 @@ const BuildingsMap = lazy(() => import("../components/building/BuildingsMap.tsx"
 // former `/aggregations` route chunk was.
 const AggregationsPanel = lazy(() =>
   import("../components/aggregation/AggregationsPanel.tsx")
+);
+// The time drill's sub-hourly panel (`?series=`) — its own chunk (it pulls the
+// day/month/profile/calendar charts), fetched only once a row is actually drilled, so
+// the grid views cost nothing for a descent nobody made.
+const SeriesDrillPanel = lazy(() =>
+  import("../components/observation/SeriesDrillPanel.tsx")
 );
 
 
@@ -111,6 +121,12 @@ const AggregationsPanel = lazy(() =>
  *   `/aggregations` redirects onto it (`src/routes.ts`).
  *
  * The energy views share one `?m=` metric; the year `?y=` lives inside `BuildingsMap`.
+ *
+ * On the two grid views (Over time · Pivot) a building row can be drilled one grain
+ * finer in TIME — `?series=<building ref>` opens `SeriesDrillPanel` below the grid with
+ * that building's sub-hourly series (Step 4 of `plans/plan-explore-complete-cube.md`).
+ * It is a panel, not a seventh view, and it is resolved here rather than inside the
+ * grids: an unresolvable ref renders nothing.
  */
 export default function ObservationsFinder() {
   const { buildings, isLoading } = useSolidData();
@@ -199,6 +215,20 @@ export default function ObservationsFinder() {
   const energyOn = view === "overtime" || view === "overyears" || view === "pivot";
   const { data: energyByYear } = useAnnualEnergyByYear(withObservations, energyOn);
   const visibleIds = new Set(filtered.map((b) => b.id));
+  // The time DRILL (`?series=`, `cube/observationsAxes.ts`): the cube's finest time
+  // grain, reached from a grid row without leaving Explore. The axis resolves the bare
+  // ref; whether it names something is a data question, answered here against the
+  // VISIBLE set — a stale link, a building the search filtered out, or one carrying no
+  // sub-hourly dataset simply yields no panel (a descent either lands or it doesn't;
+  // there is nothing to report).
+  const seriesRef = resolveSeries(searchParams);
+  const seriesBuilding = seriesRef
+    ? filtered.find((b) =>
+      b.id === seriesRef && splitEnergyDatasets(b.energyDatasets).series.length > 0
+    ) ?? null
+    : null;
+  const closeSeries = () =>
+    setSearchParams((prev) => seriesToParams(null, prev), { replace: true });
 
   // "Clear data" — delete ALL of an owned building's observations (every dataset),
   // keeping the building; once empty, the building drops out of this finder. The
@@ -437,6 +467,15 @@ export default function ObservationsFinder() {
                 metric={metric}
               />
             </Box>
+          )}
+          {/* The time drill's panel: the sub-hourly series of the building whose row
+              was drilled, below the grid it was drilled from (the grid stays on
+              screen, so the descent reads as one). Grid views only — the map/list/
+              over-years projections render no building row to drill from. */}
+          {!isLoading && showsSeriesDrill(view) && seriesBuilding && (
+            <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
+              <SeriesDrillPanel building={seriesBuilding} onClose={closeSeries} />
+            </Suspense>
           )}
           {!isLoading && view === "overyears" && filtered.length > 0 && (
             // One line per building gets unreadable past a handful, so page the chart

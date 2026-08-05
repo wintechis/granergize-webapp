@@ -96,7 +96,7 @@ and shared back — the same cell shape, different `computedBy`
 | **slice** | fix metric + year, vary feature | map energy lens / regional choropleth (`?m=`, `?y=`) |
 | **dice** | restrict several axes at once | Observations finder filters (list view) |
 | **roll-up** | buildings → set/region, readings → fn(value) | `aggregationComputer` + `regionRollup`; snapshot = the result |
-| **drill-down** | year → `PT15M` on the time axis; a region row → one feature level finer, scoped to it | `EnergyResolutionSwitch` (annual ⇄ time series); the pivot's region-row drill (`?in=`) |
+| **drill-down** | year → `PT15M` on the time axis; a region row → one feature level finer, scoped to it | **in-surface**: a building row of the over-time matrix / pivot drills to its sub-hourly series in a panel below the grid (`?series=`, `observationsAxes.ts` + `SeriesDrillPanel`); the pivot's region-row drill (`?in=`); the `/observation` detail page remains the full time surface (`EnergyResolutionSwitch`, annual ⇄ time series) |
 | **drill-across** | join a second cube sharing the feature + time axes (its own measures) | the external `qb:` regionalstatistik cells: the pivot's trailing "Official statistics" rows at a Land/Kreis row level (`cube/regionalCells.ts`), and the regional-context section on the detail pages |
 | **pivot** | swap which axis is rows vs series | `overtime` (buildings × years heatmap) vs `overyears` (time x-axis, building series); `pivot` moves the row axis up the feature ladder (`?rows=`) — `observationsAxes.ts`, `pivot.ts` |
 
@@ -107,7 +107,11 @@ fan-out. The discipline: **navigate freely within materialized cells; crossing a
 materialization boundary is an explicit fetch.**
 
 - **Base cells** — the building's annual datasets: fetched per source, fold-on-read.
-- **Finest time level** (`PT15M`) — stored, but lazy-loaded on drill-down only.
+- **Finest time level** (`PT15M`) — stored, but lazy-loaded on drill-down only. The
+  drill is now reachable *inside* Explore (`?series=<building ref>` opens the panel below
+  the over-time / pivot grid), which changes where the boundary is crossed, not how:
+  mounting the panel is the explicit act — nothing is prefetched for a row that merely
+  *offers* the drill, and the affordance itself appears only where such cells exist.
 - **Rolled-up cells** — `AggregationSnapshot`s persisted on the Pod; recompute = refresh
   the materialized cell. Benchmarks are snapshots materialized *by another agent*. Every
   snapshot records its own time coordinate (`cons:metricPeriod` — the year it covers, or

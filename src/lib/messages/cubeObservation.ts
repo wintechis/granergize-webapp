@@ -298,6 +298,21 @@ export const cubeObservation = {
     de: "{region} — {indicator} {year}: {value} {unit}",
     fr: "{region} — {indicator} {year} : {value} {unit}",
   },
+  // The time drill (`?series=`) — descending from a building row of the over-time /
+  // pivot grid to the cube's FINEST time grain (its sub-hourly series), rendered as a
+  // panel below the grid. The affordance shows only where such cells exist (the cube
+  // is sparse), and the panel restates the full coordinate: which building, which
+  // grain. Closing it reuses `btnClose`.
+  seriesDrillAria: {
+    en: "Show the sub-hourly series for {building}",
+    de: "Viertelstundenreihe für {building} anzeigen",
+    fr: "Afficher la série infra-horaire de {building}",
+  },
+  seriesDrillTitle: {
+    en: "{building} — sub-hourly series",
+    de: "{building} — Viertelstundenreihe",
+    fr: "{building} — série infra-horaire",
+  },
   // The entity-page → Explore hand-off ("explore this"): jump into the Explore
   // surface at the coordinate this page's entity sits at (`cube/exploreContext.ts`).
   // ONE label for every detail page that offers it, so the affordance reads the same

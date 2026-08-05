@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { t } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -37,6 +37,16 @@ import { T } from "../helpers/timeouts.ts";
  * pseudo-metric (electricity + heat, `energy/energyMetric.ts`): selecting it on the
  * measure axis writes `?m=energyTotal` and the grid's cells carry its label, so the
  * total is a labelled cell like any other (never an unexplained figure).
+ *
+ * The FOURTH test covers the time axis's finest grain — the in-surface drill
+ * (`?series=`, `cube/observationsAxes.ts` + `SeriesDrillPanel`): a building row that
+ * carries sub-hourly (`PT15M`) datasets offers a drill affordance, one that carries only
+ * annual data does not (the cube is sparse — no cells, no affordance), and drilling opens
+ * the series panel below the grid without leaving Explore. The demo seed makes this
+ * checkable without a fixture of its own: exactly one seeded building ("Lange Gasse 20")
+ * carries BOTH shapes, so it is the only grid row with a finer grain under it — the
+ * series-only demo has no annual cells and is pruned out of the grid entirely, and the
+ * investor demos are annual-only.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/solo/cube-pivot.spec.ts
@@ -95,6 +105,15 @@ const KREIS_CUBE_TTL = `
 /** Escape a catalog string for use inside a locator RegExp (labels differ per
  *  `E2E_LANG` and may carry regex metacharacters, e.g. the French apostrophes). */
 const rx = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The one seeded demo carrying BOTH energy shapes (annual cells + a `PT15M` series),
+ *  so the only grid row with a finer time grain to drill into. Its display name is its
+ *  street address (the demo sets no label/code) — see `buildingSerializer.ts`. */
+const SERIES_DEMO = "Lange Gasse 20";
+
+/** A seeded demo carrying ANNUAL data only — no finer time grain, so no drill. Its
+ *  display name is its building code (which wins over the street address). */
+const ANNUAL_ONLY_DEMO = "NOP-84";
 
 test.describe.configure({ mode: "serial" });
 
@@ -272,5 +291,67 @@ test.describe("cube pivot (feature-ladder roll-up)", () => {
     await expect(async () => {
       expect(await totalCells.count()).toBeGreaterThan(0);
     }).toPass({ timeout: T.poll, intervals: [1_500] });
+  });
+
+  test("a series-capable row drills to the sub-hourly panel in-surface; annual-only rows offer none", async () => {
+    test.setTimeout(T.testSolo);
+    await page.goto("/");
+    await openObservationsView(page, "pivot");
+
+    // Wait for the live building rows (the grid's finest feature grain).
+    const cells = page.getByRole("button", { name: /—\s.*\d{4}\s*:/ });
+    await expect(async () => {
+      expect(await cells.count()).toBeGreaterThan(0);
+    }).toPass({ timeout: T.poll, intervals: [1_500] });
+
+    // Sparsity: the affordance exists ONLY where a finer time grain does. Of the
+    // seeded rows, only the both-shapes demo has a PT15M series under its annual
+    // cells — the investor demos are annual-only and get nothing.
+    const drills = page.getByRole("button", { name: tPattern("seriesDrillAria") });
+    await expect(drills).toHaveCount(1);
+    await expect(drills.first()).toHaveAccessibleName(
+      new RegExp(rx(SERIES_DEMO)),
+    );
+    // …and explicitly none for the annual-only row, which IS on screen.
+    await expect(page.getByText(ANNUAL_ONLY_DEMO).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: t("seriesDrillAria", { building: ANNUAL_ONLY_DEMO }),
+      }),
+    ).toHaveCount(0);
+
+    // Drilling is a URL axis (shareable, Back-able), and the panel restates the
+    // coordinate it sits at: which building, which grain.
+    const panelTitle = t("seriesDrillTitle", { building: SERIES_DEMO });
+    await expect(page.getByText(panelTitle)).toHaveCount(0);
+    await drills.first().click();
+    await expect(page).toHaveURL(/series=/, { timeout: T.action });
+    await expect(page.getByText(panelTitle)).toBeVisible({ timeout: T.action });
+    // The grid stays on screen above it — a descent, not a seventh view.
+    await expect(cells.first()).toBeVisible();
+
+    // Closing clears the param (and the panel with it).
+    await page.getByRole("button", { name: t("btnClose") }).first().click();
+    await expect(page).not.toHaveURL(/series=/, { timeout: T.action });
+    await expect(page.getByText(panelTitle)).toHaveCount(0);
+
+    // The SAME drill is offered on the other grid projection (the over-time heatmap) —
+    // it is an axis of the surface, not a pivot feature. That matrix keeps every
+    // supplied building as a row (it doesn't prune all-gap ones), so the series-only
+    // demo shows up there too; what matters is that the capable row drills and the
+    // annual-only one still doesn't.
+    await openObservationsView(page, "overtime");
+    const overtimeDrill = page.getByRole("button", {
+      name: t("seriesDrillAria", { building: SERIES_DEMO }),
+    });
+    await expect(overtimeDrill).toBeVisible({ timeout: T.action });
+    await expect(
+      page.getByRole("button", {
+        name: t("seriesDrillAria", { building: ANNUAL_ONLY_DEMO }),
+      }),
+    ).toHaveCount(0);
+    await overtimeDrill.click();
+    await expect(page).toHaveURL(/series=/, { timeout: T.action });
+    await expect(page.getByText(panelTitle)).toBeVisible({ timeout: T.action });
   });
 });

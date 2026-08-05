@@ -127,6 +127,16 @@ Encoded now:
   region) and cleared by the scope chip. Only read when coarser than `rows`
   (`prefixValidAt` — a finer/equal scope would mislabel the rows), so a hand-edited
   combination degrades to unscoped. Picking a level by hand also clears it.
+- `series` — the **time drill**: the building whose sub-hourly (`PT15M`) series panel is
+  open below the grid, on the two grid views (`overtime` / `pivot`; `showsSeriesDrill`).
+  The value is a building *ref* in the same form the detail routes carry
+  (`Building.id` — storage-relative for an own building, an absolute IRI for a shared
+  one), so a building maps to one stable param value. Set by the small timeline icon on
+  a building row that actually carries series datasets (the cube is sparse — no cells,
+  no affordance), cleared by the panel's close button. Owned by `observationsAxes.ts`;
+  resolved against the visible set by the finder, so a stale/filtered-out/annual-only ref
+  renders nothing rather than an error. It rides along a view switch (inert where no
+  building row exists) like `rows`/`in` do off the pivot.
 - `m` — the energy metric (the cube's measure axis), shown/written by the metric
   selector on every Observations energy view except the plain List; one shared choice.
   Values: the stored carriers `electricityConsumption` / `heatConsumption` /
@@ -162,7 +172,9 @@ Encoded now:
 - `tab` / `day` / `month` — the observation page's **user-energy (Lastgang) chart**
   sub-state: the view tab (`tab` = `day`|`totals`|`profile`|`calendar`, default `day`
   omitted) and the day/month pickers (`day` = `YYYY-MM-DD`, `month` = `YYYY-MM`, each
-  absent → the first day / latest month). Owned by `seriesChartParams.ts`.
+  absent → the first day / latest month). Owned by `seriesChartParams.ts`. The chart is
+  the body of Explore's `series` drill panel too, so these ride on the Explore URL
+  whenever that panel is open — same params, same owner, one more host.
 
 **A param's *value* lives in the URL; the *default* it falls back to varies.** Every
 param above is *navigational* — it lives only in the finder's URL, and the default is
@@ -179,7 +191,10 @@ between finders. Read precedence is **URL > remembered > hardcoded default**: a 
 bare nav-tab re-entry restores what you last picked rather than the hardcoded default
 (own + shared; map). The remaining params (`m`/`y` and the search box) are *not* remembered
 — they stay per-visit, because a metric/year/query is about the moment, not a standing
-preference.
+preference. The time drill (`series`) is deliberately in that second group too: a drill is
+a **transient descent**, not a facet you set and browse under — re-entering Explore through
+its nav tab must not silently re-open somebody's last panel (and re-trigger its lazy
+`PT15M` fetch). It stays URL-only, so it is still shareable and Back-able.
 
 `sessionStorage` is chosen deliberately along the persistence spectrum: not a module
 variable (lost on reload — too brief), not `localStorage` (kept forever, across tabs — too

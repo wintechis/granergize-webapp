@@ -8,9 +8,13 @@ import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import TimelineIcon from "@mui/icons-material/Timeline";
 import { Building } from "../../types.ts";
+import { splitEnergyDatasets } from "../../lib/energyResolution.ts";
 import { observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
+import IconAction from "../IconAction.tsx";
+import { seriesToParams } from "../../services/cube/observationsAxes.ts";
 import {
   DEFAULT_METRIC,
   metricLabelKey,
@@ -87,7 +91,11 @@ import { useT } from "../../context/I18nProvider.tsx";
  * the map's lens loads, so a building-level cell colours identically to the map and the
  * over-time matrix. Building rows drill into `/observation` (as the matrix cells do);
  * a region row's LABEL drills down the ladder instead — one level finer, scoped to that
- * region (`?in=`), with the scope shown as a clearable chip. Picking a level by hand
+ * region (`?in=`), with the scope shown as a clearable chip. A building row that carries
+ * sub-hourly datasets additionally offers the **time drill** (`?series=`) — one grain
+ * finer than the year columns, opened as a panel below the grid by the finder; a region
+ * row is a roll-up over many buildings, so it has no single series to descend to.
+ * Picking a level by hand
  * clears the scope: a drill's scope belongs to the row it came from, and keeping it
  * would mislabel coarser rows (fed by only a sub-region's members).
  *
@@ -161,6 +169,12 @@ export default function ObservationsPivot(
     );
   const clearScope = () =>
     setSearchParams((prev) => inToParams(null, prev), { replace: true });
+  // The time DRILL (`?series=`) off a BUILDING row: the grid's rows/years are the
+  // annual grain, this descends to the same building's sub-hourly series, which the
+  // finder renders as a panel below the grid. A region row is a roll-up over many
+  // buildings — there is no single series under it, so it never offers the drill.
+  const openSeries = (b: Building) =>
+    setSearchParams((prev) => seriesToParams(b.id, prev), { replace: true });
 
   // The region join key: a loaded building stores only its `dcterms:spatial` concept,
   // so the bare AGS the ladder groups by is resolved from it (the shared hook the map's
@@ -381,29 +395,53 @@ export default function ObservationsPivot(
             const drill = !route && row.key !== UNASSIGNED_KEY && finer
               ? () => drillInto(row, finer)
               : null;
+            // The time drill: only a building row has ONE series under it, and only
+            // where it actually carries sub-hourly datasets.
+            const seriesOf = row.building &&
+                splitEnergyDatasets(row.building.energyDatasets).series.length > 0
+              ? row.building
+              : null;
             return (
               <Box key={row.key} sx={{ display: "contents" }}>
-                <Typography
-                  variant="body2"
-                  title={label}
-                  sx={{ ...ellipsis, pr: 1, maxWidth: NAME_COL }}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    pr: 1,
+                    maxWidth: NAME_COL,
+                    minWidth: 0,
+                  }}
                 >
-                  {route
-                    ? <RefLink to={route}>{label}</RefLink>
-                    : drill
-                    ? (
-                      <Link
-                        component="button"
-                        variant="body2"
-                        onClick={drill}
-                        aria-label={t("pivotDrillInto", { feature: label })}
-                        title={t("pivotDrillInto", { feature: label })}
-                      >
-                        {label}
-                      </Link>
-                    )
-                    : label}
-                </Typography>
+                  <Typography
+                    variant="body2"
+                    title={label}
+                    sx={{ ...ellipsis, minWidth: 0 }}
+                  >
+                    {route
+                      ? <RefLink to={route}>{label}</RefLink>
+                      : drill
+                      ? (
+                        <Link
+                          component="button"
+                          variant="body2"
+                          onClick={drill}
+                          aria-label={t("pivotDrillInto", { feature: label })}
+                          title={t("pivotDrillInto", { feature: label })}
+                        >
+                          {label}
+                        </Link>
+                      )
+                      : label}
+                  </Typography>
+                  {seriesOf && (
+                    <IconAction
+                      label={t("seriesDrillAria", { building: label })}
+                      icon={<TimelineIcon fontSize="small" />}
+                      onClick={() => openSeries(seriesOf)}
+                    />
+                  )}
+                </Box>
                 {row.cells.map((cell) => {
                   const has = cell.value != null;
                   const title = cellTitle(row, cell);

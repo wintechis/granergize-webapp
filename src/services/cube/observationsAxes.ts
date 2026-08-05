@@ -23,6 +23,10 @@
  * Pure + React-free → Tier-1 testable. Shares `?m=` (metric) and `?y=` (year, read
  * inside `BuildingsMap`) with the energy views; the map viewport (`?c=`/`?z=`) and the
  * list pager (`?offset=`) ride along untouched.
+ *
+ * Besides the view and the pivot's row level/scope this module also owns `?series=` —
+ * the **time drill** down to the cube's finest grain (a building's sub-hourly series,
+ * rendered as a panel below the over-time / pivot grid). See {@link resolveSeries}.
  */
 import { type PivotRowLevel, prefixValidAt } from "./pivot.ts";
 
@@ -133,6 +137,50 @@ export function inToParams(
   else sp.set("in", scope);
   return sp;
 }
+
+/**
+ * Read the **series drill** from `?series=` — the building whose sub-hourly (`PT15M`)
+ * panel is open below the grid. The value is a building *ref* in the same form the
+ * detail routes' `?ref=`/`?uri=` carry (`Building.id`: storage-relative for an own
+ * building, an absolute IRI for a shared one), so a building maps to one stable param
+ * value. Absent/empty → `null` (no drill).
+ *
+ * Unlike the view axis and the tier facet this is **not** session-remembered
+ * (`facetMemory`): a drill is a transient descent to the finest time grain, not a
+ * standing facet — re-entering Explore through its nav tab must not silently re-open
+ * somebody's last panel (and re-trigger its fetch). It is URL-only, so it stays
+ * shareable and Back-able; the panel's open state derives from the URI alone.
+ *
+ * Validity is NOT decided here: whether the ref names a building in the current set —
+ * and whether that building carries series datasets at all — is a question about data,
+ * not about the URI, so the finder resolves it against its buildings (an unresolvable
+ * ref simply renders no panel).
+ */
+export function resolveSeries(params: URLSearchParams): string | null {
+  return params.get("series") || null;
+}
+
+/** Serialize the series drill to `?series=` (`null` = closed, omitted for a clean
+ *  URI), preserving the other axes — the view, the coordinate, the pager. */
+export function seriesToParams(
+  ref: string | null,
+  prev: URLSearchParams,
+): URLSearchParams {
+  const sp = new URLSearchParams(prev);
+  if (!ref) sp.delete("series");
+  else sp.set("series", ref);
+  return sp;
+}
+
+/**
+ * The series drill is offered on the two **grid** projections — the over-time matrix
+ * and the pivot — whose building rows are exactly the cells the descent starts from.
+ * The map/list/over-years/saved-views projections render no building row to drill, so
+ * a `?series=` riding along on them is simply inert (it survives a view switch and the
+ * panel reappears on return, like `?rows=`/`?in=` do off the pivot).
+ */
+export const showsSeriesDrill = (view: ObsView): boolean =>
+  view === "overtime" || view === "pivot";
 
 /**
  * The metric selector shows on every energy view — i.e. all but the plain List and the

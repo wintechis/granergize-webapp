@@ -3,10 +3,14 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import TimelineIcon from "@mui/icons-material/Timeline";
 import { Building } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
+import { splitEnergyDatasets } from "../../lib/energyResolution.ts";
 import { observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
+import IconAction from "../IconAction.tsx";
+import { seriesToParams } from "../../services/cube/observationsAxes.ts";
 import {
   DEFAULT_METRIC,
   type SelectableMetricKey,
@@ -52,6 +56,11 @@ import { useT } from "../../context/I18nProvider.tsx";
  * observation leaf, consistent with the map markers); the panel is a finder, it
  * doesn't own selection state. Tier + trend colours reuse the shared palettes.
  *
+ * A row whose building carries sub-hourly datasets also offers the **time drill**
+ * (`?series=`): the finer grain under the year columns, opened as a panel below the
+ * grid by the finder. Sparse, like the cube — a building with only annual data has no
+ * finer grain, so it gets no affordance.
+ *
  * Loading is the header indicator's job (CLAUDE.md): the panel shows a plain
  * "Loading…" / empty-state line while the cube is in flight or empty — no
  * component spinner.
@@ -87,7 +96,13 @@ export default function ObservationsMatrix(
   // Drill into the observation page, recording the matrix as the back trail.
   const go = (route: string) => navigate(route, { state: trailState(route) });
   const t = useT();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The time DRILL (`?series=`): descend from this row to the building's sub-hourly
+  // series, which the finder renders as a panel below the grid. Offered only where such
+  // cells exist (the cube is sparse — a building with no `PT15M` dataset has no finer
+  // grain to descend to), and written like every other axis: replace, own key only.
+  const openSeries = (b: Building) =>
+    setSearchParams((prev) => seriesToParams(b.id, prev), { replace: true });
   // The held time cut of the cube coordinate (`services/cube/coordinate.ts`) — the same
   // `?y=` the map slider writes (absent → the latest reachable year). This view spans
   // every year, so it only MARKS that column; it never writes the year.
@@ -183,17 +198,36 @@ export default function ObservationsMatrix(
         {/* One row per building: the name, a cell per year, then the trend. */}
         {rows.map((row) => {
           const trendMeta = TREND_META[trends?.get(row.building.id) ?? "unknown"];
+          const name = buildingDisplayName(row.building);
+          const hasSeries =
+            splitEnergyDatasets(row.building.energyDatasets).series.length > 0;
           return (
             <Box key={row.building.id} sx={{ display: "contents" }}>
-              <Typography
-                variant="body2"
-                title={buildingDisplayName(row.building)}
-                sx={{ ...ellipsis, pr: 1, maxWidth: NAME_COL }}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  pr: 1,
+                  maxWidth: NAME_COL,
+                  minWidth: 0,
+                }}
               >
-                <RefLink to={observationRoute(row.building.id)}>
-                  {buildingDisplayName(row.building)}
-                </RefLink>
-              </Typography>
+                <Typography
+                  variant="body2"
+                  title={name}
+                  sx={{ ...ellipsis, minWidth: 0 }}
+                >
+                  <RefLink to={observationRoute(row.building.id)}>{name}</RefLink>
+                </Typography>
+                {hasSeries && (
+                  <IconAction
+                    label={t("seriesDrillAria", { building: name })}
+                    icon={<TimelineIcon fontSize="small" />}
+                    onClick={() => openSeries(row.building)}
+                  />
+                )}
+              </Box>
               {row.cells.map((cell) => {
                 const has = cell.value != null;
                 const title = cellTitle(buildingDisplayName(row.building), cell);
