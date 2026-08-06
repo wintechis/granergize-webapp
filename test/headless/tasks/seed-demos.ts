@@ -14,7 +14,7 @@
  *
  * (Example BUILDINGS are no longer seeded programmatically — they arrive through
  * the file importer, whose parse contract is unit-covered by
- * `scripts/genExampleFiles.test.ts` and whose write path is covered by the
+ * `scripts/genCoreFixture.test.ts` and whose write path is covered by the
  * `add-building` task and the `excel-import` e2e.)
  *
  * The two seeders write disjoint resources — `demo-agents/` + `agents.ttl`, and

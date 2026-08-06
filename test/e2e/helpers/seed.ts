@@ -13,9 +13,9 @@ export interface SeedOpts {
   lang?: Lang;
 }
 
-/** The core example fixture (6 L.Immo buildings) — emitted by
- *  `deno task gen:examples` alongside the app's bundled example files, so the
- *  specs import exactly the data a user gets from "Try an example file". */
+/** The core example fixture (6 L.Immo buildings) — the subset
+ *  `deno task gen:core-fixture` cuts out of the app's bundled L.Immo example,
+ *  so the specs import exactly the data a user gets from "Try an example file". */
 export const CORE_FIXTURE = "test/e2e/fixtures/limmo-core.xlsx";
 /** The bundled 15-minute load-profile example (served from `public/examples/`). */
 export const LASTGANG_FIXTURE = "public/examples/lastgang-am-tower-10.xlsx";

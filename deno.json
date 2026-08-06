@@ -12,7 +12,7 @@
     "gen:labels": "deno run --allow-env --allow-read --allow-write scripts/genVocabLabels.ts",
     "gen:schema": "deno run --allow-env --allow-read --allow-write scripts/genVocabSchema.ts",
     "gen:interface": "deno run --allow-env --allow-read --allow-write scripts/genVocabInterface.ts",
-    "gen:examples": "deno run --allow-env --allow-read --allow-write scripts/genExampleFiles.ts",
+    "gen:core-fixture": "deno run --allow-env --allow-read --allow-write scripts/genCoreFixture.ts",
     "doc": "deno run -A npm:typedoc",
     "loc": "deno run --allow-read --allow-run=git test/loc.ts",
     "lint": "deno run -A npm:eslint .",

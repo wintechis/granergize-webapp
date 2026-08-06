@@ -3,10 +3,10 @@ import type { MessageId } from "../lib/messages.ts";
 /**
  * The bundled example workbooks offered under "Try an example file" in the
  * Add-building Autofill sub-flow. The files live in `public/examples/` and are
- * emitted by the codegen pipeline (`deno task gen:examples`,
- * `scripts/genExampleFiles.ts`) from the native L.Immo extract + the fictional
- * portfolio data; the dialog fetches one and feeds it through the SAME parse
- * path as a user-picked file.
+ * hand-maintained SOURCE spreadsheets — the example data lives in them and
+ * nowhere else; the dialog fetches one and feeds it through the SAME parse path
+ * as a user-picked file. Their import contract is pinned by
+ * `scripts/genCoreFixture.test.ts`.
  *
  * What a spreadsheet cannot carry rides here instead:
  *  - `selfOperatedCodes`/`selfOwnedCodes` — buildings (by `buildingCode`, or

@@ -19,16 +19,25 @@ spreadsheet takes:
   `DeclineDemoOffer` intents, `OnboardingBanner.tsx` and the dev-mode "Add
   example buildings" menu item); the Buildings empty state carries the guidance
   instead.
-- **Generator**: `scripts/genExampleFiles.ts` (`deno task gen:examples`,
-  replacing `gen:demo-buildings`) transforms the committed L.Immo extract into
-  `public/examples/limmo-nuernberg.xlsx` (all 37, generic flat layout, the same
-  deterministic synthetic annual energy 2022–2024), plus
+- **The workbooks ARE the example data.** `public/examples/limmo-nuernberg.xlsx`
+  (all 37, generic flat layout, annual energy 2022–2024),
   `beispiel-portfolio.xlsx` (the fictional 4 as an investor row-label sheet,
-  no coordinates → demonstrates geocode-on-import),
-  `lastgang-am-tower-10.xlsx` (a 14-day 15-minute profile) and the e2e core
-  fixture `test/e2e/fixtures/limmo-core.xlsx` (6 buildings). xlsx bytes aren't
-  stable across writes, so `genExampleFiles.test.ts` pins freshness by
-  comparing PARSED records — which makes it the import-contract test too.
+  no coordinates → demonstrates geocode-on-import) and
+  `lastgang-am-tower-10.xlsx` (a 14-day 15-minute profile) are hand-maintained
+  **source files**, not codegen output — no TypeScript anywhere holds example
+  buildings any more. The transform pipeline that first produced them (a native
+  L.Immo extract plus deterministic synthetic energy, technical systems and the
+  fictional set as TS literals) served its purpose and is retired; recover it
+  from `git show a62a680:scripts/genExampleFiles.ts` if the synthesis is ever
+  wanted again, and `scripts/data/` keeps the native extract as provenance.
+- **One derived artifact**: `scripts/genCoreFixture.ts`
+  (`deno task gen:core-fixture`) cuts the 6-building
+  `test/e2e/fixtures/limmo-core.xlsx` out of the L.Immo workbook, so the browser
+  lanes import 6 rows instead of 37 without a second hand-maintained sheet
+  drifting from the example the app ships. xlsx bytes aren't stable across
+  writes, so `genCoreFixture.test.ts` compares PARSED records — pinning the
+  fixture's freshness *and* serving as the import contract for all three
+  bundled workbooks.
 - **What a spreadsheet can't carry** is supplied around it: `operatedBy` /
   `ownedBy` self-links (the reader's WebID is unknown at generation — the
   example loader applies them per `buildingCode`, keeping the operator group
