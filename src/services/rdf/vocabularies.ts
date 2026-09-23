@@ -134,12 +134,11 @@ export const TIME_NS = "http://www.w3.org/2006/time#";
 export const SSN_NS = "http://www.w3.org/ns/ssn/";
 
 /**
- * DWD vocabulary served by `linked-dwd` (see `linkedWeather.ts`): a
- * `dwd:WeatherStation` carries `dwd:station_id`/`dwd:station_name`, an observation
- * carries `dwd:quality`. The QUDT *schema* namespace (`qudt:numericValue` on the
- * `qudt:QuantityValue` result) — distinct from {@link UNIT_NS}, the unit vocabulary.
+ * The QUDT *schema* namespace (`qudt:numericValue` on the `qudt:QuantityValue` result
+ * linked-dwd serves) — distinct from {@link UNIT_NS}, the unit vocabulary. linked-dwd's
+ * own terms have no fixed namespace here: they live under the wrapper root, see
+ * `dwdVocabNs` in `linkedWeather.ts`.
  */
-export const DWD_NS = "https://opendata.dwd.de/#";
 export const QUDT_SCHEMA_NS = "http://qudt.org/1.1/schema/qudt#";
 
 /** RDF Data Cube — the shape `linked-regionalstatistik` serves (see

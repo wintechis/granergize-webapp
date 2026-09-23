@@ -65,7 +65,7 @@ const MASTR_TTL = `
 // render its table — and thus the dev source link to the values?… query IRI.
 const WEATHER_STATIONS_TTL = `
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix dwd: <https://opendata.dwd.de/#> .
+@prefix dwd: <vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix schema: <http://schema.org/> .
 <https://wunderfacts.com/dwd/station/03668> a dwd:WeatherStation ;
@@ -76,7 +76,7 @@ const WEATHER_VALUES_TTL = `
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix qudt: <http://qudt.org/1.1/schema/qudt#> .
-@prefix dwd: <https://opendata.dwd.de/#> .
+@prefix dwd: <vocab#> .
 <#obs1> a sosa:Observation ; sosa:observedProperty dwd:JA_TT ;
   sosa:resultTime "2023-12-31" ; dwd:quality 3 ;
   sosa:hasResult [ qudt:numericValue 9.8 ] .
