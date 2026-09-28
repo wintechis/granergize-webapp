@@ -17,6 +17,36 @@ different buildings using the
 - Run `deno task dev:local` (or `dev:local:jss`) for a fully local stack — a
   throwaway Pod + IdP with seeded logins, no remote Pod needed
 
+## Quick start
+
+The app stores everything in your own [Solid](https://solidproject.org/) Pod,
+so a fresh login shows an empty dashboard: nothing is seeded. To see the app
+with data in it, import one of the bundled example files. They take exactly the
+same path as your own spreadsheet would.
+
+1. You need a Solid Pod. Any Solid identity provider works; if you don't have
+   one yet, register at a public provider such as
+   [solidcommunity.net](https://solidcommunity.net/) or
+   [Inrupt PodSpaces](https://start.inrupt.com/). Then run `deno task dev`,
+   open `http://localhost:5173`, and enter your identity provider on the login
+   screen.
+2. Log in, open **Buildings**, and click **Autofill from file**.
+3. Below the file picker, under
+   "…or try one of the bundled example files", pick one:
+   - **Logistics portfolio Nürnberg** — 37 real logistics buildings with
+     annual energy figures for 2022–2024. The largest set; shows the map,
+     the over-time heatmap, the pivot roll-ups and the benchmarks.
+   - **Sample portfolio** — 4 fictional buildings in the row-label sheet
+     layout, without coordinates, so you can watch the app geocode them on
+     import.
+   - **15-minute load profile (Lastgang)** — a two-week sub-hourly series for
+     one building, which renders the time-series chart.
+
+The files live in `public/examples/` and are ordinary spreadsheets. An
+exported building re-imports the same way, so an export doubles as the import
+template for your own data. The [handbook](docs/handbuch.md) walks through
+the app using exactly these example buildings.
+
 ## License
 
 Copyright (C) 2025–2026 Thomas Wehr, Andreas Harth and the Granergize project
