@@ -98,6 +98,27 @@ Nürnberg-region extract instead of the four hand-written fictional demos:
 - Specs, screenshots, videos, Landing hero, handbuch and
   `notes/storage-layout.md` follow the new addresses (Nordostpark 84 →
   Thomas-Dachser-Str. 4 etc.).
+## [2026-09-23] — Weather: follow linked-dwd's own vocabulary (`vocab#`)
+
+linked-dwd moved the terms it coins (`dwd:WeatherStation`, `dwd:station_id`,
+`dwd:quality`, the CDC columns `dwd:JA_TT` …) from the fixed
+`https://opendata.dwd.de/#` — a namespace on DWD's host that DWD neither
+defines nor serves — to its own `vocab#`, served at `…/dwd/vocab` with en+de
+labels. The wrapper writes the namespace ROOT-relative, so it has no fixed IRI
+any more:
+
+- **`dwdVocabNs(documentIri)`** (`linkedWeather.ts`) resolves `vocab#` against
+  the document IRI; `near`/`values` sit at the wrapper root, so this gives the
+  namespace for any deployment (`https://wunderfacts.com/dwd/near?…` →
+  `https://wunderfacts.com/dwd/vocab#`). `parseStations`/`parseObservations`
+  match against it; `DWD_NS` is gone from `vocabularies.ts`.
+- **Must deploy together with linked-dwd's vocab change**: this build matches
+  only the new namespace (a unit test pins that the old one no longer does),
+  and the old build matches only the old one.
+- Unit and e2e fixtures declare `@prefix dwd: <vocab#>`, relative like the
+  wrapper's own output. Checked beyond the fixtures: the parsers read a local
+  linked-dwd build's real `near`/`values` Turtle (3 ranked stations; 82
+  `JA_TT`, 68 `JA_RR` observations for Nürnberg 03668).
 
 ## [2026-07-10] — Geocoding: Nominatim → the address register (`linked-addressapi`)
 

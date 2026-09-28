@@ -23,7 +23,6 @@
  */
 import { DataFactory } from "n3";
 import {
-  DWD_NS,
   GEO_LAT,
   GEO_LONG,
   QUDT_SCHEMA_NS,
@@ -89,6 +88,20 @@ export interface WeatherObservation extends WeatherAnnualValue {
   quality?: number;
 }
 
+/**
+ * linked-dwd's own vocabulary namespace — `dwd:WeatherStation`, `dwd:station_id`,
+ * `dwd:quality`, the CDC columns `dwd:JA_TT` … — is `vocab#` under the WRAPPER ROOT
+ * (served at `vocab`, labelled en+de). The wrapper writes it ROOT-relative, so it has no
+ * fixed IRI: it resolves against the document, and `near`/`values` documents sit at the
+ * root, so resolving `vocab#` against the document IRI gives it for any deployment
+ * (`https://wunderfacts.com/dwd/near?…` → `https://wunderfacts.com/dwd/vocab#`).
+ * Until linked-dwd 2026-09-23 it was the fixed `https://opendata.dwd.de/#`, a namespace
+ * on DWD's host that DWD neither defines nor serves.
+ */
+export function dwdVocabNs(documentIri: string): string {
+  return new URL("vocab#", documentIri).href;
+}
+
 /** Base IRI of linked-dwd — delegates to the registry resolver (env-overridable). */
 export function linkedWeatherBase(): string {
   return sourceBase("dwd");
@@ -102,12 +115,13 @@ export function linkedWeatherBase(): string {
  */
 export function parseStations(turtle: string, baseIri: string): WeatherStation[] {
   const store = parseRdfText(turtle, baseIri);
+  const dwd = dwdVocabNs(baseIri);
   const out: WeatherStation[] = [];
   for (
     const { subject } of store.getQuads(
       null,
       namedNode(RDF_TYPE),
-      namedNode(`${DWD_NS}WeatherStation`),
+      namedNode(`${dwd}WeatherStation`),
       null,
     )
   ) {
@@ -121,14 +135,14 @@ export function parseStations(turtle: string, baseIri: string): WeatherStation[]
     let endYear: number | undefined;
     for (const q of store.getQuads(subject, null, null, null)) {
       const p = q.predicate.value;
-      if (p === `${DWD_NS}station_id`) stationId = q.object.value;
-      else if (p === `${DWD_NS}station_name`) name = q.object.value;
+      if (p === `${dwd}station_id`) stationId = q.object.value;
+      else if (p === `${dwd}station_name`) name = q.object.value;
       else if (p === `${RDFS_NS}label`) label = q.object.value;
       else if (p === GEO_LAT) latitude = Number.parseFloat(q.object.value);
       else if (p === GEO_LONG) longitude = Number.parseFloat(q.object.value);
       else if (p === `${SCHEMA_NS}distance`) distance = Number.parseFloat(q.object.value);
-      else if (p === `${DWD_NS}start_date`) startYear = yearOf(q.object.value);
-      else if (p === `${DWD_NS}end_date`) endYear = yearOf(q.object.value);
+      else if (p === `${dwd}start_date`) startYear = yearOf(q.object.value);
+      else if (p === `${dwd}end_date`) endYear = yearOf(q.object.value);
     }
     if (stationId) {
       out.push({
@@ -159,6 +173,7 @@ export function parseObservations(
   column: string,
 ): WeatherObservation[] {
   const store = parseRdfText(turtle, baseIri);
+  const dwd = dwdVocabNs(baseIri);
   const out: WeatherObservation[] = [];
   for (
     const { subject } of store.getQuads(
@@ -176,10 +191,10 @@ export function parseObservations(
       const p = q.predicate.value;
       if (p === `${SOSA_NS}observedProperty`) observed = q.object.value;
       else if (p === `${SOSA_NS}resultTime`) date = q.object.value;
-      else if (p === `${DWD_NS}quality`) quality = Number.parseInt(q.object.value, 10);
+      else if (p === `${dwd}quality`) quality = Number.parseInt(q.object.value, 10);
       else if (p === `${SOSA_NS}hasResult`) resultNode = q.object;
     }
-    if (observed !== `${DWD_NS}${column}`) continue;
+    if (observed !== `${dwd}${column}`) continue;
     let value: number | null = null;
     if (resultNode) {
       for (

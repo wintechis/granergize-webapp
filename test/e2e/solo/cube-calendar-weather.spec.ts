@@ -53,7 +53,7 @@ const CORS = { "access-control-allow-origin": "*" };
 // `linkedWeather.ts`). `near?` → one nearby `dwd:WeatherStation` with a distance;
 // `values?` → two annual `sosa:Observation`s (mean temperature) for 2023-2024, the
 // years the setup enters annual energy for, so the energy×weather overlay aligns.
-const WEATHER_STATIONS_TTL = `@prefix dwd: <https://opendata.dwd.de/#> .
+const WEATHER_STATIONS_TTL = `@prefix dwd: <vocab#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix schema: <http://schema.org/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -64,7 +64,7 @@ const WEATHER_STATIONS_TTL = `@prefix dwd: <https://opendata.dwd.de/#> .
   geo:lat 49.5028 ; geo:long 11.0549 ;
   schema:distance 5.6 .
 `;
-const WEATHER_VALUES_TTL = `@prefix dwd: <https://opendata.dwd.de/#> .
+const WEATHER_VALUES_TTL = `@prefix dwd: <vocab#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix qudt: <http://qudt.org/1.1/schema/qudt#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .

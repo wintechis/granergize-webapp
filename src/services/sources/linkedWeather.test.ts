@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
+  dwdVocabNs,
   parseObservations,
   parseStations,
   pickStationForYears,
@@ -37,7 +38,7 @@ Deno.test("weatherStationsUrl / weatherValuesUrl build absolute wrapper IRIs", (
 // sorts by distance.
 const STATIONS_BASE = "https://wunderfacts.com/dwd/near";
 const STATIONS_TTL = `
-@prefix dwd: <https://opendata.dwd.de/#> .
+@prefix dwd: <vocab#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix schema: <http://schema.org/> .
@@ -67,7 +68,7 @@ const STATIONS_TTL = `
 // interleaved to prove column filtering.
 const VALUES_BASE = "https://wunderfacts.com/dwd/values";
 const VALUES_TTL = `
-@prefix dwd: <https://opendata.dwd.de/#> .
+@prefix dwd: <vocab#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix qudt: <http://qudt.org/1.1/schema/qudt#> .
 @prefix unit: <http://qudt.org/1.1/vocab/unit#> .
@@ -102,6 +103,27 @@ const VALUES_TTL = `
   sosa:hasResult [ a qudt:QuantityValue ; qudt:numericValue "9.8"^^xsd:float ;
                    qudt:unit unit:DegreeCelsius ] .
 `;
+
+Deno.test("dwdVocabNs: vocab# under the wrapper root, whatever the mount or the query", () => {
+  assert.equal(dwdVocabNs(STATIONS_BASE), "https://wunderfacts.com/dwd/vocab#");
+  assert.equal(
+    dwdVocabNs("https://wunderfacts.com/dwd/values?station=03668&periods=historical,recent"),
+    "https://wunderfacts.com/dwd/vocab#",
+  );
+  assert.equal(
+    dwdVocabNs("http://localhost:8080/linked-dwd/near"),
+    "http://localhost:8080/linked-dwd/vocab#",
+  );
+});
+
+Deno.test("parseStations: the pre-2026-09-23 opendata.dwd.de namespace no longer matches", () => {
+  // linked-dwd moved its terms to its own vocab#; a document in the old namespace is not ours.
+  const old = STATIONS_TTL.replace(
+    "@prefix dwd: <vocab#> .",
+    "@prefix dwd: <https://opendata.dwd.de/#> .",
+  );
+  assert.deepEqual(parseStations(old, STATIONS_BASE), []);
+});
 
 Deno.test("parseStations: id/name (label fallback)/coords/distance, sorted nearest-first", () => {
   const stations = parseStations(STATIONS_TTL, STATIONS_BASE);
@@ -182,7 +204,7 @@ Deno.test("parseObservations: a different column selects the interleaved observa
 
 Deno.test("parseObservations: sunshine arrives in hours (the column's natural unit)", () => {
   const ttl = `
-@prefix dwd: <https://opendata.dwd.de/#> .
+@prefix dwd: <vocab#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix qudt: <http://qudt.org/1.1/schema/qudt#> .
 @prefix unit: <http://qudt.org/1.1/vocab/unit#> .
