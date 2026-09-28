@@ -1,5 +1,4 @@
 import { useT } from "../context/I18nProvider.tsx";
-import { getGateway } from "../hooks/session.ts";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -9,26 +8,19 @@ import {
   FormControlLabel,
   FormGroup,
   FormLabel,
-  InputLabel,
-  MenuItem,
   Radio,
   RadioGroup,
-  Select,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
 import { webIdsError } from "../lib/webId.ts";
-import { getCurrentRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
 import { useShareBuilding } from "../hooks/mutations.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
-import type { AttachmentRef, Building, UserRole } from "../types.ts";
+import type { AttachmentRef, Building } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
 import { ShareRecipientsPreview, ShareSuccessAlert } from "./ShareFlow.tsx";
-import { roleLabel, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 
 
 /** What energy a share grants alongside the always-shared static building data. */
@@ -52,16 +44,8 @@ export function ShareBuildingDialog({
 }: ShareBuildingDialogProps) {
   const t = useT();
   const { showNotification } = useNotification();
-  // Roles selectable as a sharing target (resolved to member WebIDs via the
-  // data room). Labelled per render so a locale switch re-labels them (a
-  // module-level list froze the labels at first load).
-  const shareRoleOptions: { value: UserRole; label: string }[] = ROOM_ROLE_OPTIONS
-    .map((value) => ({ value, label: roleLabel(value) }));
-  const [shareMode, setShareMode] = useState<"webid" | "role">("webid");
   const [webIds, setWebIds] = useState<string[]>([]);
-  const [targetRole, setTargetRole] = useState<UserRole | "">("");
   const [recipients, setRecipients] = useState<string[]>([]);
-  const [resolving, setResolving] = useState(false);
   const [shareScope, setShareScope] = useState<ShareScope>("all");
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   // The building's attachments and which are included in the share. Default =
@@ -104,59 +88,31 @@ export function ShareBuildingDialog({
   // Conditionally mounted per building (ManagePage gates on state), so closing
   // unmounts the dialog and React discards all of the state above — no manual
   // reset on close needed.
-  const handleProceedToConfirm = async () => {
-    if (shareMode === "webid") {
-      if (webIds.length === 0) {
-        setWebIdError(t("shareEnterOneWebId"));
-        return;
-      }
-      const err = webIdsError(webIds);
-      if (err) {
-        setWebIdError(err);
-        return;
-      }
-      // Sharing to yourself is a no-op with a cost: it appends a permanently
-      // active grant to shared-out/ (the revoke's removeFromACL self-no-ops, so
-      // the pair can never fold away) and posts a pointless self-notification.
-      // The role path already excludes self (getMembersByRole).
-      if (webIds.includes(session.info.webId ?? "")) {
-        setWebIdError(t("shareSelfError"));
-        return;
-      }
-      setWebIdError("");
-      setRecipients(webIds);
-      setConfirmStep(true);
+  //
+  // The recipient is always one or more WebIDs. (A data room used to be an
+  // alternative target — "share with everyone holding role X" — which resolved to
+  // member WebIDs here before the write. Rooms are a WebID DIRECTORY now: you look a
+  // person up there and share with them, so this dialog no longer knows about rooms.)
+  const handleProceedToConfirm = () => {
+    if (webIds.length === 0) {
+      setWebIdError(t("shareEnterOneWebId"));
       return;
     }
-
-    // Role mode: resolve the chosen role to member WebIDs via the data room.
-    if (!targetRole) {
-      setWebIdError(t("shareSelectRole"));
+    const err = webIdsError(webIds);
+    if (err) {
+      setWebIdError(err);
       return;
     }
-    setResolving(true);
+    // Sharing to yourself is a no-op with a cost: it appends a permanently
+    // active grant to shared-out/ (the revoke's removeFromACL self-no-ops, so
+    // the pair can never fold away) and posts a pointless self-notification.
+    if (webIds.includes(session.info.webId ?? "")) {
+      setWebIdError(t("shareSelfError"));
+      return;
+    }
     setWebIdError("");
-    try {
-      const resolved = await getMembersByRole(
-        await getCurrentRoom(getGateway()),
-        targetRole,
-        getGateway(),
-      );
-      if (resolved.length === 0) {
-        setWebIdError(t("shareNoRoleMembers"));
-        return;
-      }
-      setRecipients(resolved);
-      setConfirmStep(true);
-    } catch (error) {
-      setWebIdError(
-        t("shareRoleLoadError", {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
-    } finally {
-      setResolving(false);
-    }
+    setRecipients(webIds);
+    setConfirmStep(true);
   };
 
   const handleShare = () =>
@@ -185,11 +141,8 @@ export function ShareBuildingDialog({
       onClose={onClose}
       // Nothing left to discard once the share succeeded — closing the success
       // screen must not raise the discard confirm.
-      dirty={!shareSuccess &&
-        (webIds.length > 0 || recipients.length > 0 || targetRole !== "")}
-      // Role resolution is as in-flight as the share itself: closing mid-resolve
-      // would drop its result on an unmounted dialog.
-      busy={sharing || resolving}
+      dirty={!shareSuccess && (webIds.length > 0 || recipients.length > 0)}
+      busy={sharing}
       title={t("shareBuildingTitle")}
       actions={sharing
         ? undefined
@@ -202,11 +155,10 @@ export function ShareBuildingDialog({
             <Button
               onClick={handleProceedToConfirm}
               variant="contained"
-              disabled={resolving ||
-                (shareMode === "webid" ? webIds.length === 0 : !targetRole) ||
+              disabled={webIds.length === 0 ||
                 (shareScope === "years" && selectedYears.length === 0)}
             >
-              {resolving ? t("shareResolving") : t("shareReviewAndShare")}
+              {t("shareReviewAndShare")}
             </Button>
           </>
         )
@@ -236,77 +188,18 @@ export function ShareBuildingDialog({
                 {shareError}
               </Alert>
             )}
-            <ToggleButtonGroup
-              value={shareMode}
-              exclusive
-              size="small"
-              sx={{ mb: 2 }}
-              onChange={(_e, value) => {
-                if (value) {
-                  setShareMode(value);
-                  setWebIdError("");
-                }
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {t("shareWebIdHint")}
+            </Typography>
+            <RecipientAutocomplete
+              value={webIds}
+              onChange={(next) => {
+                setWebIds(next);
+                if (webIdError) setWebIdError("");
               }}
-            >
-              <ToggleButton value="webid">{t("shareByWebId")}</ToggleButton>
-              <ToggleButton value="role">{t("shareByRole")}</ToggleButton>
-            </ToggleButtonGroup>
-
-            {shareMode === "webid"
-              ? (
-                <>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    {t("shareWebIdHint")}
-                  </Typography>
-                  <RecipientAutocomplete
-                    value={webIds}
-                    onChange={(next) => {
-                      setWebIds(next);
-                      if (webIdError) setWebIdError("");
-                    }}
-                    error={webIdError}
-                    autoFocus
-                  />
-                </>
-              )
-              : (
-                <>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    {t("shareRoleHint")}
-                  </Typography>
-                  <FormControl fullWidth error={!!webIdError}>
-                    <InputLabel id="share-role-label">{t("lblRole")}</InputLabel>
-                    <Select
-                      labelId="share-role-label"
-                      label={t("lblRole")}
-                      value={targetRole}
-                      onChange={(e) => {
-                        setTargetRole(e.target.value as UserRole);
-                        if (webIdError) setWebIdError("");
-                      }}
-                    >
-                      {shareRoleOptions.map((opt) => (
-                        <MenuItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {webIdError && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-                        {webIdError}
-                      </Typography>
-                    )}
-                  </FormControl>
-                </>
-              )}
+              error={webIdError}
+              autoFocus
+            />
             <FormControl component="fieldset" sx={{ mt: 3 }}>
               <FormLabel component="legend">{t("shareWhatToShare")}</FormLabel>
               <RadioGroup
@@ -402,9 +295,7 @@ export function ShareBuildingDialog({
             <ShareRecipientsPreview
               label={
                 <Typography variant="body2" color="text.secondary">
-                  {shareMode === "role"
-                    ? t("shareConfirmWithRoleCount", { count: recipients.length })
-                    : t("shareConfirmWith")}
+                  {t("shareConfirmWith")}
                 </Typography>
               }
               recipients={recipients}

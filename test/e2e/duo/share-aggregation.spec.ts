@@ -11,9 +11,8 @@ import {
 import { importExampleBuildings } from "../helpers/seed.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
 import {
-  assignUserRole,
   hostRoomAndGetUri,
-  joinRoomAsUser,
+  joinRoom,
 } from "../helpers/connect.ts";
 import {
   AGGREGATION_NAME,
@@ -142,10 +141,11 @@ test.describe("aggregation sharing across two pods", () => {
     try {
       await assertCleanStart(a.page, "share-aggregation:A");
       await assertCleanStart(b.page, "share-aggregation:B");
-      // ── A hosts a room + role; B joins + role; A creates + shares the aggregation ──
+      // ── A hosts a room; B joins it; A creates + shares the aggregation ──
+      // The room is the DIRECTORY the share dialog reads B's WebID out of — it is
+      // not itself a share target; the grant that follows is to B's WebID.
       const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page, roomUri);
-      await joinRoomAsUser(b.page, roomUri);
+      await joinRoom(b.page, roomUri);
 
       // A needs buildings to build an aggregation from — self-seed an empty
       // (e.g. freshly-wiped) Pod so ensureAggregation's building picker isn't empty.
@@ -164,7 +164,7 @@ test.describe("aggregation sharing across two pods", () => {
       const shareDlg = a.page.getByRole("dialog")
         .filter({ hasText: t("shareAggTitle", { name: AGGREGATION_NAME }) });
       const add = shareDlg.getByRole("button", { name: t("btnAdd"), exact: true });
-      // Add B from the room-members list (B joined + took a role above). The
+      // Add B from the room-members list (B joined above). The
       // dialog loads members ONCE on open, asynchronously, so the "Add" row only
       // appears a moment AFTER the dialog is visible — use a WAITING assertion for
       // it (`locator.isVisible()` does NOT wait; its `timeout` arg is a no-op, so an

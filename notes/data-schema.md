@@ -12,18 +12,18 @@ dance around it (framed in [`storage-layout.md`](./storage-layout.md)). Where
 these files live is the resource profile ([`storage-layout.md`](./storage-layout.md));
 the energy graph is [`energy-model.md`](./energy-model.md).
 
-## `UserRole` is data-room membership only
+## There is no role type
 
-`UserRole` (`src/types.ts`) names a member's role in a data room and nothing else; it
-**never** gates parsing, loading, or rendering — those dispatch on the data's own shape.
-The role sits on an *agent* (WebID) in a room log (`as:Update` + `sioc:has_function`),
-is read by `dataRoom.ts` (`getMyRole`, `getMembersByRole`), and serves as a sharing
-target — it means "this person acts as an investor here". Role↔IRI maps live in
-`constants/roles.ts` (`MEMBERSHIP_ROLE_TO_IRI`/`IRI_TO_MEMBERSHIP_ROLE`; `dataRoom.ts`
-is their only consumer).
+The schema has **no role concept**: an identity is a WebID. Nothing ever gated parsing,
+loading, or rendering on a role — those dispatch on the data's own shape — and the last
+role that existed at all, the self-assigned data-room membership role, was retired with
+share-by-role (a room is a WebID **directory**; see [`room.md`](./room.md)). `UserRole`
+and `constants/roles.ts` are gone. The `gran:…Role` IRIs remain published in
+`vocab/vocab.ttl` so an old room log's `sioc:has_function` events stay resolvable, but
+no code reads or writes them, and the fold skips those events.
 
 Spreadsheet import/export layout is a *separate* concern with its own type —
-`SpreadsheetFormat = "investor" | "benchmark" | "generic"` — not a `UserRole`:
+`SpreadsheetFormat = "investor" | "benchmark" | "generic"` — and is not a role:
 `parseCsvToFields` auto-detects it on upload (`detectSpreadsheetFormat`), and
 `buildingToXlsx(b, style)` takes a user-chosen layout at download. A layout, not a role.
 

@@ -11,13 +11,13 @@ import {
 
 const p = (q: string) => new URLSearchParams(q);
 
-Deno.test("resolveView: empty / unknown → the default (map)", () => {
+Deno.test("resolveView: empty / unknown → the default (list)", () => {
   assert.equal(resolveView(p("")), DEFAULT_VIEW);
-  assert.equal(resolveView(p("view=zzz")), "map");
+  assert.equal(resolveView(p("view=zzz")), "list");
 });
 
 Deno.test("resolveView: each known view passes through", () => {
-  for (const v of ["map", "list", "overtime", "overyears"] as ObsView[]) {
+  for (const v of ["list", "map", "overtime", "overyears"] as ObsView[]) {
     assert.equal(resolveView(p(`view=${v}`)), v);
   }
 });
@@ -31,8 +31,11 @@ Deno.test("viewToParams: omits the default, sets the rest, preserves energy/view
   assert.equal(out.get("c"), "51,10", "viewport survives");
   assert.equal(out.get("offset"), "20", "pager survives");
   // the default view writes a clean URL (no ?view)
-  assert.equal(viewToParams("map", p("m=heat")).get("view"), null);
-  assert.equal(viewToParams("map", p("m=heat")).get("m"), "heat");
+  assert.equal(viewToParams("list", p("m=heat")).get("view"), null);
+  assert.equal(viewToParams("list", p("m=heat")).get("m"), "heat");
+  // …and the map, no longer the default, now has to be written explicitly — a bare
+  // `/observations` means the List.
+  assert.equal(viewToParams("map", p("m=heat")).get("view"), "map");
 });
 
 Deno.test("showsMetric: everything but the plain List", () => {

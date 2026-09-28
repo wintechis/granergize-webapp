@@ -150,10 +150,7 @@ export const QB_NS = "http://purl.org/linked-data/cube#";
 /** QUDT units — kWh (`KiloW-HR`), m³ (`M3`), percent (`PERCENT`) on energy results. */
 export const UNIT_NS = "https://qudt.org/vocab/unit#";
 
-/** SIOC — data room roles are sioc:Role values linked via sioc:has_function */
-export const SIOC_NS = "http://rdfs.org/sioc/ns#";
-
-/** Activity Streams 2.0 — data room membership events (as:Join / as:Leave / as:Update) */
+/** Activity Streams 2.0 — data room membership events (as:Join / as:Leave) */
 export const AS_NS = "https://www.w3.org/ns/activitystreams#";
 
 /** PROV-O — building data provenance (qualified attribution to a producing agent). */

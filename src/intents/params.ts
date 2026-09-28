@@ -194,8 +194,7 @@ export const INTENT_PARAMS = {
   // ── Rooms ──────────────────────────────────────────────────────────────────
   // `roomUri`/`room` are room-container IRIs (resolvable). `input` (AddBookmark) is a
   // raw URI OR an invite link (not necessarily an IRI) → literal placeholder.
-  // `roles` are membership-role labels (a `UserRole` string, not the IRI it maps
-  // to) → literal placeholder. SeedDemoRooms is paramless.
+  // SeedDemoRooms is paramless.
   CreateRoom: {
     // Optional human name for the room (its rdfs:label).
     name: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
@@ -214,10 +213,6 @@ export const INTENT_PARAMS = {
   },
   RemoveBookmark: {
     roomUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
-  },
-  SaveRoles: {
-    room: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
-    roles: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
   },
   SeedDemoRooms: {},
   // ── Agents ───────────────────────────────────────────────────────────────────
@@ -321,7 +316,6 @@ const _paramKeysMatch: {
   DeleteRoom: true,
   AddBookmark: true,
   RemoveBookmark: true,
-  SaveRoles: true,
   SeedDemoRooms: true,
   SaveAgent: true,
   RemoveAgent: true,

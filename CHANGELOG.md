@@ -2,6 +2,80 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [Unreleased] — Data rooms are a WebID directory; List-first Observations; „Akteure"
+
+Three independent changes.
+
+**Data rooms shrink to what they are good for: finding people.** A room used to be
+an alternative *share target* — "share with everyone in this room holding role X" —
+which is why rooms carried self-assigned roles at all. That indirection is removed:
+
+- **A room is now a directory.** Its page lists each member's name **and WebID**,
+  with a one-click copy; the share dialog's recipient field already offered room
+  members alongside your contacts, and that stays. You find a person in a room and
+  share with *them*.
+- **Roles are gone entirely** — not just as a share target. `RoomRolesSection`, the
+  `SaveRoles` intent/hook/core, `setMyRole`/`getMembersByRole`/`getMyRole`, the
+  `UserRole` type and `constants/roles.ts` are all deleted, along with ~15 message
+  ids. The app now has **no role concept at all**: an identity is a WebID.
+- **No migration, and the sharing log is untouched.** A legacy role event
+  (`as:Update` + `sioc:has_function`) simply falls through the fold, so an existing
+  Pod's room keeps working with its role history ignored rather than rewritten; the
+  `gran:…Role` IRIs stay published in `vocab/vocab.ttl` so those events remain
+  resolvable. And because a role was always resolved to member WebIDs *before* the
+  write, a role-targeted grant and a WebID-targeted grant are byte-identical — the
+  `shared-out/` event, `reissueGrants` and `applyBuildingGrant` need no back-compat
+  reader and old logs replay unchanged.
+
+**The Observations finder opens on the List.** `?view=` defaults to `list` and the
+List/Map buttons swap order, matching the Aggregations finder. Note the URL semantics
+flip with it: a bare `/observations` now means the List, and choosing the Map writes
+`?view=map` — so an existing bare link lands somewhere new. The metric selector and
+year slider are absent on the List, since neither applies until you pick an energy
+view. This also fixed a latent bug in the handbuch screenshot run, where the
+`energy-lens.png` capture reached the Map only by accident (it clicked the *Buildings*
+finder's toggle label inside a swallowed `catch`, and relied on Map being the default).
+
+**German "Agents" → "Akteure"** across the UI (18 catalog entries, re-declined rather
+than find-and-replaced — `Akteur` is a strong masculine) and the matching Handbuch
+prose. The catalog was already inconsistent: `noAgentSpecified` said "Kein Akteur".
+
+## [Unreleased] — The over-time heatmap explains its own colours
+
+The Observations finder's "Over time" view coloured its cells and its Trend
+column with nothing on screen saying what either meant — and the two mean
+opposite things, which is the part users can't guess:
+
+- **A legend under the grid**, two keys side by side: the cell bands (following
+  the selected metric's framing, so generation shows the neutral
+  Lower/Medium/Higher ramp) and the trend dots. Beneath it the one fact the
+  swatches can't show — a **cell** ranks a building against the others shown in
+  that same year, so filtering re-colours it; a **trend** compares a building
+  with its own two most recent years, so filtering doesn't.
+- **The trend dot now carries a tooltip with the facts** — which two comparable
+  years were compared and by how much the figure moved ("2022 → 2024: −12 %
+  (kWh/m²/a)") — instead of an unexplained direction. A building with fewer than
+  two comparable years says so. `trendForBuildings` returns those years and the
+  change alongside the verdict (`BuildingTrend`) rather than discarding them.
+- **One legend, not three.** `MagnitudeLegend` and the map's inline copy were
+  the same key written twice; both now render the shared `LegendKeys`/`BandKeys`
+  (`src/components/Legend.tsx`), which owns the keys and nothing about
+  placement. The building Surroundings section switches to the inline key — it
+  had been rendering the absolutely-positioned legend with no positioned
+  ancestor.
+- **Fixed**: the cell tooltip hardcoded kWh, so Water and Wastewater printed
+  "kWh/m²/a" for an m³ figure. Units now come from the annual-metric schema
+  (`metricValueUnit`). The panel's "Loading…" and empty-state strings were
+  hardcoded English and now go through the catalog (reusing the orphaned
+  `compareYearsEmpty`, renamed `obsMatrixEmpty`).
+- **Handbuch**: a new section, "Die Entwicklung über die Jahre lesen (Ansicht
+  „Im Zeitverlauf")", carries the full explanation — per-year terciles against
+  the visible set, intensity rather than absolute, the neutral generation ramp,
+  the ±5 % flat band — with an `overtime-heatmap.png` figure. The chapter's
+  stale "Tab **Explore**" mentions around it are corrected to the current tab
+  names (Gebäude / Beobachtungen); four further mentions elsewhere in the
+  document (lines ~513, 1184, 1236, 1277) still say Explore.
+
 ## [Unreleased] — The demo seed is gone: example data now arrives through the importer
 
 The hard-coded example buildings are removed. The same data — the 37 real

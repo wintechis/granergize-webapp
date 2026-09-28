@@ -79,11 +79,6 @@ export const notifications = {
     de: "Datenzimmer gelöscht",
     fr: "Salle de données supprimée",
   },
-  rolesUpdated: {
-    en: "Roles updated",
-    de: "Rollen aktualisiert",
-    fr: "Rôles mis à jour",
-  },
   inviteCopied: {
     en: "Invite link copied",
     de: "Einladungslink kopiert",
@@ -93,6 +88,16 @@ export const notifications = {
     en: "Could not copy link",
     de: "Link konnte nicht kopiert werden",
     fr: "Impossible de copier le lien",
+  },
+  webIdCopied: {
+    en: "WebID copied",
+    de: "WebID kopiert",
+    fr: "WebID copiée",
+  },
+  webIdCopyFailed: {
+    en: "Could not copy the WebID",
+    de: "WebID konnte nicht kopiert werden",
+    fr: "Impossible de copier la WebID",
   },
   removedFromList: {
     en: "Removed from your list",
@@ -340,7 +345,7 @@ export const notifications = {
   },
   actionAddDemoAgents: {
     en: "add demo agents",
-    de: "Hinzufügen der Beispielagenten",
+    de: "Hinzufügen der Beispielakteure",
     fr: "l'ajout des agents de démonstration",
   },
   actionAddDemoRooms: {
@@ -425,12 +430,12 @@ export const notifications = {
   },
   actionAddAgent: {
     en: "add agent",
-    de: "Hinzufügen des Agenten",
+    de: "Hinzufügen des Akteurs",
     fr: "l'ajout du agent",
   },
   actionRemoveAgent: {
     en: "remove the agent",
-    de: "Entfernen des Agenten",
+    de: "Entfernen des Akteurs",
     fr: "la suppression de l'agent",
   },
   actionDeleteBuilding: {
@@ -488,11 +493,6 @@ export const notifications = {
     de: "Entfernen des Datenzimmers aus der Liste",
     fr: "le retrait de la salle de données de votre liste",
   },
-  actionSaveRoles: {
-    en: "save your roles",
-    de: "Speichern deiner Rollen",
-    fr: "l'enregistrement de vos rôles",
-  },
   // Agents flow notifications (the `showNotification` vocabulary — migrated per
   // area; the add-failure toast still goes through `formatError`, a later slice).
   enterWebId: {
@@ -500,10 +500,10 @@ export const notifications = {
     de: "Gib eine WebID ein (eine http(s)-URI)",
     fr: "Saisissez un WebID (une URI http(s))",
   },
-  agentAdded: { en: "Agent added", de: "Agent hinzugefügt", fr: "Agent ajouté" },
+  agentAdded: { en: "Agent added", de: "Akteur hinzugefügt", fr: "Agent ajouté" },
   agentRemoved: {
     en: "Agent removed",
-    de: "Agent entfernt",
+    de: "Akteur entfernt",
     fr: "Agent supprimé",
   },
   // Per-object action-menu verb labels (the intent-registry-driven row/section
@@ -579,7 +579,7 @@ export const notifications = {
   },
   intentRemoveAgent: {
     en: "Remove agent…",
-    de: "Agent entfernen…",
+    de: "Akteur entfernen…",
     fr: "Supprimer le agent…",
   },
   intentEnterRoom: {
@@ -612,7 +612,7 @@ export const notifications = {
   // verb on its own, so they need distinct wording).
   intentSeedDemoAgents: {
     en: "Add example agents",
-    de: "Beispielagenten hinzufügen",
+    de: "Beispielakteure hinzufügen",
     fr: "Ajouter des agents d'exemple",
   },
   intentSeedDemoRooms: {

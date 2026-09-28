@@ -214,21 +214,12 @@ test.describe("handbuch screenshots", () => {
     } else {
       await page.getByRole("button", { name: /host a data room/i }).click();
     }
-    // Landed on the standalone room page (no app-shell tabs): the roles section
+    // Landed on the standalone room page (no app-shell tabs): the members list —
+    // the room's point, a directory of names + the WebIDs you share with —
     // appears once membership has folded.
     await expect(page).toHaveURL(/\/room\?/, { timeout: 30_000 });
-    // Assign the User role (MUI multi-select: open, tick, close, save).
-    const roleSelect = page.getByRole("combobox", { name: en("roomMyRoles") });
-    await expect(roleSelect).toBeVisible({ timeout: 30_000 });
-    await roleSelect.click();
-    await page.getByRole("option", { name: "User" }).click();
-    await page.keyboard.press("Escape");
-    await expect(roleSelect).toContainText("User", { timeout: 5_000 }).catch(
-      () => {},
-    );
-    await page.getByRole("button", { name: /save roles/i }).click();
-    await expect(page.getByText(/roles updated/i)).toBeVisible({ timeout: 15_000 })
-      .catch(() => {});
+    await expect(page.getByRole("heading", { name: en("secMembers") }))
+      .toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(1000);
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "room.png");
@@ -239,7 +230,7 @@ test.describe("handbuch screenshots", () => {
       .toBeVisible({ timeout: 30_000 });
     await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
 
-    // Dismiss the "Roles updated" toast, then import the example buildings the
+    // Dismiss any lingering toast, then import the example buildings the
     // same way a reader does — Add building → "Autofill from file" (handbuch
     // examples = app examples; the helper imports the core example file, and is
     // idempotent against a non-fresh Pod). The planned (Soll) 2024 figure a
@@ -501,15 +492,29 @@ test.describe("handbuch screenshots", () => {
     //     energy intensity, the legend showing the efficiency categories. The annual
     //     demo buildings carry areas + energy years, so their intensities are
     //     computable. Phase-2 energy must have landed for the tint, so allow it to
-    //     settle before the shot. ---
-    await page.getByRole("tab", { name: en("navObservations") }).click();
-    await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true })
-      .click({ force: true }).catch(() => {});
+    //     settle before the shot. Navigated by URL: the List is the finder's default
+    //     now, and the click that used to reach the Map was scoped to `bldgsViewAria`
+    //     (the BUILDINGS finder's group) and swallowed by a `.catch()` — it never
+    //     resolved, so this capture had been relying on Map being the default. ---
+    await page.goto("/observations?view=map");
     await page.waitForLoadState("networkidle").catch(() => {});
     await waitForMapTiles(page);
     await page.waitForTimeout(1200);
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "energy-lens.png");
+
+    // --- Over-time heatmap (overtime-heatmap.png): the same Observations finder's
+    //     "Over time" view — buildings × years, the trailing Trend column, and the
+    //     two-key legend + hints beneath the grid. Navigated by URL like the shot
+    //     above — `?view=overtime` is what `resolveView` reads. Waiting on a cell's
+    //     aria-label proves the cube landed before the shot. ---
+    await page.goto("/observations?view=overtime");
+    await expect(page.getByRole("button", { name: /—\s*\d{4}\s*:/ }).first())
+      .toBeVisible({ timeout: 60_000 });
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await page.waitForTimeout(800);
+    await page.evaluate(() => globalThis.scrollTo(0, 0));
+    await shot(page, "overtime-heatmap.png");
 
     // --- Energy with the operator average (energy-data-tab.png): the
     //     flagship demo's observation page (`/observation/:id`) — the energy

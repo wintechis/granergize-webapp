@@ -4,6 +4,7 @@ import {
   type EnergyMetricKey,
 } from "../energy/energyDataset.ts";
 import { referenceArea } from "./energyCategory.ts";
+import { annualMetricDesc } from "../../constants/annualMetrics.ts";
 import { type MessageId } from "../../lib/messages.ts";
 
 /**
@@ -114,6 +115,17 @@ export function metricValueAtYear(
   const area = referenceArea(building);
   if (area == null || !(area > 0)) return null;
   return raw / area;
+}
+
+/**
+ * The unit a cube view labels {@link metricValueAtYear}'s result with — the canonical
+ * unit for a magnitude framing (`"kWh"`), the per-area annual intensity for a tier
+ * framing (`"kWh/m²/a"`, `"m³/m²/a"`). Derived from the annual-metric schema, so water
+ * and wastewater read m³ rather than the kWh a hardcoded string used to print.
+ */
+export function metricValueUnit(key: EnergyMetricKey): string {
+  const unit = annualMetricDesc(key)?.unit ?? "kWh";
+  return metricFraming(key) === "magnitude" ? unit : `${unit}/m²/a`;
 }
 
 /**

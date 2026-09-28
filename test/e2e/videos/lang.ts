@@ -55,9 +55,6 @@ export const METRIC_HEAT = pick({
   fr: /Consommation de chaleur/,
 });
 
-/** The data-room membership "User" role option (vocab `vocab.ttl#UserRoleInstance`). */
-export const ROLE_USER = pick({ de: "Benutzer", en: "User", fr: "Utilisateur" });
-
 /** The aggregation "Add all {count} contributors" button (has a count param). */
 export const ADD_CONTRIBUTORS = pick({
   de: /Beitragenden hinzufügen/,

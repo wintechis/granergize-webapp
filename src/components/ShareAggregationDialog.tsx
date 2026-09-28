@@ -37,7 +37,6 @@ import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
 import { ShareRecipientsPreview, ShareSuccessAlert } from "./ShareFlow.tsx";
 import IconAction from "./IconAction.tsx";
 
-import { roleLabel } from "../constants/roles.ts";
 
 interface ShareAggregationDialogProps {
   open: boolean;
@@ -282,14 +281,23 @@ export default function ShareAggregationDialog(
                         <ListItem key={m.webId}>
                           <ListItemText
                             primary={<AgentLabel value={m.webId} />}
-                            secondary={m.roles.map((r) => roleLabel(r))
-                              .join(", ") || t("noRole")}
+                            secondary={m.webId}
                             slotProps={{
                               primary: {
                                 variant: "body2",
                                 sx: {
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
+                                },
+                              },
+                              // The WebID is what the grant is written to, so show it
+                              // — clipped, since it is long and secondary here.
+                              secondary: {
+                                variant: "caption",
+                                sx: {
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
                                 },
                               },
                             }}

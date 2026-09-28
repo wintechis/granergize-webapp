@@ -14,9 +14,7 @@ import {
   getCurrentRoom,
   getKnownRooms,
   getMembers,
-  getMembersByRole,
   getMyMembership,
-  getMyRole,
   joinRoom,
   leaveRoom,
   normalizeRoomUri,
@@ -24,7 +22,6 @@ import {
   ownsRoom,
   removeKnownRoom,
   roomExists,
-  setMyRole,
 } from "./dataRoom.ts";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 
@@ -163,81 +160,43 @@ function sessionFor(pod: FakePod, webId: string): PodGateway {
   } as unknown as Session);
 }
 
-Deno.test("setMyRole persists, getMyRole reads it back (regression)", async () => {
-  const time = new FakeTime(new Date("2026-05-29T10:00:00Z"));
-  try {
-    const pod = new FakePod();
-    const session = sessionFor(pod, ALICE);
-
-    await setMyRole(ROOM, ["investor"], session);
-
-    // The assignment is recorded as a child resource in the container.
-    assertEquals(pod.resources.size, 1);
-    assertEquals(await getMyRole(ROOM, session), ["investor"]);
-  } finally {
-    time.restore();
-  }
-});
-
-Deno.test("concurrent saves by different members don't clobber (race fix)", async () => {
+Deno.test("concurrent joins by different members don't clobber (race fix)", async () => {
   const time = new FakeTime(new Date("2026-05-29T10:00:00Z"));
   try {
     const pod = new FakePod();
     await joinRoom(ROOM, sessionFor(pod, ALICE));
-    await setMyRole(ROOM, ["investor"], sessionFor(pod, ALICE));
     time.tick(1000);
     await joinRoom(ROOM, sessionFor(pod, BOB));
-    await setMyRole(ROOM, ["user"], sessionFor(pod, BOB));
 
+    // Each join is its own immutable event (the server mints the child IRI), so a
+    // second member's join can't overwrite the first's — the directory holds both.
     const members = await getMembers(ROOM, sessionFor(pod, ALICE));
-    const byWebId = Object.fromEntries(members.map((m) => [m.webId, m.roles]));
-    assertEquals(byWebId[ALICE], ["investor"]);
-    assertEquals(byWebId[BOB], ["user"]);
-    assertEquals(members.length, 2);
+    assertEquals(members.map((m) => m.webId).sort(), [ALICE, BOB].sort());
   } finally {
     time.restore();
   }
 });
 
-Deno.test("reassigning replaces roles; log keeps every event (append-only)", async () => {
-  const time = new FakeTime(new Date("2026-05-29T10:00:00Z"));
-  try {
-    const pod = new FakePod();
-    const session = sessionFor(pod, ALICE);
+Deno.test("a legacy role event is ignored, not a member (no migration needed)", async () => {
+  const pod = new FakePod();
+  const session = sessionFor(pod, ALICE);
 
-    await setMyRole(ROOM, ["investor"], session);
-    time.tick(1000);
-    await setMyRole(ROOM, ["user"], session);
+  await joinRoom(ROOM, session);
+  // What an older app version wrote when rooms carried self-assigned roles: an
+  // as:Update carrying sioc:has_function. Rooms are a WebID directory now, so the
+  // fold must simply skip it — an existing Pod's log keeps working, its role
+  // history neither read nor rewritten.
+  pod.resources.set(`${ROOM}legacy-role`, [
+    "@prefix as: <https://www.w3.org/ns/activitystreams#> .",
+    "@prefix sioc: <http://rdfs.org/sioc/ns#> .",
+    "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
+    `[] a as:Update ; as:actor <${BOB}> ; as:object <${ROOM}> ;`,
+    `   as:published "2026-05-29T10:00:00Z"^^xsd:dateTime ;`,
+    "   sioc:has_function <https://solid.ti.rw.fau.de/gra/vocab.ttl#InvestorRole> .",
+  ].join("\n"));
 
-    assertEquals(await getMyRole(ROOM, session), ["user"]); // latest event wins
-    assertEquals(pod.resources.size, 2); // both events retained
-  } finally {
-    time.restore();
-  }
-});
-
-Deno.test("clearing roles keeps membership (independent axes)", async () => {
-  const time = new FakeTime(new Date("2026-05-29T10:00:00Z"));
-  try {
-    const pod = new FakePod();
-    const session = sessionFor(pod, ALICE);
-
-    await joinRoom(ROOM, session);
-    await setMyRole(ROOM, ["investor", "user"], session);
-    time.tick(1000);
-    assertEquals(
-      (await getMyRole(ROOM, session)).slice().sort(),
-      ["investor", "user"],
-    );
-
-    await setMyRole(ROOM, [], session); // clear roles — but DON'T leave
-    assertEquals(await getMyRole(ROOM, session), []);
-    // Still a member, now with no role.
-    assertEquals(await getMyMembership(ROOM, session), true);
-    assertEquals(await getMembers(ROOM, session), [{ webId: ALICE, roles: [] }]);
-  } finally {
-    time.restore();
-  }
+  // BOB only ever had a role, never joined — he is not in the directory.
+  assertEquals(await getMembers(ROOM, session), [{ webId: ALICE }]);
 });
 
 Deno.test("join then leave toggles membership", async () => {
@@ -248,7 +207,7 @@ Deno.test("join then leave toggles membership", async () => {
 
     await joinRoom(ROOM, session);
     assertEquals(await getMyMembership(ROOM, session), true);
-    assertEquals(await getMembers(ROOM, session), [{ webId: ALICE, roles: [] }]);
+    assertEquals(await getMembers(ROOM, session), [{ webId: ALICE }]);
 
     time.tick(1000);
     await leaveRoom(ROOM, session);
@@ -259,53 +218,10 @@ Deno.test("join then leave toggles membership", async () => {
   }
 });
 
-Deno.test("assigning a role without joining does not make you a member", async () => {
-  const pod = new FakePod();
-  const session = sessionFor(pod, ALICE);
-
-  await setMyRole(ROOM, ["investor"], session); // role only, never joined
-  assertEquals(await getMyRole(ROOM, session), ["investor"]); // role recorded
-  assertEquals(await getMyMembership(ROOM, session), false); // but not a member
-  assertEquals(await getMembers(ROOM, session), []); // explicit re-join required
-});
-
-Deno.test("getMembersByRole resolves a role to its holders' WebIDs, excluding yourself", async () => {
-  const time = new FakeTime(new Date("2026-05-29T10:00:00Z"));
-  try {
-    const pod = new FakePod();
-    await joinRoom(ROOM, sessionFor(pod, ALICE));
-    await setMyRole(ROOM, ["investor"], sessionFor(pod, ALICE));
-    time.tick(1000);
-    await joinRoom(ROOM, sessionFor(pod, BOB));
-    await setMyRole(ROOM, ["user", "investor"], sessionFor(pod, BOB));
-
-    // You can't share a resource to yourself, so the logged-in user is filtered
-    // out of role resolution — a self-grant would write a recipient auth carrying
-    // the owner's own acl:agent, which a later revoke then strips along with the
-    // owner's control block (Tier-4 meisdata owner-lockout). So even though both
-    // ALICE and BOB hold "investor", ALICE's session never sees ALICE.
-    const alice = sessionFor(pod, ALICE);
-    assertEquals(await getMembersByRole(ROOM, "user", alice), [BOB]);
-    assertEquals(await getMembersByRole(ROOM, "investor", alice), [BOB]);
-    // Symmetric: from BOB's session, "investor" resolves to ALICE (BOB excised).
-    assertEquals(
-      await getMembersByRole(ROOM, "investor", sessionFor(pod, BOB)),
-      [ALICE],
-    );
-    assertEquals(
-      await getMembersByRole(ROOM, "benchmark_service_provider", alice),
-      [],
-    );
-  } finally {
-    time.restore();
-  }
-});
-
 Deno.test("read functions short-circuit when no room is selected", async () => {
   const pod = new FakePod();
   const session = sessionFor(pod, ALICE);
   assertEquals(await getMembers(null, session), []);
-  assertEquals(await getMyRole(null, session), []);
   assertEquals(await getMyMembership(null, session), false);
 });
 
@@ -313,7 +229,7 @@ Deno.test("empty / missing container yields no members", async () => {
   const pod = new FakePod();
   const session = sessionFor(pod, ALICE);
   assertEquals(await getMembers(ROOM, session), []); // container 404s
-  assertEquals(await getMyRole(ROOM, session), []);
+  assertEquals(await getMyMembership(ROOM, session), false);
 });
 
 Deno.test("normalizeRoomUri guarantees a trailing slash", () => {

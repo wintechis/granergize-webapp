@@ -1,18 +1,22 @@
 import { expect, type Page } from "@playwright/test";
-import { roleT, t } from "./i18n.ts";
+import { t } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 import { roomRoute } from "../../../src/routes.ts";
 
 /**
- * Room/role helpers, shared by the cross-Pod specs (`share-building`,
- * `share-aggregation`, `share-files`, `peer-benchmark`) and `data-room`.
+ * Room membership helpers, shared by the cross-Pod specs (`share-aggregation`,
+ * `peer-benchmark`) and `data-room`.
+ *
+ * A room is a WebID **directory**: it lists who is in it so you can find someone
+ * to share with. It is never itself a share target, so these helpers only get
+ * people INTO a room — the sharing is done by WebID (`shareByWebId`).
  *
  * Hosting and the room *list* are Rooms-finder actions (the redesign split the
  * old Connect tab into the Rooms and Contacts finders); per-room detail —
- * entering, roles, members, the invite QR — lives on the standalone room page
+ * entering, members, the invite QR — lives on the standalone room page
  * (`/room?uri=<room URI>`). So `hostRoomAndGetUri` stays on the Rooms finder,
- * while `assignUserRole` drives the room page; navigating to a room page enters
- * it (the page calls `openRoom` on mount). Room detail URLs come from the app's
+ * while `joinRoom` drives the room page; navigating to a room page enters it
+ * (the page calls `openRoom` on mount). Room detail URLs come from the app's
  * own `roomRoute` builder (`/room?uri=<encoded room URI>` — a room URI is absolute).
  */
 
@@ -54,45 +58,27 @@ export async function hostRoomAndGetUri(page: Page): Promise<string> {
 }
 
 /**
- * Assign the User role in a room: navigate to the room page (which enters the
- * room on mount), open the "My role(s)" multi-select, tick User, save. Both A and
- * B need a role: A to share targeted at the User role, B to receive it.
+ * Enter a room: navigating to its page joins it (the page calls `openRoom` on
+ * mount), which is what puts you in the member list others read WebIDs from.
  */
-export async function assignUserRole(
+export async function enterRoomPage(
   page: Page,
   roomUri: string,
 ): Promise<void> {
   await page.goto(roomRoute(roomUri));
-  const select = page.getByRole("combobox", { name: t("roomMyRoles") });
-  await expect(select).toBeVisible({ timeout: T.visible });
-  await select.click();
-  const userOption = page.getByRole("option", { name: roleT("user"), exact: true });
-  await expect(userOption).toBeVisible({ timeout: T.quick });
-  const alreadyUser =
-    (await userOption.getAttribute("aria-selected")) === "true";
-  if (!alreadyUser) await userOption.click();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("listbox")).toBeHidden({ timeout: T.quick })
-    .catch(() => {});
-  if (!alreadyUser) {
-    await expect(async () => {
-      await page.getByRole("button", { name: t("saveRoles") }).click();
-      await expect(page.getByText(t("rolesUpdated"))).toBeVisible({
-        timeout: T.quick,
-      });
-    }).toPass({ timeout: T.poll });
-  }
+  await expect(page.getByRole("heading", { name: t("secMembers") }))
+    .toBeVisible({ timeout: T.visible });
   // Return to the app shell: the room page is a standalone route with no tabs, so
   // a caller's next shell action (a building/share tab click) would hang here.
   await page.goto("/");
 }
 
 /**
- * Add a room URI to the list on Connect, then assign the User role on its page
- * (navigating to the page enters the room). The add step is needed so an
- * invite-only room shows in B's list; the role assignment doubles as the enter.
+ * Add a room URI to the list on the Rooms finder, then open its page (which
+ * enters the room). The add step is needed so an invite-only room shows in B's
+ * list; opening the page is what registers B as a member.
  */
-export async function joinRoomAsUser(
+export async function joinRoom(
   page: Page,
   roomUri: string,
 ): Promise<void> {
@@ -109,5 +95,5 @@ export async function joinRoomAsUser(
       await expect(row.first()).toBeVisible({ timeout: T.quick });
     }).toPass({ timeout: T.poll });
   }
-  await assignUserRole(page, roomUri);
+  await enterRoomPage(page, roomUri);
 }

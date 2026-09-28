@@ -95,14 +95,48 @@ export function recentTwoYears(
 }
 
 /**
- * The relative intensity change between a building's two most recent comparable
- * years, or `null` when it has fewer than two (→ `"unknown"` trend). Positive =
- * intensity rose (worsening), negative = fell (improving).
+ * A building's trend **and the facts behind it** — the two comparable years and the
+ * relative change between them. The trend column's tooltip states those facts, so the
+ * distiller returns them rather than only the verdict.
+ *
+ * Invariants: `delta != null` ⇔ `trend !== "unknown"`, and a non-null `delta` implies
+ * both years are non-null. A building with exactly one usable year keeps its
+ * `currentYear` (there IS a figure, just nothing to compare it to).
  */
-export function trendDelta(byYear: Map<number, number | null>): number | null {
-  const { current, prior } = recentTwoYears(byYear);
-  if (current == null || prior == null || !(prior > 0)) return null;
-  return (current - prior) / prior;
+export interface BuildingTrend {
+  trend: EnergyTrend;
+  currentYear: number | null;
+  priorYear: number | null;
+  /**
+   * `(current - prior) / prior` — a fraction, signed in the **metric's** direction
+   * (negative = the figure fell). NOT flipped by `betterWhenLower`: the sign states
+   * what happened, `trend` states whether that was an improvement.
+   */
+  delta: number | null;
+}
+
+/**
+ * Distil one building's year→value series into its trend: pick the two most recent
+ * comparable years, take the relative change, categorise it. `betterWhenLower` picks
+ * which direction reads as improving (see {@link trendForDelta}).
+ *
+ * A non-positive prior can't carry a relative change (division by ~zero), so it yields
+ * `"unknown"` with a null delta rather than an infinite one.
+ */
+export function trendFromSeries(
+  byYear: Map<number, number | null>,
+  betterWhenLower = true,
+): BuildingTrend {
+  const { currentYear, priorYear, current, prior } = recentTwoYears(byYear);
+  const delta = current == null || prior == null || !(prior > 0)
+    ? null
+    : (current - prior) / prior;
+  return {
+    trend: trendForDelta(delta, betterWhenLower),
+    currentYear,
+    priorYear: delta == null ? null : priorYear,
+    delta,
+  };
 }
 
 /**
@@ -111,6 +145,8 @@ export function trendDelta(byYear: Map<number, number | null>): number | null {
  * so the value matches the map's energy lens cell-for-cell), pick its two most
  * recent comparable years, and categorise the change. A building with <2
  * comparable years → `"unknown"` (a neutral marker — honest "can't tell a trend").
+ * Each entry carries the two years and the change behind the verdict, so the UI can
+ * state them rather than assert an unexplained direction.
  *
  * Unlike the energy lens, a trend is **per building over its own history** — it
  * needs no peer set, so panning doesn't reframe it (every building is judged
@@ -120,7 +156,7 @@ export function trendForBuildings(
   buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
   metric: EnergyMetricKey = DEFAULT_METRIC,
-): Map<string, EnergyTrend> {
+): Map<string, BuildingTrend> {
   // All years present across the set; build each building's year→value series for
   // the selected metric (so missing-figure years drop out as nulls, exactly as the
   // map colours them).
@@ -136,13 +172,13 @@ export function trendForBuildings(
   // Consumption falls = improving; generation rises = improving.
   const betterWhenLower = metricFraming(metric) !== "magnitude";
 
-  const out = new Map<string, EnergyTrend>();
+  const out = new Map<string, BuildingTrend>();
   for (const b of buildings) {
     const series = new Map<number, number | null>();
     for (const [year, values] of valueByYear) {
       series.set(year, values.get(b.id) ?? null);
     }
-    out.set(b.id, trendForDelta(trendDelta(series), betterWhenLower));
+    out.set(b.id, trendFromSeries(series, betterWhenLower));
   }
   return out;
 }

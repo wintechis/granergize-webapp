@@ -381,13 +381,6 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useRemoveBookmark",
   },
   {
-    name: "SaveRoles",
-    action: "actionSaveRoles",
-    effect: "write",
-    entity: "room",
-    hook: "useSaveRoles",
-  },
-  {
     name: "SeedDemoRooms",
     action: "actionAddDemoRooms",
     effect: "write",

@@ -69,11 +69,11 @@ export const ALL_PLOTS: PlotSpec[] = [
   },
   {
     name: "room-churn",
-    title: "Data-room read fold vs. role-event history (fixed membership)",
-    xlabel: "# role events",
+    title: "Data-room read fold vs. event history (fixed membership)",
+    xlabel: "# events",
     ylabel: "time (ms)",
     series: [
-      { col: 2, title: "setMyRole (append)" },
+      { col: 2, title: "joinRoom (append)" },
       { col: 3, title: "fold (getMembers)" },
     ],
   },

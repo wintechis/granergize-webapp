@@ -207,7 +207,7 @@ export const shellAuth = {
   },
   menuAddAgents: {
     en: "Add example agents and rooms",
-    de: "Beispielagenten und -datenräume hinzufügen",
+    de: "Beispielakteure und -datenräume hinzufügen",
     fr: "Ajouter des agents et salles d'exemple",
   },
   menuExportArchive: {
@@ -288,12 +288,12 @@ export const shellAuth = {
   },
   demoAgentsAdded: {
     en: "Demo agents added",
-    de: "Demo-Agenten hinzugefügt",
+    de: "Demo-Akteure hinzugefügt",
     fr: "Agents de démonstration ajoutés",
   },
   demoAgentsPartial: {
     en: "Added {seeded} of {total} demo agents",
-    de: "{seeded} von {total} Demo-Agenten hinzugefügt",
+    de: "{seeded} von {total} Demo-Akteuren hinzugefügt",
     fr: "{seeded} sur {total} agents de démonstration ajoutés",
   },
   demoRoomsAdded: {

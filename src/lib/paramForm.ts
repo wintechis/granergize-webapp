@@ -61,11 +61,6 @@ export interface FieldDescriptor {
  *   the verb owns a rich bespoke dialog the palette routes to instead.
  * - **`fileUri`+`subjectUri` bundle verbs** — two internal IRIs of the *same*
  *   building that a single picker can't split into two distinct user picks.
- * - **Controlled-vocab text verbs** — a param IS a genuine `XSD_STRING` (so it
- *   would now render as a text field) but its value space is a controlled
- *   vocabulary that needs a *select*, not free text (`SaveRoles.roles` is a
- *   `UserRole`; it is set on the room page, and a proper role multi-select is a
- *   later refinement).
  *
  * Kept as an explicit set (not purely derived) because the bundle verbs' params
  * are individually renderable IRIs — only the *pair* is the problem — and an
@@ -102,9 +97,6 @@ export const FORM_EXCLUDED: ReadonlySet<string> = new Set<string>([
   "DeleteObservation",
   "ClearObservations",
   "LinkObservationToBuilding",
-  // Controlled-vocab text: `roles` is a UserRole vocab; set on the room page, a
-  // proper role multi-select is a later refinement.
-  "SaveRoles",
 ]);
 
 /** IRI ranges that map to a known entity picker. */

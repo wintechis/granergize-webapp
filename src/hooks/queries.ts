@@ -728,8 +728,8 @@ const EMPTY_LIST = Object.freeze([]) as never[];
 
 /**
  * Composes the registry ({@link useRooms}) with the current room's log
- * ({@link useRoomLog}) into the shape the Connect tab consumes. The registry is
- * authoritative for `current`/`known`; the log refetches for members/roles.
+ * ({@link useRoomLog}) into the shape the room pages consume. The registry is
+ * authoritative for `current`/`known`; the log refetches for the member list.
  */
 export function useRoomState() {
   const rooms = useRooms();
@@ -742,7 +742,6 @@ export function useRoomState() {
         current,
         known,
         members: log.data?.members ?? EMPTY_LIST,
-        myRoles: log.data?.myRoles ?? EMPTY_LIST,
         myMembership: log.data?.myMembership ?? false,
       }
       : undefined,

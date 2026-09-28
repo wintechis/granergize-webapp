@@ -40,7 +40,7 @@ import {
   getMembers,
   joinRoom,
   leaveRoom,
-  setMyRole,
+  joinRoom,
 } from "../../src/services/interop/dataRoom.ts";
 import { listDirectChildren } from "../../src/services/pod/podDelete.ts";
 import { parseTtlReadings } from "../../src/services/rdf/userEnergyParser.ts";
@@ -48,7 +48,7 @@ import {
   type BenchActor,
   seedBuildings,
   seedRoomMembers,
-  seedRoomRoleChurn,
+  seedRoomMembershipChurn,
   seedSeriesBuilding,
   setupShareRoom,
   shareBuildingsViaRoom,
@@ -264,42 +264,41 @@ try {
     await wipeRooms(sessionA, a.webId);
   }
 
-  // ── D5: role-churn — read fold vs # role events at FIXED membership ──────────
-  // The room log carries two independent streams (membership + role assignment);
-  // every role reassignment appends an as:Update event the fold READS, even though
-  // only the latest-per-agent survives. So an old, active room's read cost grows
-  // with its HISTORY, not its membership. We hold members at a small baseline and
-  // sweep the role-event count to isolate that: members (and the count getMembers
-  // returns) stays fixed while the fold grows.
-  console.log(`D5 churn (role events, ${CHURN_MEMBERS} members): ${CHURN_SIZES.join(", ")}`);
+  // ── D5: churn — read fold vs # events at FIXED membership ───────────────────
+  // The room log is append-only: every re-join appends an event the fold READS,
+  // even though only the latest-per-agent survives. So an old, active room's read
+  // cost grows with its HISTORY, not its membership. We hold members at a small
+  // baseline and sweep the event count to isolate that: members (and the count
+  // getMembers returns) stays fixed while the fold grows.
+  console.log(`D5 churn (events, ${CHURN_MEMBERS} members): ${CHURN_SIZES.join(", ")}`);
   {
     const rows: number[][] = [];
     for (const k of CHURN_SIZES) {
       await wipeRooms(sessionA, a.webId);
       const room = await createRoom(sessionA);
       await seedRoomMembers(sessionA, room, CHURN_MEMBERS);
-      await seedRoomRoleChurn(sessionA, room, CHURN_MEMBERS, k);
+      await seedRoomMembershipChurn(sessionA, room, CHURN_MEMBERS, k);
 
-      // setMyRole: A appends ONE role event — independent of history size.
-      const setRoleMs = await measure(() => setMyRole(room, ["investor"], sessionA), RUNS);
+      // join: A appends ONE event — independent of history size.
+      const joinMs = await measure(() => joinRoom(room, sessionA), RUNS);
 
-      // fold: read + fold the whole log — grows with the role-event history even
+      // fold: read + fold the whole log — grows with the event history even
       // though membership (and the member count it returns) stays constant.
       let members = 0;
       const foldMs = await measure(async () => {
         members = (await getMembers(room, sessionA)).length;
       }, RUNS);
 
-      rows.push([k, setRoleMs, foldMs, members]);
+      rows.push([k, joinMs, foldMs, members]);
       console.log(
-        `  events=${k}  setRole ${setRoleMs.toFixed(1)}  ` +
+        `  events=${k}  join ${joinMs.toFixed(1)}  ` +
           `fold ${foldMs.toFixed(1)} (members=${members}) ms`,
       );
     }
     await writeDat(
       RESULTS_DIR,
       "room-churn",
-      ["n_role_events", "set_role_ms", "fold_ms", "members"],
+      ["n_churn_events", "join_ms", "fold_ms", "members"],
       rows,
     );
     await wipeRooms(sessionA, a.webId);

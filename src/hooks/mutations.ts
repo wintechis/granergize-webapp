@@ -22,7 +22,6 @@ import type {
   AttachmentRef,
   Building,
   TechnicalSystem,
-  UserRole,
 } from "../types.ts";
 
 /**
@@ -597,17 +596,6 @@ export function useRemoveBookmark() {
     meta: { action: "actionRemoveBookmark" },
     mutationFn: (roomUri: string) => invoke("RemoveBookmark", { roomUri }, getGateway()),
     onSuccess: (res) => patchRooms(qc, ROOM_REGISTRY_FOLDS.RemoveBookmark(res)),
-  });
-}
-
-export function useSaveRoles() {
-  const qc = useQueryClient();
-  return useMutation({
-    meta: { action: "actionSaveRoles" },
-    mutationFn: (vars: { room: string; roles: UserRole[] }) =>
-      invoke("SaveRoles", vars, getGateway()),
-    // Roles live in the room's log, not the registry — refresh just that.
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomLog }),
   });
 }
 

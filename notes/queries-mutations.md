@@ -66,7 +66,7 @@ truth; current state is always derived through a projection (next section).
 - `shared-out/` — building & aggregation grants/revocations the user issued (`recordSharing`,
   `recordAggregationSharing`).
 - `shared-in/` — grants received, archived from the inbox (`appendSharingEvent`).
-- `rooms/<id>/` — data-room membership (`setMembership`) and role (`setMyRole`) events.
+- `rooms/<id>/` — data-room membership (`setMembership`) events.
 - the inbox — cross-Pod notification events (`postSharingEventToInbox`).
 
 Within the model there are two **delivery topologies**, chosen by whether the

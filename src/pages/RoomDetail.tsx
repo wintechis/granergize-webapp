@@ -13,7 +13,6 @@ import { useConfirm } from "../context/ConfirmContext.tsx";
 import { backTarget, FINDERS, type NavState } from "../routes.ts";
 import { BackLink, RdfSourceLink } from "../components/detail/DetailView.tsx";
 import RoomInviteSection from "../components/room/RoomInviteSection.tsx";
-import RoomRolesSection from "../components/room/RoomRolesSection.tsx";
 import RoomMembersSection from "../components/room/RoomMembersSection.tsx";
 import { logError } from "../lib/logError.ts";
 
@@ -92,12 +91,10 @@ export default function RoomDetail(
 
   const roomQuery = useRoomState();
   const current = roomQuery.data?.current ?? null;
-  // Members/roles are only meaningful for THIS room once it's the current one;
-  // until openRoom lands they belong to whatever room was current before.
+  // Members are only meaningful for THIS room once it's the current one; until
+  // openRoom lands they belong to whatever room was current before.
   const isCurrent = current === room;
   const members = isCurrent ? roomQuery.data?.members ?? [] : [];
-  const serverRoles = isCurrent ? roomQuery.data?.myRoles ?? [] : [];
-  const isMember = isCurrent && (roomQuery.data?.myMembership ?? false);
 
   const del = useDeleteRoom();
   const busy = roomQuery.isFetching || enter.isPending || exit.isPending ||
@@ -150,14 +147,6 @@ export default function RoomDetail(
       </Box>
 
       <RoomInviteSection roomUri={room} />
-
-      {isMember && (
-        <RoomRolesSection
-          roomUri={room}
-          serverRoles={serverRoles}
-          busy={busy}
-        />
-      )}
 
       <RoomMembersSection members={members} />
 

@@ -1,6 +1,5 @@
 import { type MessageId, type MessageParams, translate } from "../../../src/lib/messages.ts";
 import type { Lang } from "../../../src/lib/language.ts";
-import { roleLabel } from "../../../src/constants/roles.ts";
 import { annualMetricLabel } from "../../../src/constants/annualMetrics.ts";
 import { fieldLabel } from "../../../src/services/rdf/vocabLabels.ts";
 import { getEnv } from "../../config/env.ts";
@@ -101,15 +100,9 @@ export function buildingsAddedRe(lang: Lang = E2E_LANG): RegExp {
   return new RegExp(`(${one}|${many})`);
 }
 
-// ── Vocab-derived labels (the SECOND i18n path: field/role/metric names come from
+// ── Vocab-derived labels (the SECOND i18n path: field/metric names come from
 // the `vocab/*.ttl` documents, not the chrome catalog). These resolve in the run's
 // language too, so a spec locates them the same way it locates chrome strings. ──
-
-/** A data-room membership role's vocab label in the run language (e.g. "User" →
- * "Utilisateur"); the role dropdown options are labelled this way. */
-export function roleT(role: string): string {
-  return roleLabel(role, E2E_LANG);
-}
 
 /** An annual energy metric's full vocab label with unit in the run language —
  * `"electricityConsumption"` → "Electricity consumption (kWh)" / "Consommation

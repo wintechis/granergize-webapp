@@ -210,7 +210,6 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   DeleteRoom: { applies: never },
   AddBookmark: { applies: never },
   RemoveBookmark: { applies: never },
-  SaveRoles: { applies: never },
   SeedDemoRooms: { applies: always },
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: { applies: always },

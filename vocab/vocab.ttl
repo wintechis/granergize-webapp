@@ -38,10 +38,11 @@
 ###   Membership roles   ###
 ############################
 
-# The data-room membership role — the only role concept in the app. A role
-# names the role of the ORGANISATION a member represents; the member is the
-# authenticating user, and the role is recorded on the membership event as
-# sioc:has_function.
+# RETIRED, but kept PUBLISHED. Data rooms once carried a self-assigned membership
+# role, recorded on an as:Update event as sioc:has_function, so a share could target
+# "everyone holding role X". A room is a plain WebID directory now: the app has no
+# role concept, writes no role event, and its fold skips the old ones. These terms
+# stay defined so an existing room log remains resolvable.
 :UserRole rdf:type rdfs:Class ;
     rdfs:label "User Role"@en ; rdfs:label "Benutzerrolle"@de ; rdfs:label "Rôle d'utilisateur"@fr ;
     rdfs:comment "A data-room membership role: the role of the organisation a member represents, held via the member's WebID."@en ;

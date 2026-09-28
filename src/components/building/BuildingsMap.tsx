@@ -39,7 +39,7 @@ import {
   type MetricFraming,
   metricFraming,
 } from "../../services/energy/energyMetric.ts";
-import { bandColor, bandLabelKey, legendBands } from "../../constants/lensBand.ts";
+import { bandLabelKey } from "../../constants/lensBand.ts";
 import { useT } from "../../context/I18nProvider.tsx";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import MagnitudeChoroplethLayer from "../region/MagnitudeChoroplethLayer.tsx";
@@ -525,46 +525,11 @@ export default function BuildingsMap(
             {t("mapChoroplethUnplaced", { count: regionGrouping.unplaced })}
           </Typography>
         )}
-        {/* Energy band legend — overlaid in the map's bottom-left corner. Ownership
-            needs no swatch: the Mine/Shared tier dots above carry that colour key. */}
+        {/* Energy band legend — overlaid in the map's bottom-left corner, dots because
+            it explains round markers (the bottom-right corner is the choropleth's).
+            Ownership needs no swatch: the Mine/Shared tier dots above carry that key. */}
         {lens === "energy" && (
-          <Box
-            sx={{
-              position: "absolute",
-              left: 8,
-              bottom: 8,
-              zIndex: 1000,
-              bgcolor: "background.paper",
-              border: 1,
-              borderColor: "divider",
-              borderRadius: 1,
-              boxShadow: 2,
-              p: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: 0.5,
-            }}
-          >
-            {legendBands(framing).map((b) => (
-              <Box
-                key={b}
-                sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
-              >
-                <Box
-                  sx={{
-                    width: 10,
-                    height: 10,
-                    backgroundColor: bandColor(b, framing),
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                  }}
-                />
-                <Typography variant="body2">
-                  {t(bandLabelKey(b, framing))}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
+          <MagnitudeLegend framing={framing} shape="dot" placement="bottom-left" />
         )}
       </Box>
       {/* Time-cut slider — scrub the year the energy lens colours by (≥2 years →

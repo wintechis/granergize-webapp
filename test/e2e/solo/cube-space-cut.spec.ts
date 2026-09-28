@@ -19,6 +19,11 @@ import { T } from "../helpers/timeouts.ts";
  * a cell navigates to that building's `/observation` (energy) page, consistent with
  * the map markers. (Compare-years was dropped.)
  *
+ * It also proves the view **explains itself**: the two colour keys (cell bands +
+ * trend dots) and the two hints that distinguish them (a cell is peer-relative and
+ * re-frames as you filter, a trend is self-relative and doesn't), plus the trend
+ * tooltip carrying the two compared years and the actual change.
+ *
  * Seed: the core example file (`importExampleBuildings`) — six multi-year annual
  * buildings (2022-2024), so the matrix has several rows × ≥2 year columns. The matrix maths is proved in `energyMatrix.test.ts`; this is the UI proof the
  * grid renders and the cells reach the DOM.
@@ -93,6 +98,31 @@ test.describe("cube over-time heatmap (portfolio over time)", () => {
       ),
     );
     await expect(trendLabel.first()).toBeVisible({ timeout: T.action });
+
+    // The two colour keys beneath the grid: a cell band key and a trend key. Without
+    // them the heatmap is unreadable colour (the map has carried a legend all along).
+    // `.last()` because the band labels also appear in the tooltips/aria-labels above.
+    await expect(page.getByText(t("obsLegendCells"), { exact: true }))
+      .toBeVisible();
+    await expect(page.getByText(t("lensTierEfficient")).last()).toBeVisible();
+
+    // …and the two hints, which are the only thing on screen saying that a CELL is
+    // peer-relative (re-framed by filtering) while a TREND is self-relative (not).
+    // Asserted so they can't be quietly dropped in a later tidy-up.
+    await expect(page.getByText(t("obsLegendCellsHint"))).toBeVisible();
+    await expect(page.getByText(t("obsLegendTrendHint"))).toBeVisible();
+
+    // The trend dot's tooltip states the FACTS behind the verdict — which two years
+    // were compared and by how much the figure moved. The regex pins the shape
+    // ("<year> → <year>: <signed>") without pinning a locale-specific number.
+    await trendLabel.first().hover();
+    await expect(page.getByRole("tooltip")).toHaveText(
+      /\d{4}\s*→\s*\d{4}:\s*[+−±]/,
+      { timeout: T.action },
+    );
+    // Dismiss it before the drill-down: an open tooltip can overlay the cell.
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole("tooltip")).toHaveCount(0, { timeout: T.action });
 
     // Clicking a cell hands off to that building's OBSERVATION (energy) detail — the
     // finder drills to the observation leaf, consistent with the map markers.

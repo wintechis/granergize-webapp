@@ -1,8 +1,9 @@
 /// <reference lib="deno.ns" />
 /**
- * Catalog task `data-room` (headless): (i) room membership — A sees B; and
- * (v) the current-room pointer follows enter/switch/leave (the area historically
- * blamed on throttle — here it's deterministic).
+ * Catalog task `data-room` (headless): (i) room membership — A sees B, each member
+ * carrying the WebID that makes the room a directory; and (v) the current-room
+ * pointer follows enter/switch/leave (the area historically blamed on throttle —
+ * here it's deterministic).
  */
 import { restore, snapshot, type TaskContext } from "../taskContext.ts";
 import {
@@ -12,8 +13,6 @@ import {
   exitRoom,
   getCurrentRoom,
   getMembers,
-  getMembersByRole,
-  setMyRole,
 } from "../../../src/services/interop/dataRoom.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
@@ -38,7 +37,6 @@ export async function run(ctx: TaskContext): Promise<void> {
     room = await createRoom(a.session); // container + ACL + auto-join
     check("A created a room", Boolean(room), room);
     await enterRoom(room, b.session); // B POSTs as:Join into A's container
-    await setMyRole(room, ["investor"], b.session);
 
     const members = await getMembers(room, a.session); // A: fresh fold
     const ids = members.map((m) => m.webId);
@@ -48,11 +46,11 @@ export async function run(ctx: TaskContext): Promise<void> {
       ids.includes(b.webId),
       `members=[${ids.join(", ")}]`,
     );
-    const byRole = await getMembersByRole(room, "investor", a.session);
+    // The directory contract: a member IS a WebID — that is what A shares with.
     check(
-      "share-by-role resolves Investor to B",
-      byRole.includes(b.webId),
-      `byRole=[${byRole.join(", ")}]`,
+      "every member carries a WebID (the room is a WebID directory)",
+      members.length > 0 && members.every((m) => Boolean(m.webId)),
+      `members=[${ids.join(", ")}]`,
     );
   } finally {
     if (room) await deleteRoom(room, a.session).catch(() => {});

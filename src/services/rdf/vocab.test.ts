@@ -2,7 +2,6 @@
 import { strict as assert } from "node:assert";
 import { Parser } from "n3";
 import { BUILDING_FIELDS, schemaFor } from "./building/buildingConfig.ts";
-import { MEMBERSHIP_ROLE_TO_IRI } from "../../constants/roles.ts";
 import { ANNUAL_METRICS } from "../../constants/annualMetrics.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../xlsx/buildingTemplates.ts";
 import { SYSTEM_TYPE_IRI } from "./vocabularies.ts";
@@ -157,8 +156,8 @@ Deno.test("benchmark + aggregation terms are defined in the consumption vocab", 
 
 /**
  * Every owned term the code references (so the UI can surface its label): the
- * building-field predicates and their controlled-vocab ranges + instances, the
- * membership-role IRIs, and the energy/aggregation/core terms asserted above. The
+ * building-field predicates and their controlled-vocab ranges + instances, and
+ * the energy/aggregation/core terms asserted above. The
  * label-completeness guard runs over THIS set — a code-referenced term that
  * carries no label at all (not just an incomplete translation) is a failure.
  */
@@ -167,7 +166,6 @@ const CODE_REFERENCED_OWNED: string[] = [
     (iri): iri is string => !!iri && isOwned(iri),
   ),
   ...CONTROLLED_VOCAB_INSTANCES.map((n) => `${BUILDING_NS}${n}`),
-  ...Object.values(MEMBERSHIP_ROLE_TO_IRI),
 ];
 
 Deno.test("every code-referenced owned term carries en + de rdfs:labels", () => {
@@ -239,8 +237,22 @@ Deno.test("attachment + certification terms the serializer writes are defined in
 Deno.test("core plumbing terms are defined in the core vocab", () => {
   const owned = [
     `${GRAN_NS}kind`,
+    // RETIRED but still PUBLISHED (like `demoSeedDeclined`): data rooms carried
+    // self-assigned membership roles until they became a plain WebID directory. No
+    // code references these any more — `constants/roles.ts` and the `UserRole` type
+    // are gone — but the terms stay in the vocab so an old room log's
+    // `sioc:has_function` events remain resolvable. Listed literally, since there is
+    // no longer a code-side map to spread.
     `${GRAN_NS}UserRole`,
-    ...Object.values(MEMBERSHIP_ROLE_TO_IRI),
+    `${GRAN_NS}DummyRole`,
+    `${GRAN_NS}InvestorRole`,
+    `${GRAN_NS}UserRoleInstance`,
+    `${GRAN_NS}BenchmarkRole`,
+    `${GRAN_NS}FacilityManagerRole`,
+    `${GRAN_NS}DeveloperRole`,
+    `${GRAN_NS}ConsultantBrokerRole`,
+    `${GRAN_NS}SoftwareProviderRole`,
+    `${GRAN_NS}EnergyProviderRole`,
     `${GRAN_NS}Preferences`,
     `${GRAN_NS}currentRoom`,
     `${GRAN_NS}hiddenBuilding`,

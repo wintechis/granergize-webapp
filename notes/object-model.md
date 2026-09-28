@@ -40,8 +40,6 @@ types beside the domain, composites one layer up.
    - `Scenario` (`actual`|`planned`).
    - The aggregation trio: `AggregationDefinition`,
      `AggregationSnapshot`, `SharedAggregation` (+ `AggregationKind`).
-   - `UserRole` — the data-room membership role, and nothing else
-     ([`data-schema.md`](./data-schema.md) §`UserRole`).
 
 2. **Per-domain types** — each service folder owns the object form of the resource
    it parses:

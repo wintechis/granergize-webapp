@@ -3,16 +3,7 @@ import { t, tPattern } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
-import {
-  deleteAllOwnedRooms,
-  removeAllBookmarkedRooms,
-} from "../helpers/rooms.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
-import {
-  assignUserRole,
-  hostRoomAndGetUri,
-  joinRoomAsUser,
-} from "../helpers/connect.ts";
 import {
   addBuilding,
   addEnergyYear,
@@ -21,26 +12,23 @@ import {
   deleteBuildingRow,
   openBuildingsList,
   openBuildingsMap,
-  shareByRole,
   shareByWebId,
 } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * End-to-end building sharing across TWO throwaway Solid Pods, both ways the app
- * supports (mirrors share-files):
+ * End-to-end building sharing across TWO throwaway Solid Pods. Sharing has exactly
+ * ONE target: a recipient WebID. (A data room used to be an alternative target —
+ * "share with everyone holding role X" — but a room is a WebID DIRECTORY now: you
+ * read someone's WebID there and share with the person, so nothing about rooms is
+ * on this path any more.)
  *
- *   • DIRECT (By WebID) — the simple DUO: A already knows B's WebID, so it shares
- *     straight to it — no data room, no role resolution;
- *   • VIA A DATA ROOM (By role) — A hosts a room + takes the User role; B joins +
- *     takes the User role; A shares "By role" → User and the room resolves the role
- *     to B's WebID. The room machinery exists only to do that resolution.
- *
- * In each case A adds a building + shares, then B logs in fresh (so `drainInbox`
+ * Each test has A add a building + share it, then B logs in fresh (so `drainInbox`
  * archives the grant into B's `shared-in/`), reloading until the building appears
- * under "Buildings shared with you". The by-role test additionally exercises the
- * single-year energy grant, the recipient hide/show toggle, and the delete-revoke.
+ * under "Buildings shared with you". Beyond that first hop the tests split by what
+ * else they prove: the producer's "Shared with:" list + the recipient hide/show
+ * toggle, the single-year energy grant, and the delete-revoke.
  *
  * Previously split into 4 single-account parts to stay under solidcommunity.net's
  * Cloudflare burst limit; on the reliable Pods (solidweb.org) it runs as one test
@@ -140,30 +128,22 @@ test.describe("sharing across two pods", () => {
     }
   });
 
-  test("A shares a building by role; B sees it under Buildings shared with you", async ({ browser }) => {
+  test("the producer sees the share; B can hide and re-show it", async ({ browser }) => {
     test.setTimeout(T.testSharing);
-    // A and B's first logins are independent (B only needs A's room URI to JOIN,
-    // not to log in), so run both ~50 s OIDC flows concurrently — one login's
-    // wall-clock instead of two.
+    // A and B's first logins are independent, so run both ~50 s OIDC flows
+    // concurrently — one login's wall-clock instead of two.
     // Clean START is free: a Tier-4 run gets a fresh per-run collection, Tier 3 a
     // freshly-restarted CSS. The spec wipes BOTH pods at the END instead.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
     await assertCleanStart(a.page, "share-building:A");
     await assertCleanStart(b1.page, "share-building:B");
-    a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
+    a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building)
     try {
-      // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
-      const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page, roomUri);
-
-      try {
-        await joinRoomAsUser(b1.page, roomUri);
-      } finally {
-        await b1.ctx.close();
-      }
+      const bWebId = await webIdOf(b1.page);
+      await b1.ctx.close();
 
       await addBuilding(a.page, STREET);
-      await shareByRole(a.page, STREET);
+      await shareByWebId(a.page, STREET, bWebId);
 
       // ── Producer side: the building page's SharingSection now surfaces the
       // outgoing-share STATE — the "Shared with:" list (the materialized fold of
@@ -251,8 +231,6 @@ test.describe("sharing across two pods", () => {
         await openBuildingsMap(b2.page);
         await expect(markers.first()).toBeVisible({ timeout: T.action });
       } finally {
-        // Drop B's bookmark of A's room so it doesn't leak on B's Pod.
-        await removeAllBookmarkedRooms(b2.page);
         await b2.ctx.close();
       }
     } finally {
@@ -267,7 +245,6 @@ test.describe("sharing across two pods", () => {
             const id = await buildingIdOf(row);
             if (id) await deleteBuildingRow(a.page, id);
           }
-          await deleteAllOwnedRooms(a.page);
         }
       } catch {
         // best-effort cleanup; never fail the run
@@ -304,21 +281,14 @@ test.describe("sharing across two pods", () => {
     await assertCleanStart(b1.page, "share-building:B");
     a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
     try {
-      // ── Write part: A hosts a room + role, B joins + role ──
-      const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page, roomUri);
-
-      try {
-        await joinRoomAsUser(b1.page, roomUri);
-      } finally {
-        await b1.ctx.close();
-      }
+      const bWebId = await webIdOf(b1.page);
+      await b1.ctx.close();
 
       // ── A adds a building with two annual years, shares only the later one ──
       await addBuilding(a.page, STREET_Y);
       await addEnergyYear(a.page, STREET_Y, WITHHELD_YEAR, "11111");
       await addEnergyYear(a.page, STREET_Y, SHARED_YEAR, "22222");
-      await shareByRole(a.page, STREET_Y, [Number(SHARED_YEAR)]);
+      await shareByWebId(a.page, STREET_Y, bWebId, { years: [Number(SHARED_YEAR)] });
 
       // ── Read part: B logs in fresh → drainInbox archives the grant → verify ──
       const b2 = await freshPage(browser, B);
@@ -362,7 +332,6 @@ test.describe("sharing across two pods", () => {
           throw timeout;
         }
       } finally {
-        await removeAllBookmarkedRooms(b2.page);
         await b2.ctx.close();
       }
     } finally {
@@ -378,7 +347,6 @@ test.describe("sharing across two pods", () => {
             const id = await buildingIdOf(row);
             if (id) await deleteBuildingRow(a.page, id);
           }
-          await deleteAllOwnedRooms(a.page);
         }
       } catch {
         // best-effort cleanup; never fail the run
@@ -411,16 +379,10 @@ test.describe("sharing across two pods", () => {
     await assertCleanStart(b1.page, "share-building:B");
     a.page.on("dialog", (d) => d.accept()); // delete-building confirm + cleanup
     try {
-      // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
-      const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page, roomUri);
-      try {
-        await joinRoomAsUser(b1.page, roomUri);
-      } finally {
-        await b1.ctx.close();
-      }
+      const bWebId = await webIdOf(b1.page);
+      await b1.ctx.close();
       await addBuilding(a.page, STREET_D);
-      await shareByRole(a.page, STREET_D);
+      await shareByWebId(a.page, STREET_D, bWebId);
 
       // ── B logs in fresh once → drainInbox archives the grant → B sees it ──
       // The SAME B context is reused for the after-delete re-check: a reload
@@ -461,14 +423,10 @@ test.describe("sharing across two pods", () => {
           throw timeout;
         }
       } finally {
-        await removeAllBookmarkedRooms(b.page);
         await b.ctx.close();
       }
     } finally {
-      // Building already deleted by the test; just drop the room A hosted.
-      try {
-        if (!a.page.isClosed()) await deleteAllOwnedRooms(a.page);
-      } catch { /* best-effort cleanup */ }
+      // Building already deleted by the test.
       // Leave both Pods empty — the in-flow cleanup above is verified (residue
       // logged), then the per-run collection is removed entirely on each Pod.
       const bEnd = await freshPage(browser, B);

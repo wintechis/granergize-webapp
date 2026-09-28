@@ -9,7 +9,7 @@ import {
 import TravelExploreIcon from "@mui/icons-material/TravelExplore";
 import type { Building } from "../../types.ts";
 import SurroundingsMap from "./SurroundingsMap.tsx";
-import MagnitudeLegend from "../region/MagnitudeLegend.tsx";
+import { BandKeys } from "../Legend.tsx";
 import { useNearbyInstallations } from "../../hooks/mastrNearby.ts";
 import {
   useNearbyRooftopGeometry,
@@ -112,7 +112,10 @@ export default function SurroundingsSection(
               installations={installations}
               rooftops={mapRooftops}
             />
-            {rooftops.length > 0 && <MagnitudeLegend framing="magnitude" />}
+            {/* Inline key, not the floating map legend: this sits as a sibling of the
+                map with no positioned ancestor, so an absolute box would anchor to
+                whatever container happened to be positioned further up. */}
+            {rooftops.length > 0 && <BandKeys framing="magnitude" row />}
           </>
         )
         : (

@@ -1,17 +1,11 @@
 /// <reference lib="deno.ns" />
 /**
- * Catalog task `share-building` (headless): A shares a building with B by ROLE.
- * Exercises role→recipient resolution, the grant + inbox archival flow, AND the
- * WAC enforcement truth (B can actually fetch the building, not just see the log).
+ * Catalog task `share-building` (headless): A shares a building with B by WebID —
+ * the only share target there is (a data room is a WebID directory, never a
+ * target). Exercises the grant + inbox archival flow AND the WAC enforcement truth
+ * (B can actually fetch the building, not just see the log).
  */
 import { restore, snapshot, type TaskContext } from "../taskContext.ts";
-import {
-  createRoom,
-  deleteRoom,
-  enterRoom,
-  getMembersByRole,
-  setMyRole,
-} from "../../../src/services/interop/dataRoom.ts";
 import { shareBuildingData } from "../../../src/services/interop/share.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import { getSharedWithMe } from "../../../src/services/interop/sharing.ts";
@@ -36,7 +30,6 @@ export async function run(ctx: TaskContext): Promise<void> {
   const bSharedIn = podResources(b.webId).sharedIn;
   const bSharedInSnap = await snapshot(b.raw, bSharedIn);
 
-  let room = "";
   try {
     // A creates an Investor building (discovered by listing buildings/).
     const ttl = serializeBuildingToTurtle(
@@ -47,17 +40,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     );
     await uploadBuilding(a.session, uri, ttl, a.webId);
 
-    // A hosts a room, B joins + takes the Investor role.
-    room = await createRoom(a.session);
-    await enterRoom(room, b.session);
-    await setMyRole(room, ["investor"], b.session);
-
-    const recipients = await getMembersByRole(room, "investor", a.session);
-    check("Investor role resolves to B", recipients.includes(b.webId), `[${recipients.join(", ")}]`);
-
-    for (const wid of recipients) {
-      await shareBuildingData(uri, wid, a.session, { includeEnergyData: false });
-    }
+    await shareBuildingData(uri, b.webId, a.session, { includeEnergyData: false });
     await drainInbox(b.session); // archive the grant into B's shared-in/
 
     const shared = await getSharedWithMe(b.session);
@@ -72,7 +55,6 @@ export async function run(ctx: TaskContext): Promise<void> {
     check("B can actually READ the building (ACL enforcement)", bRead.ok, `HTTP ${bRead.status}`);
   } finally {
     await deleteBuilding(a.session, a.webId, uri).catch(() => {});
-    if (room) await deleteRoom(room, a.session).catch(() => {});
     await restore(b.raw, bSharedIn, bSharedInSnap);
   }
 }
