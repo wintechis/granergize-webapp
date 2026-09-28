@@ -48,7 +48,6 @@ import {
   getComputedSnapshotByAggregationId,
   getReceivedBenchmarksFor,
   getAggregationDefinition,
-  getSnapshotUri,
   listAggregationDefinitionUris,
   loadAggregationDefinition,
   loadComputedSnapshot,
@@ -639,55 +638,6 @@ export function useComputedSnapshot(snapshotUri: string | undefined) {
     (session) => loadComputedSnapshot(session, snapshotUri as string),
     { extraKey: [snapshotUri], enabled: Boolean(snapshotUri) },
   );
-}
-
-/** Combine selector for the snapshot fan-out: the readable snapshots, newest-loaded
- *  order preserved. Module-level (stable) so `useQueries` memoises it. */
-function combineSnapshots(
-  results: Array<UseQueryResult<AggregationSnapshot | null>>,
-) {
-  return {
-    list: results
-      .map((r) => r.data)
-      .filter((s): s is AggregationSnapshot => s != null),
-    isLoading: results.some((r) => r.isLoading),
-  };
-}
-
-/**
- * Every aggregation SNAPSHOT the user can read — own (from their definitions) and
- * received (from the folded shared-in log, benchmarks included) — as computed values.
- * The definitions/log folds are the existing queries; each snapshot rides the SAME
- * `computedSnapshot` key + loader as {@link useComputedSnapshot}, so a row already
- * showing one and this fan-out share a cache entry rather than re-reading it.
- *
- * `enabled` gates the whole fan-out on the surface that needs it being up (the pivot's
- * materialized cells), mirroring `useAnnualEnergyByYear(…, energyOn)`: crossing a
- * materialization boundary is an explicit act, never a side effect of navigating
- * (fan-out discipline, `plans/plan-cube-centered-ui.md` §Principles).
- *
- * Per-snapshot tolerant: an unreadable one (revoked, throttled) simply doesn't appear.
- */
-export function useAggregationSnapshots(enabled = true) {
-  const webId = webIdOf();
-  const definitions = useAggregationDefinitions();
-  const received = useReceivedAggregations();
-  const uris = [
-    ...(webId ? (definitions.data ?? []).map((d) => getSnapshotUri(webId, d.id)) : []),
-    ...(received.data ?? []).map((r) => r.snapshotUri),
-  ];
-  const snapshots = useQueries({
-    queries: uris.map((uri) => ({
-      queryKey: [...queryKeys.computedSnapshot, webId, uri],
-      queryFn: () => loadComputedSnapshot(getGateway(), uri),
-      enabled: enabled && Boolean(webId),
-    })),
-    combine: combineSnapshots,
-  });
-  return {
-    data: snapshots.list,
-    isLoading: definitions.isLoading || received.isLoading || snapshots.isLoading,
-  };
 }
 
 /**

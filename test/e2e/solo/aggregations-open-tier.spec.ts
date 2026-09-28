@@ -134,14 +134,6 @@ test.describe("aggregations open tier (regionalstatistik)", () => {
     }
     await expect(page.getByText(t("regDataSource"))).toBeVisible();
 
-    // Step 4 of plan-cube-centered-ui: the page's "explore this" affordance jumps to
-    // the SAME cells on the shared surface — Explore's saved-views projection at its
-    // choropleth guise (the back link above targets that projection's list instead).
-    await page.getByRole("button", { name: t("showInExplore") }).click();
-    await expect(page).toHaveURL(/\/explore\?view=aggregations&guise=map/, {
-      timeout: T.action,
-    });
-
     // Cleanup: delete the throwaway building.
     await page.goto("/");
     await openBuildingsList(page);

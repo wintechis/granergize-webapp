@@ -1,30 +1,22 @@
 import { useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import TimelineIcon from "@mui/icons-material/Timeline";
 import { Building } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
-import { splitEnergyDatasets } from "../../lib/energyResolution.ts";
 import { observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
-import IconAction from "../IconAction.tsx";
-import { seriesToParams } from "../../services/cube/observationsAxes.ts";
+import { type EnergyMetricKey } from "../../services/energy/energyDataset.ts";
 import {
   DEFAULT_METRIC,
   metricValueUnit,
-  type SelectableMetricKey,
 } from "../../services/energy/energyMetric.ts";
 import {
   buildEnergyMatrix,
   type MatrixCell,
 } from "../../services/energy/energyMatrix.ts";
-import {
-  type EnergyByBuildingYear,
-  selectableYears,
-} from "../../services/energy/energyTimeCut.ts";
-import { resolveYear } from "../../services/cube/coordinate.ts";
+import { type EnergyByBuildingYear } from "../../services/energy/energyTimeCut.ts";
 import {
   type BuildingTrend,
   trendForBuildings,
@@ -62,11 +54,6 @@ import { useT } from "../../context/I18nProvider.tsx";
  * doesn't own selection state. Tier + trend colours reuse the shared palettes
  * (`lensBand.ts` / `trends.ts`) and the legend reuses the shared `Legend` keys.
  *
- * A row whose building carries sub-hourly datasets also offers the **time drill**
- * (`?series=`): the finer grain under the year columns, opened as a panel below the
- * grid by the finder. Sparse, like the cube — a building with only annual data has no
- * finer grain, so it gets no affordance.
- *
  * Loading is the header indicator's job (CLAUDE.md): the panel shows a plain
  * "Loading…" / empty-state line while the cube is in flight or empty — no
  * component spinner.
@@ -83,7 +70,7 @@ interface ObservationsMatrixProps {
   /** Ids the lens frames its per-year peer set against (the visible set). */
   visibleIds: ReadonlySet<string>;
   /** The selected observed property (the cube's measure axis). */
-  metric?: SelectableMetricKey;
+  metric?: EnergyMetricKey;
 }
 
 export default function ObservationsMatrix(
@@ -94,21 +81,6 @@ export default function ObservationsMatrix(
   // Drill into the observation page, recording the matrix as the back trail.
   const go = (route: string) => navigate(route, { state: trailState(route) });
   const t = useT();
-  const [searchParams, setSearchParams] = useSearchParams();
-  // The time DRILL (`?series=`): descend from this row to the building's sub-hourly
-  // series, which the finder renders as a panel below the grid. Offered only where such
-  // cells exist (the cube is sparse — a building with no `PT15M` dataset has no finer
-  // grain to descend to), and written like every other axis: replace, own key only.
-  const openSeries = (b: Building) =>
-    setSearchParams((prev) => seriesToParams(b.id, prev), { replace: true });
-  // The held time cut of the cube coordinate (`services/cube/coordinate.ts`) — the same
-  // `?y=` the map slider writes (absent → the latest reachable year). This view spans
-  // every year, so it only MARKS that column; it never writes the year.
-  const heldYear = useMemo(
-    () =>
-      resolveYear(searchParams, energyByYear ? selectableYears(energyByYear) : []),
-    [searchParams, energyByYear],
-  );
   const matrix = useMemo(
     () =>
       energyByYear
@@ -184,29 +156,17 @@ export default function ObservationsMatrix(
             width: "max-content",
           }}
         >
-          {/* Header row: a blank corner, the year columns, then the Trend column. The
-              held `?y=` column (the map slider's time cut) carries the coordinate's
-              emphasis, exactly as the pivot marks it. */}
+          {/* Header row: a blank corner, the year columns, then the Trend column. */}
           <Box />
-          {years.map((y) => {
-            const held = y === heldYear;
-            return (
-              <Typography
-                key={y}
-                variant="caption"
-                title={held ? t("cubeHeldYear") : undefined}
-                sx={{
-                  textAlign: "center",
-                  color: held ? "text.primary" : "text.secondary",
-                  borderBottom: "2px solid",
-                  // Transparent off the held column, so marking it shifts no layout.
-                  borderColor: held ? "primary.main" : "transparent",
-                }}
-              >
-                {String(y).slice(-2)}
-              </Typography>
-            );
-          })}
+          {years.map((y) => (
+            <Typography
+              key={y}
+              variant="caption"
+              sx={{ textAlign: "center", color: "text.secondary" }}
+            >
+              {String(y).slice(-2)}
+            </Typography>
+          ))}
           <Typography
             variant="caption"
             sx={{ pl: 1, color: "text.secondary" }}
@@ -220,35 +180,15 @@ export default function ObservationsMatrix(
             const detail = trends?.get(row.building.id);
             const trendColor = TREND_COLOR[detail?.trend ?? "unknown"];
             const trendLabel = t(TREND_LABEL[detail?.trend ?? "unknown"]);
-            const hasSeries =
-              splitEnergyDatasets(row.building.energyDatasets).series.length > 0;
             return (
               <Box key={row.building.id} sx={{ display: "contents" }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    pr: 1,
-                    maxWidth: NAME_COL,
-                    minWidth: 0,
-                  }}
+                <Typography
+                  variant="body2"
+                  title={name}
+                  sx={{ ...ellipsis, pr: 1, maxWidth: NAME_COL }}
                 >
-                  <Typography
-                    variant="body2"
-                    title={name}
-                    sx={{ ...ellipsis, minWidth: 0 }}
-                  >
-                    <RefLink to={observationRoute(row.building.id)}>{name}</RefLink>
-                  </Typography>
-                  {hasSeries && (
-                    <IconAction
-                      label={t("seriesDrillAria", { building: name })}
-                      icon={<TimelineIcon fontSize="small" />}
-                      onClick={() => openSeries(row.building)}
-                    />
-                  )}
-                </Box>
+                  <RefLink to={observationRoute(row.building.id)}>{name}</RefLink>
+                </Typography>
                 {row.cells.map((cell) => {
                   const has = cell.value != null;
                   const title = cellTitle(name, cell);

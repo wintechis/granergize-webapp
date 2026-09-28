@@ -11,12 +11,7 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import {
-  ACTION_PARAM,
-  AGGREGATIONS_VIEW,
-  backTarget,
-  type NavState,
-} from "../routes.ts";
+import { ACTION_PARAM, backTarget, FINDERS, type NavState } from "../routes.ts";
 import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
@@ -62,7 +57,7 @@ export default function AggregationDetail({ session }: AggregationProps) {
   const goBack = () => {
     const trail = (location.state as NavState | null)?.trail ?? [];
     const rest = trail.slice(0, -1);
-    void navigate(backTarget(trail, AGGREGATIONS_VIEW), {
+    void navigate(backTarget(trail, FINDERS.aggregations), {
       state: rest.length ? { trail: rest } : undefined,
     });
   };

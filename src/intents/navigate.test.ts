@@ -6,20 +6,12 @@
 import { strict as assert } from "node:assert";
 import { goTo, NAVIGATE_CORES, NotNavigableError } from "./navigate.ts";
 import { INTENTS } from "./catalog.ts";
-import { AGGREGATIONS_VIEW, FINDERS, HOME } from "../routes.ts";
+import { FINDERS, HOME } from "../routes.ts";
 
 Deno.test("goTo: collection verbs resolve to finder routes (no params)", () => {
   assert.equal(goTo("ShowDashboard"), HOME);
   assert.equal(goTo("ShowBuildings"), FINDERS.buildings);
-  // Explore's canonical path is `/explore` since Step 3 of the cube-centered plan
-  // (the verb keeps its catalog name; only the route flipped) — the palette/LLM must
-  // route straight there, not through the `/observations` redirect.
-  assert.equal(goTo("ShowObservations"), FINDERS.explore);
-  assert.equal(FINDERS.explore, "/explore");
-  // Saved views are a PROJECTION of Explore now (Step 2 of the cube-centered
-  // plan) — the verb navigates straight there, not via the /aggregations redirect.
-  assert.equal(goTo("ShowAggregations"), AGGREGATIONS_VIEW);
-  assert.equal(AGGREGATIONS_VIEW, "/explore?view=aggregations");
+  assert.equal(goTo("ShowAggregations"), FINDERS.aggregations);
   assert.equal(goTo("ShowAgents"), FINDERS.agents);
 });
 

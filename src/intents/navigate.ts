@@ -13,7 +13,6 @@
  * what the launcher / LLM / eval target, so navigation is reachable headlessly.
  */
 import {
-  AGGREGATIONS_VIEW,
   aggregationRoute,
   agentRoute,
   buildingRoute,
@@ -30,8 +29,8 @@ export const NAVIGATE_CORES = {
   // ── Collections (no params; goTo may pass an arg — harmlessly ignored) ───────
   ShowDashboard: () => HOME,
   ShowBuildings: () => FINDERS.buildings,
-  ShowObservations: () => FINDERS.explore,
-  ShowAggregations: () => AGGREGATIONS_VIEW,
+  ShowObservations: () => FINDERS.observations,
+  ShowAggregations: () => FINDERS.aggregations,
   ShowRooms: () => FINDERS.rooms,
   ShowAgents: () => FINDERS.agents,
   ShowSharing: () => FINDERS.sharing,

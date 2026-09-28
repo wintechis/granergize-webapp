@@ -26,7 +26,6 @@ import {
 } from "../lib/commandPalette.ts";
 import type { IntentEntry, IntentObject } from "../intents/applicable.ts";
 import {
-  AGGREGATIONS_VIEW,
   aggregationRoute,
   buildingRoute,
   FINDERS,
@@ -113,7 +112,7 @@ function dialogRoute(
   if (isAggregation(object)) return aggregationRoute(object.id);
   // No focused object → a collection verb: go to the finder that owns its dialog.
   if (entry.entity === "building") return FINDERS.buildings;
-  if (entry.entity === "aggregation") return AGGREGATIONS_VIEW;
+  if (entry.entity === "aggregation") return FINDERS.aggregations;
   return null;
 }
 

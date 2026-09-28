@@ -21,9 +21,6 @@ export const sourceKeys = {
   regionalChoropleth: ["regionalChoropleth"] as const,
   /** A regionalstatistik table for one AGS (the detail page). */
   regionalDataset: ["regionalDataset"] as const,
-  /** A regionalstatistik table's full per-region year series, keyed by table id
-   *  (the pivot's drill-across section — one GET serves every region). */
-  regionalSeries: ["regionalSeries"] as const,
   /** The LfU/energy-atlas area profile for an AGS. */
   standortEnergieprofil: ["standortEnergieprofil"] as const,
   /** A building's joined Bundesland/Kreis regional figures (the context panel). */

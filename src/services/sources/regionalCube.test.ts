@@ -6,7 +6,6 @@ import {
   parseCubeIndicatorValues,
   parseRegionalChoropleth,
   parseRegionalObservations,
-  parseRegionalSeries,
   REGIONAL_TABLES,
   regionalGeoUrl,
   type RegionalTable,
@@ -94,30 +93,6 @@ Deno.test("kreis table: a Kreis with no renewable row → empty", () => {
   // 08221 only appears with the renewable carrier here, so it DOES match — assert
   // instead that an absent Kreis yields nothing.
   assert.deepEqual(parseRegionalObservations(store(KREIS_TTL, KREIS_BASE), kreisTable(), "09999"), []);
-});
-
-// --- parseRegionalSeries: every region's full series (the drill-across read) --
-
-Deno.test("series: ags-style → all years per region, keyed by AGS, sorted", () => {
-  const m = parseRegionalSeries(store(LAND_FIXTURE, LAND_BASE), landTable());
-  assert.equal(m.size, 2);
-  assert.deepEqual(m.get("09"), [
-    { year: 2021, value: 55.0, unit: "Prozent" },
-    { year: 2023, value: 61.5, unit: "Prozent" },
-  ]);
-  assert.deepEqual(m.get("12"), [{ year: 2023, value: 88.0, unit: "Prozent" }]);
-});
-
-Deno.test("series: frag-style geo + selector → carrier-filtered, per Kreis", () => {
-  const m = parseRegionalSeries(store(KREIS_TTL, KREIS_BASE), kreisTable());
-  // The decoy carrier row (o2, 9999) is excluded by the selector.
-  assert.deepEqual(m.get("09564"), [{ year: 2024, value: 1234, unit: "Tsd. MJ" }]);
-  assert.deepEqual(m.get("08221"), [{ year: 2024, value: 5555, unit: "Tsd. MJ" }]);
-  assert.equal(m.size, 2);
-});
-
-Deno.test("series: no observations → empty map", () => {
-  assert.equal(parseRegionalSeries(store("@prefix x: <urn:x#> .", LAND_BASE), landTable()).size, 0);
 });
 
 // --- regionalGeoUrl: the place's dereferenceable IRI (the leaf handoff) -------

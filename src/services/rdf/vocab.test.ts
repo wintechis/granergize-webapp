@@ -7,7 +7,7 @@ import { INVESTOR_CERT_SYSTEMS } from "../xlsx/buildingTemplates.ts";
 import { SYSTEM_TYPE_IRI } from "./vocabularies.ts";
 import {
   BENCH_COMPUTED_BY,
-  CONS_METRIC_PERIOD,
+  BENCH_METRIC_PERIOD,
   BENCH_RESULT,
   BUILDING_NS,
   CONSUMPTION_NS,
@@ -127,7 +127,7 @@ Deno.test("benchmark + aggregation terms are defined in the consumption vocab", 
   const owned = [
     BENCH_RESULT,
     BENCH_COMPUTED_BY,
-    CONS_METRIC_PERIOD,
+    BENCH_METRIC_PERIOD,
     ...[
       "Aggregation",
       "AggregationDefinition",

@@ -1,13 +1,11 @@
 import { useMemo } from "react";
 import Typography from "@mui/material/Typography";
 import { type Building } from "../../types.ts";
-import {
-  DEFAULT_METRIC,
-  metricUnit,
-  type SelectableMetricKey,
-} from "../../services/energy/energyMetric.ts";
+import { type EnergyMetricKey } from "../../services/energy/energyDataset.ts";
+import { DEFAULT_METRIC } from "../../services/energy/energyMetric.ts";
 import { type EnergyByBuildingYear } from "../../services/energy/energyTimeCut.ts";
 import { buildOverYears } from "../../services/energy/energyOverYears.ts";
+import { annualMetricDesc } from "../../constants/annualMetrics.ts";
 import { CHART_COLOR_PALETTE } from "../../constants/chartColors.ts";
 import MetricLineChart from "../detail/MetricLineChart.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
@@ -24,7 +22,7 @@ export default function ObservationsOverYears(
   { buildings, energyByYear, metric = DEFAULT_METRIC }: {
     buildings: Building[];
     energyByYear: EnergyByBuildingYear | undefined;
-    metric?: SelectableMetricKey;
+    metric?: EnergyMetricKey;
   },
 ) {
   const t = useT();
@@ -55,7 +53,7 @@ export default function ObservationsOverYears(
       data={data}
       lines={lines}
       xKey="year"
-      yUnit={metricUnit(metric)}
+      yUnit={annualMetricDesc(metric)?.unit ?? ""}
       height={360}
     />
   );

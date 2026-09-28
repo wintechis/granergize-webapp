@@ -67,8 +67,7 @@ test.describe("map viewport preservation", () => {
     //    defeating the very in-memory preservation under test (the store is preserved
     //    component state, not persisted storage, so it must NOT outlive a reload).
     await page.getByRole("tab", { name: t("navObservations") }).click();
-    // Explore's canonical path is `/explore` (Step 3 of plan-cube-centered-ui).
-    await expect(page).toHaveURL(/\/explore/, { timeout: T.action });
+    await expect(page).toHaveURL(/\/observations/, { timeout: T.action });
 
     // 3. Return to the Buildings finder via the tab → `/buildings` with NO `?c`/`?z`, so the
     //    only thing that can restore the viewport is the surviving store, not URL params.

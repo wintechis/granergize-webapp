@@ -315,39 +315,7 @@ Deno.test("computeAggregation: without the definition flag the snapshot is unmar
   const snap = await computeAggregation(session, def([B1], "average"));
   assert.equal(snap.isBenchmark, undefined);
   assert.equal(snap.computedBy, undefined);
-});
-
-Deno.test("computeAggregation: every annual snapshot carries its covered year, benchmark or not", async () => {
-  // The time coordinate is a property of the CELL, not of benchmarking: without
-  // it a snapshot has no year to sit at and stays off the pivot's year axis.
-  const session = pod({
-    [B1]: [{ year: 2023, value: 50 }, { year: 2024, value: 100 }],
-    [B2]: [{ year: 2023, value: 200 }],
-  });
-  const snap = await computeAggregation(session, def([B1, B2], "average"));
-  assert.equal(snap.isBenchmark, undefined);
-  assert.equal(snap.metricPeriod, "2024"); // max of the members' latest years
-});
-
-Deno.test("computeAggregation: no loadable member → no metricPeriod", async () => {
-  // Nothing was aggregated, so no year was covered — the snapshot declines a
-  // time coordinate rather than inventing one.
-  const snap = await computeAggregation(pod({}), def([B1], "average"));
-  assert.deepEqual(snap.values, {});
   assert.equal(snap.metricPeriod, undefined);
-});
-
-Deno.test("computeAggregation: a monthly aggregation records the definition's period", async () => {
-  // The monthly path's coverage is DECLARED (the definition's month), not derived,
-  // so it holds even when no member yielded a series total — and, like the annual
-  // path, it no longer depends on the benchmark flag.
-  const snap = await computeAggregation(pod({}), {
-    ...def([B1], "sum"),
-    period: "2024-03",
-  });
-  assert.equal(snap.isBenchmark, undefined);
-  assert.equal(snap.metricPeriod, "2024-03");
-  assert.equal(snap.buildingCount, 0);
 });
 
 Deno.test("summarizeContributors collects the building roster + distinct sharers", () => {

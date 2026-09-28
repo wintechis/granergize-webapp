@@ -11,15 +11,11 @@ export const CONSUMPTION_NS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 /**
  * Benchmark result — a `cons:AggregationSnapshot` a benchmark service provider
  * computes over the buildings shared to it and shares back. `BENCH_COMPUTED_BY`
- * names the computing agent (foaf:Agent).
+ * names the computing agent (foaf:Agent); `BENCH_METRIC_PERIOD` the year covered.
  */
 export const BENCH_RESULT = `${CONSUMPTION_NS}BenchmarkResult`;
 export const BENCH_COMPUTED_BY = `${CONSUMPTION_NS}computedBy`;
-/**
- * The period a snapshot's figures cover ("2024" / "2024-03") — the time coordinate
- * of EVERY `cons:AggregationSnapshot`, not just a benchmark's.
- */
-export const CONS_METRIC_PERIOD = `${CONSUMPTION_NS}metricPeriod`;
+export const BENCH_METRIC_PERIOD = `${CONSUMPTION_NS}metricPeriod`;
 
 /** FOAF — personal avatar (foaf:img) and the organisation's name/logo/homepage. */
 export const FOAF_NS = "http://xmlns.com/foaf/0.1/";
@@ -213,7 +209,7 @@ export const XSD_DATE = `${XSD_NS}date`;
 export const XSD_STRING = `${XSD_NS}string`;
 export const XSD_BOOLEAN = `${XSD_NS}boolean`;
 export const XSD_GYEAR = `${XSD_NS}gYear`;
-/** xsd:gYearMonth — a MONTHLY snapshot's `cons:metricPeriod` ("2024-03"). */
+/** xsd:gYearMonth — a MONTHLY benchmark's `bench:metricPeriod` ("2024-03"). */
 export const XSD_GYEARMONTH = `${XSD_NS}gYearMonth`;
 /** xsd:duration — an energy dataset's `cons:granularity` ("P1Y" annual, "PT15M" series). */
 export const XSD_DURATION = `${XSD_NS}duration`;

@@ -3,7 +3,6 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import TitleCount from "./TitleCount.tsx";
 import { RdfSourceLink } from "./detail/DetailView.tsx";
-import { finderRowStyle } from "../constants/listStyles.ts";
 
 /**
  * The shared finder-page **header**, so every tab's chrome reads the same: a
@@ -32,12 +31,20 @@ export interface FinderHeaderProps {
   readonly children?: ReactNode;
 }
 
+const ROW_SX = {
+  display: "flex",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: 1.5,
+  mb: 1,
+} as const;
+
 export default function FinderHeader(
   { title, count, source, actions, inputs, controls, children }: FinderHeaderProps,
 ) {
   const rows = (
     <>
-      <Box sx={finderRowStyle}>
+      <Box sx={ROW_SX}>
         <Typography variant="h6">
           {title}
           {count != null && <TitleCount count={count} />}
@@ -47,7 +54,7 @@ export default function FinderHeader(
         {inputs}
         {actions}
       </Box>
-      {controls && <Box sx={finderRowStyle}>{controls}</Box>}
+      {controls && <Box sx={ROW_SX}>{controls}</Box>}
     </>
   );
 

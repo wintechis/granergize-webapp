@@ -8,7 +8,7 @@ import type {
 } from "../../types.ts";
 import {
   BENCH_COMPUTED_BY,
-  CONS_METRIC_PERIOD,
+  BENCH_METRIC_PERIOD,
   BENCH_RESULT,
   CONSUMPTION_NS,
   RDF_NS,
@@ -416,29 +416,9 @@ export async function storeComputedSnapshot(
     literal(snapshot.buildingCount.toString(), namedNode(XSD_INTEGER)),
   ));
 
-  // The TIME coordinate of every snapshot (not just a benchmark's): the period its
-  // figures cover, so the cell knows the year it sits at.
-  if (snapshot.metricPeriod) {
-    store.addQuad(quad(
-      snapshotNode,
-      namedNode(CONS_METRIC_PERIOD),
-      // An annual snapshot covers a year ("2024"), a monthly one a month
-      // ("2024-03") — type each with its actual XSD datatype (a gYear-typed
-      // "2024-03" is an invalid literal).
-      literal(
-        snapshot.metricPeriod,
-        namedNode(
-          /^\d{4}-\d{2}$/.test(snapshot.metricPeriod)
-            ? XSD_GYEARMONTH
-            : XSD_GYEAR,
-        ),
-      ),
-    ));
-  }
-
   // Benchmark result: the snapshot is additionally a bench:BenchmarkResult and
-  // records who computed it. It stays a gra:AggregationSnapshot too, so every
-  // existing reader keeps working.
+  // records who computed it and which year it covers. It stays a
+  // gra:AggregationSnapshot too, so every existing reader keeps working.
   if (snapshot.isBenchmark) {
     store.addQuad(quad(
       snapshotNode,
@@ -450,6 +430,23 @@ export async function storeComputedSnapshot(
         snapshotNode,
         namedNode(BENCH_COMPUTED_BY),
         namedNode(snapshot.computedBy),
+      ));
+    }
+    if (snapshot.metricPeriod) {
+      store.addQuad(quad(
+        snapshotNode,
+        namedNode(BENCH_METRIC_PERIOD),
+        // An annual benchmark covers a year ("2024"), a monthly one a month
+        // ("2024-03") — type each with its actual XSD datatype (a gYear-typed
+        // "2024-03" is an invalid literal).
+        literal(
+          snapshot.metricPeriod,
+          namedNode(
+            /^\d{4}-\d{2}$/.test(snapshot.metricPeriod)
+              ? XSD_GYEARMONTH
+              : XSD_GYEAR,
+          ),
+        ),
       ));
     }
   }
@@ -623,7 +620,7 @@ export async function loadComputedSnapshot(
   const metricPeriod = getQuadValue(
     store,
     snapshotNode,
-    namedNode(CONS_METRIC_PERIOD),
+    namedNode(BENCH_METRIC_PERIOD),
   );
 
   const metrics = getQuadValues(

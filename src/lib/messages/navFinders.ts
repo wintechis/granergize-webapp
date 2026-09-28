@@ -182,13 +182,10 @@ export const navFinders = {
   },
   // Top-nav finder labels.
   navBuildings: { en: "Buildings", de: "Gebäude", fr: "Bâtiments" },
-  // The analytical surface over the energy cube — named for what you do there, not for
-  // the resources it renders (Step 1 of `plans/plan-cube-centered-ui.md`; the id keeps
-  // its historical name so every consumer, incl. the e2e helpers, follows the text).
   navObservations: {
-    en: "Explore",
-    de: "Erkunden",
-    fr: "Explorer",
+    en: "Observations",
+    de: "Beobachtungen",
+    fr: "Observations",
   },
   navAggregations: {
     en: "Aggregations",

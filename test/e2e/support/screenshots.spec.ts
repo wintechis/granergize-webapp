@@ -261,13 +261,7 @@ test.describe("handbuch screenshots", () => {
         // C owns no buildings: dismiss C's fresh-Pod onboarding banner.
         await c.page.getByRole("button", { name: "No thanks" })
           .click({ timeout: 8_000 }).catch(() => {});
-        await c.page.getByRole("tab", { name: en("navObservations") }).click();
-        // Saved views are an Explore projection now (no own tab) — pick the
-        // "Aggregations" button in the cube View group.
-        await c.page
-          .getByLabel(en("obsViewAria"))
-          .getByRole("button", { name: en("navAggregations"), exact: true })
-          .click();
+        await c.page.getByRole("tab", { name: en("navAggregations") }).click();
         const aggregationRow = c.page.locator("li").filter({ hasText: BENCHMARK_NAME })
           .first();
         await expect(aggregationRow).toBeVisible({ timeout: 60_000 });
@@ -411,11 +405,7 @@ test.describe("handbuch screenshots", () => {
       .toBeVisible({ timeout: 30_000 });
 
     // --- Aggregations: aggregations (Create aggregation lives here, with buildings) ---
-    await page.getByRole("tab", { name: en("navObservations") }).click();
-    await page
-      .getByLabel(en("obsViewAria"))
-      .getByRole("button", { name: en("navAggregations"), exact: true })
-      .click();
+    await page.getByRole("tab", { name: en("navAggregations") }).click();
     await page.waitForTimeout(500);
 
     // --- Create aggregation dialog (buildings are now selectable) ---
@@ -671,11 +661,7 @@ test.describe("handbuch screenshots", () => {
       // Charlie's benchmark snapshot THERE (mirrors palette-benchmark-share), then
       // return to the Sharing page for the shared-with-you figure.
       if (E2E_LOCAL) {
-        await b.page.getByRole("tab", { name: en("navObservations") }).click();
-        await b.page
-          .getByLabel(en("obsViewAria"))
-          .getByRole("button", { name: en("navAggregations"), exact: true })
-          .click();
+        await b.page.getByRole("tab", { name: en("navAggregations") }).click();
         await expect(b.page.getByText(BENCHMARK_NAME).first())
           .toBeVisible({ timeout: 120_000 });
         await b.page.getByRole("tab", { name: en("navSharing") }).click();

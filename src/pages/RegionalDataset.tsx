@@ -14,10 +14,9 @@ import {
 } from "@mui/material";
 import { sourceKeys } from "../services/sources/sourceKeys.ts";
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
-import ExploreIcon from "@mui/icons-material/Explore";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   fetchRegionalObservations,
   REGIONAL_TABLES,
@@ -25,9 +24,8 @@ import {
   regionalGeoUrl,
 } from "../services/sources/regionalCube.ts";
 import { bundeslandName } from "../services/sources/region.ts";
-import { AGGREGATIONS_MAP_VIEW, AGGREGATIONS_VIEW } from "../routes.ts";
+import { FINDERS } from "../routes.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
-import IconAction from "../components/IconAction.tsx";
 import RegionalMetricsMap from "../components/region/RegionalMetricsMap.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 
@@ -62,12 +60,7 @@ export default function RegionalDataset() {
   // Table (this region's year series) ⇄ Map (the metric across all regions). Local state.
   const [view, setView] = useState<"table" | "map">("table");
 
-  // "Explore this": the same cells on the shared analytical surface — Explore's
-  // saved-views projection at its choropleth guise. The back link above returns to that
-  // projection's LIST; this is the forward jump to the region-level cube.
-  const navigate = useNavigate();
-
-  const back = <RefLink to={AGGREGATIONS_VIEW}>{t("regDatasetBack")}</RefLink>;
+  const back = <RefLink to={FINDERS.aggregations}>{t("regDatasetBack")}</RefLink>;
 
   if (!table) {
     return (
@@ -92,11 +85,6 @@ export default function RegionalDataset() {
         <Typography variant="h5">
           {t(table.labelId)} — {region}
         </Typography>
-        <IconAction
-          label={t("showInExplore")}
-          icon={<ExploreIcon fontSize="small" />}
-          onClick={() => void navigate(AGGREGATIONS_MAP_VIEW)}
-        />
         <Box sx={{ flexGrow: 1 }} />
         <ToggleButtonGroup
           size="small"

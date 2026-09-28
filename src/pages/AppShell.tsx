@@ -36,25 +36,17 @@ interface AppShellProps {
 }
 
 /**
- * The finder routes, in top-nav order. Each is a routed finder page; the
+ * The five finder routes, in top-nav order. Each is a routed finder page; the
  * shell's `<Outlet/>` renders the active one. The active finder is read from the
  * pathname (no `?tab=` state — the route IS the active finder). The Buildings
  * map is a pure finder: a marker click navigates to the building's detail page
  * (`/building/:id`), like a List row.
- *
- * Aggregations lost its tab in Step 2 of `plans/plan-cube-centered-ui.md`: saved
- * views are a *projection* of Explore now (`/explore?view=aggregations`),
- * reached by its view switcher — `/aggregations` redirects there.
- *
- * **Explore leads** since Step 3 of that plan flipped the centre: the cube is the
- * surface you land on (`/` → `/explore`), and Buildings/Agents/Sharing/Rooms follow
- * as the manage cluster. The label ids are unchanged (`navObservations` still carries
- * the "Explore" text).
  */
 const NAV: { labelId: MessageId; path: string }[] = [
-  { labelId: "navObservations", path: FINDERS.explore },
   { labelId: "navBuildings", path: FINDERS.buildings },
+  { labelId: "navObservations", path: FINDERS.observations },
   { labelId: "navAgents", path: FINDERS.agents },
+  { labelId: "navAggregations", path: FINDERS.aggregations },
   { labelId: "navSharing", path: FINDERS.sharing },
   { labelId: "navMeet", path: FINDERS.rooms },
 ];
@@ -106,11 +98,11 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   const navigate = useNavigate();
   const location = useLocation();
   // The active finder is the longest NAV path the pathname starts with; default
-  // to Explore (the route table redirects "/" to /explore, so this is just a
+  // to Buildings (the route table redirects "/" to /buildings, so this is just a
   // safety net). MUI `Tabs` needs a value present in its <Tab>s, so fall back to
-  // the Explore path rather than `false` (which would render no active tab).
+  // the Buildings path rather than `false` (which would render no active tab).
   const activePath =
-    NAV.find((n) => location.pathname === n.path)?.path ?? FINDERS.explore;
+    NAV.find((n) => location.pathname === n.path)?.path ?? FINDERS.buildings;
 
   const t = useT();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);

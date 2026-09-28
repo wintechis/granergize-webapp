@@ -14,24 +14,18 @@
  * central `QueryCache.onError` toast would fire for a non-critical context layer.
  * The request still shows in the global activity indicator (via `trackedFetch`).
  */
-import { useMemo } from "react";
-import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { sourceKeys } from "../services/sources/sourceKeys.ts";
 import type { Building } from "../types.ts";
 import { bundeslandName, bundeslandToAgs } from "../services/sources/region.ts";
 import {
   fetchKreisName,
   fetchRegionalObservations,
-  fetchRegionalSeries,
   regionalGeoUrl,
   REGIONAL_TABLES,
   type RegionalObservation,
   type RegionalTable,
 } from "../services/sources/regionalCube.ts";
-import type {
-  RegionalGrain,
-  RegionalTableSeries,
-} from "../services/cube/regionalCells.ts";
 import { useNearbyInstallations } from "./mastrNearby.ts";
 import { fetchRegionAgs } from "../services/sources/regionGeometry.ts";
 import { logError } from "../lib/logError.ts";
@@ -120,112 +114,5 @@ export function useRegionalContext(building: Building) {
 
       return metrics.length ? { region: regionName, metrics } : null;
     },
-  });
-}
-
-/**
- * Fill each building's **`regionAgs`** from its stored region concept — the bare AGS
- * is not in the building file: it is the `dcterms:spatial` concept's own
- * `dcterms:identifier`, read by dereferencing it ({@link fetchRegionAgs}, memoised per
- * IRI on the immutable `["regionAgs", iri]` entry). So EVERY surface that joins
- * buildings to regions (the map's choropleth, the pivot's feature-ladder roll-up and
- * its `?in=` scope) must resolve it first, or every loaded building falls into the
- * "no region" bucket. One shared hook so they resolve it the same way and share the
- * cache entries.
- *
- * A freshly geocoded building already carries its own `regionAgs` and is passed
- * through untouched. `enabled` gates the fan-out on the region join actually being
- * needed (the choropleth being shown, the pivot sitting at a region level) — the
- * explicit act, not a background fetch. The returned array is referentially stable
- * while the inputs and the resolved codes are.
- */
-export function useBuildingsWithRegionAgs(
-  buildings: Building[],
-  enabled = true,
-): Building[] {
-  const conceptIris = useMemo(
-    () => [
-      ...new Set(
-        buildings.map((b) => b.regionConceptIri).filter((x): x is string => !!x),
-      ),
-    ],
-    [buildings],
-  );
-  const agsQueries = useQueries({
-    queries: conceptIris.map((iri) => ({
-      queryKey: [...sourceKeys.regionAgs, iri],
-      queryFn: () => fetchRegionAgs(iri),
-      enabled,
-      staleTime: Infinity, // region codes are immutable
-    })),
-  });
-  // Destructure the (referentially-unstable) query results to plain data + a stable
-  // signature, then a concept→AGS lookup.
-  const agsData = agsQueries.map((q) => q.data);
-  const agsSig = agsData.join("|");
-  const agsByConcept = new Map<string, string>();
-  conceptIris.forEach((iri, i) => {
-    const a = agsData[i];
-    if (a) agsByConcept.set(iri, a);
-  });
-  return useMemo(
-    () =>
-      buildings.map((b) =>
-        b.regionAgs || !b.regionConceptIri
-          ? b
-          : { ...b, regionAgs: agsByConcept.get(b.regionConceptIri) }
-      ),
-    // agsByConcept is rebuilt each render, but its content is captured by agsSig.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [buildings, agsSig],
-  );
-}
-
-/** Keep the tables that loaded — a failed one is simply absent (see below).
- *  Module-level (stable identity) so `useQueries` memoises it. */
-function loadedTables(
-  results: Array<UseQueryResult<RegionalTableSeries | null>>,
-): RegionalTableSeries[] {
-  return results.map((r) => r.data).filter((d): d is RegionalTableSeries => d != null);
-}
-
-/**
- * The regional-statistics tables for the pivot's **drill-across** section
- * (`services/cube/regionalCells.ts`): one query per table of the given grain, each
- * fetching the WHOLE table in one GET (all regions × all years — the wrapper serves
- * it that way, so the fan-out is one tracked request per table, not per region).
- *
- * `grain === null` (every row level the source has no counterpart for) yields no
- * queries at all, so the fetch is gated on the pivot actually sitting at a matching
- * level — the explicit act that crosses the materialization boundary.
- *
- * Long `staleTime`: official statistics are published yearly, so within a session
- * they are static. Best-effort per table, like {@link useRegionalContext}: a failing
- * table resolves to `null` (logged, never thrown), so it drops out of the section
- * instead of raising the central error toast for a context layer.
- */
-export function useRegionalPivotTables(
-  grain: RegionalGrain | null,
-): RegionalTableSeries[] {
-  const tables = grain ? REGIONAL_TABLES.filter((t) => t.grain === grain) : [];
-  return useQueries({
-    queries: tables.map((table) => ({
-      queryKey: [...sourceKeys.regionalSeries, table.tableId],
-      queryFn: async (): Promise<RegionalTableSeries | null> => {
-        try {
-          return {
-            tableId: table.tableId,
-            labelId: table.labelId,
-            grain: table.grain,
-            byRegion: await fetchRegionalSeries(table),
-          };
-        } catch (err) {
-          logError(`fetch regional table ${table.tableId}`, err);
-          return null;
-        }
-      },
-      staleTime: 1000 * 60 * 60 * 24,
-    })),
-    combine: loadedTables,
   });
 }
