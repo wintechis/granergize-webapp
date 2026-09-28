@@ -22,7 +22,6 @@ import type {
   AttachmentRef,
   Building,
   TechnicalSystem,
-  UserRole,
 } from "../types.ts";
 
 /**
@@ -61,10 +60,6 @@ function invalidateBuildingData(qc: QueryClient): void {
   qc.invalidateQueries({ queryKey: queryKeys.seriesDays });
   qc.invalidateQueries({ queryKey: queryKeys.dayReadings });
   qc.invalidateQueries({ queryKey: queryKeys.monthReadings });
-  // The fresh-Pod demo offer probes the buildings container; re-probe it whenever the
-  // building set changes so the "add example buildings" banner stands down once any
-  // exist (it was caching "empty" across adds → showing despite buildings present).
-  qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
 }
 
 /**
@@ -103,8 +98,6 @@ export function useDeleteBuilding() {
       qc.invalidateQueries({ queryKey: queryKeys.buildingSource });
       qc.invalidateQueries({ queryKey: queryKeys.buildingEnergy });
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutContainer });
-      // Deleting the last building re-enables the fresh-Pod demo offer.
-      qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
     },
   });
 }
@@ -606,17 +599,6 @@ export function useRemoveBookmark() {
   });
 }
 
-export function useSaveRoles() {
-  const qc = useQueryClient();
-  return useMutation({
-    meta: { action: "actionSaveRoles" },
-    mutationFn: (vars: { room: string; roles: UserRole[] }) =>
-      invoke("SaveRoles", vars, getGateway()),
-    // Roles live in the room's log, not the registry — refresh just that.
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomLog }),
-  });
-}
-
 // ── Account-scope operations ─────────────────────────────────────────────────
 // The dashboard's account actions: bulk seeding, the whole-collection wipe, the
 // archive pair, and the sharing projection's audit/repair. The caller keeps the
@@ -624,45 +606,6 @@ export function useSaveRoles() {
 // computed-preview confirms, the full-page activity screen, and outcome
 // rendering (tally toasts) — while the hook owns execution, busy state, the
 // central error toast, and the invalidations.
-
-/**
- * Onboarding banner: persist that the user declined the demo-buildings offer.
- * The write goes through the mutation hook like every user-intent Pod write —
- * central error toast, and the invalidation stands the cached offer down
- * without a reload (the old direct component write left `demoOffer` stale).
- */
-export function useDeclineDemoOffer() {
-  const qc = useQueryClient();
-  return useMutation({
-    meta: { action: "actionDeclineDemos" },
-    mutationFn: () => invoke("DeclineDemoOffer", {}, getGateway()),
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.prefs });
-      qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
-    },
-  });
-}
-
-/**
- * Dev-mode/banner: seed the fixed demo building set
- * (see the SeedDemoBuildings core). Per-building best-effort — the result is a
- * tally `{seeded, total}`, never a throw for an individual building; the
- * caller renders partial success ("Added N of M").
- */
-export function useSeedDemoBuildings() {
-  const qc = useQueryClient();
-  return useMutation({
-    meta: { action: "actionAddDemoBuildings" },
-    mutationFn: () => invoke("SeedDemoBuildings", {}, getGateway()),
-    // Energy follows automatically: useEnergy fans out a per-building query over the set.
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.buildingsContainer });
-      // Re-probe the demo offer so the banner stands down after seeding (and on the
-      // next reload, where the session-local `demoDismissed` flag has reset).
-      qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
-    },
-  });
-}
 
 /**
  * Remove the entire app collection from the Pod (see the DeleteAppData core).

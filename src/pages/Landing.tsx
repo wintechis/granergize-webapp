@@ -302,7 +302,7 @@ export default function Landing(
                     </Box>
                   </Box>
                   <Box sx={{ p: 2 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: 15, color: INK }}>Nordostpark 84</Typography>
+                    <Typography sx={{ fontWeight: 700, fontSize: 15, color: INK }}>Thomas-Dachser-Str. 4</Typography>
                     <Typography sx={{ fontSize: 12, color: MUTED, mb: 1 }}>{t("landingPreviewSub")}</Typography>
                     <Box sx={{ width: "100%", height: 200 }}>
                       <MetricBarChart data={barData} bars={bars} yUnit="kWh" height={200} />

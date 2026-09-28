@@ -205,14 +205,9 @@ export const shellAuth = {
     de: "Keine Herkunft aufgezeichnet.",
     fr: "Aucune provenance enregistrée.",
   },
-  menuAddBuildings: {
-    en: "Add example buildings and energy data",
-    de: "Beispielgebäude und Energiedaten hinzufügen",
-    fr: "Ajouter des bâtiments et données d'exemple",
-  },
   menuAddAgents: {
     en: "Add example agents and rooms",
-    de: "Beispielagenten und -datenräume hinzufügen",
+    de: "Beispielakteure und -datenräume hinzufügen",
     fr: "Ajouter des agents et salles d'exemple",
   },
   menuExportArchive: {
@@ -276,8 +271,6 @@ export const shellAuth = {
     de: "Alle App-Daten werden gelöscht…",
     fr: "Suppression de toutes les données…",
   },
-  onboardAddExamples: { en: "Add examples", de: "Beispiele hinzufügen", fr: "Ajouter des exemples" },
-  btnNoThanks: { en: "No thanks", de: "Nein danke", fr: "Non merci" },
   appErrorLoadingData: {
     en: "Error loading data: {error}",
     de: "Fehler beim Laden der Daten: {error}",
@@ -293,19 +286,14 @@ export const shellAuth = {
     de: "Entfernung abgebrochen — einige Daten wurden möglicherweise bereits gelöscht",
     fr: "Suppression annulée — certaines données ont peut-être déjà été supprimées",
   },
-  onboardBanner: {
-    en: "No buildings yet — add a couple of example buildings (with energy data) to explore?",
-    de: "Noch keine Gebäude — ein paar Beispielgebäude (mit Energiedaten) zum Erkunden hinzufügen?",
-    fr: "Aucun bâtiment — ajouter quelques bâtiments d'exemple (avec données énergétiques) à explorer ?",
-  },
   demoAgentsAdded: {
     en: "Demo agents added",
-    de: "Demo-Agenten hinzugefügt",
+    de: "Demo-Akteure hinzugefügt",
     fr: "Agents de démonstration ajoutés",
   },
   demoAgentsPartial: {
     en: "Added {seeded} of {total} demo agents",
-    de: "{seeded} von {total} Demo-Agenten hinzugefügt",
+    de: "{seeded} von {total} Demo-Akteuren hinzugefügt",
     fr: "{seeded} sur {total} agents de démonstration ajoutés",
   },
   demoRoomsAdded: {

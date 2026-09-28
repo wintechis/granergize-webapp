@@ -6,7 +6,6 @@ import {
   prefsUri,
   readPrefs,
   setCurrentRoom,
-  setDemoSeedDeclined,
   toggleHiddenBuilding,
 } from "./prefs.ts";
 import { GRAN_NS } from "./rdf/vocabularies.ts";
@@ -31,24 +30,16 @@ Deno.test("readPrefs on a missing file yields empty prefs", async () => {
   const prefs = await readPrefs(session);
   assert.equal(prefs.currentRoom, null);
   assert.equal(prefs.hiddenBuildings.size, 0);
-  assert.equal(prefs.demoSeedDeclined, false);
 });
 
-Deno.test("setDemoSeedDeclined remembers the choice and coexists with room + hidden", async () => {
+Deno.test("the room pointer and the hidden list coexist in one file", async () => {
   const { session } = makeSession();
   await setCurrentRoom(session, ROOM);
   await toggleHiddenBuilding(session, B1);
-  await setDemoSeedDeclined(session, true);
 
-  let prefs = await readPrefs(session);
-  assert.equal(prefs.demoSeedDeclined, true);
+  const prefs = await readPrefs(session);
   assert.equal(prefs.currentRoom, ROOM, "room kept");
   assert.ok(prefs.hiddenBuildings.has(B1), "hidden kept");
-
-  await setDemoSeedDeclined(session, false); // clears it
-  prefs = await readPrefs(session);
-  assert.equal(prefs.demoSeedDeclined, false);
-  assert.equal(prefs.currentRoom, ROOM, "room still kept after clearing");
 });
 
 Deno.test("setCurrentRoom persists and reads back", async () => {

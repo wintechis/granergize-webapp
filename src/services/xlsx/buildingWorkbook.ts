@@ -246,10 +246,15 @@ function placeLogo(
  * Header-row + data-rows table sheet (benchmark / generic / combined export):
  * brand-filled bold header in row 1 (the row the importer reads the column
  * names from), zebra-striped data rows, fitted column widths, frozen header.
+ * Exported (with {@link newSheet}/{@link sheetToBytes}) for the core-fixture
+ * derivation (`scripts/genCoreFixture.ts`), which re-renders a subset of the
+ * bundled L.Immo example through the same writer the in-app export uses.
+ * A `null` cell value is an empty cell (that is how a sparse column reaches
+ * this writer when rows are read back from a sheet).
  */
-function writeTableSheet(
+export function writeTableSheet(
   ws: Worksheet,
-  records: Record<string, string | number>[],
+  records: Record<string, string | number | null>[],
 ): void {
   // Union of keys across rows, first-seen order (sparse columns coexist).
   const headers = [...new Set(records.flatMap((r) => Object.keys(r)))];
@@ -327,14 +332,14 @@ function writeInvestorSheet(ws: Worksheet, rows: Cell[][]): void {
   placeLogo(ws, { col: 3.3, row: 0.1 }, { col: 3.95, row: 0.9 });
 }
 
-async function newSheet(): Promise<Worksheet> {
+export async function newSheet(): Promise<Worksheet> {
   const ExcelJS = await loadExceljs();
   const wb = new ExcelJS.Workbook();
   wb.creator = "Granergize";
   return wb.addWorksheet(msg("xlsxSheetBuildings"));
 }
 
-async function sheetToBytes(ws: Worksheet): Promise<ArrayBuffer> {
+export async function sheetToBytes(ws: Worksheet): Promise<ArrayBuffer> {
   const out = await ws.workbook.xlsx.writeBuffer();
   const u8 = out instanceof Uint8Array ? out : new Uint8Array(out);
   // Plain ArrayBuffer copy so it drops straight into `new Blob([...])`.

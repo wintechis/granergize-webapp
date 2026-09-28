@@ -2,6 +2,198 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [Unreleased] — Data rooms are a WebID directory; List-first Observations; „Akteure"
+
+Three independent changes.
+
+**Data rooms shrink to what they are good for: finding people.** A room used to be
+an alternative *share target* — "share with everyone in this room holding role X" —
+which is why rooms carried self-assigned roles at all. That indirection is removed:
+
+- **A room is now a directory.** Its page lists each member's name **and WebID**,
+  with a one-click copy; the share dialog's recipient field already offered room
+  members alongside your contacts, and that stays. You find a person in a room and
+  share with *them*.
+- **Roles are gone entirely** — not just as a share target. `RoomRolesSection`, the
+  `SaveRoles` intent/hook/core, `setMyRole`/`getMembersByRole`/`getMyRole`, the
+  `UserRole` type and `constants/roles.ts` are all deleted, along with ~15 message
+  ids. The app now has **no role concept at all**: an identity is a WebID.
+- **No migration, and the sharing log is untouched.** A legacy role event
+  (`as:Update` + `sioc:has_function`) simply falls through the fold, so an existing
+  Pod's room keeps working with its role history ignored rather than rewritten; the
+  `gran:…Role` IRIs stay published in `vocab/vocab.ttl` so those events remain
+  resolvable. And because a role was always resolved to member WebIDs *before* the
+  write, a role-targeted grant and a WebID-targeted grant are byte-identical — the
+  `shared-out/` event, `reissueGrants` and `applyBuildingGrant` need no back-compat
+  reader and old logs replay unchanged.
+
+**The Observations finder opens on the List.** `?view=` defaults to `list` and the
+List/Map buttons swap order, matching the Aggregations finder. Note the URL semantics
+flip with it: a bare `/observations` now means the List, and choosing the Map writes
+`?view=map` — so an existing bare link lands somewhere new. The metric selector and
+year slider are absent on the List, since neither applies until you pick an energy
+view. This also fixed a latent bug in the handbuch screenshot run, where the
+`energy-lens.png` capture reached the Map only by accident (it clicked the *Buildings*
+finder's toggle label inside a swallowed `catch`, and relied on Map being the default).
+
+**German "Agents" → "Akteure"** across the UI (18 catalog entries, re-declined rather
+than find-and-replaced — `Akteur` is a strong masculine) and the matching Handbuch
+prose. The catalog was already inconsistent: `noAgentSpecified` said "Kein Akteur".
+
+## [Unreleased] — The over-time heatmap explains its own colours
+
+The Observations finder's "Over time" view coloured its cells and its Trend
+column with nothing on screen saying what either meant — and the two mean
+opposite things, which is the part users can't guess:
+
+- **A legend under the grid**, two keys side by side: the cell bands (following
+  the selected metric's framing, so generation shows the neutral
+  Lower/Medium/Higher ramp) and the trend dots. Beneath it the one fact the
+  swatches can't show — a **cell** ranks a building against the others shown in
+  that same year, so filtering re-colours it; a **trend** compares a building
+  with its own two most recent years, so filtering doesn't.
+- **The trend dot now carries a tooltip with the facts** — which two comparable
+  years were compared and by how much the figure moved ("2022 → 2024: −12 %
+  (kWh/m²/a)") — instead of an unexplained direction. A building with fewer than
+  two comparable years says so. `trendForBuildings` returns those years and the
+  change alongside the verdict (`BuildingTrend`) rather than discarding them.
+- **One legend, not three.** `MagnitudeLegend` and the map's inline copy were
+  the same key written twice; both now render the shared `LegendKeys`/`BandKeys`
+  (`src/components/Legend.tsx`), which owns the keys and nothing about
+  placement. The building Surroundings section switches to the inline key — it
+  had been rendering the absolutely-positioned legend with no positioned
+  ancestor.
+- **Fixed**: the cell tooltip hardcoded kWh, so Water and Wastewater printed
+  "kWh/m²/a" for an m³ figure. Units now come from the annual-metric schema
+  (`metricValueUnit`). The panel's "Loading…" and empty-state strings were
+  hardcoded English and now go through the catalog (reusing the orphaned
+  `compareYearsEmpty`, renamed `obsMatrixEmpty`).
+- **Handbuch**: a new section, "Die Entwicklung über die Jahre lesen (Ansicht
+  „Im Zeitverlauf")", carries the full explanation — per-year terciles against
+  the visible set, intensity rather than absolute, the neutral generation ramp,
+  the ±5 % flat band — with an `overtime-heatmap.png` figure. The chapter's
+  stale "Tab **Explore**" mentions around it are corrected to the current tab
+  names (Gebäude / Beobachtungen); four further mentions elsewhere in the
+  document (lines ~513, 1184, 1236, 1277) still say Explore.
+
+## [Unreleased] — The demo seed is gone: example data now arrives through the importer
+
+The hard-coded example buildings are removed. The same data — the 37 real
+L.Immo logistics buildings and the earlier fictional set — is now shipped as
+**bundled xlsx files the user imports** through the ordinary "Autofill from
+file" flow, so example data takes exactly the path a customer's own
+spreadsheet takes:
+
+- **Offer surface**: the Add-building import sub-flow lists "…or try one of the
+  bundled example files" (`src/constants/exampleFiles.ts`); a click fetches the
+  workbook from `public/examples/` and feeds it through the same
+  `detectSpreadsheetFormat` → `parseCsvToFields` path as an uploaded file. The
+  fresh-Pod onboarding banner is gone (with `useDemoOffer`,
+  `useSeedDemoBuildings`, `useDeclineDemoOffer`, the `SeedDemoBuildings` /
+  `DeclineDemoOffer` intents, `OnboardingBanner.tsx` and the dev-mode "Add
+  example buildings" menu item); the Buildings empty state carries the guidance
+  instead.
+- **The workbooks ARE the example data.** `public/examples/limmo-nuernberg.xlsx`
+  (all 37, generic flat layout, annual energy 2022–2024),
+  `beispiel-portfolio.xlsx` (the fictional 4 as an investor row-label sheet,
+  no coordinates → demonstrates geocode-on-import) and
+  `lastgang-am-tower-10.xlsx` (a 14-day 15-minute profile) are hand-maintained
+  **source files**, not codegen output — no TypeScript anywhere holds example
+  buildings any more. The transform pipeline that first produced them (a native
+  L.Immo extract plus deterministic synthetic energy, technical systems and the
+  fictional set as TS literals) served its purpose and is retired; recover it
+  from `git show a62a680:scripts/genExampleFiles.ts` if the synthesis is ever
+  wanted again, and `scripts/data/` keeps the native extract as provenance.
+- **One derived artifact**: `scripts/genCoreFixture.ts`
+  (`deno task gen:core-fixture`) cuts the 6-building
+  `test/e2e/fixtures/limmo-core.xlsx` out of the L.Immo workbook, so the browser
+  lanes import 6 rows instead of 37 without a second hand-maintained sheet
+  drifting from the example the app ships. xlsx bytes aren't stable across
+  writes, so `genCoreFixture.test.ts` compares PARSED records — pinning the
+  fixture's freshness *and* serving as the import contract for all three
+  bundled workbooks.
+- **What a spreadsheet can't carry** is supplied around it: `operatedBy` /
+  `ownedBy` self-links (the reader's WebID is unknown at generation — the
+  example loader applies them per `buildingCode`, keeping the operator group
+  the Betreiber benchmark needs), planned (Soll) datasets (entered in the
+  energy editor), and annual + 15-minute series on ONE building (a Lastgang
+  file always mints its own building, so the e2e composes it).
+- **Import fixes on the way through**: the parse loop now uses one
+  `makeGeocodeOrAdoptCoords()` per run, so coordinate-carrying rows also get
+  their Gemeinde AGS resolved (they were skipped entirely before) with the
+  latch limiting a downed linked-lau to one backoff window; and the
+  "ignored columns" warning no longer fires on `lat`/`long`/`regionAgs`/`id`
+  or the `_pv_*`/`_heatpump_*`/… system fields the serializer actually reads.
+- **Prefs**: `gran:demoSeedDeclined` is no longer read or written (the term
+  stays in the published vocab; an old Pod's triple is inert — the
+  read-modify-write leaves unknown triples alone).
+- **Tests**: `VITE_DEMO_SEED` is gone from `playwright.config.ts` and the 8
+  deno tasks — the core fixture, not a build flag, keeps the e2e import small.
+  `ensureDemoBuildings` → `importExampleBuildings` / `importSeriesBuilding`
+  (which drive the real dialog and stub the register + linked-lau); the
+  headless `seed-demos` task keeps its concurrency burst for contacts + rooms.
+
+## [2026-07-21] — Demo seed: the four fictional demos → 37 real logistics buildings (L.Immo extract)
+
+The example-building seed (onboarding banner / dev-mode "Add example
+buildings") now writes **37 real logistics buildings** from the L.Immo online
+Nürnberg-region extract instead of the four hand-written fictional demos:
+
+- **Generated data module**: `scripts/genDemoBuildings.ts` (`deno task
+  gen:demo-buildings`) reads the committed extract
+  (`scripts/data/L.Immo-online-Objektdaten-Auszug Nürnberg_2025-07-01.xlsx`)
+  and emits `demoBuildings.generated.ts`; a freshness test pins the module to
+  the generator + source (SHA-256 in the header). The `DemoSpec` interface
+  moved to its own `demoSpec.ts`.
+- **Deterministic synthetic energy**: the extract is master-data-only, so
+  annual electricity/heat/water 2022–2024 are synthesized at GENERATION time
+  (area × WZ-code intensity × age factor, FNV-1a jitter — no runtime
+  randomness). Feature coverage rides on picked buildings:
+  Thomas-Dachser-Str. 4 (flagship — planned/Soll 2024 pair, investor panel,
+  self-operated), Steinauer Weg 7 (1200 kWp PV + generation), Am Tower 10 and
+  Koperstr. 3 (both shapes → the Annual | Time series toggle).
+- **Coordinates ship in the data**: the seed now injects
+  `makeGeocodeOrAdoptCoords()` (new in `geocode.ts`) — fields carrying finite
+  lat/long are adopted without querying the address register, while the
+  Gemeinde AGS is still resolved from them; address-less callers fall through
+  to the register search unchanged (the dialogs' "Geocode" button still
+  re-geocodes edited addresses). The AGS lookup carries a per-run latch:
+  after one transport-level linked-lau failure (wrapper down → in the
+  browser every attempt burns the full ~50 s transient-retry backoff) the
+  remaining buildings of the run skip the lookup, so a downed wrapper costs
+  the seed one backoff window instead of one per building.
+- **Browser lanes seed a core subset**: the full 37-building seed is ~320 Pod
+  writes — minutes per seeding spec on a throttled remote Pod — so both e2e
+  lanes set `VITE_DEMO_SEED=core` (6 curated buildings covering every
+  asserted shape; baked into the Tier-3 build by the task commands, set for
+  the Tier-4 dev server in `playwright.config.ts`). The full set stays
+  proven by the unit seed tests and the headless `seed-demos` task (which
+  also regains its missing third argument — the injected geocoder).
+- Specs, screenshots, videos, Landing hero, handbuch and
+  `notes/storage-layout.md` follow the new addresses (Nordostpark 84 →
+  Thomas-Dachser-Str. 4 etc.).
+## [2026-09-23] — Weather: follow linked-dwd's own vocabulary (`vocab#`)
+
+linked-dwd moved the terms it coins (`dwd:WeatherStation`, `dwd:station_id`,
+`dwd:quality`, the CDC columns `dwd:JA_TT` …) from the fixed
+`https://opendata.dwd.de/#` — a namespace on DWD's host that DWD neither
+defines nor serves — to its own `vocab#`, served at `…/dwd/vocab` with en+de
+labels. The wrapper writes the namespace ROOT-relative, so it has no fixed IRI
+any more:
+
+- **`dwdVocabNs(documentIri)`** (`linkedWeather.ts`) resolves `vocab#` against
+  the document IRI; `near`/`values` sit at the wrapper root, so this gives the
+  namespace for any deployment (`https://wunderfacts.com/dwd/near?…` →
+  `https://wunderfacts.com/dwd/vocab#`). `parseStations`/`parseObservations`
+  match against it; `DWD_NS` is gone from `vocabularies.ts`.
+- **Must deploy together with linked-dwd's vocab change**: this build matches
+  only the new namespace (a unit test pins that the old one no longer does),
+  and the old build matches only the old one.
+- Unit and e2e fixtures declare `@prefix dwd: <vocab#>`, relative like the
+  wrapper's own output. Checked beyond the fixtures: the parsers read a local
+  linked-dwd build's real `near`/`values` Turtle (3 ranked stations; 82
+  `JA_TT`, 68 `JA_RR` observations for Nürnberg 03668).
+
 ## [2026-07-10] — Geocoding: Nominatim → the address register (`linked-addressapi`)
 
 The app's geocoder now resolves addresses against the **European register of

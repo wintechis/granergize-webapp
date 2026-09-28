@@ -496,24 +496,21 @@ installieren.
 
 **Was beim ersten Start passiert:** Bei der ersten Anmeldung ist Ihr Dashboard
 zunächst leer – es werden keine Daten vorausgesetzt und nichts im Voraus
-angelegt. Für einen schnellen Einstieg bietet Ihnen die Granergize-App an, **vier
-beispielhafte Demo-Gebäude** hinzuzufügen („Add examples"); diesen Hinweis
-können Sie auch ausblenden. Er erscheint nur, solange Sie weder eigene noch
-mit Ihnen geteilte Gebäude haben; schlägt das Anlegen einzelner Beispiele fehl
-(etwa durch eine instabile Verbindung), meldet die Anwendung, wie viele der
-vier Gebäude angelegt wurden, und das Angebot bleibt zum erneuten Versuch
-verfügbar. Die Beispiele decken beide Datenformen ab – zwei
-Gebäude mit Jahreswerten (2022–2024) und vollständigen Stammdaten, zwei mit
-15-Minuten-Messreihen (eines davon trägt zusätzlich Jahreswerte). Zwei der
-Gebäude mit Jahreswerten teilen sich denselben Betreiber und eines enthält
-zusätzlich geplante (Soll-)Werte, sodass Betreiber-Durchschnitt und
-Soll-Ist-Vergleich direkt an den Beispieldaten sichtbar sind. Die Abbildungen in diesem Handbuch zeigen genau diese
-Demo-Gebäude. Die benötigte Ordnerstruktur unter `granergize/`
+angelegt. Für einen schnellen Einstieg liegen der Anwendung **Beispieldateien**
+bei: Öffnen Sie „Autofill from file" und wählen Sie unter „…or try one of the
+bundled example files" eine davon aus. Sie werden genauso eingelesen wie eine
+eigene Excel-Datei – Sie sehen die erkannten Gebäude also vor dem Speichern und
+bestätigen mit „Add Buildings". Zur Wahl stehen ein **Logistikportfolio
+Nürnberg** (37 reale Logistikgebäude mit Jahreswerten 2022–2024), ein
+**Beispiel-Portfolio** aus vier fiktiven Gebäuden im Zeilenbeschriftungs-Format
+(ohne Koordinaten – die Anwendung ermittelt sie beim Import) und ein
+**15-Minuten-Lastgang**. Die Abbildungen in diesem Handbuch zeigen genau diese
+Beispielgebäude. Die benötigte Ordnerstruktur unter `granergize/`
 legt die Anwendung automatisch an, sobald Sie Ihr erstes Gebäude speichern – Sie
 müssen sich darum nicht kümmern. Anschließend können Sie eigene Gebäudedaten
 hinzufügen und mit der eigentlichen Arbeit beginnen.
 
-![Nach der Anmeldung: Die App öffnet sich auf der Karte (Tab „Explore"); auf einem leeren Pod bietet ein Hinweisbalken an, beispielhafte Gebäude hinzuzufügen – der Einstieg beginnt mit dem Anlegen von Gebäuden.](figures/erster-start.png){width=100%}
+![Nach der Anmeldung: Die App öffnet sich auf der Karte (Tab „Explore"); auf einem leeren Pod ist sie noch leer – der Einstieg beginnt mit dem Anlegen oder Einlesen von Gebäuden.](figures/erster-start.png){width=100%}
 
 ## Ihre Organisation festlegen
 
@@ -534,8 +531,8 @@ Felder aus:
 
 Sie müssen **keine Rolle** festlegen, um Gebäude anzulegen: Jedes Gebäude und seine
 Energiedaten werden ohne Rollenzuordnung erfasst, lediglich mit Ihrer WebID als
-Datenproduzent vermerkt. Rollen kommen ausschließlich in **Datenräumen** zum Einsatz
-(siehe „Rollenbasierte Freigaben"). Der „Add Building"-Dialog zeigt für alle Gebäude
+Datenproduzent vermerkt. Die App kennt überhaupt keine Rollen mehr – wer Sie sind,
+sagt Ihre WebID. Der „Add Building"-Dialog zeigt für alle Gebäude
 dieselbe, einheitliche Eingabemaske.
 
 Das Firmenlogo erscheint anschließend im Hinweisfenster, das sich öffnet, wenn
@@ -666,11 +663,11 @@ von Wetterdaten ist Gegenstand der Weiterentwicklung.
 > - **cons** (`https://solid.ti.rw.fau.de/gra/consumption.ttl#`) – Verbrauch,
 >   Aggregationen, Benchmarks
 
-### Wer mit einem Gebäude verbunden ist: Agenten
+### Wer mit einem Gebäude verbunden ist: Akteure
 
-Rund um jedes Gebäude stehen **Agenten** – Personen oder Organisationen, die in der
+Rund um jedes Gebäude stehen **Akteure** – Personen oder Organisationen, die in der
 Anwendung über ihre **WebID** (eine weltweit eindeutige Web-Adresse, vgl. den Abschnitt
-„Solid Pod einrichten") eindeutig benannt sind. Ein Gebäude verweist auf solche Agenten
+„Solid Pod einrichten") eindeutig benannt sind. Ein Gebäude verweist auf solche Akteure
 in klar benannten **Beziehungen**, nicht als freien Text: **Eigentümer**, **Betreiber**
 (maßgeblich für Benchmarks), **Investor**, **Facility-Management**, **Projektentwickler**
 und **Berater**. Der Betreiber eines Gebäudes ist damit ein Verweis auf dessen WebID –
@@ -682,20 +679,19 @@ und Logo der Organisation** in der Sprechblase des Kartenmarkers. So ist auf ein
 erkennbar, aus welcher Quelle ein Gebäude stammt, gerade wenn Sie Daten mehrerer Partner
 nebeneinander betrachten.
 
-Ihre eigenen Kontakte verwalten Sie im Reiter **Agents**: ein Adressbuch aus Personen und
-Organisationen mit Name, Art (Person/Organisation) und Logo. Agenten, die in Ihren
+Ihre eigenen Kontakte verwalten Sie im Reiter **Akteure**: ein Adressbuch aus Personen und
+Organisationen mit Name, Art (Person/Organisation) und Logo. Akteure, die in Ihren
 Gebäuden auftauchen, Sie aber noch nicht gespeichert haben, listet die App gesondert als
-**referenzierte** Agenten – Sie können sie mit einem Klick ins Adressbuch übernehmen. Auch
-beim **Teilen** eines Gebäudes ist der Empfänger ein Agent: Sie geben dessen WebID an. Und
+**referenzierte** Akteure – Sie können sie mit einem Klick ins Adressbuch übernehmen. Auch
+beim **Teilen** eines Gebäudes ist der Empfänger ein Akteur: Sie geben dessen WebID an. Und
 **Ihre eigene Organisation** (Name und Logo, siehe Abschnitt „Ihre Organisation festlegen")
 hinterlegen Sie einmalig in Ihrem Profil; sie erscheint dann in der Kopfzeile und an den
 Gebäuden, deren Daten Sie erstellen.
 
 Wichtig: Eine Beziehung wie **„Eigentümer"** ist eine Verbindung **zwischen Gebäude und
-Agent** – keine feste Eigenschaft des Agenten. Dieselbe Organisation kann bei einem
+Akteur** – keine feste Eigenschaft des Akteurs. Dieselbe Organisation kann bei einem
 Gebäude Eigentümer und bei einem anderen nur Betreiber sein. Eine **Rolle**, die einer
-Person dauerhaft anhaftet, gibt es in der App nur an einer Stelle: als **Mitgliedschaft in
-einem Datenraum** (siehe Abschnitt „Rollenbasierte Freigaben").
+Person dauerhaft anhaftet, gibt es in der App nicht.
 
 > **Technische Details (für Administratoren)**
 >
@@ -727,7 +723,7 @@ Die **Stammdaten** umfassen unter anderem:
   Blockheizkraftwerks-Anlagen werden als eigene technische Systeme mit eigenen Kennzahlen
   (etwa der installierten Leistung) hinterlegt.
 - **Kennungen und Beteiligte:** interner Gebäudecode, NACE-Wirtschaftszweig sowie die im
-  vorigen Abschnitt beschriebenen Agenten (Eigentümer, Betreiber …).
+  vorigen Abschnitt beschriebenen Akteure (Eigentümer, Betreiber …).
 
 Die **Verbrauchsdaten** werden je **Jahr** geführt (siehe Abschnitt „Energiedaten erfassen
 und aktualisieren"). Pro Jahr erfasst die App die folgenden Größen:
@@ -781,7 +777,8 @@ Ein gesondertes Template wird **nicht benötigt**: Laden Sie ein vorhandenes
 Gebäude über „Download this building's data" als Excel-Datei herunter – diese
 Datei lässt sich (auch ausgefüllt mit eigenen Werten) über „Autofill from file"
 wieder einlesen und dient damit zugleich als Vorlage. Für einen schnellen Start
-eignen sich dazu auch die Demo-Gebäude („Add examples").
+eignen sich auch die mitgelieferten Beispieldateien, die „Autofill from file"
+direkt zum Ausprobieren anbietet.
 
 Nachdem Sie die Felder ausgefüllt bzw. die Datei eingelesen haben, klicken Sie auf
 „Add Building". Die eingegebenen Daten werden automatisch in das richtige Format
@@ -851,7 +848,7 @@ ihn unter **„Manage files"** hoch und markieren Sie ihn dort als Energieauswei
 
 ## Daten ansehen
 
-Wählen Sie im Tab **Explore** einen Gebäude-Marker. Die Farbe der Markierung
+Wählen Sie im Tab **Gebäude** einen Gebäude-Marker. Die Farbe der Markierung
 unterscheidet eigene Gebäude (blau) von mit Ihnen geteilten (orange). Beim
 Überfahren eines Markers mit der Maus zeigt ein Hinweisfenster Name und Adresse
 des Gebäudes sowie Firmenname und -logo des jeweiligen Datenproduzenten, sofern
@@ -877,12 +874,12 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
   (z. B. aus einem Lastgang-Import), zeigt dieser Reiter stattdessen
   Zeitreihen-Diagramme: Tagessummen und ein durchschnittliches Tagesprofil.
   Trägt ein Gebäude **beides** – Jahreswerte und Messreihe –, schalten Sie über
-  den Umschalter **Annual | Time series** zwischen den Darstellungen um (so
-  z. B. beim Beispielgebäude Lange Gasse 20).
+  den Umschalter **Annual | Time series** zwischen den Darstellungen um (etwa
+  wenn Sie zum importierten Lastgang-Beispiel noch Jahreswerte erfassen).
 - **Weather data:** die zum Standort passenden Wetterdaten, die zur Einordnung des
   Verbrauchs (z. B. Heizgradtage) herangezogen werden können.
 
-![Gebäudedetails im Explore-Tab mit Reitern](figures/map-tabs.png){width=100%}
+![Gebäudedetails im Tab „Gebäude“ mit Reitern](figures/map-tabs.png){width=100%}
 
 ![Reiter „Energy data": Jahresübersicht mit dem Betreiber-Durchschnitt („Operator average")](figures/energy-data-tab.png){width=100%}
 
@@ -918,7 +915,7 @@ durchgespielt".
 
 ## Gebäude nach Energieverbrauch einordnen (Energie-Linse)
 
-Die Karte im Tab **Explore** kann die Gebäude-Marker auf zwei Arten einfärben.
+Die Karte im Tab **Beobachtungen** kann die Gebäude-Marker auf zwei Arten einfärben.
 Über den Umschalter unten an der Karte wählen Sie die **Linse**:
 
 - **Ownership** (Voreinstellung): unterscheidet farblich nur Ihre **eigenen**
@@ -944,7 +941,56 @@ Vergleichsmaßstab. Wichtig für die gemeinsame Nutzung: In diese Einordnung geh
 eine Fläche vorliegen. Sie vergleichen damit eigene und fremde Objekte im selben
 Wettbewerbsumfeld.
 
-![Tab „Explore": die Karte mit aktiver Energie-Linse – die Marker sind nach Energieintensität eingefärbt, die Legende zeigt die Kategorien](figures/energy-lens.png){width=100%}
+![Tab „Beobachtungen": die Karte mit aktiver Energie-Linse – die Marker sind nach Energieintensität eingefärbt, die Legende zeigt die Kategorien](figures/energy-lens.png){width=100%}
+
+## Die Entwicklung über die Jahre lesen (Ansicht „Im Zeitverlauf")
+
+Die Karte zeigt den gesamten Bestand in **einem** Jahr. Die Ansicht **Im
+Zeitverlauf** im Tab **Beobachtungen** dreht dieselben Daten um 90 Grad: Zeilen
+sind die Gebäude, Spalten die erfassten Jahre, und jede Zelle steht für ein
+Gebäude in einem Jahr. Eine abschließende Spalte **Trend** fasst die Richtung
+zusammen. So lesen Sie die gesamte zeitliche Entwicklung Ihres Portfolios auf
+einmal. Ein Klick auf eine Zelle führt zur Energie-Detailseite des Gebäudes.
+
+Die **Zellfarbe** benutzt dieselben Kategorien wie die Energie-Linse („More
+efficient", „Typical", „Less efficient"), berechnet sie aber **je Spalte neu**:
+Ein Gebäude wird gegen die **im selben Jahr angezeigten** Gebäude eingeordnet.
+Maßgeblich ist wie auf der Karte die **Intensität** (kWh/m²/a bzw. m³/m²/a),
+nicht der absolute Verbrauch. Daraus folgt eine Eigenschaft, die man kennen
+muss: **Suchen oder Filtern verschiebt den Vergleichsmaßstab** und damit die
+Farben. Eine Farbe ist eine Aussage über die Nachbarschaft in genau diesem Jahr,
+kein absolutes Gütesiegel. Fehlt ein Jahreswert oder die Fläche, bleibt die
+Zelle als gestrichelte Lücke stehen – ein Loch bleibt ein Loch und wird nicht
+als Null dargestellt.
+
+Wählen Sie als Kennzahl die **Stromerzeugung**, wechselt die Skala auf eine
+**neutrale** Rampe („Niedriger", „Mittel", „Höher"). Mehr Ertrag aus einer
+PV-Anlage ist nicht „ineffizient"; eine Effizienznote wäre hier sinnlos.
+
+Die Spalte **Trend** vergleicht jedes Gebäude dagegen **mit sich selbst**:
+herangezogen werden die beiden **jüngsten vergleichbaren Jahre**. Jahre ohne
+auswertbaren Wert werden dabei übersprungen – es sind also nicht zwingend die
+beiden letzten Kalenderjahre. Eine Veränderung von **höchstens ±5 %** gilt als
+„Kaum Veränderung", damit Ablese- und Rundungsrauschen nicht als Trend
+erscheint. Eine sinkende Intensität bedeutet „Verbessert sich"; bei der
+Erzeugung ist es umgekehrt, dort ist mehr Ertrag die Verbesserung. Liegen
+weniger als zwei vergleichbare Jahre vor, steht dort „Noch kein Trend". Weil der
+Trend selbstbezogen ist, **ändert er sich beim Filtern nicht** – anders als die
+Zellfarbe. Welche beiden Jahre verglichen wurden und wie groß die Veränderung
+tatsächlich ausfiel, nennt der Tooltip auf dem Trend-Punkt.
+
+> **Technische Details (für Administratoren)**
+>
+> Zellwert und Zellfarbe stammen aus denselben Bausteinen wie die Karte
+> (`energyTimeCut`, `energyMatrix`); Karte und Heatmap färben ein Paar aus
+> Gebäude und Jahr daher identisch ein. Die Terzil-Grenzen werden **je
+> Jahresspalte** über die gerade sichtbare Menge berechnet. Der Trend
+> (`energyTrend`) ist die relative Änderung der Intensität zwischen den beiden
+> jüngsten vergleichbaren Jahren; das Flachband beträgt ±5 %
+> (`TREND_FLAT_BAND`). Beide Berechnungen sind ohne Karte und ohne Oberfläche
+> unit-getestet.
+
+![Ansicht „Im Zeitverlauf": Gebäude (Zeilen) über die erfassten Jahre (Spalten), mit der Trend-Spalte und der Legende zu beiden Farbsystemen](figures/overtime-heatmap.png){width=100%}
 
 ## Regionale Statistiken als Vergleichsmaßstab
 
@@ -1007,7 +1053,7 @@ Aggregations-Übersicht öffnen.
 
 Das System bietet Ihnen drei verschiedene Wege, Informationen mit Partnern zu
 teilen – jeder mit unterschiedlichem Transparenzgrad. Sie können individuelle
-Gebäudedaten, aggregierte Ansichten oder rollenbasierte Freigaben nutzen. Die
+Gebäudedaten, aggregierte Ansichten oder Benchmarks nutzen. Die
 Wahl der richtigen Freigabe-Option hängt davon ab, mit wem Sie teilen und wie
 viel Vertrauen Sie dieser Person entgegenbringen.
 
@@ -1049,39 +1095,30 @@ Die App bietet vier Aggregationsfunktionen:
 - **Minimum (minimum):** zeigt den niedrigsten Wert.
 - **Maximum (maximum):** zeigt den höchsten Wert.
 
-### Rollenbasierte Freigaben
+### Datenräume als WebID-Verzeichnis
 
-In der Praxis haben unterschiedliche Partner unterschiedliche Bedürfnisse: Ein
-Investor benötigt grobe Jahreszahlen, ein Energiemanager hingegen hochauflösende
-15-Minuten-Intervalle. Mit der rollenbasierten Freigabe teilen Sie mit allen
-Mitgliedern eines Datenraums, die eine bestimmte Rolle innehaben – die Auswahl
-der Empfänger ergibt sich aus der Rolle.
+Eine Freigabe geht immer an eine **WebID** – also an eine bestimmte Person oder
+Organisation. Damit stellt sich in der Praxis zuerst eine ganz andere Frage: *Mit
+wem eigentlich, und wie lautet deren WebID?* Genau dafür gibt es **Datenräume**.
 
-Die Granergize-App kennt acht Rollen, die Sie sich im Datenraum zuweisen können (die
-Auswahl „My role(s)" zeigt sie mit ihren englischen Bezeichnungen):
+Ein Datenraum ist ein gemeinsamer Raum, dem Partner beitreten, und er zeigt
+schlicht, **wer darin ist**: Name und zugehörige WebID jedes Mitglieds. Aus dieser
+Liste übernehmen Sie die WebID (ein Klick auf „WebID kopieren") und geben Ihre
+Daten anschließend ganz normal für diese Person frei. Beim Teilen schlägt Ihnen
+das Empfängerfeld die Mitglieder Ihres Datenraums ohnehin direkt zur Auswahl vor.
 
-- **Investor** – Investoren und Bestandshalter
-- **User** – Nutzer der Immobilie
-- **Benchmark Service Provider** – Benchmark-Dienstleister
-- **Facility Manager** – Gebäude- und Betriebsverantwortliche
-- **Developer** – Projektentwickler
-- **Consultant / Broker** – Berater und Makler
-- **Software Provider** – Softwaredienstleister
-- **Energy Provider** – Energiedienstleister
-
-Diese Rollen sind bewusst nicht exklusiv: Sie können sich **mehrere oder alle**
-zuweisen (siehe „Rolle wählen"). Eine Rolle hängt ausschließlich an der
-Datenraum-Mitgliedschaft – nicht an einem Gebäude, seinen Energiedaten oder Ihrem
-Profil.
+Wichtig: **Ein Datenraum vergibt selbst keine Berechtigungen.** Wer in einem Raum
+ist, sieht dadurch keine Daten – er ist auffindbar, mehr nicht. Jede Freigabe
+bleibt eine einzelne, jederzeit widerrufbare Entscheidung für eine bestimmte
+WebID und ein bestimmtes Gebäude.
 
 ## Vorgehensweise beim Datenteilen
 
 ### Einem Datenraum beitreten oder einen Raum erstellen
 
-Ein **Datenraum** bündelt die Akteure, die untereinander Daten teilen, und ist
-die Grundlage für die rollenbasierte Freigabe. Im Tab **Connect** versammelt
-der Abschnitt „Your data rooms" alle Datenraum-Aktionen in einer Leiste über
-der Liste:
+Ein **Datenraum** bündelt die Akteure, die untereinander Daten teilen, und macht
+ihre WebIDs auffindbar. Im Tab **Treffen** versammelt der Rooms-Finder alle
+Datenraum-Aktionen in einer Leiste über der Liste:
 
 - **Raum erstellen:** „Host a data room" legt einen Raum auf Ihrem Pod an. Teilen
   Sie dessen Link oder QR-Code, damit andere beitreten können.
@@ -1089,13 +1126,11 @@ der Liste:
   „Add", oder nutzen Sie „Scan QR code". Verweigert der Browser den
   Kamerazugriff, erscheint ein verständlicher Hinweis; „Cancel" unter dem
   Kamerabild beendet das Scannen.
-- **Rolle wählen:** Weisen Sie sich Ihre Rolle(n) im Raum zu und speichern Sie
-  mit „Save roles". Sie können sich dabei bewusst **mehrere oder alle Rollen**
-  zuweisen – das ist so vorgesehen. Über diese Rollen können andere gezielt „By
-  role" mit Ihnen teilen. Rollen gibt es ausschließlich hier, im Datenraum – sie
-  hängen nicht an Ihren Gebäuden oder Ihrem Profil.
+- **Mitglieder einsehen:** Die Raumseite listet alle Mitglieder mit Namen und
+  WebID. Mit „WebID kopieren" übernehmen Sie die Adresse eines Partners und
+  verwenden sie beim Teilen.
 
-![Tab „Connect": Raum erstellen oder beitreten und Rolle wählen](figures/room.png){width=100%}
+![Die Raumseite: Einladung per QR-Code und die Mitgliederliste mit Namen und WebIDs](figures/room.png){width=100%}
 
 ### Kontakte verwalten
 
@@ -1118,9 +1153,9 @@ Löschen (siehe Abschnitt „Gebäude bearbeiten, Dateien verwalten und löschen
 
 1. Klicken Sie beim gewünschten Gebäude auf das Teilen-Symbol. Der Dialog „Share
    Building Data" öffnet sich.
-2. Wählen Sie, an wen geteilt wird: **By WebID** (eine oder mehrere WebIDs
-   eingeben) oder **By role** (eine Rolle wählen – geteilt wird mit allen
-   Raum-Mitgliedern, die diese Rolle haben).
+2. Wählen Sie, an wen geteilt wird: eine oder mehrere **WebIDs**. Das Feld
+   schlägt Ihre Kontakte und die Mitglieder Ihres Datenraums vor; eine unbekannte
+   WebID tippen Sie ein und bestätigen mit Enter.
 3. Wählen Sie unter „What to share" den Freigabeumfang – nur Stammdaten, Stammdaten
    mit allen Energiejahren oder Stammdaten mit ausgewählten Jahren (siehe Abschnitt
    „Individuelle Gebäudedaten teilen") – und bestätigen Sie mit **Share**.
@@ -1256,13 +1291,13 @@ direkt mit seiner eigenen WebID.
 
 1. A öffnet im Tab **Manage** unter „Your buildings" das Teilen-Symbol des
    Gebäudes. Der Dialog „Share Building Data" erscheint.
-2. A wählt **By WebID**. B's WebID hat A von B selbst erhalten – eine WebID
-   gibt man weiter wie eine E-Mail-Adresse, etwa in der Signatur oder auf der
-   Visitenkarte. Einmal unter „Contacts" abgelegt (siehe „Kontakte
+2. A trägt **B's WebID** als Empfänger ein. Diese hat A von B selbst erhalten –
+   eine WebID gibt man weiter wie eine E-Mail-Adresse, etwa in der Signatur oder
+   auf der Visitenkarte. Einmal unter „Contacts" abgelegt (siehe „Kontakte
    verwalten"), schlägt die App B fortan mit Namen und Profilbild als
-   Empfänger vor – die WebID muss nie wieder eingetippt werden.
-   Alternativ wählt A **By role**, wenn beide Mitglied desselben Datenraums
-   sind und B sich dort eine passende Rolle zugewiesen hat.
+   Empfänger vor – die WebID muss nie wieder eingetippt werden. Sind beide
+   Mitglied desselben Datenraums, steht B dort ohnehin zur Auswahl (siehe
+   „Datenräume als WebID-Verzeichnis").
 3. A legt unter „What to share" den Umfang fest – etwa nur Stammdaten oder
    Stammdaten mit ausgewählten Energiejahren – und bestätigt mit **Share**.
 
@@ -1276,7 +1311,7 @@ aufgenommen.
    nächsten Öffnen oder Neuladen der App verarbeitet B's Anwendung sie
    automatisch – B muss dafür nichts tun.
 2. Das Gebäude erscheint bei B im Tab **Share** unter „Buildings shared with
-   you" und zusätzlich auf der Karte im Tab **Explore**, dort als geteiltes
+   you" und zusätzlich auf der Karte im Tab **Beobachtungen**, dort als geteiltes
    Gebäude gekennzeichnet und neben B's eigenen Gebäuden auswertbar – auch in
    der Energie-Linse, die geteilte Gebäude in B's Marktüberblick einbezieht.
 3. B öffnet das Gebäude und sieht genau das, was A freigegeben hat: die
@@ -1319,9 +1354,9 @@ Beteiligten:
    ausgewählte. C's WebID liegt dabei längst im Adressbuch – sie kam mit der
    Beauftragung des Dienstleisters, wie eine E-Mail-Adresse –, sodass der
    Teilen-Dialog C mit Namen und Profilbild vorschlägt.
-2. Sind alle drei Mitglied desselben Datenraums, geht es auch in einem Zug
-   rollenbasiert: **By role** an die Rolle **Benchmark Service Provider**
-   erreicht C, ohne dass A und B dessen WebID kennen müssen.
+2. Sind alle drei Mitglied desselben Datenraums, finden A und B C dort mit Namen
+   und WebID – der Teilen-Dialog bietet C dann direkt zur Auswahl an, ohne dass
+   die WebID vorher ausgetauscht werden musste.
 
 **Was C tut (der Dienstleister):**
 
@@ -1368,7 +1403,7 @@ Benchmark-Berechnungen aus.
 > Die View-Definition – sie enthält die IRIs der beitragenden Gebäude – bleibt
 > auf C's Pod und wird nie geteilt; nur der berechnete Snapshot wandert zu den
 > Empfängern. Der Snapshot ist dabei als Benchmark-Ergebnis typisiert und
-> vermerkt den berechnenden Agenten und den abgedeckten Zeitraum, sodass die
+> vermerkt den berechnenden Akteur und den abgedeckten Zeitraum, sodass die
 > Energie-Ansicht der Empfänger ihn von gewöhnlichen geteilten Ansichten
 > unterscheiden und als Vergleichswert bevorzugen kann (Reihenfolge: externer
 > Benchmark vor Betreiber-Durchschnitt vor Portfolio-Durchschnitt).
@@ -1386,7 +1421,7 @@ Funktionen schneller – und können Ihren Gebäudebestand gezielt **durchsuchen
 
 Hinter jeder Aktion steht ein benannter **Intent** (eine „Absicht"). Die App kennt rund
 vier Dutzend davon, gruppiert nach dem Gegenstand, auf den sie sich beziehen – Gebäude,
-Energiedaten, Anhänge, Aggregationen, Freigaben, Datenräume, Agenten und Kontodaten. Ein
+Energiedaten, Anhänge, Aggregationen, Freigaben, Datenräume, Akteure und Kontodaten. Ein
 Intent ist entweder
 
 - eine **Aktion**, die etwas verändert (etwa *Gebäude anlegen*, *Gebäude teilen*,

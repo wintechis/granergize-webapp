@@ -29,7 +29,7 @@
  *  - `poll`        an `expect.poll` / `toPass` convergence loop.
  *  - `testSolo`    a solo (single-pod) test body budget (`test.setTimeout`).
  *  - `testSharing` a sharing (multi-pod) test body budget.
- *  - `setup`       a `beforeAll` hook budget (login + clean-start + demo seed chained).
+ *  - `setup`       a `beforeAll` hook budget (login + clean-start + example import chained).
  *  - `afterAll`    a teardown/wipe hook budget.
  *  - `login`       login (IdP + consent) — kept generous; real IdPs are slow/retried.
  *  - `longOp`      a deliberately long operation (bulk import, per-year share).

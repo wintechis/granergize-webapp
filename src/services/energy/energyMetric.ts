@@ -193,6 +193,17 @@ export function metricValueAtYear(
 }
 
 /**
+ * The unit a cube view labels {@link metricValueAtYear}'s result with — the canonical
+ * unit for a magnitude framing (`"kWh"`), the per-area annual intensity for a tier
+ * framing (`"kWh/m²/a"`, `"m³/m²/a"`). Derived from the annual-metric schema, so water
+ * and wastewater read m³ rather than the kWh a hardcoded string used to print.
+ */
+export function metricValueUnit(key: SelectableMetricKey): string {
+  const unit = annualMetricDesc(key)?.unit ?? "kWh";
+  return metricFraming(key) === "magnitude" ? unit : `${unit}/m²/a`;
+}
+
+/**
  * The **absolute** figure of a metric in one year's `AnnualMetrics` (no per-area
  * normalisation), or `null` when absent / non-positive. The energy × weather overlay
  * plots absolute energy against temperature, so it reads this rather than the

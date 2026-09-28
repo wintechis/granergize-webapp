@@ -79,11 +79,6 @@ export const notifications = {
     de: "Datenzimmer gelöscht",
     fr: "Salle de données supprimée",
   },
-  rolesUpdated: {
-    en: "Roles updated",
-    de: "Rollen aktualisiert",
-    fr: "Rôles mis à jour",
-  },
   inviteCopied: {
     en: "Invite link copied",
     de: "Einladungslink kopiert",
@@ -93,6 +88,16 @@ export const notifications = {
     en: "Could not copy link",
     de: "Link konnte nicht kopiert werden",
     fr: "Impossible de copier le lien",
+  },
+  webIdCopied: {
+    en: "WebID copied",
+    de: "WebID kopiert",
+    fr: "WebID copiée",
+  },
+  webIdCopyFailed: {
+    en: "Could not copy the WebID",
+    de: "WebID konnte nicht kopiert werden",
+    fr: "Impossible de copier la WebID",
   },
   removedFromList: {
     en: "Removed from your list",
@@ -212,11 +217,6 @@ export const notifications = {
     de: "Koordinaten aktualisiert",
     fr: "Coordonnées mises à jour",
   },
-  demoBuildingsAdded: {
-    en: "Demo buildings and energy data added",
-    de: "Beispielgebäude und Energiedaten hinzugefügt",
-    fr: "Bâtiments et données énergétiques de démonstration ajoutés",
-  },
   allDataRemoved: {
     en: "All app data deleted",
     de: "Alle App-Daten gelöscht",
@@ -256,12 +256,6 @@ export const notifications = {
     en: "Archived {count} resource(s)",
     de: "{count} Ressource(n) archiviert",
     fr: "{count} ressource(s) archivée(s)",
-  },
-  demoBuildingsPartial: {
-    en: "Added {seeded} of {total} demo buildings (with energy data)",
-    de: "{seeded} von {total} Beispielgebäuden hinzugefügt (mit Energiedaten)",
-    fr:
-      "{seeded} bâtiments de démonstration sur {total} ajoutés (avec données énergétiques)",
   },
   // The two classified-warning sentences (session-expiry gate + optimistic-lock
   // conflict) — complete sentences about an app-level state, not "Failed to …".
@@ -303,11 +297,6 @@ export const notifications = {
     en: "delete energy data",
     de: "Löschen der Energiedaten",
     fr: "la suppression des données énergétiques",
-  },
-  actionDeclineDemos: {
-    en: "dismiss the demo-data offer",
-    de: "Ablehnen des Demodaten-Angebots",
-    fr: "le refus de l'offre de données de démonstration",
   },
   actionClearObservations: {
     en: "clear the building's observations",
@@ -356,18 +345,13 @@ export const notifications = {
   },
   actionAddDemoAgents: {
     en: "add demo agents",
-    de: "Hinzufügen der Beispielagenten",
+    de: "Hinzufügen der Beispielakteure",
     fr: "l'ajout des agents de démonstration",
   },
   actionAddDemoRooms: {
     en: "add demo data rooms",
     de: "Hinzufügen der Beispiel-Datenzimmer",
     fr: "l'ajout des salles de données de démonstration",
-  },
-  actionAddDemoBuildings: {
-    en: "add demo buildings and energy data",
-    de: "Hinzufügen der Beispielgebäude und Energiedaten",
-    fr: "l'ajout des bâtiments et données énergétiques de démonstration",
   },
   actionDeleteAppData: {
     en: "delete app data",
@@ -429,6 +413,11 @@ export const notifications = {
     de: "Einlesen der Datei",
     fr: "l'analyse du fichier",
   },
+  actionLoadExample: {
+    en: "load the example file",
+    de: "Laden der Beispieldatei",
+    fr: "le chargement du fichier d'exemple",
+  },
   actionReadArchive: {
     en: "read the archive",
     de: "Lesen des Archivs",
@@ -441,12 +430,12 @@ export const notifications = {
   },
   actionAddAgent: {
     en: "add agent",
-    de: "Hinzufügen des Agenten",
+    de: "Hinzufügen des Akteurs",
     fr: "l'ajout du agent",
   },
   actionRemoveAgent: {
     en: "remove the agent",
-    de: "Entfernen des Agenten",
+    de: "Entfernen des Akteurs",
     fr: "la suppression de l'agent",
   },
   actionDeleteBuilding: {
@@ -504,11 +493,6 @@ export const notifications = {
     de: "Entfernen des Datenzimmers aus der Liste",
     fr: "le retrait de la salle de données de votre liste",
   },
-  actionSaveRoles: {
-    en: "save your roles",
-    de: "Speichern deiner Rollen",
-    fr: "l'enregistrement de vos rôles",
-  },
   // Agents flow notifications (the `showNotification` vocabulary — migrated per
   // area; the add-failure toast still goes through `formatError`, a later slice).
   enterWebId: {
@@ -516,10 +500,10 @@ export const notifications = {
     de: "Gib eine WebID ein (eine http(s)-URI)",
     fr: "Saisissez un WebID (une URI http(s))",
   },
-  agentAdded: { en: "Agent added", de: "Agent hinzugefügt", fr: "Agent ajouté" },
+  agentAdded: { en: "Agent added", de: "Akteur hinzugefügt", fr: "Agent ajouté" },
   agentRemoved: {
     en: "Agent removed",
-    de: "Agent entfernt",
+    de: "Akteur entfernt",
     fr: "Agent supprimé",
   },
   // Per-object action-menu verb labels (the intent-registry-driven row/section
@@ -595,7 +579,7 @@ export const notifications = {
   },
   intentRemoveAgent: {
     en: "Remove agent…",
-    de: "Agent entfernen…",
+    de: "Akteur entfernen…",
     fr: "Supprimer le agent…",
   },
   intentEnterRoom: {
@@ -628,7 +612,7 @@ export const notifications = {
   // verb on its own, so they need distinct wording).
   intentSeedDemoAgents: {
     en: "Add example agents",
-    de: "Beispielagenten hinzufügen",
+    de: "Beispielakteure hinzufügen",
     fr: "Ajouter des agents d'exemple",
   },
   intentSeedDemoRooms: {

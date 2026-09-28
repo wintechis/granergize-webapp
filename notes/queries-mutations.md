@@ -66,7 +66,7 @@ truth; current state is always derived through a projection (next section).
 - `shared-out/` — building & aggregation grants/revocations the user issued (`recordSharing`,
   `recordAggregationSharing`).
 - `shared-in/` — grants received, archived from the inbox (`appendSharingEvent`).
-- `rooms/<id>/` — data-room membership (`setMembership`) and role (`setMyRole`) events.
+- `rooms/<id>/` — data-room membership (`setMembership`) events.
 - the inbox — cross-Pod notification events (`postSharingEventToInbox`).
 
 Within the model there are two **delivery topologies**, chosen by whether the
@@ -230,9 +230,10 @@ Queries split by *consumption shape*, which decides their hook home:
 The dashboard's account actions cover whole-collection ground the per-entity catalog
 doesn't, but they classify with the same axes — no third storage model is needed:
 
-- **Demo seeding** (`seedDemoBuildings`, `seedDemoAgents`, `seedDemoRooms`) —
-  user-intent in-place bulk creates. Integrity is ordering, not transactions: per
-  building, datasets first and the discoverable building file LAST (the commit
+- **Demo seeding** (`seedDemoAgents`, `seedDemoRooms` — the dev-mode contacts/rooms
+  fixtures; example BUILDINGS are imported from a file instead, through
+  `useUploadBuildings`) — user-intent in-place bulk creates. Integrity is ordering,
+  not transactions: per item the discoverable file is written LAST (the commit
   point), so a failure leaves only inert orphans and a retry mints fresh UUIDs.
   Per-item best-effort with a tally outcome (`{seeded, total}`) — partial success is
   a *result* the caller renders ("Added N of M"), not an error.

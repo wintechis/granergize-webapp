@@ -26,22 +26,18 @@ import {
   AS_NS,
   FOAF_IMG,
   FOAF_NAME,
-  GRAN_NS,
-  SIOC_NS,
   XSD_DATETIME,
 } from "../../src/services/rdf/vocabularies.ts";
 import {
   createRoom,
-  getMembersByRole,
+  getMembers,
   joinRoom,
   normalizeRoomUri,
-  setMyRole,
 } from "../../src/services/interop/dataRoom.ts";
 import {
   saveOrganisation,
   uploadOrgLogo,
 } from "../../src/services/organisation/organisation.ts";
-import type { UserRole } from "../../src/types.ts";
 
 /** Bounded write concurrency — same small pool the app uses for daily files. */
 const POOL = 8;
@@ -298,24 +294,22 @@ export async function seedProfile(
 
 /**
  * One-time room setup for the via-room share flow: B (the sharer) creates the
- * room, A joins and assumes `role` — so B's per-share role resolution finds
- * exactly A, mirroring the share dialog's "By role" path.
+ * room and A joins — so B's member read finds exactly A, mirroring the app, where
+ * a room is the WebID DIRECTORY you pick a recipient out of.
  */
 export async function setupShareRoom(
   a: BenchActor,
   b: BenchActor,
-  role: UserRole = "investor",
 ): Promise<string> {
   const room = await createRoom(b.gateway);
   await joinRoom(room, a.gateway);
-  await setMyRole(room, [role], a.gateway);
   return room;
 }
 
 /**
- * B shares each seeded building with the room members holding `role` — the
- * dialog's "By role" flow verbatim: every share action re-resolves the role to
- * member WebIDs (a fold of the room log), then shares to each. SERIAL on
+ * B shares each seeded building with the room's other members — the app's flow:
+ * the room is read as a directory (a fold of the room log) for the recipient
+ * WebIDs, then each is shared with individually. SERIAL on
  * purpose: each share appends to B's single shared-out log and posts to the
  * recipient's inbox — concurrent shares would contend on that one log and race
  * to create the shared-out/ container; sequential is also how the real flow
@@ -329,11 +323,13 @@ export async function shareBuildingsViaRoom(
   b: BenchActor,
   room: string,
   buildings: SeededBuilding[],
-  role: UserRole = "investor",
   options: ShareOptions = { includeEnergyData: true },
 ): Promise<void> {
   for (const s of buildings) {
-    const recipients = await getMembersByRole(room, role, b.gateway);
+    const members = await getMembers(room, b.gateway);
+    const recipients = members
+      .map((m) => m.webId)
+      .filter((webId) => webId !== b.gateway.webId);
     for (const recipient of recipients) {
       await shareBuildingData(s.uri, recipient, b.gateway, options);
     }
@@ -381,50 +377,45 @@ export async function seedRoomMembers(
   });
 }
 
-// Valid role IRIs (must match dataRoom.ts's ROLE_TO_IRI, or the fold filters them
-// out as unknown) — cycled across the seeded role events.
-const CHURN_ROLE_IRIS = [`${GRAN_NS}InvestorRole`, `${GRAN_NS}UserRoleInstance`];
-
 /**
- * Seed `roleEvents` role-assignment (`as:Update`) events into a room log,
- * round-robined across the first `members` synthetic member WebIDs with strictly
- * increasing timestamps (so the fold's latest-per-agent is deterministic). Matches
- * the `as:Update` + `sioc:has_function` shape `setMyRole` writes. This grows the
- * log's HISTORY without adding members — the axis that exposes that the
- * append-only log is folded by reading EVERY event, even though only the latest
- * event per agent survives. Pair with {@link seedRoomMembers} (membership) so the
- * fold still returns those members. `members`/`roleEvents` ≤ 0 are no-ops.
+ * Seed `churnEvents` membership events into a room log, round-robined across the
+ * first `members` synthetic member WebIDs with strictly increasing timestamps (so
+ * the fold's latest-per-agent is deterministic). Every event is a **re-join**, so
+ * the log's HISTORY grows while the folded membership does not — the axis that
+ * exposes that an append-only log is folded by reading EVERY event, even though
+ * only the latest event per agent survives. Pair with {@link seedRoomMembers} so
+ * those members are joined to begin with. `members`/`churnEvents` ≤ 0 are no-ops.
+ *
+ * (This used to churn `as:Update` role events. Rooms carry no roles now — a room
+ * is a WebID directory — so the history axis is membership itself.)
  */
-export async function seedRoomRoleChurn(
+export async function seedRoomMembershipChurn(
   gateway: PodGateway,
   roomUri: string,
   members: number,
-  roleEvents: number,
+  churnEvents: number,
 ): Promise<void> {
-  if (members <= 0 || roleEvents <= 0) return;
+  if (members <= 0 || churnEvents <= 0) return;
   const container = normalizeRoomUri(roomUri);
   await ensureContainer(container, gateway);
   const base = new Date("2025-01-01T00:00:00Z").getTime();
-  const events = Array.from({ length: roleEvents }, (_, i) => ({
+  const events = Array.from({ length: churnEvents }, (_, i) => ({
     webId: `https://bench.example/member-${i % members}/profile/card#me`,
-    role: CHURN_ROLE_IRIS[i % CHURN_ROLE_IRIS.length],
     at: new Date(base + i * 1000).toISOString(),
   }));
   await mapPooled(events, POOL, async (e) => {
     const body = `@prefix as: <${AS_NS}> .\n` +
-      `@prefix sioc: <${SIOC_NS}> .\n` +
       `@prefix xsd: <${XSD_DATETIME.replace(/dateTime$/, "")}> .\n` +
-      `[] a as:Update ;\n` +
+      `[] a as:Join ;\n` +
       `   as:actor <${e.webId}> ;\n` +
       `   as:object <${container}> ;\n` +
-      `   as:published "${e.at}"^^xsd:dateTime ;\n` +
-      `   sioc:has_function <${e.role}> .\n`;
+      `   as:published "${e.at}"^^xsd:dateTime .\n`;
     const res = await gateway.fetch(container, {
       method: "POST",
       headers: { "Content-Type": "text/turtle" },
       body,
     });
-    if (!res.ok) throw new Error(`seed role churn (HTTP ${res.status})`);
+    if (!res.ok) throw new Error(`seed membership churn (HTTP ${res.status})`);
   });
 }
 

@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { agentFieldT, metricT, roleT, t } from "./i18n.ts";
+import { agentFieldT, metricT, t } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
 import {
@@ -73,12 +73,12 @@ export async function openBuildingsMap(page: Page): Promise<void> {
 
 /**
  * Open the **Explore** finder (`/explore` — the Observations finder page, canonical
- * since Step 3 of `plans/plan-cube-centered-ui.md`) and select a cube View — `map`
- * (the geographic energy map + year slider, the default), `list` (the per-building
- * summary), `overtime` (the buildings × years heatmap) or `trend` (per-building
- * direction). Energy lives here now (Buildings is space/identity only). The View
- * toggle is scoped to `obsViewAria` (a building's own detail page carries a separate
- * "Map" toggle).
+ * since Step 3 of `plans/plan-cube-centered-ui.md`) and select a cube View — `list`
+ * (the per-building summary, the default), `map` (the geographic energy map + year
+ * slider), `overtime` (the buildings × years heatmap), `overyears` (a line per
+ * building) or `pivot` (the roll-up grid). Energy lives here now (Buildings is
+ * space/identity only). The View toggle is scoped to `obsViewAria` (a building's own
+ * detail page carries a separate "Map" toggle).
  */
 export async function openObservationsView(
   page: Page,
@@ -319,9 +319,10 @@ export async function addEnergyYear(
 }
 
 /**
- * Share the building at `street` with the room's User-role members, choosing the
- * "What to share" scope. With `years`, picks "energy for specific year(s)" and
- * ticks exactly those years; without, shares static + all energy (the default).
+ * Share the building at `street` directly with a recipient WebID — the only share
+ * target there is (a data room is a WebID directory, never a target). `withhold`
+ * unticks named attachments; `years` picks "energy for specific year(s)" and ticks
+ * exactly those, else the share is static + all energy (the default).
  *
  * The redesign removed the per-row "Share building data" action; sharing now lives
  * on the building page's `SharingSection` — resolve the building's id from the
@@ -330,22 +331,36 @@ export async function addEnergyYear(
  * to the app shell (`/`) at the end so a caller's next tab nav works (the
  * building page is a standalone route with no app-shell tabs).
  */
-export async function shareByRole(
+export async function shareByWebId(
   page: Page,
   street: string,
-  years?: number[],
+  webId: string,
+  opts?: { withhold?: string[]; years?: number[] },
 ): Promise<void> {
   await openShareDialog(page, street);
 
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: t("shareByRole") }).click();
-  await dialog.getByLabel(t("lblRole")).click();
-  await page.getByRole("option", { name: roleT("user"), exact: true }).click();
+  // The recipient field is a multi free-solo Autocomplete: type the WebID and
+  // press Enter to commit it as a chip (a plain fill doesn't register it).
+  const recipientInput = dialog.getByLabel(t("racLabel"));
+  await recipientInput.fill(webId);
+  await recipientInput.press("Enter");
+  // The committed chip renders as a resolved AgentChip — the profile's name,
+  // or the WebID fragment as fallback — never the raw IRI (the IRI stays on
+  // the chip's title attribute).
+  await expect(dialog.getByText(webId, { exact: true })).toHaveCount(0);
 
-  if (years) {
+  // Per-attachment selection: untick the named attachments to WITHHOLD them
+  // (the dialog's attachment checklist is all-checked by default, so an
+  // untouched share includes every file).
+  for (const filename of opts?.withhold ?? []) {
+    await dialog.getByRole("checkbox", { name: filename }).uncheck();
+  }
+
+  if (opts?.years) {
     // Switch the energy scope to per-year and tick the requested year(s).
     await dialog.getByRole("radio", { name: t("shareScopeYears") }).check();
-    for (const year of years) {
+    for (const year of opts.years) {
       await dialog.getByRole("checkbox", { name: String(year), exact: true })
         .check();
     }
@@ -406,37 +421,6 @@ export async function uploadBuildingFile(
     .toBeVisible({ timeout: T.action });
   // Back to the shell so the caller's next nav works.
   await page.goto("/");
-}
-
-/** Share the building at `street` directly with a recipient WebID ("By WebID"). */
-export async function shareByWebId(
-  page: Page,
-  street: string,
-  webId: string,
-  opts?: { withhold?: string[] },
-): Promise<void> {
-  await openShareDialog(page, street);
-
-  const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: t("shareByWebId") }).click();
-  // The recipient field is a multi free-solo Autocomplete: type the WebID and
-  // press Enter to commit it as a chip (a plain fill doesn't register it).
-  const recipientInput = dialog.getByLabel(t("racLabel"));
-  await recipientInput.fill(webId);
-  await recipientInput.press("Enter");
-  // The committed chip renders as a resolved AgentChip — the profile's name,
-  // or the WebID fragment as fallback — never the raw IRI (the IRI stays on
-  // the chip's title attribute).
-  await expect(dialog.getByText(webId, { exact: true })).toHaveCount(0);
-
-  // Per-attachment selection: untick the named attachments to WITHHOLD them
-  // (the dialog's attachment checklist is all-checked by default, so an
-  // untouched share includes every file).
-  for (const filename of opts?.withhold ?? []) {
-    await dialog.getByRole("checkbox", { name: filename }).uncheck();
-  }
-
-  await reviewAndConfirmShare(page);
 }
 
 /** The aggregation name the share-aggregation spec creates and shares. */

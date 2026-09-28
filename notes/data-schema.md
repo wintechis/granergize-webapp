@@ -12,18 +12,18 @@ dance around it (framed in [`storage-layout.md`](./storage-layout.md)). Where
 these files live is the resource profile ([`storage-layout.md`](./storage-layout.md));
 the energy graph is [`energy-model.md`](./energy-model.md).
 
-## `UserRole` is data-room membership only
+## There is no role type
 
-`UserRole` (`src/types.ts`) names a member's role in a data room and nothing else; it
-**never** gates parsing, loading, or rendering — those dispatch on the data's own shape.
-The role sits on an *agent* (WebID) in a room log (`as:Update` + `sioc:has_function`),
-is read by `dataRoom.ts` (`getMyRole`, `getMembersByRole`), and serves as a sharing
-target — it means "this person acts as an investor here". Role↔IRI maps live in
-`constants/roles.ts` (`MEMBERSHIP_ROLE_TO_IRI`/`IRI_TO_MEMBERSHIP_ROLE`; `dataRoom.ts`
-is their only consumer).
+The schema has **no role concept**: an identity is a WebID. Nothing ever gated parsing,
+loading, or rendering on a role — those dispatch on the data's own shape — and the last
+role that existed at all, the self-assigned data-room membership role, was retired with
+share-by-role (a room is a WebID **directory**; see [`room.md`](./room.md)). `UserRole`
+and `constants/roles.ts` are gone. The `gran:…Role` IRIs remain published in
+`vocab/vocab.ttl` so an old room log's `sioc:has_function` events stay resolvable, but
+no code reads or writes them, and the fold skips those events.
 
 Spreadsheet import/export layout is a *separate* concern with its own type —
-`SpreadsheetFormat = "investor" | "benchmark" | "generic"` — not a `UserRole`:
+`SpreadsheetFormat = "investor" | "benchmark" | "generic"` — and is not a role:
 `parseCsvToFields` auto-detects it on upload (`detectSpreadsheetFormat`), and
 `buildingToXlsx(b, style)` takes a user-chosen layout at download. A layout, not a role.
 
@@ -241,12 +241,14 @@ field-schema predicate, object-property range, and controlled-vocab instance is 
 there, so the code and the published vocab can't drift. The documents on the Pod (under
 the public `gra/` base) are a publish target; the app never fetches them at runtime.
 
-### B. Demo data — offered, not auto-seeded
+### B. Example data — imported, never seeded
 
-A fresh Pod loads empty — nothing is silently seeded. Instead the UI **offers** demo
-data via a banner (`useDemoOffer`); on accept, `seedDemoBuildings`
-(`buildingSerializer.ts`) writes four real owned buildings in Nürnberg spanning every
-loader shape the app dispatches on — annual aggregate, 15-minute `PT15M` series, and
-one carrying *both* — so a new user immediately sees them. Pod layout, own-building
-discovery, the exact demo set, and the banner mechanics are owned by
-[`storage-layout.md`](./storage-layout.md).
+A fresh Pod loads empty — nothing is silently seeded, and there is no programmatic
+demo seed. The examples are bundled **xlsx files** the user imports through the
+ordinary "Autofill from file" flow ("Try an example file" in the Add-building
+dialog), so they take the same path as a customer's own spreadsheet and land as
+real owned buildings. Between the L.Immo example (annual aggregates) and the
+Lastgang example (a 15-minute `PT15M` series) they cover every loader shape the
+app dispatches on; the *both*-shapes building is composed by adding annual years
+to an imported series building. The files, their generator and what a spreadsheet
+layout cannot carry are owned by [`storage-layout.md`](./storage-layout.md).

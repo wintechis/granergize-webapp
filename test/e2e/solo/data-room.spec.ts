@@ -1,10 +1,10 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { roleT, t } from "../helpers/i18n.ts";
-import { ROOM_ROLE_OPTIONS } from "../../../src/constants/roles.ts";
-import { account, hasAccount, login } from "../helpers/login.ts";
+import { t } from "../helpers/i18n.ts";
+import { account, hasAccount, login, webIdOf } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
+import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { T } from "../helpers/timeouts.ts";
 import { roomRoute } from "../../../src/routes.ts";
 
@@ -133,13 +133,10 @@ test.describe("data rooms", () => {
     const { uri } = await hostRoom();
 
     // The room page is its detail surface: navigating there enters the room (the
-    // page's openRoom-on-mount). It carries the invite QR, the role selector
-    // (we're a member) and the members list.
+    // page's openRoom-on-mount). It carries the invite QR and the members list.
     await openRoomPage(uri);
-    await expect(page.getByRole("combobox", { name: t("roomMyRoles") }))
-      .toBeVisible({ timeout: SETTLE });
     await expect(page.getByRole("heading", { name: t("secMembers") }))
-      .toBeVisible();
+      .toBeVisible({ timeout: SETTLE });
 
     // Leave from the page footer; on success it navigates back off the room page
     // (the durable signal). The room itself persists (we still host it) — clean
@@ -150,25 +147,29 @@ test.describe("data rooms", () => {
     await deleteRoom(uri);
   });
 
-  test("the room role selector offers all eight Granergize roles", async () => {
+  test("the members list is a WebID directory: my WebID, copyable", async () => {
     test.setTimeout(T.testSolo);
-    // heike-1: early builds only exposed Investor / Nutzer / BSP, and partners
-    // missed the other actor types. Roles now live only as data-room membership,
-    // and every actor type must be assignable. Host a room, open its page (→ we're
-    // a member, so the "My role(s)" selector shows), and assert the full set —
-    // the eight ROOM_ROLE_OPTIONS — is offered.
+    // A room's whole job: show WHO is in it and the WebID you'd share with. Host a
+    // room, open its page (→ openRoom-on-mount joins us), and assert our own WebID
+    // is listed verbatim next to our name, with a copy affordance. The WebID stays
+    // visible outside Developer mode — it is identity, not storage plumbing.
+    // Read our WebID from the app SHELL: `webIdOf` scrapes the account-menu
+    // button, which the standalone room page doesn't render.
+    await page.goto("/");
+    const webId = await webIdOf(page);
+
     const { uri } = await hostRoom();
     await openRoomPage(uri);
-    // Derive the expected eight from the source of truth (ROOM_ROLE_OPTIONS), each
-    // labelled in the run language via roleT — so the assertion holds in any
-    // E2E_LANG and tracks the role set, not a hardcoded English list.
-    await page.getByRole("combobox", { name: t("roomMyRoles") }).click();
-    expect(ROOM_ROLE_OPTIONS).toHaveLength(8);
-    for (const role of ROOM_ROLE_OPTIONS) {
-      await expect(page.getByRole("option", { name: roleT(role), exact: true }))
-        .toBeVisible({ timeout: SETTLE });
-    }
-    await page.keyboard.press("Escape");
+
+    // The join that hosting performs is an async POST folded on the NEXT read, so
+    // the member row can lag the first paint — reload until the directory shows us.
+    await reloadUntil(page, async () => {
+      await expect(page.getByText(webId, { exact: true }))
+        .toBeVisible({ timeout: T.quick });
+      await expect(
+        page.getByRole("button", { name: t("roomCopyWebId") }).first(),
+      ).toBeVisible({ timeout: T.quick });
+    });
 
     await deleteRoom(uri);
   });

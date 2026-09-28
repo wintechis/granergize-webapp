@@ -1,7 +1,10 @@
 import { type GeocodePrecision } from "../rdf/vocabularies.ts";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
-import { fetchContainingGemeindeAgs } from "./regionGeometry.ts";
+import {
+  fetchContainingGemeindeAgs,
+  fetchContainingGemeindeAgsOrThrow,
+} from "./regionGeometry.ts";
 import { logError } from "../../lib/logError.ts";
 import {
   abbreviateRegisterCity,
@@ -93,7 +96,22 @@ export async function geocodeWithRegion(
 > {
   const coords = await geocodeFields(fields);
   if (!coords) return null;
-  const regionAgs = await fetchContainingGemeindeAgs(
+  return await withRegionAgs(coords);
+}
+
+/** The point→Gemeinde-AGS lookup {@link withRegionAgs} enriches through — the
+ *  import geocoder substitutes a latched variant. */
+type AgsLookup = (lat: number, long: number) => Promise<string | null>;
+
+/** Best-effort AGS enrichment of already-resolved coordinates (shared by
+ *  {@link geocodeWithRegion} and {@link makeGeocodeOrAdoptCoords}). */
+async function withRegionAgs<
+  T extends { lat: string; long: string },
+>(
+  coords: T,
+  lookupAgs: AgsLookup = fetchContainingGemeindeAgs,
+): Promise<T & { regionAgs?: string }> {
+  const regionAgs = await lookupAgs(
     parseFloat(coords.lat),
     parseFloat(coords.long),
   ).catch((err) => {
@@ -101,4 +119,50 @@ export async function geocodeWithRegion(
     return null;
   });
   return { ...coords, ...(regionAgs ? { regionAgs } : {}) };
+}
+
+/**
+ * Build the file-import geocoder (the Autofill-from-file parse loop): like
+ * {@link geocodeWithRegion}, except fields that already CARRY coordinates
+ * (e.g. the bundled L.Immo example ships lat/long) adopt them instead of
+ * querying the address register; the region AGS is still resolved from them.
+ * Not for the dialogs' "Geocode" button ({@link geocodeWithRegion} there): an
+ * edited address with stale form coordinates must re-geocode, not adopt.
+ *
+ * A factory, not a plain function, because the AGS lookup carries a per-run
+ * LATCH: after one transport-level failure (linked-lau down — in the browser
+ * each such attempt costs the full transient-retry backoff, ~50 s of network
+ * `TypeError` retries) the remaining buildings of the run skip the lookup
+ * instead of each paying it again. A definitive "no region contains the point"
+ * (404) does not latch. Build one geocoder per import run.
+ */
+export function makeGeocodeOrAdoptCoords(): (
+  fields: Record<string, string>,
+) => Promise<
+  { lat: string; long: string; precision: GeocodePrecision; regionAgs?: string } | null
+> {
+  let agsUnavailable = false;
+  const lookupAgs: AgsLookup = async (lat, long) => {
+    if (agsUnavailable) return null;
+    try {
+      return await fetchContainingGemeindeAgsOrThrow(lat, long);
+    } catch (err) {
+      agsUnavailable = true;
+      logError("resolve region at geocode (lookups off for this run)", err);
+      return null;
+    }
+  };
+  return async (fields) => {
+    const lat = Number(fields.lat), long = Number(fields.long);
+    if (!fields.lat?.trim() || !fields.long?.trim() || !Number.isFinite(lat) || !Number.isFinite(long)) {
+      const coords = await geocodeFields(fields);
+      if (!coords) return null;
+      return await withRegionAgs(coords, lookupAgs);
+    }
+    return await withRegionAgs({
+      lat: fields.lat,
+      long: fields.long,
+      precision: (fields.geocodePrecision as GeocodePrecision | undefined) ?? "Address",
+    }, lookupAgs);
+  };
 }

@@ -117,7 +117,7 @@ export const detailRooms = {
   },
   agentAddToBook: {
     en: "Add to agents",
-    de: "Zu Agenten hinzufügen",
+    de: "Zu Akteuren hinzufügen",
     fr: "Ajouter aux agents",
   },
   agentName: { en: "Name", de: "Name", fr: "Nom" },
@@ -140,17 +140,32 @@ export const detailRooms = {
     de: "Einladungslink kopieren",
     fr: "Copier le lien d'invitation",
   },
-  roomMyRoles: { en: "My role(s)", de: "Meine Rolle(n)", fr: "Mon/mes rôle(s)" },
-  roomRolesHint: {
-    en:
-      "Assign or change your role(s) anytime — this is how others share data with " +
-      "you by role.",
+  // Contextual hint at the QR widget (the convention's "next to a specific widget"
+  // carve-out): says what the code is FOR.
+  roomInviteHint: {
+    en: "Show this QR code, or copy the invite link, so others can join this data room.",
     de:
-      "Weise deine Rolle(n) jederzeit zu oder ändere sie — so teilen andere Daten " +
-      "nach Rolle mit dir.",
+      "Zeige diesen QR-Code oder kopiere den Einladungslink, damit andere diesem " +
+      "Datenzimmer beitreten können.",
     fr:
-      "Attribuez ou modifiez vos rôles à tout moment — c'est ainsi que d'autres " +
-      "partagent des données avec vous par rôle.",
+      "Montrez ce code QR, ou copiez le lien d'invitation, pour que d'autres " +
+      "puissent rejoindre cette salle de données.",
+  },
+  roomCopyWebId: {
+    en: "Copy WebID",
+    de: "WebID kopieren",
+    fr: "Copier la WebID",
+  },
+  // The members list IS the room's purpose (a WebID directory), so its empty state
+  // points at the two ways to fill it.
+  roomMembersEmpty: {
+    en: "No members yet. Show the QR code or share the invite link to bring people in.",
+    de:
+      "Noch keine Mitglieder. Zeige den QR-Code oder teile den Einladungslink, um " +
+      "Personen hinzuzuholen.",
+    fr:
+      "Aucun membre pour l'instant. Montrez le code QR ou partagez le lien " +
+      "d'invitation pour faire venir des personnes.",
   },
   aggRefreshAria: {
     en: "Refresh snapshot",
@@ -178,16 +193,15 @@ export const detailRooms = {
     de: "Datenzimmer löschen",
     fr: "Supprimer la salle de données",
   },
-  noRole: { en: "no role", de: "keine Rolle", fr: "aucun rôle" },
   lblWebId: { en: "WebID", de: "WebID", fr: "WebID" },
   agentAddAria: {
     en: "Add agent",
-    de: "Agent hinzufügen",
+    de: "Akteur hinzufügen",
     fr: "Ajouter un agent",
   },
   agentRemoveAria: {
     en: "Remove agent",
-    de: "Agent entfernen",
+    de: "Akteur entfernen",
     fr: "Retirer le agent",
   },
   // Generic affordances reused by the Agents + Rooms finders.
@@ -337,6 +351,5 @@ export const detailRooms = {
   btnDiscard: { en: "Discard", de: "Verwerfen", fr: "Abandonner" },
   btnRestore: { en: "Restore", de: "Wiederherstellen", fr: "Restaurer" },
   btnRemoveAll: { en: "Remove all", de: "Alle entfernen", fr: "Tout supprimer" },
-  saveRoles: { en: "Save roles", de: "Rollen speichern", fr: "Enregistrer les rôles" },
   btnDownload: { en: "Download", de: "Herunterladen", fr: "Télécharger" },
 } satisfies Record<string, Message>;

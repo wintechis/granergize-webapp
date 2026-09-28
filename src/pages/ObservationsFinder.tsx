@@ -104,9 +104,11 @@ const SeriesDrillPanel = lazy(() =>
  * per-building, per-year measured time-series. Buildings is the space/identity view;
  * energy lives here, its natural home. A flat View axis (`?view=`, see
  * `services/cube/observationsAxes.ts`) selects:
- * - **Map** — geographic energy markers banded at the chosen year (+ a year slider);
  * - **List** — the per-building observation summary (each row opens `/observation/:id`,
- *   where years are entered/edited; owners can clear all of a building's data);
+ *   where years are entered/edited; owners can clear all of a building's data). The
+ *   DEFAULT: a finder's first job is to enumerate what you have, and the energy views
+ *   are one click away;
+ * - **Map** — geographic energy markers banded at the chosen year (+ a year slider);
  * - **Over time** — the buildings × years efficiency heatmap, with a trailing column
  *   flagging each building's year-over-year direction (`ObservationsMatrix`);
  * - **Over years** — the metric's figures over the years, a line per building
@@ -133,7 +135,8 @@ export default function ObservationsFinder() {
   const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
   // The view axis sticks for the session (like the tier facet): URL > remembered >
-  // default. A nav-tab re-entry (bare URL) restores the last map/list/… you chose.
+  // default (the List). A nav-tab re-entry (bare URL) restores the last map/list/… you
+  // chose — the memory is sessionStorage, so a fresh tab opens on the List again.
   const view = resolveView(searchParams, rememberedValue("view"));
   const setView = (next: typeof view) => {
     rememberValue("view", next);
@@ -377,8 +380,8 @@ export default function ObservationsFinder() {
               ariaLabel: t("obsViewAria"),
               onChange: setView,
               options: [
-                { value: "map", label: t("btnMap") },
                 { value: "list", label: t("btnList") },
+                { value: "map", label: t("btnMap") },
                 { value: "overtime", label: t("obsViewOvertime") },
                 { value: "overyears", label: t("obsViewOveryears") },
                 { value: "pivot", label: t("obsViewPivot") },

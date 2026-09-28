@@ -47,15 +47,14 @@ export interface AccountActions {
  * Extracted from {@link AppShell} so the shell is just chrome + outlet; these are
  * self-contained Pod mutations wired straight to `AccountMenu`.
  *
- * The two shell touch-points are passed in: `onMenuClose` (close the profile
- * menu) and `onResetOnboarding` (re-offer the demo buildings once the Pod is
- * wiped empty again) — the hook owns everything else.
+ * The one shell touch-point is passed in: `onMenuClose` (close the profile
+ * menu) — the hook owns everything else.
  */
 export function useAccountActions(
   session: Session,
-  opts: { onMenuClose: () => void; onResetOnboarding: () => void },
+  opts: { onMenuClose: () => void },
 ): AccountActions {
-  const { onMenuClose, onResetOnboarding } = opts;
+  const { onMenuClose } = opts;
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
@@ -270,13 +269,9 @@ export function useAccountActions(
         return;
       }
       // Stay logged in: the Pod is now a fresh, empty granergize/ (the caches
-      // were reset by the mutation). Re-hydrate the (now absent) active room
-      // and re-offer the demo buildings — startup no longer re-seeds silently,
-      // so there's nothing to "log out to avoid" any more.
-      // Re-offer the demo buildings now the collection is empty again: the wipe
-      // cleared the query cache, so useDemoOffer re-probes the (now empty) Pod and
-      // returns true; just lift any in-session dismissal so the banner can show.
-      onResetOnboarding();
+      // were reset by the mutation), so the Buildings finder shows its empty
+      // state again — startup never seeded silently, so there's nothing to
+      // "log out to avoid".
       void navigate(FINDERS.buildings, { replace: true });
       showNotification(msg("allDataRemoved"), "success");
     } catch {

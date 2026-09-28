@@ -1,6 +1,6 @@
 import type { PodGateway } from "./pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
-import { GRAN_NS, RDF_TYPE, XSD_BOOLEAN as XSD_BOOLEAN_IRI } from "./rdf/vocabularies.ts";
+import { GRAN_NS, RDF_TYPE } from "./rdf/vocabularies.ts";
 import { appRoot } from "./pod/solidUtils.ts";
 import { readStoreOrEmpty } from "./pod/podFetch.ts";
 import { readModifyWrite } from "./pod/podWrite.ts";
@@ -11,8 +11,7 @@ const RDF_TYPE_NODE = namedNode(RDF_TYPE);
 const GRAN_PREFERENCES = namedNode(`${GRAN_NS}Preferences`);
 const GRAN_CURRENT_ROOM = namedNode(`${GRAN_NS}currentRoom`);
 const GRAN_HIDDEN_BUILDING = namedNode(`${GRAN_NS}hiddenBuilding`);
-const GRAN_DEMO_SEED_DECLINED = namedNode(`${GRAN_NS}demoSeedDeclined`);
-const XSD_BOOLEAN = namedNode(XSD_BOOLEAN_IRI);
+
 
 /**
  * Personal, low-contention UI state — one small flat file (`prefs.ttl`) you alone
@@ -26,8 +25,6 @@ export interface Preferences {
   currentRoom: string | null;
   /** Buildings shared with you that you've chosen to hide from the dashboard. */
   hiddenBuildings: Set<string>;
-  /** True once the user dismissed the fresh-Pod "add demo buildings?" offer. */
-  demoSeedDeclined: boolean;
 }
 
 /** `<storageRoot><APP_DIR>/prefs.ttl` — your personal preferences resource. */
@@ -44,7 +41,6 @@ export async function readPrefs(gateway: PodGateway): Promise<Preferences> {
   const empty: Preferences = {
     currentRoom: null,
     hiddenBuildings: new Set(),
-    demoSeedDeclined: false,
   };
   if (!webId) return empty;
   const store = await readStoreOrEmpty(prefsUri(webId), gateway);
@@ -57,8 +53,6 @@ export async function readPrefs(gateway: PodGateway): Promise<Preferences> {
         .filter((o) => o.termType === "NamedNode")
         .map((o) => o.value),
     ),
-    demoSeedDeclined:
-      store.getObjects(self, GRAN_DEMO_SEED_DECLINED, null)[0]?.value === "true",
   };
 }
 
@@ -90,26 +84,6 @@ export function setCurrentRoom(
   return mutatePrefs(gateway, (store, self) => {
     store.removeQuads(store.getQuads(self, GRAN_CURRENT_ROOM, null, null));
     if (room) store.addQuad(self, GRAN_CURRENT_ROOM, namedNode(room));
-  });
-}
-
-/**
- * Remember whether the user dismissed the fresh-Pod demo-buildings offer.
- * @operation mutation
- */
-export function setDemoSeedDeclined(
-  gateway: PodGateway,
-  declined: boolean,
-): Promise<void> {
-  return mutatePrefs(gateway, (store, self) => {
-    store.removeQuads(store.getQuads(self, GRAN_DEMO_SEED_DECLINED, null, null));
-    if (declined) {
-      store.addQuad(
-        self,
-        GRAN_DEMO_SEED_DECLINED,
-        DataFactory.literal("true", XSD_BOOLEAN),
-      );
-    }
   });
 }
 

@@ -10,7 +10,7 @@ import {
   openBuildingsList,
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -20,7 +20,7 @@ import { T } from "../helpers/timeouts.ts";
  * UI — field-level fidelity is also unit-tested in buildingSerializer.test.ts).
  * The round-trip test MUTATES the Pod (exports, deletes the originals, then
  * re-imports the workbook); afterAll wipes the collection. It self-seeds an empty
- * Pod in beforeAll (ensureDemoBuildings), so it doesn't assume a pre-seeded Pod.
+ * Pod in beforeAll (importExampleBuildings), so it doesn't assume a pre-seeded Pod.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/solo/excel-export.spec.ts
@@ -59,14 +59,14 @@ test.describe("excel export", () => {
     await login(page, ACC);
     await assertCleanStart(page);
     // Self-seed an empty Pod so the export round-trip has buildings to export (the
-    // test no longer assumes a pre-seeded Pod). The `user` demo seeds a couple of
+    // test no longer assumes a pre-seeded Pod). The core example file brings six
     // buildings, so this exercises the MULTI-building round-trip — incl. the cleanup
     // that deletes the re-imported copies and asserts the listing converges back.
     // That relies on `deleteBuilding`'s read-after-write (it waits until the
     // `buildings/` listing drops a deleted file before resolving), so the per-delete
     // refetch can't briefly surface a phantom row under CSS eventual consistency.
-    // They round-trip through the generic "User" import template used below.
-    await ensureDemoBuildings(page);
+    // They round-trip through the generic import layout used below.
+    await importExampleBuildings(page);
   });
 
   test.afterAll(async () => {

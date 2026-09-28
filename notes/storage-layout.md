@@ -74,7 +74,7 @@ and stays under `profile/`.
 │   ├── card  (#me, #org)                             the WebID document (see below)
 │   └── logo.<ext>                                    organisation logo image (org is part of the profile)
 └── granergize/                                       ← podResources(): the single app root
-    ├── prefs.ttl                personal UI state: currentRoom, hiddenBuilding(s), demoSeedDeclined
+    ├── prefs.ttl                personal UI state: currentRoom, hiddenBuilding(s)
     ├── bookmarks.ttl            gran:knownRoom — external room bookmarks ("Your rooms")
     ├── agents.ttl              vCard address book: saved agents + local annotations (kind, org fields, "works for")
     ├── agents/logos/<stem>.<ext>   referenced-org logos (vcard:logo, public-read; own-org logo is profile/logo.<ext>)
@@ -119,18 +119,46 @@ stays the enforcement truth; these logs are the app's *record* and the only way 
 recipient learns of a grant. Event model and grant/revocation folding: see
 [`sharing.md`](./sharing.md).
 
-**Demo buildings (offered, not auto-seeded).** A fresh Pod (no `buildings/`
-container at all) is *offered* the demos via a dismissible banner (`useDemoOffer`
-in `queries.ts`); choosing "Add examples" calls `seedDemoBuildings(gateway, webId)`,
-which writes four real, *user-owned* demo buildings through the normal pipeline (all
-in Nürnberg, coordinates geocoded at seed time via Nominatim). The set spans every
-loader shape and panel state a new user should see: **Nordostpark 84** — an inline
-annual (`P1Y`) SOSA aggregate, self-operated, the full investor panel;
-**Hafenstraße 12** — annual but *not* self-operated, so no investor panel;
-**Lange Gasse 20** — *both* shapes (annual + a 15-minute `PT15M` series → the
-Annual | Time series toggle); **Pirckheimerstraße 68** — a `PT15M` series only (no
-annual, no toggle). Declining persists in `prefs.ttl` as `gran:demoSeedDeclined`,
-so the banner doesn't nag on every login. Nothing is seeded silently.
+**Example buildings (imported, never seeded).** There is no programmatic demo
+seed: the example data is a set of bundled **xlsx files** the user imports
+through the ordinary "Autofill from file" flow (`AddBuildingDialog` → "Try an
+example file", listed in `src/constants/exampleFiles.ts`), so the examples take
+exactly the path a customer's own spreadsheet takes and land as real,
+*user-owned* buildings. The empty Buildings list points there
+(`buildingsEmpty`); nothing is written without a click.
+
+The files live in `public/examples/` and are **sources, not build outputs** —
+hand-edited spreadsheets holding the example data itself. `genCoreFixture.test.ts`
+holds their import contract (format detection + parsed records), so a sheet edit
+that breaks the importer is caught:
+- `limmo-nuernberg.xlsx` — **37 real logistics buildings** from the L.Immo online
+  Nürnberg-region extract, generic flat layout. Master data + WGS84 coordinates
+  are the extract's own (the import *adopts* those instead of geocoding the
+  address — `makeGeocodeOrAdoptCoords` in `geocode.ts`; the Gemeinde AGS is still
+  resolved from them, with a per-run latch that stops the lookups after one hard
+  linked-lau failure), while all energy figures are synthetic (area-scaled annual
+  2022–2024 for every building). Feature coverage rides on picked buildings:
+  **Thomas-Dachser-Str. 4** (the flagship) — the full investor panel;
+  **Steinauer Weg 7** — 1200 kWp PV + `electricityGeneration` → the generation
+  map lens. (Both the master data and the synthetics were originally produced by
+  a codegen pipeline over the native extract in `scripts/data/`; it was retired
+  once the workbook became the source of truth — `git show
+  a62a680:scripts/genExampleFiles.ts` if the synthesis is ever wanted again.)
+- `beispiel-portfolio.xlsx` — the earlier fictional 4-building set as an investor
+  row-label sheet, without coordinates, so it demonstrates geocode-on-import.
+- `lastgang-am-tower-10.xlsx` — a 14-day 15-minute load profile (`PT15M`).
+
+Two things a spreadsheet layout cannot carry are supplied around it: the
+`operatedBy`/`ownedBy` self-links (the importing user's WebID is unknown at
+generation — the example loader applies them per `buildingCode`, which is what
+puts ≥2 buildings in one operator group for the Betreiber benchmark), and a
+planned (Soll) dataset (entered in the energy editor). A Lastgang file always
+mints its own building, so annual + series on ONE building is likewise composed
+in-app. The browser lanes import a curated 6-building core subset
+(`test/e2e/fixtures/limmo-core.xlsx`) so a per-spec import stays fast — the one
+*derived* artifact here, cut out of `limmo-nuernberg.xlsx` by
+`scripts/genCoreFixture.ts` (`deno task gen:core-fixture`) so it can't drift
+from the example the app ships.
 
 Origins (all via `podResources(webId)` unless noted): prefs `prefs.ts`; bookmarks
 `bookmarks.ts`; buildings/energy `buildingSerializer.ts`; own-building discovery +

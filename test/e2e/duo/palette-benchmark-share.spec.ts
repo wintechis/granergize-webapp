@@ -4,7 +4,7 @@ import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
 import {
   AGGREGATION_NAME,
@@ -64,7 +64,7 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
       const bWebId = await webIdOf(b1.page);
 
       // A self-seeds buildings so the aggregation picker isn't empty.
-      await ensureDemoBuildings(a.page);
+      await importExampleBuildings(a.page);
 
       // ── Step 1: create the aggregation through the ⌘K palette ──
       await a.page.goto("/");

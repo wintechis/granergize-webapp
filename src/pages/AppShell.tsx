@@ -14,7 +14,6 @@ import Tooltip from "@mui/material/Tooltip";
 import PersonIcon from "@mui/icons-material/Person";
 import Footer from "../components/Footer.tsx";
 import AccountMenu from "../components/AccountMenu.tsx";
-import OnboardingBanner from "../components/OnboardingBanner.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
 import NotificationLogIndicator from "../components/NotificationLogIndicator.tsx";
@@ -23,17 +22,10 @@ import ActivityScreen from "../components/ActivityScreen.tsx";
 import { getAvatarObjectUrl } from "../services/organisation/logo.ts";
 import { getOrgLogoObjectUrl } from "../services/organisation/organisation.ts";
 import { useAvatarRefresh } from "../lib/avatarRefresh.ts";
-import { useDemoOffer, useSharedWithMe } from "../hooks/queries.ts";
 import { logError } from "../lib/logError.ts";
-import { formatError } from "../lib/formatError.ts";
 import { type MessageId, msg } from "../lib/messages.ts";
 import { DETAIL_PATTERNS, FINDERS } from "../routes.ts";
-import {
-  useSeedDemoBuildings,
-  useSeedDemoAgents,
-  useDeclineDemoOffer,
-  useSeedDemoRooms,
-} from "../hooks/mutations.ts";
+import { useSeedDemoAgents, useSeedDemoRooms } from "../hooks/mutations.ts";
 import { useAccountActions } from "../hooks/useAccountActions.ts";
 
 interface AppShellProps {
@@ -144,58 +136,8 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     "load organisation logo",
   );
 
-  // Fresh-Pod demo-buildings offer (non-blocking banner): shown when the user's own
-  // buildings container is absent/empty and the demo hasn't been declined. The
-  // probe is a query (useDemoOffer); a session-local "dismissed" flag layers over
-  // it so seeding/declining hides the banner instantly without a re-probe. The
-  // declined choice persists in prefs.ttl, so it doesn't nag on every login.
-  const demoOffer = useDemoOffer();
-  const [demoDismissed, setDemoDismissed] = useState(false);
-  const demoShow = (demoOffer.data ?? false) && !demoDismissed;
-  // "No buildings yet" would mislead someone who has buildings SHARED with them
-  // (they do have buildings to explore — just none of their own), so the offer
-  // also waits for the shared-in fold and stands down if any shares exist. The
-  // query is warm: the buildings load already depends on the same fold.
-  const sharedWithMeQuery = useSharedWithMe();
-  // `data` defined ⇔ the underlying folds resolved (the composite hook has no
-  // isSuccess); undefined-while-loading keeps the banner down, no flash.
-  const nothingShared = sharedWithMeQuery.data !== undefined &&
-    sharedWithMeQuery.data.length === 0;
-
-  /**
-   * Seed the fixed demo building(s) — banner & menu share this. The hook owns
-   * execution + the buildings invalidation (energy follows: useEnergy fans out a
-   * per-building query over the set); the seeder is best-effort per building (it never
-   * throws for one), so the tally is the only place a partial failure
-   * surfaces — rendered honestly here. Thrown errors toast centrally.
-   */
-  const seedBuildingsMut = useSeedDemoBuildings();
-  const seedDemos = () =>
-    seedBuildingsMut.mutate(undefined, {
-      onSuccess: ({ done: seeded, total }) => {
-        if (seeded === total) {
-          setDemoDismissed(true);
-          showNotification(msg("demoBuildingsAdded"), "success");
-        } else if (seeded > 0) {
-          setDemoDismissed(true);
-          showNotification(
-            msg("demoBuildingsPartial", { seeded, total }),
-            "warning",
-          );
-        } else {
-          showNotification(
-            formatError(
-              "actionAddDemoBuildings",
-              new Error("no building could be written"),
-            ),
-            "error",
-          );
-        }
-      },
-    });
-
-  // Dev-mode Connect-tab demo data — the contacts/rooms counterpart of
-  // `seedDemos` (the seeders tally partial success the same way).
+  // Dev-mode Connect-tab demo data — the contacts/rooms layout/paging fixtures
+  // (the seeders tally partial success, rendered honestly below).
   const seedAgentsMut = useSeedDemoAgents();
   const seedRoomsMut = useSeedDemoRooms();
   const seedDemoAgentsClick = () =>
@@ -218,12 +160,6 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           rooms.length === total ? "success" : "warning",
         ),
     });
-
-  const declineDemo = useDeclineDemoOffer();
-  const declineDemos = () => {
-    setDemoDismissed(true); // optimistic: the banner hides immediately
-    declineDemo.mutate();
-  };
 
   const handleOrganisation = () => {
     handleMenuClose();
@@ -266,10 +202,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     handleCancelRemove,
     accountBusy,
     removing,
-  } = useAccountActions(session, {
-    onMenuClose: handleMenuClose,
-    onResetOnboarding: () => setDemoDismissed(false),
-  });
+  } = useAccountActions(session, { onMenuClose: handleMenuClose });
 
   const handleProfile = () => {
     handleMenuClose();
@@ -370,8 +303,6 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             onClose={handleMenuClose}
             onProfile={handleProfile}
             onOrganisation={handleOrganisation}
-            onSeedBuildings={seedDemos}
-            seedBuildingsBusy={seedBuildingsMut.isPending}
             onSeedConnect={() => {
               seedDemoAgentsClick();
               seedDemoRoomsClick();
@@ -400,14 +331,6 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
         accept=".zip,application/zip"
         style={{ display: "none" }}
         onChange={handleArchiveFile}
-      />
-      {/* Fresh-Pod onboarding: offer the demo buildings instead of writing them
-          silently. Non-blocking (the app stays usable); dismissing it persists. */}
-      <OnboardingBanner
-        show={demoShow && nothingShared}
-        busy={seedBuildingsMut.isPending}
-        onSeed={seedDemos}
-        onDecline={declineDemos}
       />
       {/* The active finder renders here. BuildingsMap (the Buildings map) is kept
           mounted via BuildingsFinder's own display:none trick, so a switch among

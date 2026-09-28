@@ -11,6 +11,7 @@ import {
   metricRawAtYear,
   metricUnit,
   metricValueAtYear,
+  metricValueUnit,
   SELECTABLE_METRICS,
 } from "./energyMetric.ts";
 import { type AnnualMetrics } from "../energy/energyDataset.ts";
@@ -173,6 +174,17 @@ Deno.test("metricRawAtYear: absolute figure regardless of framing/area", () => {
   assert.equal(metricRawAtYear({ electricityGeneration: 5000 }, "electricityGeneration"), 5000);
   assert.equal(metricRawAtYear({ heatConsumption: 1 }, "electricityConsumption"), null);
   assert.equal(metricRawAtYear(undefined, "electricityConsumption"), null);
+});
+
+Deno.test("metricValueUnit: tier framing is per-m²/a, magnitude is the raw unit", () => {
+  // The unit follows the framing AND the metric's own canonical unit — water is m³,
+  // not the kWh the over-time tooltip used to hardcode for every metric.
+  assert.equal(metricValueUnit("electricityConsumption"), "kWh/m²/a");
+  assert.equal(metricValueUnit("heatConsumption"), "kWh/m²/a");
+  assert.equal(metricValueUnit("waterConsumption"), "m³/m²/a");
+  assert.equal(metricValueUnit("wastewaterConsumption"), "m³/m²/a");
+  // Generation ranks by absolute output, so no per-area suffix.
+  assert.equal(metricValueUnit("electricityGeneration"), "kWh");
 });
 
 // --- magnitude framing: neutral terciles (low/mid/high), NO good/bad ---------

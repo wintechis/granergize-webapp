@@ -1,28 +1,28 @@
-# Data Rooms (membership & roles)
+# Data Rooms (a WebID directory)
 
 A data room is an **append-only LDP container** any user creates on their own Pod.
-State is **event-sourced**: join, leave, and role changes each append one immutable
-event; current state is **derived on read** by folding (latest event per WebID, per
-axis). This gives an audit trail and avoids lost-update races.
+State is **event-sourced**: join and leave each append one immutable event; current
+state is **derived on read** by folding (latest event per WebID). This gives an audit
+trail and avoids lost-update races.
 
-Companion to [`sharing.md`](./sharing.md): a room grants no access on its own — it's a
-recipient *directory* that sharing reads.
+Companion to [`sharing.md`](./sharing.md): a room grants no access on its own — it is
+a recipient *directory*. Its whole job is to answer the question that otherwise
+blocks every share: **whom do I share with, and what is their WebID?** The room page
+lists each member's name and WebID (copyable); the share dialog's recipient field
+offers those members alongside your contacts. The grant that follows is an ordinary
+bilateral WebID grant — nothing room-shaped reaches the service layer or the event.
 
 **Single room at a time:** you are a member of at most one room — the *current*
 room; entering another leaves it. A persistent **bookmarks** list lets you switch
 between rooms you know about.
 
-Two **independent axes**: **membership** (in the room or not) and **role(s) held**.
-You can be a member with no role, or have left while role history remains.
-
-The data-room membership role is the **only role concept the app uses** — the former
-company-kind (organisation `org:classification`) and building producing-role (PROV
-`prov:hadRole`) no longer drive anything. The model is **user-centric**: every event,
-and every grant sharing produces, is keyed on the member's **WebID**. A role is read as
-**the role of the organisation the user represents** — the user is the authenticating
-identity, but the role belongs to their org (taken from the WebID profile's
-`org:memberOf`). "Alice holds the investor role here" means *Alice's organisation
-participates as the investor, with Alice as its representative*.
+**One axis: membership.** Rooms once carried a second, independent axis — self-assigned
+**roles** — so a share could target "everyone holding role X". That was the app's only
+remaining role concept, and it went with the feature: there is no `UserRole` type any
+more, and the model is fully **user-centric**, every event and every grant keyed on a
+**WebID**. Legacy `as:Update`/`sioc:has_function` events on an existing Pod are simply
+skipped by the fold — no migration, no rewrite. The role IRIs stay published in
+`vocab/vocab.ttl` so old logs remain resolvable.
 
 ## Storage
 
@@ -52,12 +52,12 @@ files (you alone write each, so read-modify-write is safe):
 (Rooms you *host* are discovered by listing `rooms/`, not duplicated in these files;
 each hosted room's event log still lives under `rooms/<uuid>/`.)
 
-`getActiveRoom()` reads an in-memory mirror of `currentRoom` (so components like the
-sharing dialogs can read it synchronously); `hydrateActiveRoom` loads it from
-`prefs.ttl` on login, and `enterRoom`/`exitRoom` keep `prefs.ttl` (+ `bookmarks.ttl`)
-and the mirror in sync.
+The registry is read through React Query (`useRooms` → `readRooms`) and written
+authoritatively by the room mutations; `enterRoom`/`exitRoom` keep `prefs.ttl` (+
+`bookmarks.ttl`) in sync. (An earlier in-memory mirror — `getActiveRoom`/
+`hydrateActiveRoom` — was replaced by that query.)
 
-## Events (Activity Streams 2.0 + SIOC)
+## Events (Activity Streams 2.0)
 
 Each event uses a blank-node subject with `as:actor` (WebID), `as:object` (the room),
 `as:published` (ISO time); it is a **full snapshot**, not a delta. SIOC alone is
@@ -72,35 +72,24 @@ state-centric (`sioc:has_member` is a fact, not an event), so AS2 supplies the v
    as:published "2026-05-29T10:00:00Z"^^xsd:dateTime .
 ```
 
-**Role** — `setMyRole`: `as:Update` carrying the full role set as `sioc:has_function`
-→ `sioc:Role` IRIs (may be empty):
-
-```turtle
-[] a as:Update ;
-   as:actor <…/card#me> ; as:object <…/rooms/uuid/> ; as:published "…"^^xsd:dateTime ;
-   sioc:has_function gran:InvestorRole, gran:UserRoleInstance .
-```
-
-Role IRIs (`MEMBERSHIP_ROLE_TO_IRI`): `investor`→`gran:InvestorRole`, `user`→
-`gran:UserRoleInstance`, `benchmark_service_provider`→`gran:BenchmarkRole`, and so on
-for the remaining self-assignable roles. (`dummy`→`gran:DummyRole` is an internal
-placeholder, not user-selectable.)
+*(Retired: an `as:Update` carrying `sioc:has_function` role IRIs was the second event
+kind while rooms had roles. `classifyRoomEvent` no longer recognises it, so such an
+event on an old Pod folds to nothing.)*
 
 ## Operations & fold
 
 - **Join** — `joinRoom`; event `as:Join`; latest membership = `as:Join` → member.
 - **Leave** — `leaveRoom`; event `as:Leave`; latest membership = `as:Leave` → not a member.
-- **Set role(s)** — `setMyRole`; event `as:Update` + `sioc:has_function`; latest = current role set.
 
 `readLog` does one container `GET`, lists `ldp:contains`, `GET`s + parses each child
 (skipping unreadable/malformed; 404 → empty), classifies by `rdf:type`, then
 `latestByAgent` keeps the newest event per WebID by `as:published`:
 
 - `getMyMembership(room)` → latest membership is `as:Join`.
-- `getMyRole(room)` → latest `as:Update`'s functions.
-- `getMembers(room)` → agents whose latest membership is `as:Join`, annotated with
-  their latest roles (membership, not having a role, defines a member).
-- `getMembersByRole(room, role)` → members currently holding `role`.
+- `getMembers(room)` → agents whose latest membership is `as:Join` — the directory,
+  each entry just a WebID.
+- `getRoomLogState(room)` → both of the above from ONE `readLog` (what `useRoomState`
+  calls, so a room page folds the log once).
 
 **Ordering caveat:** `as:published` is a client clock (per-agent, last-writer-wins).
 Documented hardening: order by each event's server `Last-Modified` (tie-break on URI).
@@ -123,21 +112,24 @@ State is re-derived from the Pod on every read, so it survives restarts.
 
 Open self-enrollment is an **ACL property of the container**, not app logic; restrict
 by narrowing the ACL (out-of-band). The log is member-writable, so `as:actor` is a
-**claim** the app sets to the caller's `gateway.webId` but cannot enforce — acceptable
-while roles are low-stakes; gate admission if a role ever gates real data.
+**claim** the app sets to the caller's `gateway.webId` but cannot enforce. That is
+acceptable precisely because membership gates nothing: a forged `as:actor` puts a
+wrong name in a directory, it grants no access. Gate admission (narrow the ACL) if
+membership ever comes to mean more than "findable".
 
 ## Relationship to sharing
 
-Membership and roles grant **no data access** by themselves. A room is only a
-**directory**: `getMembersByRole` resolves a role to WebIDs, which the "share by role"
-UI feeds into ordinary per-resource grants. The access itself is bilateral and
-room-independent — see [sharing.md](sharing.md).
+Membership grants **no data access**. A room is only a **directory**: you read a
+member's WebID off the room page (or pick them in the share dialog's recipient field,
+which merges room members with your contacts) and share with that person. The access
+itself is bilateral and room-independent — see [sharing.md](sharing.md). Nothing in
+`services/interop/share.ts` or the `shared-out/` event mentions a room.
 
 ## Tests
 
 Offline tests in `dataRoom.test.ts`
-(`deno task unit:local`): latest-wins folding, concurrent members not clobbering, the two
-axes independent, join→leave, role-without-join ≠ member, role→WebID resolution,
+(`deno task unit:local`): latest-wins folding, concurrent joins not clobbering,
+join→leave, a legacy role event folding to nothing,
 `createRoom` (bookmark + current + single membership), `addKnownRoom` bookmark-without-join
 vs `enterRoom`, leaving keeps the bookmark / `removeKnownRoom` forgets it, `roomExists`,
 `ownsRoom`, and `deleteRoom`.

@@ -138,12 +138,11 @@ export const TIME_NS = "http://www.w3.org/2006/time#";
 export const SSN_NS = "http://www.w3.org/ns/ssn/";
 
 /**
- * DWD vocabulary served by `linked-dwd` (see `linkedWeather.ts`): a
- * `dwd:WeatherStation` carries `dwd:station_id`/`dwd:station_name`, an observation
- * carries `dwd:quality`. The QUDT *schema* namespace (`qudt:numericValue` on the
- * `qudt:QuantityValue` result) — distinct from {@link UNIT_NS}, the unit vocabulary.
+ * The QUDT *schema* namespace (`qudt:numericValue` on the `qudt:QuantityValue` result
+ * linked-dwd serves) — distinct from {@link UNIT_NS}, the unit vocabulary. linked-dwd's
+ * own terms have no fixed namespace here: they live under the wrapper root, see
+ * `dwdVocabNs` in `linkedWeather.ts`.
  */
-export const DWD_NS = "https://opendata.dwd.de/#";
 export const QUDT_SCHEMA_NS = "http://qudt.org/1.1/schema/qudt#";
 
 /** RDF Data Cube — the shape `linked-regionalstatistik` serves (see
@@ -155,10 +154,7 @@ export const QB_NS = "http://purl.org/linked-data/cube#";
 /** QUDT units — kWh (`KiloW-HR`), m³ (`M3`), percent (`PERCENT`) on energy results. */
 export const UNIT_NS = "https://qudt.org/vocab/unit#";
 
-/** SIOC — data room roles are sioc:Role values linked via sioc:has_function */
-export const SIOC_NS = "http://rdfs.org/sioc/ns#";
-
-/** Activity Streams 2.0 — data room membership events (as:Join / as:Leave / as:Update) */
+/** Activity Streams 2.0 — data room membership events (as:Join / as:Leave) */
 export const AS_NS = "https://www.w3.org/ns/activitystreams#";
 
 /** PROV-O — building data provenance (qualified attribution to a producing agent). */

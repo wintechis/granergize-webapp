@@ -4,8 +4,9 @@
  * factor into a clean orthogonal grid (some are rows-shaped, one is a map), so it's a
  * flat view selector rather than a Space × Colour cube:
  *
+ * - `list`      — the per-building observation summary (year count, range, granularity)
+ *                 — the DEFAULT, since a finder's first job is to enumerate what you have;
  * - `map`       — geographic energy markers banded at the chosen year (+ a year slider);
- * - `list`      — the per-building observation summary (year count, range, granularity);
  * - `overtime`  — the buildings × years efficiency heatmap, with a trailing trend
  *                 column (year-over-year direction — the folded-in Trend view);
  * - `overyears` — the metric's raw figures over the years, one line per building
@@ -38,12 +39,13 @@ export type ObsView =
   | "pivot"
   | "aggregations";
 
-/** The default view (omitted from the URL): the geographic energy map. */
-export const DEFAULT_VIEW: ObsView = "map";
+/** The default view (omitted from the URL): the per-building list. A bare
+ *  `/observations` therefore means the List, and choosing the Map writes `?view=map`. */
+export const DEFAULT_VIEW: ObsView = "list";
 
 const VIEWS: ReadonlySet<string> = new Set<ObsView>([
-  "map",
   "list",
+  "map",
   "overtime",
   "overyears",
   "pivot",
@@ -52,8 +54,8 @@ const VIEWS: ReadonlySet<string> = new Set<ObsView>([
 
 /**
  * Read the view from `?view=`; when absent, fall back to `fallback` (the
- * session-remembered view) if it is a known view, else the default (the geographic
- * map). An unknown URL value is ignored either way.
+ * session-remembered view) if it is a known view, else the default (the List). An
+ * unknown URL value is ignored either way.
  */
 export function resolveView(
   params: URLSearchParams,

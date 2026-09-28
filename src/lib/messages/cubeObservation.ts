@@ -361,6 +361,46 @@ export const cubeObservation = {
     de: "Keine Daten",
     fr: "Aucune donnée",
   },
+  // The over-time heatmap's two colour keys and the hints that tell them apart: a
+  // CELL is peer-relative (re-framed by what's shown), a TREND is self-relative (not).
+  // The trend key's group label is `obsViewTrend` — the column it explains.
+  obsLegendCells: {
+    en: "Cell colour",
+    de: "Zellfarbe",
+    fr: "Couleur des cellules",
+  },
+  obsLegendCellsHint: {
+    en:
+      "A cell ranks its building against the other buildings shown in that same " +
+      "year — changing the selection changes the colours.",
+    de:
+      "Eine Zelle vergleicht ihr Gebäude mit den übrigen angezeigten Gebäuden " +
+      "desselben Jahres — eine andere Auswahl verändert die Farben.",
+    fr:
+      "Une cellule classe son bâtiment par rapport aux autres bâtiments affichés " +
+      "pour la même année — modifier la sélection modifie les couleurs.",
+  },
+  obsLegendTrendHint: {
+    en:
+      "The trend compares each building with its own two most recent years, so it " +
+      "stays the same whatever else is shown.",
+    de:
+      "Der Trend vergleicht jedes Gebäude mit seinen eigenen beiden jüngsten Jahren " +
+      "und bleibt daher unabhängig von der Auswahl.",
+    fr:
+      "La tendance compare chaque bâtiment à ses deux années les plus récentes ; " +
+      "elle reste donc identique quelle que soit la sélection.",
+  },
+  obsTrendTooltip: {
+    en: "{name} — {from} → {to}: {change} ({unit})",
+    de: "{name} — {from} → {to}: {change} ({unit})",
+    fr: "{name} — {from} → {to} : {change} ({unit})",
+  },
+  obsTrendTooltipUnknown: {
+    en: "Two comparable years are needed before a trend can be shown.",
+    de: "Für einen Trend werden zwei vergleichbare Jahre benötigt.",
+    fr: "Deux années comparables sont nécessaires pour afficher une tendance.",
+  },
   // Region choropleth — the statistics map shaded by AGS-keyed regionalstatistik.
   choroplethTitle: {
     en: "Regional statistics",
@@ -480,16 +520,18 @@ export const cubeObservation = {
     fr:
       "Aucune année ne dispose à la fois de données énergétiques et météo, elles ne peuvent donc pas être comparées sur un même axe.",
   },
-  compareYearsEmpty: {
+  // The over-time heatmap's empty state (was `compareYearsEmpty`, orphaned when the
+  // Compare-years view was folded into Over time).
+  obsMatrixEmpty: {
     en:
       "No annual energy data yet. Add energy years to your buildings to compare " +
-      "them side by side here.",
+      "them over time here.",
     de:
-      "Noch keine Jahresenergiedaten. Füge deinen Gebäuden Energiejahre hinzu, um sie " +
-      "hier nebeneinander zu vergleichen.",
+      "Noch keine Jahresenergiedaten. Fügen Sie Ihren Gebäuden Energiejahre hinzu, " +
+      "um sie hier im Zeitverlauf zu vergleichen.",
     fr:
       "Aucune donnée énergétique annuelle pour l'instant. Ajoutez des années " +
-      "énergétiques à vos bâtiments pour les comparer côte à côte ici.",
+      "énergétiques à vos bâtiments pour les comparer dans le temps ici.",
   },
   // Energy-years dialog.
   eyAction: { en: "Energy years", de: "Energiejahre", fr: "Années énergétiques" },

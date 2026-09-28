@@ -44,15 +44,12 @@ import { exitRoomCore } from "./cores/room/ExitRoom.ts";
 import { deleteRoomCore } from "./cores/room/DeleteRoom.ts";
 import { addBookmarkCore } from "./cores/room/AddBookmark.ts";
 import { removeBookmarkCore } from "./cores/room/RemoveBookmark.ts";
-import { saveRolesCore } from "./cores/room/SaveRoles.ts";
 import { seedDemoRoomsCore } from "./cores/room/SeedDemoRooms.ts";
 import { saveAgentCore } from "./cores/agent/SaveAgent.ts";
 import { removeAgentCore } from "./cores/agent/RemoveAgent.ts";
 import { seedDemoAgentsCore } from "./cores/agent/SeedDemoAgents.ts";
 import { saveOrganisationCore } from "./cores/organisation/SaveOrganisation.ts";
-import { seedDemoBuildingsCore } from "./cores/building/SeedDemoBuildings.ts";
 import { deleteAppDataCore } from "./cores/appData/DeleteAppData.ts";
-import { declineDemoOfferCore } from "./cores/appData/DeclineDemoOffer.ts";
 import { restoreArchiveCore } from "./cores/appData/RestoreArchive.ts";
 
 /**
@@ -100,7 +97,6 @@ export const WRITE_CORES = {
   DeleteRoom: deleteRoomCore,
   AddBookmark: addBookmarkCore,
   RemoveBookmark: removeBookmarkCore,
-  SaveRoles: saveRolesCore,
   SeedDemoRooms: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return seedDemoRoomsCore(s);
@@ -115,14 +111,6 @@ export const WRITE_CORES = {
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: saveOrganisationCore,
   // ── Account ──────────────────────────────────────────────────────────────────
-  DeclineDemoOffer: (s: PodGateway, p: Record<never, never>) => {
-    void p;
-    return declineDemoOfferCore(s);
-  },
-  SeedDemoBuildings: (s: PodGateway, p: Record<never, never>) => {
-    void p;
-    return seedDemoBuildingsCore(s);
-  },
   DeleteAppData: deleteAppDataCore,
   RestoreArchive: restoreArchiveCore,
 } as const;

@@ -3,7 +3,7 @@ import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { openObservationsView } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -18,12 +18,10 @@ import { T } from "../helpers/timeouts.ts";
  * DRIVES the slider and asserts the answer is *shown*: the markers re-tier per year and
  * the chosen year is encoded in the URI (`?y=`) so a reload keeps the cut.
  *
- * Seed (the standard investor demo `ensureDemoBuildings`): three annual buildings span
- * the years **2022–2024** at distinct floor-area intensities, plus the small office that
- * carries annual **2023–2024** only — so the selectable year range is the *union*
- * (2022, 2023, 2024) and at least one building has data in some years but not others
- * (the office is uncategorised → neutral in 2022, the "no-data-that-year" partiality the
- * CQ exercises). The intensity/tercile maths itself is proved in the Tier-1
+ * Seed (the core example file, `importExampleBuildings`): six annual buildings spanning
+ * the years **2022–2024** at distinct floor-area intensities — so the selectable year
+ * range is 2022–2024 and the terciles re-cut as the slider moves. The intensity/tercile
+ * maths itself is proved in the Tier-1
  * `energyTimeCut.test.ts`; this is the UI proof that scrubbing the year re-cuts the cube
  * and the cut is a shareable URI.
  *
@@ -55,9 +53,9 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
     page = await newCapturedPage(browser, "cube-time-cut");
     await login(page, ACC);
     await assertCleanStart(page);
-    // The investor demo seeds the multi-year (2022-2024) annual buildings the
-    // slider cuts across.
-    await ensureDemoBuildings(page);
+    // The core example file brings the multi-year (2022-2024) annual buildings
+    // the slider cuts across.
+    await importExampleBuildings(page);
   });
 
   test.afterAll(async () => {

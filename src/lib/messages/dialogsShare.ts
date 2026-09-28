@@ -160,6 +160,27 @@ export const dialogsShare = {
     de: "Koordinaten ermitteln",
     fr: "Obtenir les coordonnées",
   },
+  // "Try an example file" — the bundled example workbooks (constants/exampleFiles.ts).
+  addExamplesLead: {
+    en: "…or try one of the bundled example files:",
+    de: "…oder eine der mitgelieferten Beispieldateien ausprobieren:",
+    fr: "…ou essayez l'un des fichiers d'exemple fournis :",
+  },
+  exampleLimmo: {
+    en: "Logistics portfolio Nürnberg — 37 buildings with energy data",
+    de: "Logistikportfolio Nürnberg — 37 Gebäude mit Energiedaten",
+    fr: "Portefeuille logistique de Nuremberg — 37 bâtiments avec données énergétiques",
+  },
+  examplePortfolio: {
+    en: "Sample portfolio (row-label sheet) — 4 fictional buildings, no coordinates",
+    de: "Beispiel-Portfolio (Zeilenbeschriftungs-Blatt) — 4 fiktive Gebäude, ohne Koordinaten",
+    fr: "Portefeuille d'exemple (feuille à libellés) — 4 bâtiments fictifs, sans coordonnées",
+  },
+  exampleLastgang: {
+    en: "15-minute load profile (Lastgang) — Am Tower 10",
+    de: "15-Minuten-Lastgang — Am Tower 10",
+    fr: "Profil de charge de 15 minutes (Lastgang) — Am Tower 10",
+  },
   // Sharing finder body.
   shareAggFallbackName: {
     en: "Shared aggregation",
@@ -227,7 +248,7 @@ export const dialogsShare = {
   },
   racHelp: {
     en: "Pick an agent/member, or type a WebID and press Enter",
-    de: "Agent/Mitglied wählen oder eine WebID eingeben und Enter drücken",
+    de: "Akteur/Mitglied wählen oder eine WebID eingeben und Enter drücken",
     fr: "Choisissez un agent/membre, ou saisissez une WebID et appuyez sur Entrée",
   },
   // Share-building dialog.
@@ -236,49 +257,22 @@ export const dialogsShare = {
     de: "Gebäudedaten teilen",
     fr: "Partager les données du bâtiment",
   },
-  shareResolving: { en: "Resolving…", de: "Wird aufgelöst…", fr: "Résolution…" },
   shareInProgress: { en: "Sharing…", de: "Wird geteilt…", fr: "Partage en cours…" },
   shareSelfError: {
     en: "You cannot share a building with yourself",
     de: "Du kannst ein Gebäude nicht mit dir selbst teilen",
     fr: "Vous ne pouvez pas partager un bâtiment avec vous-même",
   },
-  shareSelectRole: {
-    en: "Select a role",
-    de: "Wähle eine Rolle",
-    fr: "Sélectionnez un rôle",
-  },
-  shareNoRoleMembers: {
-    en: "No data room members currently hold that role.",
-    de: "Derzeit hat kein Datenzimmer-Mitglied diese Rolle.",
-    fr: "Aucun membre de la salle de données ne détient actuellement ce rôle.",
-  },
-  shareRoleLoadError: {
-    en: "Could not load data room members: {error}",
-    de: "Datenzimmer-Mitglieder konnten nicht geladen werden: {error}",
-    fr: "Impossible de charger les membres de la salle de données : {error}",
-  },
-  shareByWebId: { en: "By WebID", de: "Nach WebID", fr: "Par WebID" },
-  shareByRole: { en: "By role", de: "Nach Rolle", fr: "Par rôle" },
   shareWebIdHint: {
     en:
       "Choose recipients from your agents and data room members, or type a WebID " +
       "and press Enter to add it.",
     de:
-      "Wähle Empfänger aus deinen Agenten und Datenzimmer-Mitgliedern, oder gib eine " +
+      "Wähle Empfänger aus deinen Akteuren und Datenzimmer-Mitgliedern, oder gib eine " +
       "WebID ein und drücke Enter, um sie hinzuzufügen.",
     fr:
       "Choisissez des destinataires parmi vos agents et membres de la salle de " +
       "données, ou saisissez une WebID et appuyez sur Entrée pour l'ajouter.",
-  },
-  shareRoleHint: {
-    en:
-      "Share with everyone in the GRANERGIZE data room who holds the selected role.",
-    de:
-      "Teile mit allen im GRANERGIZE-Datenzimmer, die die gewählte Rolle innehaben.",
-    fr:
-      "Partagez avec toutes les personnes de la salle de données GRANERGIZE qui " +
-      "détiennent le rôle sélectionné.",
   },
   shareWhatToShare: {
     en: "What to share",
@@ -334,20 +328,6 @@ export const dialogsShare = {
     fr: "Pièces jointes : {names}",
   },
   shareIncludes: { en: "Includes:", de: "Enthält:", fr: "Comprend :" },
-  shareConfirmWithRoleCount: {
-    en: {
-      one: "Confirm sharing with {count} data room member:",
-      other: "Confirm sharing with {count} data room members:",
-    },
-    de: {
-      one: "Teilen mit {count} Datenzimmer-Mitglied bestätigen:",
-      other: "Teilen mit {count} Datenzimmer-Mitgliedern bestätigen:",
-    },
-    fr: {
-      one: "Confirmer le partage avec {count} membre de la salle de données :",
-      other: "Confirmer le partage avec {count} membres de la salle de données :",
-    },
-  },
   sharedWithLabel: { en: "Shared with:", de: "Geteilt mit:", fr: "Partagé avec :" },
   shareBuildingNoneYet: {
     en: "Not shared with anyone yet. Use Share to grant access.",

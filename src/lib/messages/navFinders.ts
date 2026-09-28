@@ -9,7 +9,7 @@ export const navFinders = {
   // a self-contained `"No X yet. <how to get one>"` per the UI conventions).
   agentsEmpty: {
     en: "No agents yet. Add one by WebID or QR code.",
-    de: "Noch keine Agenten. Füge einen per WebID oder QR-Code hinzu.",
+    de: "Noch keine Akteure. Füge einen per WebID oder QR-Code hinzu.",
     fr: "Aucun agent pour l'instant. Ajoutez-en un par WebID ou QR code.",
   },
   // Agents finder: the source-tier facet now reuses the shared TierFilter (mine/
@@ -22,15 +22,16 @@ export const navFinders = {
   },
   agentSaveToBookAria: {
     en: "Save to agents",
-    de: "Zu Agenten speichern",
+    de: "Zu Akteuren speichern",
     fr: "Enregistrer dans les agents",
   },
   buildingsEmpty: {
-    en: "No buildings yet. Add one, or autofill it from a file.",
+    en:
+      "No buildings yet. Add one, or autofill from a file — \"Autofill from file\" also offers example files to try.",
     de:
-      "Noch keine Gebäude. Füge eines hinzu oder fülle es automatisch aus einer Datei.",
+      "Noch keine Gebäude. Füge eines hinzu oder fülle automatisch aus einer Datei — unter „Automatisch aus Datei“ stehen auch Beispieldateien zum Ausprobieren bereit.",
     fr:
-      "Aucun bâtiment pour l'instant. Ajoutez-en un, ou remplissez-le automatiquement à partir d'un fichier.",
+      "Aucun bâtiment pour l'instant. Ajoutez-en un, ou remplissez automatiquement à partir d'un fichier — « Remplir depuis un fichier » propose aussi des fichiers d'exemple à essayer.",
   },
   observationsEmpty: {
     en:
@@ -195,7 +196,7 @@ export const navFinders = {
     fr: "Agrégations",
   },
   navSharing: { en: "Sharing", de: "Freigaben", fr: "Partages" },
-  navAgents: { en: "Agents", de: "Agenten", fr: "Agents" },
+  navAgents: { en: "Agents", de: "Akteure", fr: "Agents" },
   navMeet: { en: "Meet", de: "Treffen", fr: "Rencontrer" },
   // Finder page headings (exact-nav-word headings reuse the nav* ids above).
   headingYourRooms: {
@@ -360,7 +361,6 @@ export const navFinders = {
   secDetails: { en: "Details", de: "Details", fr: "Détails" },
   secInvite: { en: "Invite", de: "Einladung", fr: "Invitation" },
   secMembers: { en: "Members", de: "Mitglieder", fr: "Membres" },
-  secMyRoles: { en: "My role(s)", de: "Meine Rolle(n)", fr: "Mes rôles" },
   secProfile: { en: "Profile", de: "Profil", fr: "Profil" },
   secAppearsIn: { en: "Appears in", de: "Erscheint in", fr: "Apparaît dans" },
 } satisfies Record<string, Message>;

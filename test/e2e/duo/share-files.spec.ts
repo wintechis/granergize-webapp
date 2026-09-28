@@ -4,20 +4,10 @@ import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
-import {
-  deleteAllOwnedRooms,
-  removeAllBookmarkedRooms,
-} from "../helpers/rooms.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
-import {
-  assignUserRole,
-  hostRoomAndGetUri,
-  joinRoomAsUser,
-} from "../helpers/connect.ts";
 import {
   addBuilding,
   openBuildingsList,
-  shareByRole,
   shareByWebId,
   uploadBuildingFile,
 } from "../helpers/manage.ts";
@@ -25,13 +15,11 @@ import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * File sharing across TWO throwaway Solid Pods, both ways the app supports:
- *   1. directly — A shares "By WebID" to B's WebID;
- *   2. via a data room — A shares "By role" → User, the room resolving the role
- *      to B's WebID.
- * In each case A attaches a file to the building, shares, and B (logged in fresh
- * so the inbox grant is archived) downloads the file from the Share tab. This is
- * the recipient-access half of the attachments feature, in the browser.
+ * File sharing across TWO throwaway Solid Pods: A shares to B's WebID (the only
+ * share target — a data room is a WebID directory, never a target). A attaches a
+ * file to the building, shares, and B (logged in fresh so the inbox grant is
+ * archived) downloads the file from the Share tab. This is the recipient-access
+ * half of the attachments feature, in the browser.
  *
  *   deno task e2e:local test/e2e/duo/share-files.spec.ts
  *
@@ -112,48 +100,6 @@ test.describe("file sharing across two pods", () => {
     }
   });
 
-  test("via data room (By role): A attaches a file + shares; B downloads it", async ({ browser }) => {
-    test.setTimeout(T.testSharing);
-    const street = "Share Files Room Strasse 1";
-    // Clean START is free (fresh per-run collection / restarted CSS); the spec
-    // wipes BOTH pods at the END instead.
-    const [a, b1] = await freshPagesParallel(browser, [A, B]);
-    await assertCleanStart(a.page, "share-files:A");
-    await assertCleanStart(b1.page, "share-files:B");
-    a.page.on("dialog", (d) => d.accept());
-    try {
-      const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page, roomUri);
-      try {
-        await joinRoomAsUser(b1.page, roomUri);
-      } finally {
-        await b1.ctx.close();
-      }
-
-      await addBuilding(a.page, street);
-      await uploadBuildingFile(a.page, street, FIXTURE);
-      await shareByRole(a.page, street);
-
-      const b2 = await freshPage(browser, B);
-      try {
-        await downloadSharedFile(b2.page);
-      } finally {
-        await removeAllBookmarkedRooms(b2.page);
-        await b2.ctx.close();
-      }
-    } finally {
-      await deleteOwnBuilding(a.page, street);
-      await deleteAllOwnedRooms(a.page).catch(() => {});
-      // Leave both Pods empty — the per-run collection is removed entirely on each.
-      const bEnd = await freshPage(browser, B);
-      try {
-        await verifyAndResetBoth(a.page, bEnd.page, "share-files");
-      } finally {
-        await bEnd.ctx.close();
-        await a.ctx.close();
-      }
-    }
-  });
 });
 
 /** Best-effort cleanup: delete A's throwaway building. */

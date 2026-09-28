@@ -3,7 +3,7 @@ import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { openObservationsView } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -13,16 +13,15 @@ import { T } from "../helpers/timeouts.ts";
  * energy intensity so a logistics object reads, at a glance, as more or less
  * efficient than its neighbours.
  *
- * Seeds the investor demo set (`ensureDemoBuildings("investor")`), which ships
- * three annual buildings of distinct floor area + multi-year energy (so their
- * kWh/m² intensities differ) plus two electricity *series* buildings (no annual
- * aggregate → uncategorised). The energy is baked in at seed time, so there is no
+ * Seeds the core example file (`importExampleBuildings`), which ships six annual
+ * buildings of distinct floor area + multi-year energy (so their kWh/m²
+ * intensities differ). The energy rides in the imported file, so there is no
  * write-then-link lag for the map's bulk energy load to chase. The test opens the
  * Observations finder's Map view (the energy map — energy moved out of Buildings) and
  * asserts the categorisation spans the range — at least one `energy-efficient` (green)
- * and one `energy-inefficient` (red) marker (terciles over three distinct intensities
- * give one of each). Using the shared demo seed mirrors `aggregations.spec.ts`, which
- * the Tier-3 suite already relies on.
+ * and one `energy-inefficient` (red) marker (terciles over the distinct intensities
+ * give one of each). Using the shared example import mirrors `aggregations.spec.ts`,
+ * which the Tier-3 suite already relies on.
  *
  * The intensity / tercile maths is proved exhaustively in the Tier-1
  * `energyCategory.test.ts`; this is the UI proof that the energy map tints the markers
@@ -53,9 +52,9 @@ test.describe("map energy lens (Vertriebsunterstützung)", () => {
     page = await newCapturedPage(browser, "map-energy-lens");
     await login(page, ACC);
     await assertCleanStart(page);
-    // The investor demo seeds three distinct-intensity annual buildings (+ two
-    // series buildings) with energy baked in — the shape this lens categorises.
-    await ensureDemoBuildings(page);
+    // The core example file brings distinct-intensity annual buildings with
+    // energy in the file — the shape this lens categorises.
+    await importExampleBuildings(page);
   });
 
   test.afterAll(async () => {

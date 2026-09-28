@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { geocodeFields, geocodeWithRegion } from "./geocode.ts";
+import { geocodeFields, geocodeWithRegion, makeGeocodeOrAdoptCoords } from "./geocode.ts";
+import { _setSourceGatewayForTesting, sourceGateway } from "./sourceGateway.ts";
 import {
   abbreviateRegisterCity,
   displayCaseRegisterStreet,
@@ -154,6 +155,117 @@ Deno.test("geocodeWithRegion: coords still returned when /contains has no region
     assert.equal(got?.regionAgs, undefined);
   } finally {
     restore();
+  }
+});
+
+/** Like {@link stubGeocodeAndContains}, but records every fetched URL. */
+function stubGeocodeAndContainsRecording(contains: Response) {
+  const urls: string[] = [];
+  const orig = globalThis.fetch;
+  globalThis.fetch = ((input: string | URL | Request) => {
+    const url = input.toString();
+    urls.push(url);
+    if (url.includes("/contains")) return Promise.resolve(contains.clone());
+    return Promise.resolve(
+      new Response(searchResponse(1), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  }) as typeof fetch;
+  return { urls, restore: () => (globalThis.fetch = orig) };
+}
+
+Deno.test("makeGeocodeOrAdoptCoords adopts provided coordinates — no register search, AGS still resolved", async () => {
+  const { urls, restore } = stubGeocodeAndContainsRecording(
+    new Response(
+      `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+       <r> a skos:Concept ; skos:notation "DE_09564000" .`,
+      { status: 200, headers: { "content-type": "text/turtle" } },
+    ),
+  );
+  try {
+    const got = await makeGeocodeOrAdoptCoords()({
+      ...FULL_ADDRESS,
+      lat: "49.3867542532701",
+      long: "11.1660961907785",
+      geocodePrecision: "Address",
+    });
+    assert.deepEqual(got, {
+      lat: "49.3867542532701",
+      long: "11.1660961907785",
+      precision: "Address",
+      regionAgs: "09564000",
+    });
+    assert.ok(urls.every((u) => u.includes("/contains")), "no addressapi search request");
+    assert.equal(urls.length, 1);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("makeGeocodeOrAdoptCoords falls through to the register search without coords", async () => {
+  const { urls, restore } = stubGeocodeAndContainsRecording(new Response("", { status: 404 }));
+  try {
+    const geocode = makeGeocodeOrAdoptCoords();
+    const got = await geocode(FULL_ADDRESS);
+    assert.equal(got?.lat, "49.45");
+    assert.equal(got?.precision, "Address");
+    assert.ok(urls.some((u) => !u.includes("/contains")), "register search happened");
+    // Non-finite coordinate strings must not be adopted either.
+    const bad = await geocode({ ...FULL_ADDRESS, lat: "n/a", long: "" });
+    assert.equal(bad?.lat, "49.45");
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("makeGeocodeOrAdoptCoords: a definitive /contains 404 does NOT latch the lookup off", async () => {
+  // 404 = "nothing contains the point" — later buildings may still resolve.
+  const { urls, restore } = stubGeocodeAndContainsRecording(new Response("", { status: 404 }));
+  try {
+    const geocode = makeGeocodeOrAdoptCoords();
+    const coords = { lat: "49.39", long: "11.17" };
+    assert.equal((await geocode({ ...FULL_ADDRESS, ...coords }))?.regionAgs, undefined);
+    await geocode({ ...FULL_ADDRESS, ...coords });
+    assert.equal(urls.filter((u) => u.includes("/contains")).length, 2);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("makeGeocodeOrAdoptCoords latches the AGS lookup off after a transport failure", async () => {
+  // A CORS-blocked / network failure rejects with TypeError — and through the
+  // real trackedFetch each such lookup costs the full transient-retry backoff
+  // (~50 s in the browser). One hard failure must turn the best-effort lookup
+  // off for the REST of the seed run, not repeat per building. Stubbed at the
+  // gateway seam (below the retry layer), so one lookup = one recorded fetch.
+  let containsCalls = 0;
+  _setSourceGatewayForTesting(sourceGateway((input) => {
+    if (input.toString().includes("/contains")) {
+      containsCalls++;
+      return Promise.reject(new TypeError("Failed to fetch"));
+    }
+    return Promise.resolve(
+      new Response(searchResponse(1), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  }));
+  try {
+    const geocode = makeGeocodeOrAdoptCoords();
+    const coords = { lat: "49.39", long: "11.17" };
+    // Coordinates are still adopted — the enrichment stays best-effort.
+    assert.equal((await geocode({ ...FULL_ADDRESS, ...coords }))?.lat, "49.39");
+    await geocode({ ...FULL_ADDRESS, ...coords });
+    await geocode({ ...FULL_ADDRESS, ...coords });
+    assert.equal(containsCalls, 1, "one hard failure, no further lookups this run");
+    // A NEW run (fresh factory) tries again — the latch is per-run, not global.
+    await makeGeocodeOrAdoptCoords()({ ...FULL_ADDRESS, ...coords });
+    assert.equal(containsCalls, 2);
+  } finally {
+    _setSourceGatewayForTesting(null);
   }
 });
 

@@ -70,10 +70,6 @@ Deno.test("fileUri+subjectUri bundle verbs are excluded", () => {
   }
 });
 
-Deno.test("SaveRoles is excluded (roles is a controlled vocab → needs a select, not text)", () => {
-  assert.equal(isFormEligible("SaveRoles"), false);
-});
-
 Deno.test("AddBookmark is form-eligible (its XSD_STRING input is a genuine text field)", () => {
   assert.ok(isFormEligible("AddBookmark"));
 });

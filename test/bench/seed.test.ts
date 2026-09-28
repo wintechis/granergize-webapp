@@ -11,7 +11,7 @@ import { type PodGateway, sessionGateway } from "../../src/services/pod/podGatew
  */
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { seedRoomMembers, seedRoomRoleChurn } from "./seed.ts";
+import { seedRoomMembers, seedRoomMembershipChurn } from "./seed.ts";
 import { getMembers } from "../../src/services/interop/dataRoom.ts";
 
 const ROOM = "https://alice.example/granergize/rooms/r1/";
@@ -101,27 +101,25 @@ Deno.test("seedRoomMembers with n=0 writes nothing (empty-room baseline)", async
   assert.equal((await getMembers(ROOM, session)).length, 0);
 });
 
-Deno.test("seedRoomRoleChurn grows history without changing membership", async () => {
+Deno.test("seedRoomMembershipChurn grows history without changing membership", async () => {
   const pod = new FakePod();
   const session = sessionFor(pod);
 
   await seedRoomMembers(session, ROOM, 3); // 3 membership events
-  await seedRoomRoleChurn(session, ROOM, 3, 12); // 12 role events over the 3 members
+  await seedRoomMembershipChurn(session, ROOM, 3, 12); // 12 re-joins over the 3 members
 
-  // Every event is retained in the append-only log (3 join + 12 role).
+  // Every event is retained in the append-only log (3 join + 12 re-join).
   assert.equal(pod.resources.size, 15);
   // Membership is the isolating invariant: still exactly the 3 seeded members,
-  // unchanged by the role churn.
+  // unchanged by the churn (each event is a re-join of someone already in).
   const members = await getMembers(ROOM, session);
   assert.equal(members.length, 3);
-  // The churn folds to a (latest) role per member — valid IRIs, not filtered out.
-  assert.ok(members.every((m) => m.roles.length >= 1));
 });
 
-Deno.test("seedRoomRoleChurn is a no-op without members to attribute to", async () => {
+Deno.test("seedRoomMembershipChurn is a no-op without members to attribute to", async () => {
   const pod = new FakePod();
   const session = sessionFor(pod);
 
-  await seedRoomRoleChurn(session, ROOM, 0, 10); // no members → nothing written
+  await seedRoomMembershipChurn(session, ROOM, 0, 10); // no members → nothing written
   assert.equal(pod.resources.size, 0);
 });

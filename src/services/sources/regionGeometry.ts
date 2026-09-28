@@ -18,7 +18,7 @@
 import type { Store } from "n3";
 import { sourceBase } from "../../constants/dataSources.ts";
 import { getSourceGateway } from "./sourceGateway.ts";
-import { contains, deref, search } from "./capabilities.ts";
+import { contains, deref, DerefError, search } from "./capabilities.ts";
 import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { sourceKeys } from "./sourceKeys.ts";
 import { DCTERMS_IDENTIFIER, SKOS_NS } from "../rdf/vocabularies.ts";
@@ -216,10 +216,32 @@ export async function fetchContainingGemeindeAgs(
   long: number,
 ): Promise<string | null> {
   try {
+    return await fetchContainingGemeindeAgsOrThrow(lat, long);
+  } catch {
+    return null; // best-effort: unreachable → no region
+  }
+}
+
+/**
+ * {@link fetchContainingGemeindeAgs}, except a TRANSPORT failure (network/CORS
+ * rejection, wrapper 5xx) throws instead of reading as "no region" — a definitive
+ * 404/410 ("nothing contains the point") still returns `null`. A bulk caller (the
+ * file import's {@link ../geocode.ts | makeGeocodeOrAdoptCoords}) needs the
+ * distinction: with the wrapper down, every attempt costs the full transient-retry
+ * backoff, so after one hard failure it stops asking for the rest of the run.
+ */
+export async function fetchContainingGemeindeAgsOrThrow(
+  lat: number,
+  long: number,
+): Promise<string | null> {
+  try {
     const store = await contains(getSourceGateway(), "lau", { lat, lon: long });
     return gemeindeAgsFromContains(store);
-  } catch {
-    return null; // best-effort: outside coverage / unreachable → no region
+  } catch (err) {
+    if (err instanceof DerefError && (err.status === 404 || err.status === 410)) {
+      return null; // definitive absence: the point is outside the layer's coverage
+    }
+    throw err;
   }
 }
 

@@ -10,7 +10,6 @@ import {
   useAnnualDatasets,
   useAnnualEnergy,
   useBuildings,
-  useDemoOffer,
   useEnergy,
   useReceivedBenchmarks,
   useReceivedAggregations,
@@ -489,59 +488,6 @@ Deno.test("useAnnualDatasets is disabled while the dialog is closed", () => {
     });
     assert.equal(result.current.fetchStatus, "idle"); // not fetching (disabled)
     assert.equal(result.current.data, undefined);
-  } finally {
-    _setSessionForTesting(null);
-  }
-});
-
-Deno.test("useDemoOffer: true when own buildings container is empty and not declined", async () => {
-  const EMPTY = {
-    ...FIXTURES,
-    [BUILDINGS_CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
-<${BUILDINGS_CONTAINER}> a ldp:Container .`,
-  };
-  _setStorageRootForTesting(WEBID, "https://pod.example/");
-  _setSessionForTesting(fakeSession(EMPTY));
-  const { wrapper } = makeWrapper();
-  try {
-    const { result } = renderHook(() => useDemoOffer(), { wrapper });
-    await waitFor(() => assert.ok(result.current.isSuccess));
-    assert.equal(result.current.data, true);
-  } finally {
-    _setSessionForTesting(null);
-  }
-});
-
-Deno.test("useDemoOffer: false when the user already has own buildings", async () => {
-  // The default FIXTURES container lists b1.ttl.
-  _setStorageRootForTesting(WEBID, "https://pod.example/");
-  _setSessionForTesting(fakeSession());
-  const { wrapper } = makeWrapper();
-  try {
-    const { result } = renderHook(() => useDemoOffer(), { wrapper });
-    await waitFor(() => assert.ok(result.current.isSuccess));
-    assert.equal(result.current.data, false);
-  } finally {
-    _setSessionForTesting(null);
-  }
-});
-
-Deno.test("useDemoOffer: false once the demo offer was declined (prefs)", async () => {
-  const DECLINED = {
-    ...FIXTURES,
-    // Empty own container, so the ONLY reason the offer is withheld is the decline.
-    [BUILDINGS_CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
-<${BUILDINGS_CONTAINER}> a ldp:Container .`,
-    [PREFS]: `@prefix gran: <https://solid.ti.rw.fau.de/gra/vocab.ttl#> .
-<${PREFS}> gran:demoSeedDeclined true .`,
-  };
-  _setStorageRootForTesting(WEBID, "https://pod.example/");
-  _setSessionForTesting(fakeSession(DECLINED));
-  const { wrapper } = makeWrapper();
-  try {
-    const { result } = renderHook(() => useDemoOffer(), { wrapper });
-    await waitFor(() => assert.ok(result.current.isSuccess));
-    assert.equal(result.current.data, false);
   } finally {
     _setSessionForTesting(null);
   }

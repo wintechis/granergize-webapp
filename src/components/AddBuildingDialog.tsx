@@ -30,8 +30,13 @@ import {
   detectSpreadsheetFormat,
   parseCsvToFields,
 } from "../services/rdf/building/buildingImport.ts";
-import { geocodeWithRegion } from "../services/sources/geocode.ts";
+import { makeGeocodeOrAdoptCoords } from "../services/sources/geocode.ts";
 import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
+import {
+  EXAMPLE_FILES,
+  type ExampleFile,
+} from "../constants/exampleFiles.ts";
+import { getSession } from "../hooks/session.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import {
   SCALAR_FIELDS,
@@ -75,6 +80,28 @@ function tabLabel(b: Record<string, string>, idx: number): string {
   return b.buildingCode || b.label || `Building ${idx + 1}`;
 }
 
+/**
+ * Apply an example file's loader metadata to one parsed building: `prefill`
+ * merges UNDER the parsed fields (the Lastgang example brings the address a
+ * load-profile file can't carry), and the buildings marked in
+ * `selfOperatedCodes`/`selfOwnedCodes` get the importing user's own WebID as
+ * operator/owner — a spreadsheet can't know the reader's WebID, and the
+ * operator group is what makes the Betreiber benchmark show on the examples.
+ */
+function enrichFromExample(
+  entry: ExampleFile,
+  b: Record<string, string>,
+  webId: string | undefined,
+): Record<string, string> {
+  const out = { ...(entry.prefill ?? {}), ...b };
+  const marked = (codes?: readonly string[] | "all") =>
+    codes === "all" ||
+    (!!b.buildingCode && !!codes?.includes(b.buildingCode));
+  if (webId && marked(entry.selfOperatedCodes)) out.operatedBy = webId;
+  if (webId && marked(entry.selfOwnedCodes)) out.ownedBy = webId;
+  return out;
+}
+
 export default function AddBuildingDialog(
   { open, autostartImport, onClose }: AddBuildingDialogProps,
 ) {
@@ -102,6 +129,9 @@ export default function AddBuildingDialog(
   // The last chosen import file, retained so a manual format override can
   // re-parse it (the file input itself is reset after every pick).
   const lastFile = useRef<File | null>(null);
+  // Set while the retained file is a bundled example ("Try an example file"),
+  // so a format-override re-parse re-applies its loader metadata too.
+  const lastExample = useRef<ExampleFile | null>(null);
 
   // "Import from file" opens straight into the file picker. With the native
   // <dialog> there's no enter-transition hook, so fire it when the modal opens.
@@ -188,6 +218,7 @@ export default function AddBuildingDialog(
     setLastgangReadings(null);
     setUploadProgress(null);
     lastFile.current = null;
+    lastExample.current = null;
     onClose();
   };
 
@@ -206,9 +237,7 @@ export default function AddBuildingDialog(
     setLastgangReadings(null);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFilePicked = async (file: File) => {
     lastFile.current = file;
     try {
       // Detect the sheet layout (so the user needn't pick a role) and reflect it
@@ -220,6 +249,35 @@ export default function AddBuildingDialog(
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    lastExample.current = null;
+    void handleFilePicked(file);
+  };
+
+  // "Try an example file": fetch the bundled workbook (a same-origin static
+  // asset under `public/examples/`) and feed it through the exact same parse
+  // path as a user-picked file.
+  const handleExampleClick = async (entry: ExampleFile) => {
+    setParsing(true);
+    let file: File;
+    try {
+      const res = await fetch(
+        `${import.meta.env.BASE_URL}examples/${entry.file}`,
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      file = new File([await res.arrayBuffer()], entry.file);
+    } catch (err) {
+      showNotification(formatError("actionLoadExample", err), "error");
+      return;
+    } finally {
+      setParsing(false);
+    }
+    lastExample.current = entry;
+    await handleFilePicked(file);
   };
 
   const importFile = async (file: File, format: SpreadsheetFormat) => {
@@ -239,10 +297,16 @@ export default function AddBuildingDialog(
       // A generic import maps unknown column headers through verbatim, and the
       // serializer then silently skips them — a typo'd header used to degrade
       // to "field not imported" with zero indication. Surface what was ignored.
+      // The prefix list mirrors what the serializer actually consumes: energy
+      // (`_inv_`/`_bsp_`), operating costs, certifications, Lastgang readings
+      // and every technical-system kind (`systemsFromFields`); `lat`/`long`/
+      // `regionAgs` feed the geo point and `id` is the export's reference
+      // column.
       const isKnownField = (k: string) =>
         SCALAR_FIELDS.includes(k) ||
-        /^_(inv|bsp|opcost|cert|readings)_/.test(k) ||
-        k === "geocodePrecision";
+        /^_(inv|bsp|opcost|cert|readings|pv|battery|chp|heatpump|gasboiler|districtheating|oilboiler|electricboiler)_/
+          .test(k) ||
+        ["geocodePrecision", "lat", "long", "regionAgs", "id"].includes(k);
       const ignored = [
         ...new Set(
           parsed.flatMap((b) => Object.keys(b).filter((k) => !isKnownField(k))),
@@ -261,23 +325,30 @@ export default function AddBuildingDialog(
         : null;
       setLastgangReadings(readings);
 
+      const example = lastExample.current;
+      const webId = getSession().info.webId;
       const cleanParsed = parsed.map((b) => {
         const copy: Record<string, string> = { ...b };
         delete copy["_readings_json"];
-        return copy;
+        return example ? enrichFromExample(example, copy, webId) : copy;
       });
 
       // Templates carry an address but no coordinates, yet lat/long are required
       // to place a building on the map (and to import an investor sheet at all).
-      // Geocode every parsed building that lacks them (sequentially — polite to
-      // the register wrapper; no Nominatim-style 1 req/s throttle is needed any
-      // more). A building that still can't be resolved is left unmapped (and
-      // stays invalid, so the user can fix or geocode it manually).
+      // One geocoder per import run: it geocodes buildings lacking coordinates
+      // (sequentially — polite to the register wrapper) and ADOPTS file-carried
+      // coordinates while still resolving the region AGS from them; its latch
+      // stops the AGS lookups after one hard linked-lau failure, so a downed
+      // wrapper costs one retry window, not one per building. A building that
+      // can't be resolved is left unmapped (and stays invalid, so the user can
+      // fix or geocode it manually).
+      const geocode = makeGeocodeOrAdoptCoords();
       for (const b of cleanParsed) {
-        if ((b.lat?.trim() && b.long?.trim()) || !(b.streetAddress || b.postalCode || b.locality)) {
+        const hasCoords = !!(b.lat?.trim() && b.long?.trim());
+        if (!hasCoords && !(b.streetAddress || b.postalCode || b.locality)) {
           continue;
         }
-        const coords = await geocodeWithRegion(b);
+        const coords = await geocode(b);
         if (coords) {
           b.lat = coords.lat;
           b.long = coords.long;
@@ -450,6 +521,26 @@ export default function AddBuildingDialog(
           <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">
             {t(CSV_HINT[format])}
           </Typography>
+          {/* "Try an example file" — the bundled example workbooks, fed
+              through the exact same parse path as an uploaded file. */}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            {t("addExamplesLead")}
+          </Typography>
+          <Box
+            sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}
+          >
+            {EXAMPLE_FILES.map((ex) => (
+              <Button
+                key={ex.id}
+                variant="text"
+                size="small"
+                disabled={isProcessing}
+                onClick={() => void handleExampleClick(ex)}
+              >
+                {t(ex.label)}
+              </Button>
+            ))}
+          </Box>
         </Box>
         )}
         {/* Parse feedback — shown whenever a file has been parsed, in either mode

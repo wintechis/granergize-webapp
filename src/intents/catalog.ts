@@ -381,13 +381,6 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useRemoveBookmark",
   },
   {
-    name: "SaveRoles",
-    action: "actionSaveRoles",
-    effect: "write",
-    entity: "room",
-    hook: "useSaveRoles",
-  },
-  {
     name: "SeedDemoRooms",
     action: "actionAddDemoRooms",
     effect: "write",
@@ -396,21 +389,6 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useSeedDemoRooms",
   },
   // ── Account-scope ────────────────────────────────────────────────────────────
-  {
-    name: "SeedDemoBuildings",
-    action: "actionAddDemoBuildings",
-    effect: "write",
-    entity: "building",
-    exposure: "developer",
-    hook: "useSeedDemoBuildings",
-  },
-  {
-    name: "DeclineDemoOffer", // dismiss the fresh-Pod demo-buildings offer (persisted)
-    action: "actionDeclineDemos",
-    effect: "write",
-    entity: "appData",
-    hook: "useDeclineDemoOffer",
-  },
   {
     name: "DeleteAppData",
     action: "actionDeleteAppData",

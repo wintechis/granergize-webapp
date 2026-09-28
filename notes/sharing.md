@@ -5,7 +5,7 @@ share grants the recipient read access and notifies them; the data stays in the 
 Pod (no copy).
 
 Companion to [`queries-mutations.md`](./queries-mutations.md) (the event-log storage
-model and PUT/POST rationale), [`room.md`](./room.md) (rooms as a share-by-role
+model and PUT/POST rationale), [`room.md`](./room.md) (rooms as a recipient
 directory), and
 [`aggregations.md`](./aggregations.md) (the aggregation snapshots that get shared).
 
@@ -150,24 +150,23 @@ escalation:
   by hand. Saved agents smooth this path without being a discovery model of their own:
   `agents.ttl` caches agents *already* discovered (manual saves plus the
   auto-remember of agents referenced in building data); it never finds new ones.
-- **Data room (By role)** — the escalation, when the counterparties aren't known
-  pairwise or the target is a group. Discovery moves *in-band*: a room
-  ([room.md](room.md)) is a shared membership+role event log every participant can
-  read, so joining once (via the invite IRI) makes each member discoverable to all
-  others — no pairwise WebID exchange. On top of discovery it adds indirection: the
-  sharing target can be a *role*, resolved to the current member WebIDs at share
-  time (`getMembersByRole`), so "the investors in this room" is addressable without
-  knowing who they are. The cost is the setup ceremony: create, distribute the
-  invite, join, self-assign roles.
+- **Data room** — the escalation, when the counterparties aren't known pairwise.
+  Discovery moves *in-band*: a room ([room.md](room.md)) is a shared membership
+  event log every participant can read, so joining once (via the invite IRI) makes
+  each member discoverable to all others — no pairwise WebID exchange. The room page
+  lists each member's name + WebID, and the share dialog's recipient field merges
+  room members with your contacts. The cost is the setup ceremony: create,
+  distribute the invite, join.
 
-Sharing stays **independent of rooms** — a room grants no access on its own; it is
-only a recipient directory, and "share by role" loops the resolved WebIDs through
-the bilateral grant. Two structural notes. The escalation reuses the event-sourced
-storage model ([queries-mutations.md](queries-mutations.md)) — multi-agent
-discovery is inherently cross-agent state, so the room *is* an append-only log with
-fold-on-read. And resolution is **at share time**: the grant events record the
-resolved users, so a member who joins later does not retroactively receive earlier
-role-targeted shares — the role is an addressing device, not a standing group ACL.
+Sharing stays **independent of rooms** — a room is *only* discovery. It grants no
+access, and it is not a share target: you pick a member and the grant goes to their
+WebID like any other. (A room role once WAS a target — "share with everyone holding
+role X", resolved to member WebIDs at share time. That indirection is gone, along
+with roles themselves; because the resolution happened before the write, the grant
+events are unchanged and old logs replay as-is.) One structural note: the escalation
+reuses the event-sourced storage model ([queries-mutations.md](queries-mutations.md))
+— multi-agent discovery is inherently cross-agent state, so the room *is* an
+append-only log with fold-on-read.
 
 ## Vocabularies
 

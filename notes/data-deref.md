@@ -53,9 +53,9 @@ Resolved once per session, then cached:
    - *Own buildings* — `listOwnBuildings` **LISTS** the `buildings/` container
      and keeps the top-level `*.ttl` files (no registry: adding a building is a
      single PUT, so the listing can't desync). `listDirectChildren` returning `null`
-     (404) means a *fresh* Pod vs `[]` for an *empty* one; demo buildings aren't
-     auto-seeded — the UI *offers* them via a banner (`useDemoOffer` /
-     `seedDemoBuildings`), so a fresh Pod loads empty until the user chooses.
+     (404) means a *fresh* Pod vs `[]` for an *empty* one; example buildings aren't
+     seeded — they arrive through the ordinary file import ("Autofill from file" →
+     "Try an example file"), so a fresh Pod loads empty until the user imports.
    - *Shared buildings* — `listSharedBuildingSources` folds the `shared-in/` event
      log for `gran:kind rec:Building` grants (log owned by [`sharing.md`](./sharing.md)).
      **These URIs may live on other Pods.**

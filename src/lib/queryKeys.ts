@@ -87,5 +87,4 @@ export const queryKeys = {
   /** prefs.ttl (hidden buildings, …). Invalidated by the visibility toggle. */
   prefs: ["prefs"] as const,
   /** The fresh-Pod demo-buildings offer (own container empty + not declined). */
-  demoOffer: ["demoOffer"] as const,
 };

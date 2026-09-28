@@ -3,7 +3,7 @@ import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { importExampleBuildings } from "../helpers/seed.ts";
 import { openObservationsView } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -15,7 +15,7 @@ import { T } from "../helpers/timeouts.ts";
  * over-time heatmap) honours ONE selected metric, URI-encoded as `?m=` so the
  * choice is shareable and survives a reload.
  *
- * This spec proves, against the standard investor demo (`ensureDemoBuildings`):
+ * This spec proves, against the core example import (`importExampleBuildings`):
  *  - the selector appears on the Observations energy views (Map / Over time / Trend);
  *  - switching the metric (Electricity → Heat) rewrites `?m=` and keeps the view up;
  *  - `?m=` survives a cold reload (the legend stays in the chosen framing);
@@ -60,7 +60,7 @@ test.describe("cube metric selector (the measure axis)", () => {
     page = await newCapturedPage(browser, "cube-metric-selector");
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page);
+    await importExampleBuildings(page);
   });
 
   test.afterAll(async () => {
@@ -156,8 +156,8 @@ test.describe("cube metric selector (the measure axis)", () => {
 
   // The plan's stronger generation claim: switching to generation should surface
   // buildings the consumption lens left blank (recolour them by the magnitude ramp).
-  // The demo seed's cold store (Hafenstraße 12) carries annual `electricityGeneration`
-  // from its 480 kWp rooftop PV, so under this metric it gets a magnitude band where a
+  // The example file's PV building (Steinauer Weg 7) carries annual `electricityGeneration`
+  // from its 1200 kWp rooftop PV, so under this metric it gets a magnitude band where a
   // pure-consumption building reads "none".
   test(
     "generation recolours buildings the consumption lens left blank",

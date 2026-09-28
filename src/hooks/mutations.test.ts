@@ -12,7 +12,6 @@ import {
   useExitRoom,
   useRefreshAggregation,
   useRemoveBookmark,
-  useDeclineDemoOffer,
 } from "./mutations.ts";
 import { queryKeys } from "../lib/queryKeys.ts";
 import { _setSessionForTesting } from "./session.ts";
@@ -219,35 +218,8 @@ import {
 } from "./mutations.ts";
 import { classifyMutationError } from "./queryErrors.ts";
 import { makeFakeSession } from "../services/testing/fakeSession.ts";
-import { makeFakeSourceGateway } from "../services/testing/fakeSourceGateway.ts";
-import { _setSourceGatewayForTesting } from "../services/sources/sourceGateway.ts";
 import { GRAN_NS, REC_BUILDING } from "../services/rdf/vocabularies.ts";
 
-/** A fake external-source gateway for the demo-seed geocoding path: the seed
- * resolves each demo address to coords (addressapi) and then its Gemeinde region
- * (linked-lau `/contains`). Without this the reads fall through to the real
- * network, breaking the unit lane's no-I/O invariant. Returns a fixed point so
- * the seed runs deterministically offline. */
-function fakeSeedSources() {
-  return makeFakeSourceGateway({
-    respond: (url) => {
-      if (url.includes("/search")) {
-        return new Response(
-          JSON.stringify({ count: 1, results: [{ lat: 49.45, lon: 11.08 }] }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      if (url.includes("/lau/contains")) {
-        return new Response(
-          `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n` +
-            `<https://wunderfacts.com/lau/DE_09564000#it> skos:notation "DE_09564000" .`,
-          { status: 200, headers: { "Content-Type": "text/turtle" } },
-        );
-      }
-      return undefined; // fall through to 404
-    },
-  }).gateway;
-}
 
 /** A wrapper whose client records every invalidated key prefix
  * (a keyless invalidate-everything call is recorded as `"*"`). */
@@ -536,27 +508,8 @@ import {
   useReissueGrants,
   useRemoveAppData,
   useRestoreArchive,
-  useSeedDemoBuildings,
 } from "./mutations.ts";
 import { exportArchive } from "../services/pod/podArchive.ts";
-
-Deno.test("useSeedDemoBuildings seeds the full demo set and invalidates the buildings", async () => {
-  const fake = makeFakeSession({ webId: WEBID, listContainers: true });
-  _setStorageRootForTesting(WEBID, "https://pod.example/");
-  _setSessionForTesting(fake.session);
-  _setSourceGatewayForTesting(fakeSeedSources());
-  const { wrapper, invalidated } = makeSpyWrapper();
-  try {
-    const { result } = renderHook(() => useSeedDemoBuildings(), { wrapper });
-    const outcome = await result.current.mutateAsync();
-    assert.equal(outcome.done, outcome.total, "all demo buildings written");
-    assert.ok(outcome.total > 0);
-    assert.ok(invalidated.includes("buildingsContainer"));
-  } finally {
-    _setSessionForTesting(null);
-    _setSourceGatewayForTesting(null);
-  }
-});
 
 Deno.test("useRemoveAppData wipes the collection; the outcome survives the cache clear", async () => {
   const fake = makeFakeSession({
@@ -693,38 +646,3 @@ Deno.test("useReissueGrants replays an empty log to zero counts without invalida
   }
 });
 
-Deno.test("useDeclineDemoOffer persists the decline and stands the cached offer down (invalidations)", async () => {
-  // Was a direct component write (AppShell → setDemoSeedDeclined) with NO
-  // invalidation: prefs.ttl gained gran:demoSeedDeclined but the cached
-  // ["demoOffer"] probe stayed true until a reload. The hook owns both the
-  // write path and the prefs + demoOffer invalidations.
-  const pod = new FakePod();
-  _setSessionForTesting(sessionFor(pod));
-  const { client, wrapper } = makeWrapper({ known: [], current: null });
-  client.setQueryData([...queryKeys.prefs, WEBID], { hiddenBuildings: new Set() });
-  client.setQueryData([...queryKeys.demoOffer, WEBID], true);
-  try {
-    const { result } = renderHook(() => useDeclineDemoOffer(), { wrapper });
-    await result.current.mutateAsync();
-
-    const prefs = pod.resources.get(`${ORIGIN}granergize/prefs.ttl`) ?? "";
-    assert.ok(
-      prefs.includes("demoSeedDeclined"),
-      "the decline is persisted to prefs.ttl",
-    );
-    await waitFor(() => {
-      assert.equal(
-        client.getQueryState([...queryKeys.demoOffer, WEBID])?.isInvalidated,
-        true,
-        "the cached demo-offer probe is invalidated (no reload needed)",
-      );
-      assert.equal(
-        client.getQueryState([...queryKeys.prefs, WEBID])?.isInvalidated,
-        true,
-        "prefs is invalidated",
-      );
-    });
-  } finally {
-    _setSessionForTesting(null);
-  }
-});

@@ -23,7 +23,6 @@
   { "nl": "Join this data room", "expect": "EnterRoom", "category": "mutation" },
   { "nl": "Leave this data room", "expect": "ExitRoom", "category": "mutation" },
   { "nl": "Delete this data room", "expect": "DeleteRoom", "category": "mutation" },
-  { "nl": "Set my roles in this room", "expect": "SaveRoles", "category": "mutation" },
   { "nl": "Restore my data from an archive file", "expect": "RestoreArchive", "category": "mutation" },
   { "nl": "Remove all my app data", "expect": "RemoveAppData", "category": "mutation" },
   { "nl": "Add the example buildings", "expect": "SeedDemoBuildings", "category": "mutation" },

@@ -185,7 +185,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
       .toBeVisible({ timeout: T.action });
   });
   // (The Observations `?view=` round-trip is covered by cube-space-cut.spec.ts, which
-  // seeds energy via ensureDemoBuildings so the View toggle is present.)
+  // seeds energy via importExampleBuildings so the View toggle is present.)
 
   // Step 2 of plan-cube-centered-ui: the Aggregations finder folded into Explore as
   // its `?view=aggregations` projection, and `/aggregations` stayed as a redirect. A

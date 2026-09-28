@@ -117,10 +117,10 @@ function emptyRoomSession(): Session {
   return { info: { webId: WEBID, isLoggedIn: true }, fetch } as unknown as Session;
 }
 
-Deno.test("useRoomState: with no active room, myRoles keeps a STABLE reference across renders", async () => {
-  // Regression: a fresh `[]` per render made ConnectPage's role-sync effect (which
-  // lists `myRoles` as a dependency) re-run every render → "Maximum update depth
-  // exceeded" on a brand-new / no-room login. The fallback must be one shared ref.
+Deno.test("useRoomState: with no active room, members keeps a STABLE reference across renders", () => {
+  // Regression: a fresh `[]` per render made a consuming effect (which lists the
+  // list as a dependency) re-run every render → "Maximum update depth exceeded" on
+  // a brand-new / no-room login. The fallback must be one shared ref.
   _setStorageRootForTesting(WEBID, ROOT);
   _setSessionForTesting(emptyRoomSession());
 
@@ -128,16 +128,16 @@ Deno.test("useRoomState: with no active room, myRoles keeps a STABLE reference a
     wrapper: wrapper(),
   });
 
-  // No current room, but data is present (the registry resolved).
-  await waitFor(() => assert.equal(result.current.data?.current, null));
-  const first = result.current.data?.myRoles;
-  assert.deepEqual(first, []);
+  return waitFor(() => assert.equal(result.current.data?.current, null)).then(() => {
+    const first = result.current.data?.members;
+    assert.deepEqual(first, []);
 
-  rerender();
-  rerender();
-  assert.strictEqual(
-    result.current.data?.myRoles,
-    first,
-    "myRoles must be the SAME reference across renders, else ConnectPage's effect loops",
-  );
+    rerender();
+    rerender();
+    assert.strictEqual(
+      result.current.data?.members,
+      first,
+      "members must be the SAME reference across renders, else a consumer's effect loops",
+    );
+  });
 });

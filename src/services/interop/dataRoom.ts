@@ -1,6 +1,5 @@
 import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Store, Writer } from "n3";
-import type { UserRole } from "../../types.ts";
 import {
   ACL_NS,
   AS_NS,
@@ -8,7 +7,6 @@ import {
   LDP_CONTAINS as LDP_CONTAINS_IRI,
   RDF_TYPE,
   RDFS_LABEL,
-  SIOC_NS,
   XSD_DATETIME,
   XSD_NS,
 } from "../rdf/vocabularies.ts";
@@ -28,10 +26,6 @@ import {
   readBookmarks,
   removeBookmark,
 } from "../bookmarks.ts";
-import {
-  IRI_TO_MEMBERSHIP_ROLE,
-  MEMBERSHIP_ROLE_TO_IRI,
-} from "../../constants/roles.ts";
 import { logError } from "../../lib/logError.ts";
 import { listLogEvents, readEventCached } from "../pod/eventLog.ts";
 
@@ -39,18 +33,12 @@ const { blankNode, literal, namedNode } = DataFactory;
 
 const LDP_CONTAINS = namedNode(LDP_CONTAINS_IRI);
 const RDF_TYPE_NODE = namedNode(RDF_TYPE);
-// Membership events are Activity Streams 2.0 activities; role assignment is an
-// as:Update activity carrying the member's roles as SIOC functions.
+// Membership events are Activity Streams 2.0 activities.
 const AS_JOIN = namedNode(`${AS_NS}Join`);
 const AS_LEAVE = namedNode(`${AS_NS}Leave`);
-const AS_UPDATE = namedNode(`${AS_NS}Update`);
 const AS_ACTOR = namedNode(`${AS_NS}actor`);
 const AS_OBJECT = namedNode(`${AS_NS}object`);
 const AS_PUBLISHED = namedNode(`${AS_NS}published`);
-const SIOC_HAS_FUNCTION = namedNode(`${SIOC_NS}has_function`);
-
-// Membership role ↔ gran: IRI — the single source of truth in constants/roles.ts.
-const IRI_TO_ROLE = IRI_TO_MEMBERSHIP_ROLE;
 
 // A GRANERGIZE data room is an append-only LDP container that ANY user can
 // create on their OWN Pod (where they have full control). The creator writes an
@@ -174,7 +162,7 @@ export async function enterRoom(
 ): Promise<void> {
   const room = normalizeRoomUri(roomUri);
   // `makeCurrent` governs the single-valued "current room" pointer in prefs.ttl.
-  // A BULK creation (the demo seed) must pass false: making each of N rooms current
+  // A BULK creation (the demo-rooms seeder) must pass false: making each of N rooms current
   // rewrites prefs.ttl N times — concurrently with the buildings seed also writing
   // prefs.ttl — which races the conditional PUT past its retry budget and silently
   // drops rooms (an "Added n of total" partial). Joining + bookmarking each room is
@@ -266,16 +254,9 @@ export async function openRoom(
   return true;
 }
 
+/** One person in a room: the WebID is the point — it's what you share with. */
 export interface DataRoomMember {
   webId: string;
-  roles: UserRole[];
-}
-
-interface RoleEvent {
-  agent: string;
-  /** ISO 8601 timestamp; lexical order matches chronological order. */
-  at: string;
-  roles: UserRole[];
 }
 
 interface MembershipEvent {
@@ -285,14 +266,17 @@ interface MembershipEvent {
 }
 
 /** One classified room event, or null (malformed / transient empty read). */
-type RoomEvent =
-  | { kind: "membership"; event: MembershipEvent }
-  | { kind: "role"; event: RoleEvent };
+type RoomEvent = { kind: "membership"; event: MembershipEvent };
 
 /**
- * Classify one event resource: membership (as:Join/as:Leave) or role
- * assignment (as:Update carrying sioc:has_function). Pure — the fold's
- * per-event half, cached through the shared immutable-event cache.
+ * Classify one event resource: a membership activity (as:Join/as:Leave). Pure —
+ * the fold's per-event half, cached through the shared immutable-event cache.
+ *
+ * Rooms once carried a SECOND stream — `as:Update` role assignments
+ * (`sioc:has_function`), which existed so a share could target "everyone holding
+ * role X". Rooms are a WebID directory now, so those events are no longer written
+ * and simply fall through to `null` here: an existing Pod's log still folds, its
+ * role history ignored rather than migrated.
  */
 function classifyRoomEvent(store: Store): RoomEvent | null {
   const joinSubj = store.getSubjects(RDF_TYPE_NODE, AS_JOIN, null)[0];
@@ -307,22 +291,12 @@ function classifyRoomEvent(store: Store): RoomEvent | null {
       event: { agent, at, joined: Boolean(joinSubj) },
     };
   }
-  const roleSubj = store.getSubjects(RDF_TYPE_NODE, AS_UPDATE, null)[0];
-  if (roleSubj) {
-    const agent = store.getObjects(roleSubj, AS_ACTOR, null)[0]?.value;
-    const at = store.getObjects(roleSubj, AS_PUBLISHED, null)[0]?.value;
-    if (!agent || !at) return null;
-    const roles = store.getObjects(roleSubj, SIOC_HAS_FUNCTION, null)
-      .map((r) => IRI_TO_ROLE[r.value])
-      .filter((r): r is UserRole => Boolean(r));
-    return { kind: "role", event: { agent, at, roles } };
-  }
   return null;
 }
 
 /**
- * Read and classify every event resource in the log container into the two
- * independent streams (membership and role assignment) — through the SAME
+ * Read and classify every event resource in the log container into the
+ * membership stream — through the SAME
  * primitives as the sharing logs (`eventLog.ts`): the listing skips the
  * room's in-place `name` document and auxiliary sidecars by name, and each
  * immutable event parse is cached per gateway (a re-fold costs only the
@@ -332,7 +306,7 @@ function classifyRoomEvent(store: Store): RoomEvent | null {
 async function readLog(
   roomUri: string,
   gateway: PodGateway,
-): Promise<{ roleEvents: RoleEvent[]; membershipEvents: MembershipEvent[] }> {
+): Promise<{ membershipEvents: MembershipEvent[] }> {
   const containerUri = normalizeRoomUri(roomUri);
   const eventUris = await listLogEvents(containerUri, gateway, {
     exclude: ["name"],
@@ -343,14 +317,11 @@ async function readLog(
     (uri) => readEventCached(uri, gateway, classifyRoomEvent, (v) => v !== null),
   );
 
-  const roleEvents: RoleEvent[] = [];
   const membershipEvents: MembershipEvent[] = [];
   for (const p of parsed) {
-    if (!p) continue;
-    if (p.kind === "role") roleEvents.push(p.event);
-    else membershipEvents.push(p.event);
+    if (p) membershipEvents.push(p.event);
   }
-  return { roleEvents, membershipEvents };
+  return { membershipEvents };
 }
 
 /**
@@ -377,42 +348,40 @@ function latestByAgent<T extends { agent: string; at: string }>(
 }
 
 /**
- * Fold one parsed log into the member list, the caller's roles, and the caller's
- * membership — so a single `readLog` answers all three (avoids reading the whole
- * event log two or three times per room load).
+ * Fold one parsed log into the member list and the caller's own membership — so a
+ * single `readLog` answers both (avoids reading the whole event log twice per
+ * room load).
  */
 function deriveState(
-  log: { roleEvents: RoleEvent[]; membershipEvents: MembershipEvent[] },
+  log: { membershipEvents: MembershipEvent[] },
   webId: string | null,
-): { members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean } {
-  const latestRole = latestByAgent(log.roleEvents);
+): { members: DataRoomMember[]; myMembership: boolean } {
   const latestMem = latestByAgent(
     log.membershipEvents,
     (candidate, incumbent) => !candidate.joined && incumbent.joined,
   );
   const members = [...latestMem.values()]
     .filter((m) => m.joined)
-    .map((m) => ({ webId: m.agent, roles: latestRole.get(m.agent)?.roles ?? [] }));
+    .map((m) => ({ webId: m.agent }));
   return {
     members,
-    myRoles: webId ? latestRole.get(webId)?.roles ?? [] : [],
     myMembership: webId ? latestMem.get(webId)?.joined ?? false : false,
   };
 }
 
 /**
- * The members / my-roles / my-membership for a single room (one `readLog`).
+ * The members + my-membership for a single room (one `readLog`).
  * The UI reads the registry (`current`/`known`, via `readRooms`) and this log
  * state as *separate* React Query keys: the registry is owned by the room
  * mutations (set authoritatively, never refetched, so a slow/stale read-back
  * can't revert a switch), while this log refetches — keyed on the current room —
- * for members and roles.
+ * for the member list.
  * @operation query
  */
 export async function getRoomLogState(
   gateway: PodGateway,
   room: string,
-): Promise<{ members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean }> {
+): Promise<{ members: DataRoomMember[]; myMembership: boolean }> {
   const webId = gateway.webId ?? null;
   const log = await readLog(normalizeRoomUri(room), gateway);
   return deriveState(log, webId);
@@ -420,8 +389,7 @@ export async function getRoomLogState(
 
 /**
  * The current data room members: agents whose latest membership event is
- * "joined". Roles are attached from the (independent) role stream and may be
- * empty for a member who has not assigned a role.
+ * "joined". This IS the directory — a member is a WebID you can share with.
  * @operation query
  */
 export async function getMembers(
@@ -430,42 +398,6 @@ export async function getMembers(
 ): Promise<DataRoomMember[]> {
   if (!roomUri) return [];
   return deriveState(await readLog(roomUri, gateway), null).members;
-}
-
-/**
- * Resolve a role to the WebIDs of all members of `roomUri` holding that role,
- * EXCLUDING the logged-in user. Used to pick share recipients, and sharing a
- * resource to yourself is meaningless — and harmful: a self-grant writes a
- * recipient authorization carrying the owner's own `acl:agent`, which a later
- * revoke would then strip along with the owner's full-control block, locking the
- * owner out of their own resource (Tier-4 meisdata run; see `removeFromACL`).
- * @operation query
- */
-export async function getMembersByRole(
-  roomUri: string | null,
-  role: UserRole,
-  gateway: PodGateway,
-): Promise<string[]> {
-  const members = await getMembers(roomUri, gateway);
-  const me = gateway.webId;
-  return members
-    .filter((m) => m.roles.includes(role) && m.webId !== me)
-    .map((m) => m.webId);
-}
-
-/**
- * The roles the logged-in user has self-assigned in `roomUri`. Independent of
- * membership — reflects the role stream only, so it can be non-empty for someone
- * who has left, or empty for a current member.
- * @operation query
- */
-export async function getMyRole(
-  roomUri: string | null,
-  gateway: PodGateway,
-): Promise<UserRole[]> {
-  const webId = gateway.webId;
-  if (!roomUri || !webId) return [];
-  return deriveState(await readLog(roomUri, gateway), webId).myRoles;
 }
 
 /**
@@ -494,7 +426,6 @@ async function postEvent(
   const containerUri = normalizeRoomUri(roomUri);
   const body = await toTurtle(store, {
     as: AS_NS,
-    sioc: SIOC_NS,
     gran: GRAN_NS,
     xsd: XSD_NS,
   });
@@ -508,37 +439,6 @@ async function postEvent(
           `Its owner must grant append access to ${containerUri}.`
         : `Failed to append to data room log (HTTP ${res.status})`,
   });
-}
-
-/**
- * Append a role-assignment event recording the user's complete current role set
- * (the fold takes the latest). An empty `roles` clears the user's roles but does
- * NOT remove them from the room — use {@link leaveRoom} for that.
- * @operation mutation
- */
-export async function setMyRole(
-  roomUri: string,
-  roles: UserRole[],
-  gateway: PodGateway,
-): Promise<void> {
-  const webId = gateway.webId;
-  if (!webId) throw new Error("Not logged in");
-  // Blank-node event subject: the resource IRI is assigned by the server on POST,
-  // and the fold matches events by rdf:type, not by subject IRI.
-  const event = blankNode();
-  const store = new Store();
-  store.addQuad(event, RDF_TYPE_NODE, AS_UPDATE);
-  store.addQuad(event, AS_ACTOR, namedNode(webId));
-  store.addQuad(event, AS_OBJECT, namedNode(normalizeRoomUri(roomUri)));
-  store.addQuad(
-    event,
-    AS_PUBLISHED,
-    literal(new Date().toISOString(), namedNode(XSD_DATETIME)),
-  );
-  for (const role of roles) {
-    store.addQuad(event, SIOC_HAS_FUNCTION, namedNode(MEMBERSHIP_ROLE_TO_IRI[role]));
-  }
-  await postEvent(roomUri, store, gateway);
 }
 
 /**
