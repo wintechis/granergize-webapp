@@ -119,6 +119,28 @@ test.describe("redesign: building page", () => {
     }
   });
 
+  test("the building page's Explore affordance lands on the cube at its coordinate", async () => {
+    // Step 4 of plan-cube-centered-ui: "explore this" jumps into Explore at the
+    // building's own coordinate — the pivot cut to its Gemeinde when the demo
+    // building geocoded to an AGS, else the map framed on its coordinates. Both
+    // branches are asserted (geocoding is a live external read in this lane), and the
+    // grammar itself — which params, at what default — is unit-tested in
+    // src/services/cube/exploreContext.test.ts.
+    await page.goto(buildingRoute("building", id));
+    await page.getByRole("button", { name: t("showInExplore") }).first().click();
+    await expect(page).toHaveURL(
+      /\/explore\?(view=pivot&in=\d{2,8}|view=map)/,
+      { timeout: T.action },
+    );
+  });
+
+  test("the observation page's Explore affordance lands on the over-time heatmap", async () => {
+    await page.goto(buildingRoute("observation", id));
+    await page.getByRole("button", { name: t("showInExplore") }).first().click();
+    // The page pins no measure, so the target carries `view` alone.
+    await expect(page).toHaveURL(/\/explore\?view=overtime/, { timeout: T.action });
+  });
+
   test("the building page header offers the workbook download", async () => {
     await page.goto(buildingRoute("building", id));
     await expect(

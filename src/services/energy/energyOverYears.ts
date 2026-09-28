@@ -1,6 +1,6 @@
 import { type Building } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
-import { type EnergyMetricKey } from "../energy/energyDataset.ts";
+import { metricRawAtYear, type SelectableMetricKey } from "./energyMetric.ts";
 import { type EnergyByBuildingYear } from "./energyTimeCut.ts";
 
 export interface OverYearsChart {
@@ -25,7 +25,7 @@ export interface OverYearsChart {
 export function buildOverYears(
   buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
-  metric: EnergyMetricKey,
+  metric: SelectableMetricKey,
 ): OverYearsChart {
   const yearSet = new Set<number>();
   for (const byYear of energyByBuilding.values()) {
@@ -39,7 +39,7 @@ export function buildOverYears(
   const data = years.map((year) => {
     const row: Record<string, number | null> = { year };
     buildings.forEach((b, i) => {
-      row[`b${i}`] = energyByBuilding.get(b.id)?.get(year)?.[metric] ?? null;
+      row[`b${i}`] = metricRawAtYear(energyByBuilding.get(b.id)?.get(year), metric);
     });
     return row;
   });

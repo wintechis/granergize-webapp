@@ -1,6 +1,9 @@
 import { Building } from "../../types.ts";
-import { type EnergyMetricKey } from "../energy/energyDataset.ts";
-import { DEFAULT_METRIC, metricFraming } from "./energyMetric.ts";
+import {
+  DEFAULT_METRIC,
+  metricFraming,
+  type SelectableMetricKey,
+} from "./energyMetric.ts";
 import {
   type EnergyByBuildingYear,
   valuesAtYear,
@@ -155,7 +158,7 @@ export function trendFromSeries(
 export function trendForBuildings(
   buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
-  metric: EnergyMetricKey = DEFAULT_METRIC,
+  metric: SelectableMetricKey = DEFAULT_METRIC,
 ): Map<string, BuildingTrend> {
   // All years present across the set; build each building's year→value series for
   // the selected metric (so missing-figure years drop out as nulls, exactly as the

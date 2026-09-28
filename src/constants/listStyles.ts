@@ -41,3 +41,17 @@ export const ellipsis: CSSProperties = {
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
 };
+
+/**
+ * A finder's header / controls ROW layout (MUI `sx`, theme spacing): title + actions,
+ * or search + filters + view toggle. Lives here — not in `FinderHeader` — so a surface
+ * that renders finder chrome *inside* another finder (Explore's saved-views panel)
+ * lines up with it exactly, without importing a component module for a constant.
+ */
+export const finderRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: 1.5,
+  mb: 1,
+} as const;

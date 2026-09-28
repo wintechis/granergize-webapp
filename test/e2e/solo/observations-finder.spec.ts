@@ -13,8 +13,9 @@ import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Redesign e2e — the Observations finder (`/observations`), the 6th finder in the
- * top-nav. One observation collection per building today (`/observation/:id` is
+ * Redesign e2e — the Observations finder (`/explore`, presented as **Explore**), the
+ * FIRST tab in the top-nav since Step 3 of `plans/plan-cube-centered-ui.md` flipped the
+ * centre. One observation collection per building today (`/observation/:id` is
  * keyed by the building id), so the finder lists every building carrying
  * `cons:hasEnergyDataset` data and each row opens that building's observation
  * (energy) page. Seeds a building + one energy year, asserts it appears under

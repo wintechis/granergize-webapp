@@ -1,5 +1,5 @@
 import { Building } from "../../types.ts";
-import { type AnnualMetrics, type EnergyMetricKey } from "../energy/energyDataset.ts";
+import { type AnnualMetrics } from "../energy/energyDataset.ts";
 import { categoriserFor, type EnergyCategory } from "./energyCategory.ts";
 import {
   DEFAULT_METRIC,
@@ -7,6 +7,7 @@ import {
   type MagnitudeBucket,
   metricFraming,
   metricValueAtYear,
+  type SelectableMetricKey,
 } from "./energyMetric.ts";
 
 /**
@@ -82,7 +83,7 @@ export function valuesAtYear(
   buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
   year: number | null,
-  metric: EnergyMetricKey = DEFAULT_METRIC,
+  metric: SelectableMetricKey = DEFAULT_METRIC,
 ): Map<string, number | null> {
   const out = new Map<string, number | null>();
   for (const b of buildings) {
@@ -120,7 +121,7 @@ export function yearLens(
   visibleIds: ReadonlySet<string>,
   energyByBuilding: EnergyByBuildingYear,
   year: number | null,
-  metric: EnergyMetricKey = DEFAULT_METRIC,
+  metric: SelectableMetricKey = DEFAULT_METRIC,
 ): YearLens {
   const values = valuesAtYear(buildings, energyByBuilding, year, metric);
   const peers: number[] = [];

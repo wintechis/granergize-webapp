@@ -11,21 +11,30 @@ import UserEnergyChart from "./UserEnergyChart.tsx";
  * The time-series view of a building's energy: the sub-hourly datasets'
  * day/month charts (`UserEnergyChart`), which lazy-load the daily reading
  * files on demand. Render only for a building that carries series datasets.
+ *
+ * `hideTitle` drops the card header for a host that already names the coordinate
+ * itself — Explore's `?series=` drill panel (`SeriesDrillPanel`), whose own header
+ * carries the building name, the grain and the close action. Default `false`, so the
+ * observation page's use is unchanged.
  */
-export default function SeriesEnergy({ building }: { building: Building }) {
+export default function SeriesEnergy(
+  { building, hideTitle = false }: { building: Building; hideTitle?: boolean },
+) {
   const { series } = splitEnergyDatasets(building.energyDatasets);
   return (
     <Card>
-      <CardHeader
-        avatar={<ElectricBoltIcon />}
-        title={
-          <Typography variant="h5">
-            {msg("seriesElectricityTitle", {
-              building: buildingDisplayName(building),
-            })}
-          </Typography>
-        }
-      />
+      {!hideTitle && (
+        <CardHeader
+          avatar={<ElectricBoltIcon />}
+          title={
+            <Typography variant="h5">
+              {msg("seriesElectricityTitle", {
+                building: buildingDisplayName(building),
+              })}
+            </Typography>
+          }
+        />
+      )}
       <CardContent>
         {series.map((d) => <RdfSourceLink key={d.uri} href={d.uri} />)}
         <UserEnergyChart seriesDatasets={series} />

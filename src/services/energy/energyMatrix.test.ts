@@ -170,3 +170,32 @@ Deno.test("buildEnergyMatrix: an empty cube yields no columns, empty rows", () =
   assert.equal(m.rows.length, 1);
   assert.deepEqual(m.rows[0].cells, []);
 });
+
+Deno.test("buildEnergyMatrix: the derived total sums the present carriers per cell", () => {
+  const buildings = [
+    building({ id: "a", hallArea: 100 }),
+    building({ id: "b", hallArea: 100 }),
+  ];
+  const c = cube({
+    // a carries both carriers, b only electricity — the sparse case the rollup rung
+    // must survive (a missing carrier is not a zero, it is simply not summed).
+    a: { 2022: { electricityConsumption: 1000, heatConsumption: 500 } },
+    b: { 2022: { electricityConsumption: 800 } },
+  });
+  const m = buildEnergyMatrix(buildings, c, new Set(["a", "b"]), "energyTotal");
+  assert.equal(m.framing, "tier");
+  const cellOf = (id: string) => m.rows.find((r) => r.building.id === id)!.cells[0];
+  assert.equal(cellOf("a").value, 15);
+  assert.equal(cellOf("b").value, 8);
+  // Banded like any other tier metric (b consumes less per m² → the better tier).
+  assert.equal(cellOf("b").band, "efficient");
+  assert.equal(cellOf("a").band, "inefficient");
+});
+
+Deno.test("buildEnergyMatrix: a building with neither kWh carrier is a gap at the total", () => {
+  const buildings = [building({ id: "a", hallArea: 100 })];
+  const c = cube({ a: { 2022: { waterConsumption: 40 } } });
+  const m = buildEnergyMatrix(buildings, c, new Set(["a"]), "energyTotal");
+  assert.equal(m.rows[0].cells[0].value, null);
+  assert.equal(m.rows[0].cells[0].band, "none");
+});

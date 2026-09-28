@@ -69,9 +69,9 @@ interface BuildingsFinderProps {
  * `services/cube/exploreAxes.ts`). The map (`BuildingsMap colour="ownership"`) is kept
  * mounted-but-hidden off-map so the Leaflet viewport survives; the List row navigates
  * to `/building/:id` (edit / files / energy / share / download) and carries delete +
- * shared-with revoke. **Energy moved to the Observations finder** (`/observations`) —
- * the natural home for the per-building, per-year time-series. Aggregations are their
- * OWN finder (`/aggregations`).
+ * shared-with revoke. **Energy moved to the Explore finder** (`/explore`) — the natural
+ * home for the per-building, per-year time-series. Aggregations are a projection of
+ * that same surface (`/explore?view=aggregations`).
  */
 export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   // The cube's two orthogonal view axes are URL state (`?space=`/`?colour=`, the

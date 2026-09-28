@@ -3,11 +3,13 @@ import { strict as assert } from "node:assert";
 import {
   clampMetric,
   DEFAULT_METRIC,
+  ENERGY_TOTAL,
   isSelectableMetric,
   magnitudeCategoriserFor,
   metricFraming,
   metricLabelKey,
   metricRawAtYear,
+  metricUnit,
   metricValueAtYear,
   metricValueUnit,
   SELECTABLE_METRICS,
@@ -55,6 +57,69 @@ Deno.test("isSelectableMetric / clampMetric: unknown falls back to the default",
 Deno.test("metricLabelKey: maps a metric to its capitalised message id", () => {
   assert.equal(metricLabelKey("electricityConsumption"), "metricElectricityConsumption");
   assert.equal(metricLabelKey("electricityGeneration"), "metricElectricityGeneration");
+});
+
+// --- the derived rollup rung (electricity + heat) --------------------------
+
+Deno.test("ENERGY_TOTAL is a selectable, tier-framed, labelled measure", () => {
+  const byKey = new Map(SELECTABLE_METRICS.map((m) => [m.key, m.framing]));
+  assert.equal(byKey.get(ENERGY_TOTAL), "tier");
+  assert.equal(metricFraming(ENERGY_TOTAL), "tier");
+  assert.equal(metricLabelKey(ENERGY_TOTAL), "metricEnergyTotal");
+  // Summing only the kWh carriers, so the absolute figure is kWh.
+  assert.equal(metricUnit(ENERGY_TOTAL), "kWh");
+  assert.equal(metricUnit("waterConsumption"), "m³");
+});
+
+Deno.test("clampMetric: the pseudo-metric survives the ?m= round trip", () => {
+  assert.equal(isSelectableMetric(ENERGY_TOTAL), true);
+  assert.equal(clampMetric(ENERGY_TOTAL), ENERGY_TOTAL);
+  assert.equal(clampMetric("energyTotal"), "energyTotal");
+});
+
+Deno.test("metricValueAtYear: the total is (electricity + heat) / m², normalised ONCE", () => {
+  const b = building({ hallArea: 100 });
+  // 1000 + 500 = 1500 kWh over 100 m² → 15 kWh/m²·a (NOT 10 + 5 summed as intensities
+  // — same number here by linearity, but the sum is the one that survives a gap).
+  assert.equal(
+    metricValueAtYear(b, { electricityConsumption: 1000, heatConsumption: 500 }, ENERGY_TOTAL),
+    15,
+  );
+  assert.equal(
+    metricRawAtYear({ electricityConsumption: 1000, heatConsumption: 500 }, ENERGY_TOTAL),
+    1500,
+  );
+});
+
+Deno.test("metricValueAtYear: the total is the sum of the PRESENT carriers", () => {
+  const b = building({ hallArea: 100 });
+  // Only electricity → that carrier alone (the cube is sparse; requiring both would
+  // empty the view).
+  assert.equal(metricValueAtYear(b, { electricityConsumption: 1000 }, ENERGY_TOTAL), 10);
+  assert.equal(metricValueAtYear(b, { heatConsumption: 500 }, ENERGY_TOTAL), 5);
+  // Water/wastewater (m³) and generation are NOT summed into it.
+  assert.equal(
+    metricValueAtYear(
+      b,
+      { electricityConsumption: 1000, waterConsumption: 40, electricityGeneration: 900 },
+      ENERGY_TOTAL,
+    ),
+    10,
+  );
+});
+
+Deno.test("metricValueAtYear: neither carrier present → no cell", () => {
+  const b = building({ hallArea: 100 });
+  assert.equal(metricValueAtYear(b, { waterConsumption: 40 }, ENERGY_TOTAL), null);
+  assert.equal(metricValueAtYear(b, {}, ENERGY_TOTAL), null);
+  assert.equal(metricValueAtYear(b, undefined, ENERGY_TOTAL), null);
+  assert.equal(metricRawAtYear({ waterConsumption: 40 }, ENERGY_TOTAL), null);
+  assert.equal(metricRawAtYear(undefined, ENERGY_TOTAL), null);
+  // Tier framing still needs a usable area.
+  assert.equal(
+    metricValueAtYear(building({}), { electricityConsumption: 1000 }, ENERGY_TOTAL),
+    null,
+  );
 });
 
 // --- per-(building, year) value: consumption = intensity, generation = absolute

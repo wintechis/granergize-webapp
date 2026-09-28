@@ -42,7 +42,8 @@ session gate; `theme.ts` holds the MUI theme. The auth/login flow these set up i
 
 **Pages** (`src/pages/`). One route-driven screen each — the app shell
 (`AppShell.tsx`), the collection finders (`BuildingsFinder`, `ObservationsFinder`,
-`AggregationsFinder`, `SharingFinder`, `AgentsFinder`, `RoomsFinder`), and the
+`SharingFinder`, `AgentsFinder`, `RoomsFinder` — the former `AggregationsFinder` is now
+a projection of Explore, `components/aggregation/AggregationsPanel`), and the
 standalone detail pages (`BuildingDetail`, `EnergyDetail`, `AggregationDetail`, …). Pages compose hooks
 and components; they never import each other. Navigational state (which finder, which
 building) is URI-encoded — see [`ui-state.md`](./ui-state.md).

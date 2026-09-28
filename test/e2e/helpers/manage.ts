@@ -23,14 +23,42 @@ export const buildingIdOf = (row: Locator): Promise<string | null> =>
   row.getAttribute("data-building-id");
 
 /**
+ * Select the Buildings tab and one of its Space-axis views (Map ⇄ List), retried as a
+ * PAIR with the pressed toggle as the postcondition.
+ *
+ * Both clicks are scoped and retried for the same reason `openAggregations` is: a
+ * fresh `goto("/")` can still have the silent session-restore redirect (prompt=none
+ * through the IdP) in flight, and when it lands it replays the restored route —
+ * UNDOING a tab click made mid-flight. Since Step 3 of `plans/plan-cube-centered-ui.md`
+ * that lands the app back on **Explore** (`/` → `/explore`), not Buildings, so the
+ * undo is now observable: the follow-up view click would hit Explore's OWN "List"
+ * button (its view group carries the same labels) and the caller would silently drive
+ * the wrong finder. Scoping every click to the Buildings Space group
+ * (`bldgsViewAria`) makes that impossible, and re-clicking the tab converges.
+ */
+async function openBuildingsView(page: Page, label: string): Promise<void> {
+  const button = page
+    .getByLabel(t("bldgsViewAria"))
+    .getByRole("button", { name: label, exact: true });
+  await expect(async () => {
+    await page.getByRole("tab", { name: t("navBuildings") }).click();
+    await button.click({ timeout: T.quick });
+    // A MUI exclusive toggle ignores a click on the ALREADY-selected button, so the
+    // postcondition is the pressed state (re-entry is idempotent), not the click.
+    await expect(button).toHaveAttribute("aria-pressed", "true", {
+      timeout: T.quick,
+    });
+  }).toPass({ timeout: T.visible });
+}
+
+/**
  * Open the Buildings tab's **List** view — the former "Manage" list (building
  * rows, "Add Building", and the per-row actions). The redesign merged Explore +
  * Manage into one Buildings tab with a Map⇄List toggle that lands on Map, so
  * reaching the list is now: select the Buildings tab, then toggle to List.
  */
 export async function openBuildingsList(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: t("navBuildings") }).click();
-  await page.getByRole("button", { name: t("btnList") }).click();
+  await openBuildingsView(page, t("btnList"));
 }
 
 /**
@@ -40,26 +68,21 @@ export async function openBuildingsList(page: Page): Promise<void> {
  * select the tab then the Map toggle explicitly.
  */
 export async function openBuildingsMap(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: t("navBuildings") }).click();
-  // Scope to the cube's Space-axis group (`bldgsViewAria`): a building's own detail
-  // page carries a separate "Map" toggle, so keep the click scoped + defensive.
-  await page
-    .getByLabel(t("bldgsViewAria"))
-    .getByRole("button", { name: t("btnMap"), exact: true })
-    .click();
+  await openBuildingsView(page, t("btnMap"));
 }
 
 /**
- * Open the **Observations** finder (`/observations`) and select a cube View — `list`
+ * Open the **Explore** finder (`/explore` — the Observations finder page, canonical
+ * since Step 3 of `plans/plan-cube-centered-ui.md`) and select a cube View — `list`
  * (the per-building summary, the default), `map` (the geographic energy map + year
- * slider), `overtime` (the buildings × years heatmap) or `overyears` (a line per
- * building). Energy lives here now (Buildings is space/identity only). The View
- * toggle is scoped to `obsViewAria` (a building's own detail page carries a separate
- * "Map" toggle).
+ * slider), `overtime` (the buildings × years heatmap), `overyears` (a line per
+ * building) or `pivot` (the roll-up grid). Energy lives here now (Buildings is
+ * space/identity only). The View toggle is scoped to `obsViewAria` (a building's own
+ * detail page carries a separate "Map" toggle).
  */
 export async function openObservationsView(
   page: Page,
-  view: "map" | "list" | "overtime" | "overyears",
+  view: "map" | "list" | "overtime" | "overyears" | "pivot",
 ): Promise<void> {
   await page.getByRole("tab", { name: t("navObservations") }).click();
   const label = view === "map"
@@ -68,6 +91,8 @@ export async function openObservationsView(
     ? t("btnList")
     : view === "overtime"
     ? t("obsViewOvertime")
+    : view === "pivot"
+    ? t("obsViewPivot")
     : t("obsViewOveryears");
   await page
     .getByLabel(t("obsViewAria"))
@@ -76,12 +101,36 @@ export async function openObservationsView(
 }
 
 /**
- * Open the **Aggregations** finder (`/aggregations`) — the redesign split it out
- * of the old Buildings/Manage list into its own top-nav finder. Used by the
- * create / share / detail aggregation flows.
+ * Open the **saved views** (aggregations) surface. It lost its own top-nav tab in
+ * Step 2 of `plans/plan-cube-centered-ui.md`: aggregations are a *projection* of
+ * Explore now (`/explore?view=aggregations`), so reaching them is the Explore
+ * tab plus the "Aggregations" button in the cube's View group (`obsViewAria` — the
+ * Buildings/Explore maps carry their own toggles, so the click stays scoped).
+ * `/aggregations` still redirects here, but the specs drive the real UI path.
+ * Signature unchanged, so every create / share / detail aggregation flow follows.
  */
 export async function openAggregations(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: t("navAggregations") }).click();
+  const viewButton = page
+    .getByLabel(t("obsViewAria"))
+    .getByRole("button", { name: t("navAggregations"), exact: true });
+  // The postcondition is the PANEL being up (its own heading), not a `?view=` param:
+  // the view axis is session-remembered, so a bare tab re-entry can already land on
+  // this projection — and a MUI exclusive toggle ignores a click on the selected
+  // button, so nothing would be written.
+  const heading = page.getByRole("heading", {
+    name: t("navAggregations"),
+    exact: true,
+  });
+  // Retried as a PAIR: a fresh `goto("/")` can still have the silent session-restore
+  // redirect (prompt=none through the IdP) in flight, which lands the app back on the
+  // restored route and undoes a tab click made mid-flight — leaving the second click
+  // waiting for a View group that isn't mounted. Re-clicking the tab converges (same
+  // guard as `findOwnBuildingRow`); a re-entry is idempotent.
+  await expect(async () => {
+    await page.getByRole("tab", { name: t("navObservations") }).click();
+    await viewButton.click({ timeout: T.quick });
+    await expect(heading).toBeVisible({ timeout: T.quick });
+  }).toPass({ timeout: T.visible });
 }
 
 /**

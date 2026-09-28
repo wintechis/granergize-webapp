@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 import {
   aggregationRoute,
   agentRoute,
+  ALIASES,
   backTarget,
   buildingRoute,
   DETAIL_PATTERNS,
@@ -59,11 +60,16 @@ Deno.test("index.html KNOWN_ROUTE_SEGMENTS exactly mirrors the route table", asy
   assert.ok(block, "KNOWN_ROUTE_SEGMENTS array not found in index.html");
   const listed = [...block![1].matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
 
-  // The first path segment of every finder + detail route (HOME "/" has none).
+  // The first path segment of every finder + detail + alias route (HOME "/" has none);
+  // an alias is a real served path, so a deep link to it must detect the base too.
   const firstSegment = (p: string) => p.replace(/^\//, "").split("/")[0];
   const expected = [
     ...new Set(
-      [...Object.values(FINDERS), ...Object.values(DETAIL_PATTERNS)]
+      [
+        ...Object.values(FINDERS),
+        ...Object.values(DETAIL_PATTERNS),
+        ...Object.values(ALIASES),
+      ]
         .map(firstSegment)
         .filter((s) => s.length > 0),
     ),
@@ -72,7 +78,7 @@ Deno.test("index.html KNOWN_ROUTE_SEGMENTS exactly mirrors the route table", asy
   assert.deepEqual(
     listed,
     expected,
-    "index.html KNOWN_ROUTE_SEGMENTS is out of sync with routes.ts (FINDERS + DETAIL_PATTERNS)",
+    "index.html KNOWN_ROUTE_SEGMENTS is out of sync with routes.ts (FINDERS + DETAIL_PATTERNS + ALIASES)",
   );
 });
 
@@ -106,7 +112,14 @@ Deno.test("a builder output matches its bare detail pattern", () => {
   // the two from drifting apart.
   assert.equal(DETAIL_PATTERNS.building, "/building");
   assert.equal(buildingRoute("x").startsWith("/building?ref="), true);
-  assert.equal(FINDERS.observations, "/observations");
+  // Step 3 of plan-cube-centered-ui flipped the analytical surface's canonical path:
+  // `/explore` is the finder, `/observations` the alias that redirects onto it. Pin
+  // BOTH sides of the swap (the alias must not silently disappear — old deep links
+  // and bookmarks depend on it being a served path).
+  assert.equal(FINDERS.explore, "/explore");
+  assert.equal(ALIASES.observations, "/observations");
+  // The DETAIL route keeps the singular class name — the swap is collection-only.
+  assert.equal(DETAIL_PATTERNS.observation, "/observation");
 });
 
 Deno.test("observationUnitRoute appends the ?unit= focus param", () => {

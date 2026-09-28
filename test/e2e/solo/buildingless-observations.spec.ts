@@ -102,7 +102,7 @@ test.describe("building-less observations", () => {
 
     // 2b. The List view is URL-addressable: a fresh load of `?view=list` restores the
     //     List and the loose observation (no building needed to reach it).
-    await page.goto("/observations?view=list");
+    await page.goto("/explore?view=list");
     await expect(page).toHaveURL(/view=list/, { timeout: T.action });
     await expect(page.getByRole("heading", { name: t("obsWithoutBuilding") }))
       .toBeVisible({ timeout: T.action });

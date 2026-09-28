@@ -182,6 +182,14 @@
 :buildingCount rdf:type owl:DatatypeProperty ;
     rdfs:label "building count"@en ; rdfs:label "Gebäudeanzahl"@de ; rdfs:label "nombre de bâtiments"@fr ;
     rdfs:domain :AggregationSnapshot ; rdfs:range xsd:integer .
+# The snapshot's TIME coordinate — every snapshot carries it, not just a
+# :BenchmarkResult (which, being a subclass, is covered by this domain).
+:metricPeriod rdf:type owl:DatatypeProperty ;
+    rdfs:label "metric period"@en ; rdfs:label "Zeitraum der Kennzahlen"@de ; rdfs:label "période des métriques"@fr ;
+    rdfs:comment "The period the snapshot's figures cover — a year (\"2024\") or, for a monthly aggregation, a year-month (\"2024-03\")."@en ;
+    rdfs:comment "Der Zeitraum, den die Werte der Momentaufnahme abdecken — ein Jahr (\"2024\") oder, bei einer monatlichen Aggregation, ein Jahr-Monat (\"2024-03\")."@de ;
+    rdfs:comment "La période couverte par les valeurs de l'instantané — une année (« 2024 ») ou, pour une agrégation mensuelle, une année-mois (« 2024-03 »)."@fr ;
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:gYear .
 
 # Snapshot values are COLLAPSED into sosa:ObservationCollection members — one
 # sosa:Observation per metric (sosa:observedProperty + sosa:hasResult /
@@ -210,9 +218,5 @@
     rdfs:comment "L'agent (fournisseur de service de benchmark) qui a calculé ce résultat de benchmark."@fr ;
     rdfs:domain :BenchmarkResult ; rdfs:range foaf:Agent .
 
-:metricPeriod rdf:type owl:DatatypeProperty ;
-    rdfs:label "metric period"@en ; rdfs:label "Zeitraum der Kennzahl"@de ; rdfs:label "période de la métrique"@fr ;
-    rdfs:comment "The year the benchmark's metrics cover."@en ;
-    rdfs:comment "Das Jahr, das die Kennzahlen des Benchmarks abdecken."@de ;
-    rdfs:comment "L'année couverte par les métriques du benchmark."@fr ;
-    rdfs:domain :BenchmarkResult ; rdfs:range xsd:gYear .
+# The period a benchmark covers is :metricPeriod, defined with the snapshot
+# properties above — it is no longer benchmark-specific.

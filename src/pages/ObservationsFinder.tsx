@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import LinkIcon from "@mui/icons-material/Link";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -18,7 +19,7 @@ import BuildingPicker from "../components/BuildingPicker.tsx";
 import { useLocation, useSearchParams } from "react-router-dom";
 import type { Building } from "../types.ts";
 import type { BuildinglessObservation } from "../services/energy/energyDataset.ts";
-import { observationRoute } from "../routes.ts";
+import { ACTION_PARAM, FINDERS, observationRoute } from "../routes.ts";
 import {
   useAnnualEnergyByYear,
   useBuildinglessObservations,
@@ -56,11 +57,20 @@ import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";
 import ObservationsOverYears from "../components/observation/ObservationsOverYears.tsx";
+import ObservationsPivot from "../components/observation/ObservationsPivot.tsx";
 import {
+  resolveSeries,
   resolveView,
+  seriesToParams,
   showsMetric,
+  showsSeriesDrill,
   viewToParams,
 } from "../services/cube/observationsAxes.ts";
+import { splitEnergyDatasets } from "../lib/energyResolution.ts";
+import {
+  metricToParams,
+  resolveMetric,
+} from "../services/cube/coordinate.ts";
 import {
   clampMetric,
   metricLabelKey,
@@ -72,10 +82,25 @@ import { metricLabel } from "../constants/annualMetrics.ts";
 // mounted-but-hidden off the Map view to preserve its Leaflet viewport, exactly as
 // the Buildings finder mounts it for ownership.
 const BuildingsMap = lazy(() => import("../components/building/BuildingsMap.tsx"));
+// The saved-views (aggregations) projection — its own chunk (it pulls the choropleth
+// map + the timeline chart), fetched only when that view is selected, exactly as the
+// former `/aggregations` route chunk was.
+const AggregationsPanel = lazy(() =>
+  import("../components/aggregation/AggregationsPanel.tsx")
+);
+// The time drill's sub-hourly panel (`?series=`) — its own chunk (it pulls the
+// day/month/profile/calendar charts), fetched only once a row is actually drilled, so
+// the grid views cost nothing for a descent nobody made.
+const SeriesDrillPanel = lazy(() =>
+  import("../components/observation/SeriesDrillPanel.tsx")
+);
 
 
 /**
- * The Observations finder (`/observations`): the **energy cube** over the
+ * The Observations finder (`/explore`, presented as **Explore** — Step 3 of
+ * `plans/plan-cube-centered-ui.md` made that the canonical path and `/` land here;
+ * the former `/observations` redirects onto it):
+ * the **energy cube** over the
  * per-building, per-year measured time-series. Buildings is the space/identity view;
  * energy lives here, its natural home. A flat View axis (`?view=`, see
  * `services/cube/observationsAxes.ts`) selects:
@@ -88,8 +113,22 @@ const BuildingsMap = lazy(() => import("../components/building/BuildingsMap.tsx"
  *   flagging each building's year-over-year direction (`ObservationsMatrix`);
  * - **Over years** — the metric's figures over the years, a line per building
  *   (fact-first temporal; `ObservationsOverYears`).
+ * - **Pivot** — the same rows × years grid with the row level chosen (`?rows=`):
+ *   buildings, or their Gemeinde/Kreis/Land/Bund roll-up, a region row drilling one
+ *   level down scoped to itself (`?in=`) (`ObservationsPivot`).
+ * - **Aggregations** — the **saved views** projection (Step 2 of the cube-centered
+ *   plan): the folded former Aggregations finder (`AggregationsPanel`), keeping its
+ *   own `?guise=list|map|timeline` sub-axis — a saved view IS a stored coordinate +
+ *   roll-up spec, and the region choropleth IS this cube at a region feature level.
+ *   `/aggregations` redirects onto it (`src/routes.ts`).
  *
  * The energy views share one `?m=` metric; the year `?y=` lives inside `BuildingsMap`.
+ *
+ * On the two grid views (Over time · Pivot) a building row can be drilled one grain
+ * finer in TIME — `?series=<building ref>` opens `SeriesDrillPanel` below the grid with
+ * that building's sub-hourly series (Step 4 of `plans/plan-explore-complete-cube.md`).
+ * It is a panel, not a seventh view, and it is resolved here rather than inside the
+ * grids: an unresolvable ref renders nothing.
  */
 export default function ObservationsFinder() {
   const { buildings, isLoading } = useSolidData();
@@ -103,15 +142,32 @@ export default function ObservationsFinder() {
     rememberValue("view", next);
     setSearchParams((prev) => viewToParams(next, prev));
   };
-  const metric = clampMetric(searchParams.get("m"));
-  const setMetric = (m: string) =>
+  // "Save as aggregation" — hand the coordinate you're looking at to the saved-views
+  // projection with its create dialog open (`?view=aggregations&action=create-aggregation`),
+  // reusing the palette-routed create flow rather than a second dialog. The rest of the
+  // query string (the cube coordinate) rides along, so a Back returns to this very cut.
+  const saveAsAggregation = () => {
+    rememberValue("view", "aggregations");
     setSearchParams((prev) => {
-      const sp = new URLSearchParams(prev);
-      sp.set("m", m);
+      const sp = viewToParams("aggregations", prev);
+      sp.set(ACTION_PARAM, "create-aggregation");
       return sp;
-    }, { replace: true });
-  // The finder renders only on /observations; the map is "active" on the Map view.
-  const onObservations = useLocation().pathname === "/observations";
+    });
+  };
+  // The measure axis of the cube coordinate (`services/cube/coordinate.ts`) — read and
+  // written through it, so every projection lenses on the same resolved metric.
+  const metric = resolveMetric(searchParams);
+  const setMetric = (m: string) =>
+    setSearchParams(
+      (prev) => metricToParams(clampMetric(m), prev),
+      { replace: true },
+    );
+  // The finder renders only on its own route (`FINDERS.explore` — never a string
+  // literal, so the check follows a path rename); the map is "active" on the Map view.
+  const onObservations = useLocation().pathname === FINDERS.explore;
+  // The saved-views projection renders a different collection (aggregations), so the
+  // observation-collection chrome and body stand down for it.
+  const savedViews = view === "aggregations";
 
   const withObservations = buildings.filter(
     (b) => (b.energyDatasets?.length ?? 0) > 0,
@@ -159,9 +215,23 @@ export default function ObservationsFinder() {
   // re-shape the per-year energy cube, banded against the filtered set as peers.
   // Loaded only when those views are up — the Map view's `BuildingsMap` owns its own
   // (React-Query-deduped) load.
-  const energyOn = view === "overtime" || view === "overyears";
+  const energyOn = view === "overtime" || view === "overyears" || view === "pivot";
   const { data: energyByYear } = useAnnualEnergyByYear(withObservations, energyOn);
   const visibleIds = new Set(filtered.map((b) => b.id));
+  // The time DRILL (`?series=`, `cube/observationsAxes.ts`): the cube's finest time
+  // grain, reached from a grid row without leaving Explore. The axis resolves the bare
+  // ref; whether it names something is a data question, answered here against the
+  // VISIBLE set — a stale link, a building the search filtered out, or one carrying no
+  // sub-hourly dataset simply yields no panel (a descent either lands or it doesn't;
+  // there is nothing to report).
+  const seriesRef = resolveSeries(searchParams);
+  const seriesBuilding = seriesRef
+    ? filtered.find((b) =>
+      b.id === seriesRef && splitEnergyDatasets(b.energyDatasets).series.length > 0
+    ) ?? null
+    : null;
+  const closeSeries = () =>
+    setSearchParams((prev) => seriesToParams(null, prev), { replace: true });
 
   // "Clear data" — delete ALL of an owned building's observations (every dataset),
   // keeping the building; once empty, the building drops out of this finder. The
@@ -237,50 +307,71 @@ export default function ObservationsFinder() {
     <FinderHeader
       title={t("navObservations")}
       source={rdf?.observations}
-      actions={(
-        <Button
-          variant="outlined"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateOpen(true)}
-        >
-          {t("eyAddObservation")}
-        </Button>
+      actions={savedViews ? undefined : (
+        <>
+          {/* Save this cut as a saved view: the cell-rendering projections (the
+              geographic map and the pivot) are the ones that HOLD a coordinate worth
+              saving; the plain List and the per-building charts don't. */}
+          {(view === "map" || view === "pivot") && (
+            <Button
+              variant="outlined"
+              startIcon={<BookmarkAddIcon />}
+              onClick={saveAsAggregation}
+            >
+              {t("obsSaveAsAggregation")}
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => setCreateOpen(true)}
+          >
+            {t("eyAddObservation")}
+          </Button>
+        </>
       )}
       controls={(
         <>
-          <SearchField value={query} onChange={setQuery} />
-          {/* Per-tier counts (overview-first, independent of search), consistent with
-              the Buildings + Aggregations finders. `open` counts the nearby settled-
-              generation installations for the current viewport (0 until the map is
-              panned, or outside the netztransparenz pilot). */}
-          <TierFilter
-            facet={tierFacet}
-            options={OBSERVATION_TIERS}
-            counts={{
-              mine: withObservations.filter((b) => !b.isShared).length,
-              shared: withObservations.filter((b) => b.isShared).length,
-              open: openObs.length,
-            }}
-          />
-          {openOn && <ExploreControl />}
-          {/* The metric (electricity / heat / …) is a query/filter, not a view
-              control, so it sits on the LEFT with search + tier — and shows on every
-              view incl. the map (to compare metrics there), i.e. all but the List. */}
-          {showsMetric(view) && (
-            <TextField
-              select
-              size="small"
-              value={metric}
-              onChange={(e) => setMetric(e.target.value)}
-              label={t("metricSelectLabel")}
-              sx={{ minWidth: 160 }}
-            >
-              {SELECTABLE_METRICS.map((m) => (
-                <MenuItem key={m.key} value={m.key}>
-                  {t(metricLabelKey(m.key))}
-                </MenuItem>
-              ))}
-            </TextField>
+          {/* The observation-collection controls belong to the cell views; the saved-
+              views projection brings its own search / tier facet / guise toggle (it is
+              a different collection), so they'd be a confusing second set. */}
+          {!savedViews && (
+            <>
+              <SearchField value={query} onChange={setQuery} />
+              {/* Per-tier counts (overview-first, independent of search), consistent with
+                  the Buildings finder. `open` counts the nearby settled-generation
+                  installations for the current viewport (0 until the map is panned, or
+                  outside the netztransparenz pilot). */}
+              <TierFilter
+                facet={tierFacet}
+                options={OBSERVATION_TIERS}
+                counts={{
+                  mine: withObservations.filter((b) => !b.isShared).length,
+                  shared: withObservations.filter((b) => b.isShared).length,
+                  open: openObs.length,
+                }}
+              />
+              {openOn && <ExploreControl />}
+              {/* The metric (electricity / heat / …) is a query/filter, not a view
+                  control, so it sits on the LEFT with search + tier — and shows on every
+                  view incl. the map (to compare metrics there), i.e. all but the List. */}
+              {showsMetric(view) && (
+                <TextField
+                  select
+                  size="small"
+                  value={metric}
+                  onChange={(e) => setMetric(e.target.value)}
+                  label={t("metricSelectLabel")}
+                  sx={{ minWidth: 160 }}
+                >
+                  {SELECTABLE_METRICS.map((m) => (
+                    <MenuItem key={m.key} value={m.key}>
+                      {t(metricLabelKey(m.key))}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </>
           )}
           <Box sx={{ flexGrow: 1 }} />
           <CubeAxisBar
@@ -293,6 +384,8 @@ export default function ObservationsFinder() {
                 { value: "map", label: t("btnMap") },
                 { value: "overtime", label: t("obsViewOvertime") },
                 { value: "overyears", label: t("obsViewOveryears") },
+                { value: "pivot", label: t("obsViewPivot") },
+                { value: "aggregations", label: t("navAggregations") },
               ],
             }}
           />
@@ -319,8 +412,17 @@ export default function ObservationsFinder() {
         </Suspense>
       </Box>
 
-      {/* The non-map views (List · Over time · Over years) share loading/empty states. */}
-      {view !== "map" && (
+      {/* The saved-views projection: the folded former Aggregations finder, with its
+          own heading/controls and its `?guise=` sub-axis. */}
+      {savedViews && (
+        <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
+          <AggregationsPanel />
+        </Suspense>
+      )}
+
+      {/* The non-map cell views (List · Over time · Over years · Pivot) share
+          loading/empty states. */}
+      {view !== "map" && !savedViews && (
         <>
           {isLoading && (
             <Typography variant="body2">{t("loadingEllipsis")}</Typography>
@@ -355,6 +457,28 @@ export default function ObservationsFinder() {
                 metric={metric}
               />
             </Box>
+          )}
+          {/* Pivot: the same grid with a chosen row level (buildings or their
+              Gemeinde/Kreis/Land/Bund roll-up, `?rows=`, drill scope `?in=`); it
+              pages nothing — the roll-up itself is what keeps the row count
+              readable. */}
+          {!isLoading && view === "pivot" && filtered.length > 0 && (
+            <Box sx={{ minHeight: 0, overflow: "auto" }}>
+              <ObservationsPivot
+                buildings={filtered}
+                energyByYear={energyByYear}
+                metric={metric}
+              />
+            </Box>
+          )}
+          {/* The time drill's panel: the sub-hourly series of the building whose row
+              was drilled, below the grid it was drilled from (the grid stays on
+              screen, so the descent reads as one). Grid views only — the map/list/
+              over-years projections render no building row to drill from. */}
+          {!isLoading && showsSeriesDrill(view) && seriesBuilding && (
+            <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
+              <SeriesDrillPanel building={seriesBuilding} onClose={closeSeries} />
+            </Suspense>
           )}
           {!isLoading && view === "overyears" && filtered.length > 0 && (
             // One line per building gets unreadable past a handful, so page the chart

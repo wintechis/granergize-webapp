@@ -7,8 +7,12 @@
  * strings.
  *
  * Naming follows the locked URI grammar (`plans/plan-app-design-overhaul.md` §4):
- * `/observations` + `/aggregations` are the generic class names; `/buildings` is
- * kept concrete for now (the generic `Place` generalisation is deferred).
+ * `/aggregation` is the generic class name; `/buildings` is kept concrete for now
+ * (the generic `Place` generalisation is deferred). The analytical collection is
+ * `/explore` since Step 3 of the cube-centered plan flipped the centre — the older
+ * class name `/observations` and the collection `/aggregations` are both aliases now
+ * (see {@link ALIASES}); the `/observation` and `/aggregation` DETAIL routes are
+ * unaffected.
  *
  * A resource id is either storage-RELATIVE (own — e.g. `buildings/abc.ttl#it`) or
  * an ABSOLUTE IRI (foreign/shared — e.g. `https://bob.example/…#it`). Detail URLs
@@ -19,15 +23,62 @@
  */
 import { isAbsoluteIri } from "./services/rdf/building/buildingId.ts";
 
-/** Finder (collection) routes. */
+/**
+ * Finder (collection) routes, in top-nav order (`AppShell.tsx` `NAV`).
+ *
+ * {@link FINDERS.explore} leads: Step 3 of `plans/plan-cube-centered-ui.md` flipped
+ * the app's centre of gravity onto the cube, so `/` lands there and `/explore` is the
+ * CANONICAL path of the analytical surface (the page component is still
+ * `ObservationsFinder`). The former canonical `/observations` lives on as an alias
+ * (see {@link ALIASES}).
+ */
 export const FINDERS = {
+  explore: "/explore",
   buildings: "/buildings",
-  observations: "/observations",
-  aggregations: "/aggregations",
-  rooms: "/rooms",
   agents: "/agents",
   sharing: "/sharing",
+  rooms: "/rooms",
 } as const;
+
+/**
+ * Route **aliases** — former canonical paths that keep working after their surface
+ * moved. Both are real served paths (so `index.html`'s base detection must list their
+ * segments), both redirect carrying the incoming query string across.
+ *
+ * - `/observations` was the Explore surface's canonical path until Step 3 of
+ *   `plans/plan-cube-centered-ui.md` swapped it with `/explore`
+ *   ({@link FINDERS.explore}). It redirects there with the query string carried
+ *   VERBATIM, so a deep link keeps its cube coordinate (`?m=`/`?y=`/`?rows=`/`?in=`)
+ *   and its projection (`?view=`). The `/observation` DETAIL route is untouched.
+ * - `/aggregations` was the Aggregations finder's own top-nav route until Step 2
+ *   folded it into Explore as the saved-views projection; it now redirects onto
+ *   {@link AGGREGATIONS_VIEW}, MERGING `?view=aggregations` into whatever the link
+ *   carried (`guise`, `q`, `offset`, `tiers`, `action`), so every old bookmark, deep
+ *   link and palette route lands on the same surface it always did. The
+ *   `/aggregation` DETAIL route is untouched.
+ */
+export const ALIASES = {
+  observations: "/observations",
+  aggregations: "/aggregations",
+} as const;
+
+/**
+ * The Explore surface at its **saved views** projection — the folded former
+ * Aggregations finder (`?view=aggregations`, the view axis in
+ * `services/cube/observationsAxes.ts`). Back-links, the palette's navigation verb and
+ * the create-aggregation hand-off target this directly rather than the
+ * {@link ALIASES.aggregations} redirect, so they cost no extra hop.
+ */
+export const AGGREGATIONS_VIEW = `${FINDERS.explore}?view=aggregations`;
+
+/**
+ * The saved-views projection at its **choropleth** guise ({@link AGGREGATIONS_VIEW} +
+ * `?guise=map`) — the cube rendered at a region feature level. The regional dataset
+ * page's "explore this" affordance targets it: the page shows ONE region's series, this
+ * shows the same measure across every region. The guise is written explicitly because
+ * it is session-remembered, so absence would restore whatever guise was last picked.
+ */
+export const AGGREGATIONS_MAP_VIEW = `${AGGREGATIONS_VIEW}&guise=map`;
 
 /**
  * Detail route *patterns* — bare paths, for the route table. The resource id is no
@@ -106,7 +157,7 @@ export type DialogAction =
   | "edit" // Building page → inline master-data editor
   | "share" // Building page → Share dialog
   | "enter-energy" // Observation page → Energy-year dialog (add/edit a year)
-  | "create-aggregation" // Aggregations finder → Create aggregation dialog
+  | "create-aggregation" // Explore's saved views → Create aggregation dialog
   | "share-aggregation"; // Aggregation detail → Share aggregation dialog
 
 /** The `?action=` query-param name a surface reads (see {@link DialogAction}). */

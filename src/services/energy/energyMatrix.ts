@@ -1,6 +1,10 @@
 import { Building } from "../../types.ts";
-import { type EnergyMetricKey } from "../energy/energyDataset.ts";
-import { DEFAULT_METRIC, type MetricFraming, metricFraming } from "./energyMetric.ts";
+import {
+  DEFAULT_METRIC,
+  type MetricFraming,
+  metricFraming,
+  type SelectableMetricKey,
+} from "./energyMetric.ts";
 import {
   type EnergyByBuildingYear,
   type LensBand,
@@ -72,7 +76,7 @@ export function buildEnergyMatrix(
   buildings: Building[],
   energyByBuilding: EnergyByBuildingYear,
   visibleIds: ReadonlySet<string> = new Set(buildings.map((b) => b.id)),
-  metric: EnergyMetricKey = DEFAULT_METRIC,
+  metric: SelectableMetricKey = DEFAULT_METRIC,
 ): EnergyMatrix {
   const years = selectableYears(energyByBuilding);
 

@@ -5,7 +5,7 @@ import type { AggregationDefinition } from "../../types.ts";
 import { useRefreshAggregation } from "../../hooks/mutations.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { BackLink } from "../detail/DetailView.tsx";
-import { FINDERS } from "../../routes.ts";
+import { AGGREGATIONS_VIEW } from "../../routes.ts";
 
 /** Capitalise the first letter (e.g. "average" → "Average"). */
 function capitalize(s: string): string {
@@ -32,7 +32,7 @@ export default function AggregationHeader(
 
   return (
     <Box>
-      <BackLink fallback={FINDERS.aggregations} />
+      <BackLink fallback={AGGREGATIONS_VIEW} />
       <Stack
         direction="row"
         sx={{
