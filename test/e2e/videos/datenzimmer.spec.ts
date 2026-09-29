@@ -219,7 +219,9 @@ test.describe("handbuch video: Datenzimmer", () => {
     // that is the whole payoff of joining a room: B is simply THERE to pick.
     await demoA2.click(shareDialog.getByLabel(vt("racLabel")));
     await demoA2.pause(1_200);
-    await demoA2.click(stageA2.getByRole("option").filter({ hasText: bWebId.split("/")[2] }).first());
+    // Options render the resolved profile name (AgentLabel), not the raw WebID —
+    // Bob shows up as the name his seeded profile carries.
+    await demoA2.click(stageA2.getByRole("option").filter({ hasText: "Bob Bauer" }).first());
     await demoA2.caption(
       "B steht zur Auswahl, weil beide im selben Datenzimmer sind – " +
         "freigegeben wird an seine WebID.",

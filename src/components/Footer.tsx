@@ -5,7 +5,9 @@ import Typography from "@mui/material/Typography";
 /**
  * Plain footer placed in normal page flow — project credits, the AGPL-3.0
  * source link, and the build commit. The Developer-mode toggle lives behind the
- * header network-activity indicator, not here.
+ * header network-activity indicator, not here. The IGF funding acknowledgment
+ * (logos + Fördernummer, IGF-Leitlinien §10.3) lives on the public Landing page
+ * footer, not repeated inside the authenticated app shell.
  */
 function Footer() {
   return (

@@ -39,13 +39,20 @@ export function FitToBuildings(
 ) {
   const map = useMap();
   const done = useRef(false);
+  // The viewport remembered from BEFORE this map instance mounted (a detail drill and
+  // back). Snapshotted at mount on purpose: `ViewportUrlSync` stores every `moveend`,
+  // including the ones this instance's own init raises — `invalidateSize()` on
+  // activation fires one — so reading the live store here would see that self-written
+  // default view, stand down, and never fit a fresh page whose buildings arrive a beat
+  // after the map (the map then sits at the country overview with no pins).
+  const remembered = useRef(getStoredViewport());
   const [searchParams] = useSearchParams();
   useEffect(() => {
     if (done.current || !active) return;
     // A remembered viewport (the in-session store, surviving a detail drill) or one
     // seeded in the URL (?c=&z=, a shared/deep link) wins over the auto-fit — the map
     // shouldn't be reframed to the markers. ViewportUrlSync applies it; we stand down.
-    if (getStoredViewport() || (searchParams.get("c") && searchParams.get("z"))) {
+    if (remembered.current || (searchParams.get("c") && searchParams.get("z"))) {
       done.current = true;
       return;
     }

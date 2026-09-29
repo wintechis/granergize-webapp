@@ -29,10 +29,14 @@ import {
   LOCAL_CSS_CONTROL_PORT,
   LOCAL_SEED,
 } from "../config/localSeed.ts";
+import { podDataDir } from "../config/podData.ts";
 
 const APP_PORT = Number(Deno.env.get("DEV_LOCAL_APP_PORT") ?? "5173") || 5173;
 const APP_DIR = Deno.env.get("VITE_POD_APP_DIR") ?? "granergize-dev";
 const BACKEND = (Deno.env.get("LOCAL_POD_SERVER") ?? "css").toLowerCase();
+// `LOCAL_POD_DATA=<dir>` keeps the Pod's data across restarts (CSS only; css.ts
+// reads the same resolver when it boots the server — this is just for the banner).
+const POD_DATA = podDataDir();
 
 // Block until the control server answers (GET → 200), which css.ts only starts
 // AFTER the pod has booted and seeded — so a success here means the IdP is ready
@@ -158,7 +162,9 @@ console.log(
     profilesSeeded
       ? "▶ Demo identities (names + org logos): seeded — Alice Ahlmann · Bob Bauer · Charlie Conrad."
       : `▶ Demo identities: NOT seeded (POST http://localhost:${LOCAL_CSS_CONTROL_PORT}/seed-profiles to retry).`,
-    `▶ App data lands under <pod>/${APP_DIR}/ (throwaway; gone on stop).`,
+    POD_DATA
+      ? `▶ App data lands under <pod>/${APP_DIR}/ — Pod data persists in ${POD_DATA} (LOCAL_POD_DATA).`
+      : `▶ App data lands under <pod>/${APP_DIR}/ (throwaway; gone on stop — set LOCAL_POD_DATA=<dir> to keep it).`,
     "▶ Ctrl+C stops both the app and the Pod server.",
     "",
   ].join("\n"),

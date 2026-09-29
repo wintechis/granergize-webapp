@@ -70,7 +70,7 @@ export async function importExampleBuildings(
   page: Page,
   { lang = E2E_LANG }: SeedOpts = {},
 ): Promise<void> {
-  await openBuildingsList(page);
+  await openBuildingsList(page, lang);
   const rows = page.locator("li[data-building-id]");
 
   // Already populated (used Pod, or residue from an earlier spec) — nothing to do.
@@ -123,7 +123,7 @@ export async function importSeriesBuilding(
   street: string,
   { lang = E2E_LANG }: SeedOpts = {},
 ): Promise<void> {
-  await openBuildingsList(page);
+  await openBuildingsList(page, lang);
   await stubGeoLookups(page);
   await page.getByRole("button", { name: t("bldgsAutofillFromFile", undefined, lang) })
     .click();

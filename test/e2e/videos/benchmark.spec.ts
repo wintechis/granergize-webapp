@@ -73,7 +73,6 @@ async function shareFirstBuildingTo(page: Page, webId: string) {
   await page.goto(buildingRoute("building", id));
   await page.getByRole("button", { name: vt("btnShare"), exact: true }).click();
   const dlg = page.getByRole("dialog");
-  await dlg.getByRole("button", { name: vt("shareByWebId") }).click();
   const recipient = dlg.getByLabel(vt("racLabel"));
   await recipient.fill(webId);
   await recipient.press("Enter");
@@ -194,7 +193,6 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await demoA.click(shareButton);
     const shareDialog = stageA.getByRole("dialog");
     await expect(shareDialog).toBeVisible({ timeout: 10_000 });
-    await demoA.click(shareDialog.getByRole("button", { name: vt("shareByWebId") }));
     const recipient = shareDialog.getByLabel(vt("racLabel"));
     await demoA.click(recipient);
     await demoA.click(stageA.getByRole("option", { name: /Charlie Conrad/ }));
@@ -361,9 +359,9 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await expect(
       stageA2.getByRole("row").filter({ hasText: vt("aeBenchmark") }).first(),
     ).toBeVisible({ timeout: 60_000 });
-    // "Benchmark provided by" is hardcoded English even in the de UI, so it stays
-    // a reliable proof the benchmark arrived.
-    await expect(stageA2.getByText(/benchmark provided by/i))
+    // The "Benchmark provided by" attribution proves the benchmark arrived — it is
+    // a catalog message now, so match it in the video's language.
+    await expect(stageA2.getByText(vt("aeBenchmarkProvidedBy")).first())
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
     await demoP.pause(1_500);

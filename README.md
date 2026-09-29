@@ -16,6 +16,10 @@ different buildings using the
 - Open `http://localhost:5173` in your browser
 - Run `deno task dev:local` (or `dev:local:jss`) for a fully local stack — a
   throwaway Pod + IdP with seeded logins, no remote Pod needed
+- To keep that local Pod's data across restarts, point it at a directory:
+  `LOCAL_POD_DATA=.local-pod deno task dev:local`. The accounts and everything
+  you saved come back on the next start (CSS backend only; the test lanes
+  always stay throwaway)
 
 ## Quick start
 

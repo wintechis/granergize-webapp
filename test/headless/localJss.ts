@@ -17,7 +17,7 @@
 import { LOCAL_CSS_PORT, LOCAL_SEED } from "../config/localSeed.ts";
 import type { LiveSessionLike } from "./liveSession.ts";
 import { verifyWebId } from "./webid.ts";
-import type { LocalAccount, LocalPod } from "./localPod.ts";
+import type { LocalAccount, LocalPod, LocalPodOptions } from "./localPod.ts";
 
 const JSS_VERSION = "0.0.205";
 
@@ -118,7 +118,19 @@ async function seedPod(
 }
 
 /** Start a local JSS on `port`, seeded with accounts A and B; resolves when ready. */
-export async function startJss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
+export async function startJss(
+  port = LOCAL_CSS_PORT,
+  opts: LocalPodOptions = {},
+): Promise<LocalPod> {
+  // A persistent data dir is CSS-only: JSS keeps its accounts OUTSIDE `-r` and its
+  // seeding (`POST /.pods`) 409s on an existing account, so re-booting on a kept dir
+  // would lose the logins anyway. Refuse loudly rather than boot a half-persisted pod.
+  if (opts.dataDir !== undefined) {
+    throw new Error(
+      "LOCAL_POD_DATA (a persistent Pod data dir) is supported by the CSS backend only — " +
+        "unset it, or drop LOCAL_POD_SERVER=jss.",
+    );
+  }
   const baseUrl = `http://localhost:${port}/`;
   // Reclaim the port before booting: a stray JSS from a crashed/force-killed prior
   // run would otherwise still answer the readiness probe AND already own accounts A/B,

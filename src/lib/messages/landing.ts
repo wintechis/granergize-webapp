@@ -386,9 +386,9 @@ export const landing = {
   },
   landingFundingTitle: { en: "Funding.", de: "Förderung.", fr: "Financement." },
   landingFundingBody: {
-    en: "Granergize is a project of the Industrial Collective Research (IGF), funded by the German Federal Ministry for Economic Affairs and Energy (BMWE). Funding reference 01IF23286N · duration April 2024 – June 2026.",
-    de: "Granergize ist ein Vorhaben der Industriellen Gemeinschaftsforschung (IGF), gefördert vom Bundesministerium für Wirtschaft und Energie (BMWE). Förderkennzeichen 01IF23286N · Laufzeit April 2024 – Juni 2026.",
-    fr: "Granergize est un projet de la recherche collective industrielle (IGF), financé par le ministère fédéral allemand de l’Économie et de l’Énergie (BMWE). Référence de financement 01IF23286N · durée avril 2024 – juin 2026.",
+    en: "Granergize is a project of the Industrial Collective Research (IGF), funded by the German Federal Ministry for Economic Affairs and Climate Action (BMWK) on the basis of a resolution of the German Bundestag. Funding reference 01IF23286N · duration April 2024 – June 2026.",
+    de: "Granergize ist ein Vorhaben der Industriellen Gemeinschaftsforschung (IGF), gefördert vom Bundesministerium für Wirtschaft und Klimaschutz (BMWK) aufgrund eines Beschlusses des Deutschen Bundestages. Förderkennzeichen 01IF23286N · Laufzeit April 2024 – Juni 2026.",
+    fr: "Granergize est un projet de la recherche collective industrielle (IGF), financé par le ministère fédéral allemand de l’Économie et de la Protection du climat (BMWK) sur la base d’une résolution du Bundestag allemand. Référence de financement 01IF23286N · durée avril 2024 – juin 2026.",
   },
   landingCopyright: {
     en: "© 2026 Fraunhofer IIS and FAU Erlangen-Nürnberg · Open source under AGPL-3.0",

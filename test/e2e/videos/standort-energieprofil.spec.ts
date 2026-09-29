@@ -73,6 +73,28 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     // The building's display name (the row heading) — its palette label, the text we
     // --- The stage: a fresh page (= a fresh recording) in the same context. ---
     const stage = await page.context().newPage();
+    // The palette scene sends the typed phrase to the LLM gateway, which needs
+    // `VITE_LLM_API_KEY` baked into the build. Without a key the app never sends the
+    // request (see `intentTranslate.ts`) and the scene would stall — so fall back to
+    // a stub that answers with the intent the real model produces for this phrase.
+    // The recording is the same either way; only the round-trip time differs.
+    const LLM_KEY = (globalThis as { process?: { env: Record<string, string | undefined> } })
+      .process?.env?.VITE_LLM_API_KEY;
+    if (!LLM_KEY) {
+      console.log("[standort] no VITE_LLM_API_KEY — stubbing the palette's LLM translation");
+      await stage.route("**/chat/completions", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            choices: [{
+              message: {
+                content: JSON.stringify({ name: "ShowBuilding", params: { id: BUILDING } }),
+              },
+            }],
+          }),
+        }));
+    }
     // The LLM launcher (the ">" natural-language path) is a Developer-mode affordance,
     // and the dev flag is read once at module init — set it BEFORE the stage loads so
     // the palette accepts NL. addInitScript re-runs on every load, so it always sticks.

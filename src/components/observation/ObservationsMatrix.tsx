@@ -260,31 +260,63 @@ export default function ObservationsMatrix(
         </Box>
       </Box>
 
-      {/* Two colour keys, because two colour systems are on screen: what a CELL's
-          colour means, and what the trend dot means. */}
+      {/* The explanation stays in view while the rows scroll: the finder section is
+          the page's scroll container (`FinderHeader`), and a long portfolio pushes
+          this block off-screen otherwise — so it sticks to the section's bottom edge,
+          on the page background, with the rows sliding beneath it. (Nothing between
+          here and the section may set `overflow`, or IT becomes the sticky's scroll
+          ancestor and the pin silently stops working.) */}
       <Box
         sx={{
+          position: "sticky",
+          bottom: 0,
           mt: 1.5,
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          columnGap: 3,
-          rowGap: 1,
+          pt: 1,
+          bgcolor: "background.default",
+          borderTop: 1,
+          borderColor: "divider",
+          // A sticky box can't leave its containing block's CONTENT box (a negative
+          // margin doesn't help), so it stops above the section's bottom padding
+          // (`p: 3`, FinderHeader) and the rows would scroll through that strip. Paint
+          // it over with a pseudo-element hanging below the box by exactly that
+          // padding, so the background visibly reaches the section's edge.
+          zIndex: 1,
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: "100%",
+            height: (theme) => theme.spacing(3),
+            bgcolor: "background.default",
+          },
         }}
       >
-        <BandKeys framing={framing} row title={t("obsLegendCells")} />
-        <LegendKeys items={trendItems} shape="dot" row title={t("obsViewTrend")} />
-      </Box>
+        {/* Two colour keys, because two colour systems are on screen: what a CELL's
+            colour means, and what the trend dot means. */}
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            columnGap: 3,
+            rowGap: 1,
+          }}
+        >
+          <BandKeys framing={framing} row title={t("obsLegendCells")} />
+          <LegendKeys items={trendItems} shape="dot" row title={t("obsViewTrend")} />
+        </Box>
 
-      {/* …and the one thing the swatches can't show: the cells are peer-relative and
-          re-frame as you filter, the trend is self-relative and doesn't. */}
-      <Box sx={{ mt: 0.5 }}>
-        <Typography variant="body2" color="text.secondary">
-          {t("obsLegendCellsHint")}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {t("obsLegendTrendHint")}
-        </Typography>
+        {/* …and the one thing the swatches can't show: the cells are peer-relative and
+            re-frame as you filter, the trend is self-relative and doesn't. */}
+        <Box sx={{ mt: 0.5 }}>
+          <Typography variant="body2" color="text.secondary">
+            {t("obsLegendCellsHint")}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t("obsLegendTrendHint")}
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );

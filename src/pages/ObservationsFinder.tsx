@@ -347,7 +347,10 @@ export default function ObservationsFinder() {
             </Typography>
           )}
           {!isLoading && view === "overtime" && filtered.length > 0 && (
-            <Box sx={{ minHeight: 0, overflow: "auto" }}>
+            // No `overflow` here: the matrix scrolls its grid horizontally itself, and
+            // its legend sticks to the bottom of the FinderHeader section — an
+            // overflow on this wrapper would hijack that sticky (see the matrix).
+            <Box>
               <ObservationsMatrix
                 buildings={filtered}
                 energyByYear={energyByYear}

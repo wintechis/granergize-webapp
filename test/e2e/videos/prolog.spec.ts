@@ -246,6 +246,11 @@ test.describe("handbuch video: Prolog", () => {
       "building",
       "Schritt 2: Alice legt ein Gebäude an – Koordinaten holt die App aus der Adresse",
     );
+    // The Organisation page is a standalone route (no tab bar), so leave it the
+    // way a user does — its own "Back" link — before heading for the Buildings tab.
+    await demoA.click(stageA.getByRole("link", { name: vt("btnBack"), exact: true }));
+    await expect(stageA.getByRole("tab", { name: vt("navBuildings") }))
+      .toBeVisible({ timeout: 60_000 });
     await demoA.click(stageA.getByRole("tab", { name: vt("navBuildings") }));
     await demoA.click(stageA.getByRole("button", { name: vt("btnList") }));
     await demoA.click(
@@ -316,7 +321,6 @@ test.describe("handbuch video: Prolog", () => {
     await demoA.click(shareButton);
     const shareDialog = stageA.getByRole("dialog");
     await expect(shareDialog).toBeVisible({ timeout: 10_000 });
-    await demoA.click(shareDialog.getByRole("button", { name: vt("shareByWebId") }));
     const recipient = shareDialog.getByLabel(vt("racLabel"));
     await demoA.type(recipient, bWebId);
     await recipient.press("Enter");
@@ -356,6 +360,12 @@ test.describe("handbuch video: Prolog", () => {
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageB);
     const demoB = await Demo.install(stageB, "B", t0b);
+    // Let the initial Buildings map fit to A's shared hall BEFORE leaving the tab.
+    // `FitToBuildings` fits once per mount and stands down for a remembered viewport,
+    // so if the buildings land only after we've moved on, the return to the map keeps
+    // the country overview (choropleth, no pins) and the shared marker never appears.
+    await stageB.locator(".leaflet-marker-icon.pin-shared").first()
+      .waitFor({ timeout: 60_000 });
 
     const sharedEntry = stageB
       .getByText(new RegExp(`^${vt("shareBuildingN", { id: "" }).trim()} `)).first();
@@ -374,6 +384,12 @@ test.describe("handbuch video: Prolog", () => {
       "Auf der Karte: Alices freigegebene Halle (orange markiert)",
     );
     await demoB.click(stageB.getByRole("tab", { name: vt("navBuildings") }));
+    // Establish the List finder first so A's shared building is loaded before
+    // toggling to the map — otherwise the marker's click can fire before the finder
+    // settles and never navigates (cf. vertrieb).
+    await demoB.click(stageB.getByRole("button", { name: vt("btnList") }));
+    await stageB.locator("li[data-building-id]").first()
+      .waitFor({ timeout: 60_000 });
     await demoB.click(
       stageB.getByLabel(vt("bldgsViewAria"))
         .getByRole("button", { name: vt("btnMap"), exact: true }),
@@ -382,13 +398,21 @@ test.describe("handbuch video: Prolog", () => {
     await sharedMarker.waitFor({ timeout: 60_000 });
     await waitForMapTiles(stageB);
     await demoB.pause(1_500);
-    await demoB.click(sharedMarker);
+    // Plain click, no cursor-hover: hovering a building marker opens its tooltip,
+    // which then swallows the click; a direct click navigates to A's building page.
+    // Click → nav, retried: a click can race the map's zoom/settle and be swallowed by
+    // Leaflet (no nav). A BrowserRouter pushState nav fires no "load", so poll the URL
+    // (`toHaveURL`) rather than `waitForURL` (cf. uri-state.spec).
+    await expect(async () => {
+      await sharedMarker.click({ force: true });
+      await expect(stageB).toHaveURL(/\/building\?/, { timeout: 2_000 });
+    }).toPass({ timeout: 60_000, intervals: [500] });
 
     await demoB.scene(
       "payoff",
       "B liest Alices Gebäude- und Energiedaten live aus Alices Pod",
     );
-    await stageB.waitForURL(/\/building\?/, { timeout: 60_000 });
+    await expect(stageB).toHaveURL(/\/building\?/, { timeout: 60_000 });
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await demoB.pause(2_000);
     await demoB.caption("");

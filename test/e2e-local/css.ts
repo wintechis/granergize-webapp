@@ -19,6 +19,7 @@ import { sessionGateway } from "../../src/services/pod/podGateway.ts";
  */
 import { type LocalPod, startLocalPod } from "../headless/localPod.ts";
 import { LOCAL_CSS_CONTROL_PORT, LOCAL_CSS_PORT } from "../config/localSeed.ts";
+import { podDataDir } from "../config/podData.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   appRoot,
@@ -115,7 +116,10 @@ async function bootCss(): Promise<LocalPod> {
     if (attempt > 1) await killPortHolder(LOCAL_CSS_PORT);
     await waitForPortFree(LOCAL_CSS_PORT);
     try {
-      return await startLocalPod(LOCAL_CSS_PORT);
+      // `LOCAL_POD_DATA` (dev stack only — the resolver blanks it under E2E_LOCAL=1)
+      // pins the data dir so a `/restart` or a fresh `dev:local` reboots on the SAME
+      // accounts and content instead of a wiped temp dir.
+      return await startLocalPod(LOCAL_CSS_PORT, { dataDir: podDataDir() });
     } catch (e) {
       lastErr = e;
       console.error(`CSS boot attempt ${attempt}/3 failed: ${e}`);

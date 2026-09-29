@@ -30,6 +30,8 @@ import BoltIcon from "@mui/icons-material/Bolt";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import Modal from "../components/Modal.tsx";
 import { useT } from "../context/I18nProvider.tsx";
+import igfLogo from "../assets/igf-logo.png";
+import foerderungLogo from "../assets/foerderung-bmwk.png";
 
 const LOGO = `${import.meta.env.BASE_URL}favicon.svg`;
 const MAXW = 1120;
@@ -460,9 +462,18 @@ export default function Landing(
           </Box>
 
           <Box sx={{ mt: 5, pt: 3, borderTop: "1px solid rgba(255,255,255,.1)", display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center", justifyContent: "space-between" }}>
-            <Typography sx={{ fontSize: 13, maxWidth: "70ch" }}>
-              <Box component="span" sx={{ color: "#fff", fontWeight: 700 }}>{t("landingFundingTitle")}</Box> {t("landingFundingBody")}
-            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2, maxWidth: "78ch" }}>
+              {/* IGF logos on a white chip — the dark footer band would swallow
+                  the IGF logo's black wordmark and the funding mark's white
+                  background (IGF-Leitlinien §10.3). */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, bgcolor: "#fff", borderRadius: 1, px: 1.5, py: 1, flexShrink: 0 }}>
+                <Box component="img" src={igfLogo} alt="IGF – Industrielle Gemeinschaftsforschung" sx={{ height: 34, width: "auto" }} />
+                <Box component="img" src={foerderungLogo} alt="Gefördert vom Bundesministerium für Wirtschaft und Klimaschutz aufgrund eines Beschlusses des Deutschen Bundestages – DLR Projektträger" sx={{ height: 34, width: "auto" }} />
+              </Box>
+              <Typography sx={{ fontSize: 13, maxWidth: "52ch" }}>
+                <Box component="span" sx={{ color: "#fff", fontWeight: 700 }}>{t("landingFundingTitle")}</Box> {t("landingFundingBody")}
+              </Typography>
+            </Box>
             <Stack direction="row" sx={{ gap: 1 }}>
               <Link href="https://www.ti.rw.fau.de/granergize/" target="_blank" rel="noopener" sx={{ color: "#7fc4ec", fontSize: 13 }}>Granergize@FAU</Link>
               <Link href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html" target="_blank" rel="noopener" sx={{ color: "#7fc4ec", fontSize: 13 }}>Granergize@IIS</Link>

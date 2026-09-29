@@ -73,3 +73,6 @@ ds-bundle/
 .design-sync/learnings/
 .design-sync/node_modules
 .design-sync/previews/*.compiled
+
+# Persistent local Pod data (LOCAL_POD_DATA=.local-pod, see README Setup)
+.local-pod/

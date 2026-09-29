@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { agentFieldT, metricT, t } from "./i18n.ts";
+import { agentFieldT, E2E_LANG, metricT, t } from "./i18n.ts";
+import type { Lang } from "../../../src/lib/language.ts";
 import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
 import {
@@ -28,9 +29,15 @@ export const buildingIdOf = (row: Locator): Promise<string | null> =>
  * Manage into one Buildings tab with a Map⇄List toggle that lands on Map, so
  * reaching the list is now: select the Buildings tab, then toggle to List.
  */
-export async function openBuildingsList(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: t("navBuildings") }).click();
-  await page.getByRole("button", { name: t("btnList") }).click();
+export async function openBuildingsList(
+  page: Page,
+  lang: Lang = E2E_LANG,
+): Promise<void> {
+  // `lang` follows the UI the caller drives (the handbuch videos render in
+  // `E2E_VID_LANG`, not the suite's `E2E_LANG`), so the tab/toggle names resolve
+  // in the language actually on screen.
+  await page.getByRole("tab", { name: t("navBuildings", undefined, lang) }).click();
+  await page.getByRole("button", { name: t("btnList", undefined, lang) }).click();
 }
 
 /**
@@ -39,13 +46,16 @@ export async function openBuildingsList(page: Page): Promise<void> {
  * lands on Map, but a prior `openBuildingsList` may have left List active, so
  * select the tab then the Map toggle explicitly.
  */
-export async function openBuildingsMap(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: t("navBuildings") }).click();
+export async function openBuildingsMap(
+  page: Page,
+  lang: Lang = E2E_LANG,
+): Promise<void> {
+  await page.getByRole("tab", { name: t("navBuildings", undefined, lang) }).click();
   // Scope to the cube's Space-axis group (`bldgsViewAria`): a building's own detail
   // page carries a separate "Map" toggle, so keep the click scoped + defensive.
   await page
-    .getByLabel(t("bldgsViewAria"))
-    .getByRole("button", { name: t("btnMap"), exact: true })
+    .getByLabel(t("bldgsViewAria", undefined, lang))
+    .getByRole("button", { name: t("btnMap", undefined, lang), exact: true })
     .click();
 }
 

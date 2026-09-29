@@ -6,24 +6,35 @@
  * that `getLiveSession` (test/headless/liveSession.ts) speaks.
  *
  * CSS is a Node app; we spawn it via `npx @solid/community-server` and poll until
- * ready. Data lives in a temp dir wiped on stop(). Credentials are fixed local
+ * ready. Data lives in a temp dir wiped on stop() — unless the caller pins a
+ * `dataDir` (the dev stack's `LOCAL_POD_DATA` opt-in, see
+ * `test/config/podData.ts`), which is reused across boots and kept on stop; the
+ * account seeder tolerates already-existing accounts (it warns and moves on), so a
+ * re-boot on the same dir keeps everything. Credentials are fixed local
  * throwaways — nothing committed, nothing sensitive — and come from the shared
  * `test/config/localSeed.ts` so the browser "local" tier logs into the SAME ones.
  */
 import { LOCAL_CSS_PORT, LOCAL_SEED } from "../config/localSeed.ts";
 import { discoverWebId, getLiveSession } from "./liveSession.ts";
 import { verifyWebId } from "./webid.ts";
-import type { LocalAccount, LocalPod } from "./localPod.ts";
+import type { LocalAccount, LocalPod, LocalPodOptions } from "./localPod.ts";
 
 const CSS_VERSION = "^7";
 
 /** Start a local CSS on `port`, seeded with accounts A and B; resolves when ready.
  *  The CSS backend of {@link startLocalPod} (test/headless/localPod.ts). */
-export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
+export async function startCss(
+  port = LOCAL_CSS_PORT,
+  opts: LocalPodOptions = {},
+): Promise<LocalPod> {
   const baseUrl = `http://localhost:${port}/`;
   const issuer = baseUrl.replace(/\/$/, "");
 
-  const dataDir = await Deno.makeTempDir({ prefix: "css-it-" });
+  // Persistent dir: create if missing, never remove. Throwaway: fresh temp, removed.
+  const persistent = opts.dataDir !== undefined;
+  const dataDir = persistent
+    ? await Deno.mkdir(opts.dataDir!, { recursive: true }).then(() => opts.dataDir!)
+    : await Deno.makeTempDir({ prefix: "css-it-" });
   const seedFile = `${dataDir}/seed.json`;
   await Deno.writeTextFile(
     seedFile,
@@ -46,8 +57,12 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
     ? await Deno.open(logPath, { write: true, create: true, append: true })
     : null;
 
-  // Default config includes the account API + client-credentials; -f points data
-  // at our temp dir; -b fixes the base URL so seeded WebIDs use the right host.
+  // Default config includes the account API + client-credentials but keeps every
+  // resource IN MEMORY (`-f` only names where a file-backed config would write) —
+  // right for the throwaway lanes. A persistent dir therefore selects CSS's
+  // `file.json` config: same account API, resources AND the account/credential
+  // store on disk under `-f`, so a re-boot on that dir finds everything again.
+  // -b fixes the base URL so seeded WebIDs use the right host.
   // `setsid` puts CSS in its own process group so stop() can kill the WHOLE tree
   // (npx → node) at once — killing just the npx child orphans the node server.
   const child = new Deno.Command("setsid", {
@@ -55,6 +70,7 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
       "npx",
       "--yes",
       `@solid/community-server@${CSS_VERSION}`,
+      ...(persistent ? ["-c", "@css:config/file.json"] : []),
       "-p",
       String(port),
       "-b",
@@ -100,7 +116,9 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
     try {
       logFile?.close();
     } catch { /* already closed */ }
-    await Deno.remove(dataDir, { recursive: true }).catch(() => {});
+    if (!persistent) {
+      await Deno.remove(dataDir, { recursive: true }).catch(() => {});
+    }
   };
 
   // Poll readiness: OIDC discovery is served once CSS is up, and the account API

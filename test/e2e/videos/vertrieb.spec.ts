@@ -168,7 +168,6 @@ test.describe("handbuch video: Vertriebsunterstützung", () => {
       "share-pick",
       "Als Empfänger schlägt die App B aus dem Adressbuch vor",
     );
-    await demoA.click(shareDialog.getByRole("button", { name: vt("shareByWebId") }));
     const recipient = shareDialog.getByLabel(vt("racLabel"));
     await demoA.click(recipient);
     await demoA.click(stageA.getByRole("option", { name: /Bob Bauer/ }));
@@ -213,6 +212,10 @@ test.describe("handbuch video: Vertriebsunterstützung", () => {
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageB);
     const demoB = await Demo.install(stageB, "B", t0b);
+    // Let the initial Buildings map settle on B's own objects before leaving the tab
+    // (the fit is once per mount; A's hall arrives a beat later and sits ~10 km away,
+    // so it is framed in explicitly in the map scene below).
+    await stageB.locator(".leaflet-marker-icon").first().waitFor({ timeout: 60_000 });
 
     const sharedEntry = stageB.getByText(SHARED_PREFIX).first();
     await demoB.scene(
@@ -241,6 +244,15 @@ test.describe("handbuch video: Vertriebsunterstützung", () => {
     );
     const sharedMarker = stageB
       .locator(".leaflet-marker-icon.pin-shared").first();
+    // The map framed B's own objects at street zoom; A's hall is ~10 km away and
+    // leaflet.markercluster renders only the pins inside the viewport, so an off-screen
+    // pin has no DOM node to wait for. Zoom out (Leaflet's own control, language-free)
+    // until the shared pin is in view — which is also the scene: A's hall NEXT TO B's.
+    const zoomOut = stageB.getByRole("button", { name: "Zoom out" });
+    for (let i = 0; i < 7 && !(await sharedMarker.isVisible()); i++) {
+      await demoB.click(zoomOut);
+      await demoB.pause(500);
+    }
     await sharedMarker.waitFor({ timeout: 60_000 });
     await waitForMapTiles(stageB);
     await demoB.pause(1_500);
@@ -248,13 +260,19 @@ test.describe("handbuch video: Vertriebsunterstützung", () => {
     // building page (`/building?…`), where B reads A's data live.
     // Plain click, no cursor-hover: hovering a building marker opens its tooltip,
     // which then swallows the click; a direct click navigates to A's building page.
-    await sharedMarker.click();
+    // Click → nav, retried: a click can race the map's zoom/settle and be swallowed by
+    // Leaflet (no nav). A BrowserRouter pushState nav fires no "load", so poll the URL
+    // (`toHaveURL`) rather than `waitForURL` (cf. uri-state.spec).
+    await expect(async () => {
+      await sharedMarker.click({ force: true });
+      await expect(stageB).toHaveURL(/\/building\?/, { timeout: 2_000 });
+    }).toPass({ timeout: 60_000, intervals: [500] });
 
     await demoB.scene(
       "payoff",
       "B sieht A's Gebäude- und Energiedaten live aus A's Pod – und kann die Effizienz der Halle im Vertrieb belegen",
     );
-    await stageB.waitForURL(/\/building\?/, { timeout: 60_000 });
+    await expect(stageB).toHaveURL(/\/building\?/, { timeout: 60_000 });
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await demoB.pause(2_000);
     await demoB.caption(

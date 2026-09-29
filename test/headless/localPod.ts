@@ -46,7 +46,20 @@ export interface LocalPod {
   liveSession: (slot: Slot) => Promise<LiveSessionLike>;
 }
 
+/** Boot options shared by both backends. */
+export interface LocalPodOptions {
+  /**
+   * Keep the server's data in this directory and leave it in place on stop, so
+   * accounts and content survive a restart (see `test/config/podData.ts`).
+   * Omitted → a fresh temp dir per boot, wiped on stop. CSS only: JSS rejects it.
+   */
+  dataDir?: string;
+}
+
 /** Start the configured local Pod server, seeded with accounts A, B and C. */
-export function startLocalPod(port = LOCAL_POD_PORT): Promise<LocalPod> {
-  return podServerKind() === "jss" ? startJss(port) : startCss(port);
+export function startLocalPod(
+  port = LOCAL_POD_PORT,
+  opts: LocalPodOptions = {},
+): Promise<LocalPod> {
+  return podServerKind() === "jss" ? startJss(port, opts) : startCss(port, opts);
 }
