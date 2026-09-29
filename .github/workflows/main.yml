@@ -67,9 +67,8 @@ jobs:
           include-hidden-files: true
   deploy:
     # Gate: only deploy if build, unit tests, lint, and typecheck all pass,
-    # and only from the dev-aha branch (CI still runs on every branch).
     needs: [build, test, lint, check]
-    if: github.ref == 'refs/heads/dev-aha'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Setup Repo
