@@ -76,3 +76,7 @@ ds-bundle/
 
 # Persistent local Pod data (LOCAL_POD_DATA=.local-pod, see README Setup)
 .local-pod/
+
+# Local project instructions and the (non-public) final report — never commit
+/CLAUDE.md
+/abschlussbericht/
