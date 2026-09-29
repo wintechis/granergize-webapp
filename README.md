@@ -51,6 +51,15 @@ exported building re-imports the same way, so an export doubles as the import
 template for your own data. The [handbook](docs/handbuch.md) walks through
 the app using exactly these example buildings.
 
+## Funding
+
+Granergize is a project of the Industrial Collective Research (IGF), funded by
+the German Federal Ministry for Economic Affairs and Climate Action (BMWK) on
+the basis of a resolution of the German Bundestag. Funding reference
+**01IF23286N** (duration April 2024 – June 2026).
+
+![Gefördert im Rahmen der Industriellen Gemeinschaftsforschung (IGF) vom Bundesministerium für Wirtschaft und Klimaschutz aufgrund eines Beschlusses des Deutschen Bundestages](docs/igf-funding.png)
+
 ## License
 
 Copyright (C) 2025–2026 Thomas Wehr, Andreas Harth and the Granergize project
