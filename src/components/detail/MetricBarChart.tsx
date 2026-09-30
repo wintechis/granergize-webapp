@@ -10,6 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from "../../constants/chartColors.ts";
+import { formatCompact, formatNumberMax } from "../../lib/formatNumber.ts";
 
 /**
  * A small SVG bar chart (Recharts) for the energy detail views — one or more
@@ -45,18 +46,24 @@ export default function MetricBarChart(
 ) {
   // Tufte data-ink: faint horizontal reference lines only (no vertical grid), and no
   // axis/tick lines — the tick labels alone read the scale. Bars keep their honest 0
-  // baseline (Recharts' default for the value axis).
+  // baseline (Recharts' default for the value axis). Ticks use the compact de-DE
+  // form ("1,8 Mio.") so large annual figures fit the axis instead of being clipped;
+  // the axis is wide enough that the rotated unit label sits left of the ticks.
   const tick = { fill: CHART_AXIS_TICK_COLOR };
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
+      <BarChart
+        data={data}
+        margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
+      >
         <CartesianGrid vertical={false} stroke={CHART_GRID_COLOR} />
         <XAxis dataKey={xKey} axisLine={false} tickLine={false} tick={tick} />
         <YAxis
-          width={56}
+          width={yUnit ? 84 : 64}
           axisLine={false}
           tickLine={false}
           tick={tick}
+          tickFormatter={(v: number) => formatCompact(v)}
           label={yUnit
             ? {
               value: yUnit,
@@ -66,7 +73,7 @@ export default function MetricBarChart(
             }
             : undefined}
         />
-        <Tooltip />
+        <Tooltip formatter={(v) => typeof v === "number" ? formatNumberMax(v, 2) : v} />
         {!hideLegend && <Legend />}
         {bars.map((b) => (
           <Bar key={b.key} dataKey={b.key} name={b.name} fill={b.color}>

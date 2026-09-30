@@ -20,6 +20,22 @@ function getFormatter(minDigits: number, maxDigits: number): Intl.NumberFormat {
   return formatter;
 }
 
+let compactFormatter: Intl.NumberFormat | undefined;
+
+/**
+ * Short axis-tick form: `1,35 Mio.`, `450.000`, `12,5` — de-DE compact notation for
+ * millions and above (a 7-digit figure would not fit a chart's value axis), plain
+ * grouped digits below.
+ */
+export function formatCompact(value: number): string {
+  if (Math.abs(value) < 1_000_000) return formatNumberMax(value, 1);
+  compactFormatter ??= new Intl.NumberFormat("de-DE", {
+    notation: "compact",
+    maximumFractionDigits: 2,
+  });
+  return compactFormatter.format(value);
+}
+
 /** Fixed-width fraction: exactly `decimals` fraction digits (min = max). */
 export function formatNumber(value: number, decimals = 0): string {
   return getFormatter(decimals, decimals).format(value);

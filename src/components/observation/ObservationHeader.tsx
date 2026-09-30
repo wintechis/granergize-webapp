@@ -5,6 +5,7 @@ import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { buildingRoute, FINDERS } from "../../routes.ts";
 import { BackLink, RefLink } from "../detail/DetailView.tsx";
 import EnergyEntryButton from "./EnergyEntryButton.tsx";
+import { msg } from "../../lib/messages.ts";
 
 /**
  * The observation (energy) page's header. The observations are kept **independent of
@@ -43,12 +44,15 @@ export default function ObservationHeader(
             <Typography variant="h5">{buildingDisplayName(building)}</Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            Energy{year ? ` · latest year ${year}` : ""}
+            {msg("ohEnergy")}
+            {year ? ` · ${msg("ohLatestYear", { year })}` : ""}
           </Typography>
           {/* The observations link OUT to the building rather than inheriting its
               owned/shared identity — keeping the energy view independent. */}
           <Typography variant="body2" sx={{ mt: 0.5 }}>
-            <RefLink to={buildingRoute(building.id)}>Building details</RefLink>
+            <RefLink to={buildingRoute(building.id)}>
+              {msg("ohBuildingDetails")}
+            </RefLink>
           </Typography>
         </Box>
         {!shared && (

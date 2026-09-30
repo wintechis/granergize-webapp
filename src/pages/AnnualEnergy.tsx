@@ -79,7 +79,7 @@ const headerOf = (m: AnnualMetricDesc, unit: string) =>
 /** Chart-section title from the vocab full label + unit: "Electricity
  * consumption (kWh/year)" / "Renewable self-generated share (%)". */
 const chartTitleOf = (m: AnnualMetricDesc, unit: string) =>
-  `${metricLabel(m.key)} (${unit === "%" ? "%" : `${unit}/year`})`;
+  `${metricLabel(m.key)} (${unit === "%" ? "%" : msg("aePerYear", { unit })})`;
 
 class ChartErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -99,7 +99,7 @@ class ChartErrorBoundary extends React.Component<
     if (this.state.error) {
       return (
         <Typography color="error">
-          Chart error: {this.state.error.message}
+          {msg("aeChartError", { message: this.state.error.message })}
         </Typography>
       );
     }
@@ -205,7 +205,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const metricBars = (label: string, color: string) => [
     { key: "actual", name: label, color },
     ...(hasPlanned
-      ? [{ key: "planned", name: `${label} (planned)`, color: PLANNED_COLOR }]
+      ? [{ key: "planned", name: `${label} ${msg("aePlannedSuffix")}`, color: PLANNED_COLOR }]
       : []),
   ];
 
@@ -222,13 +222,13 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
     <ChartErrorBoundary>
       <DetailCard
         icon={<ElectricBoltIcon />}
-        title={`Annual Energy and Water — ${buildingDisplayName(building)}`}
+        title={msg("aeTitle", { name: buildingDisplayName(building) })}
         spacing={2}
       >
         {yearsNum.length === 0
           ? (
             <Typography color="text.secondary">
-              No annual energy data available for this building.
+              {msg("aeNoAnnualData")}
             </Typography>
           )
           : (
@@ -266,7 +266,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                         p && (
                           <TableRow hover key={`${y}-planned`}>
                             <TableCell sx={{ color: "text.secondary" }}>
-                              {y} (planned)
+                              {y} {msg("aePlannedSuffix")}
                             </TableCell>
                             {cells(p)}
                           </TableRow>
@@ -325,15 +325,12 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
               </TableContainer>
               {hasOperatorAvg && (
                 <Typography variant="body2" color="text.secondary">
-                  Operator average — mean across all buildings with the same
-                  "Operated by" agent, each counted with its latest actual year
-                  (the Betreiber benchmark).
+                  {msg("aeOperatorAvgNote")}
                 </Typography>
               )}
               {hasPortfolio && (
                 <Typography variant="body2" color="text.secondary">
-                  Portfolio average — mean across your own buildings carrying the
-                  metric.
+                  {msg("aePortfolioAvgNote")}
                 </Typography>
               )}
               {benchmarkProviders.length > 0 && (

@@ -144,7 +144,7 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.goto(buildingRoute("observation", id));
     // hasPlanned adds a "<metric> (planned)" series to the chart legend — its
     // presence proves the entered planned dataset flowed back into the comparison.
-    await expect(page.getByText(/\(planned\)/).first())
+    await expect(page.getByText(t("aePlannedSuffix")).first())
       .toBeVisible({ timeout: T.action });
   });
 

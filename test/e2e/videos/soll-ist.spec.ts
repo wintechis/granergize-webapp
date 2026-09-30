@@ -156,14 +156,14 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await expect(yearInput).toBeHidden({ timeout: 10_000 });
 
     // --- Scene 3: the payoff — plan next to actual in the annual overview. The
-    //     "(planned)" marker is hardcoded English even in the de UI, so it stays
+    //     planned-row marker ("(Soll)" in de) comes from the catalog, so it stays
     //     a reliable target. Land there as a scene cut and settle. ---
     await demo.scene(
       "payoff",
       "Die Jahresübersicht stellt Soll und Ist desselben Jahres direkt gegenüber",
     );
     await stage.goto(buildingRoute("observation", buildingId));
-    const planned = stage.getByText(/\(planned\)/i).first();
+    const planned = stage.getByText(vt("aePlannedSuffix")).first();
     await expect(planned).toBeVisible({ timeout: 60_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});
     await demo.pause(1_500);
