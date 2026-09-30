@@ -8,6 +8,7 @@ import {
   webIdOf,
 } from "../helpers/login.ts";
 import { freshPage } from "../helpers/twoPod.ts";
+import { allowLiveBasemap } from "../helpers/stubBasemap.ts";
 import { addEnergyYear, buildingRoute } from "../helpers/manage.ts";
 import { importExampleBuildings } from "../helpers/seed.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
@@ -616,6 +617,9 @@ test.describe("handbuch screenshots", () => {
       return;
     }
     const b = await freshPage(browser, B);
+    // freshPage stubs map tiles (1×1 PNG) for test speed; the figures need the real
+    // aerial/basemap imagery, or B's maps render grey.
+    await allowLiveBasemap(b.page);
     try {
       // B's authoritative WebID is discovered after login (not built from creds).
       const bWebId = await webIdOf(b.page);

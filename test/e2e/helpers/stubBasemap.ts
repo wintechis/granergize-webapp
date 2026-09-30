@@ -24,10 +24,22 @@ export async function stubBasemapTiles(page: Page): Promise<void> {
   // basemap.de WMS (every map) + the Bavaria orthophoto WMS (the building-detail
   // locator thumbnail's base layer) — both pure background imagery no spec asserts.
   await page.route(
-    /geodatenzentrum\.de|geoservices\.bayern\.de/,
+    BASEMAP_TILE_HOSTS,
     (route) =>
       route.fulfill({ status: 200, contentType: "image/png", body: PNG_1x1 }),
   );
+}
+
+/** The basemap/orthophoto WMS hosts {@link stubBasemapTiles} stubs. */
+export const BASEMAP_TILE_HOSTS = /geodatenzentrum\.de|geoservices\.bayern\.de/;
+
+/**
+ * Drop the tile stub so the page draws the REAL basemap/orthophoto — for the
+ * handbuch screenshots, whose figures must show the imagery (a stubbed tile renders
+ * as a grey map). Call AFTER page creation.
+ */
+export async function allowLiveBasemap(page: Page): Promise<void> {
+  await page.unroute(BASEMAP_TILE_HOSTS).catch(() => {});
 }
 
 /** CORS headers so a stubbed cross-origin GET resolves like the real wrapper would. */
