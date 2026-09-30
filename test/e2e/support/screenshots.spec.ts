@@ -11,7 +11,7 @@ import { freshPage } from "../helpers/twoPod.ts";
 import { addEnergyYear, buildingRoute } from "../helpers/manage.ts";
 import { importExampleBuildings } from "../helpers/seed.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 
 /**
@@ -101,7 +101,7 @@ async function waitForMapTiles(page: Page) {
  * Alert has no close button, so an alert-scoped close-click would never resolve).
  */
 async function dismissToasts(page: Page) {
-  await page.getByRole("button", { name: /^close$/i }).first()
+  await page.getByRole("button", { name: /^(close|schließen)$/i }).first()
     .click({ timeout: 4_000 }).catch(() => {});
 }
 
@@ -148,7 +148,7 @@ test.describe("handbuch screenshots", () => {
         Record<string, string>;
       contactWebId = webIds.B ?? contactWebId;
       await page.reload();
-      await expect(page.getByRole("tab", { name: en("navBuildings") }))
+      await expect(page.getByRole("tab", { name: t("navBuildings") }))
         .toBeVisible({ timeout: 60_000 });
     }
 
@@ -166,8 +166,8 @@ test.describe("handbuch screenshots", () => {
     //     logo + avatar (from /seed-profiles). Best-effort: on an idempotent
     //     re-run against a non-fresh Pod the map already has markers, so the
     //     committed figure is kept. ---
-    await page.getByRole("tab", { name: en("navBuildings") }).click();
-    await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await page.getByRole("tab", { name: t("navBuildings") }).click();
+    await page.getByLabel(t("bldgsViewAria")).getByRole("button", { name: t("btnMap"), exact: true }).click();
     await waitForMapTiles(page);
     await page.waitForTimeout(800);
     await shot(page, "erster-start.png");
@@ -180,20 +180,20 @@ test.describe("handbuch screenshots", () => {
     //     world-readable logo) — setting one here would overwrite it — so only
     //     the remote tier sets an org through the UI. ---
     if (!E2E_LOCAL) {
-      await page.getByRole("button", { name: en("menuAccountAria") }).click();
-      await page.getByRole("menuitem", { name: /organisation/i }).click();
+      await page.getByRole("button", { name: t("menuAccountAria") }).click();
+      await page.getByRole("menuitem", { name: t("menuOrganisation") }).click();
       const orgDialog = page.getByRole("dialog");
       await expect(orgDialog).toBeVisible({ timeout: 30_000 });
-      await orgDialog.getByLabel(en("lblCompanyName"))
+      await orgDialog.getByLabel(t("lblCompanyName"))
         .fill("Friedrich-Alexander-Universität Erlangen-Nürnberg");
       // The org resolves in a building marker's hover card via its PROV
       // attribution to the producing agent (A), recorded on every building A adds.
       await orgDialog.locator('input[type="file"]')
         .setInputFiles("test/e2e/fixtures/fau-logo.png");
-      await expect(orgDialog.getByAltText("Organisation logo"))
+      await expect(orgDialog.getByAltText(t("orgLogoAlt")))
         .toBeVisible({ timeout: 15_000 });
-      await orgDialog.getByRole("button", { name: /^save$/i }).click();
-      await expect(page.getByText(/organisation saved/i))
+      await orgDialog.getByRole("button", { name: t("btnSave"), exact: true }).click();
+      await expect(page.getByText(t("organisationSaved")))
         .toBeVisible({ timeout: 60_000 });
       // Dismiss the toast so it doesn't linger into the next (room) screenshot.
       await dismissToasts(page);
@@ -207,18 +207,18 @@ test.describe("handbuch screenshots", () => {
     //     finder; enter the active room if one exists, else host a fresh one
     //     ("Host a data room" navigates straight onto the new room's page). The
     //     room.png figure now captures that room page (with a role assigned). ---
-    await page.getByRole("tab", { name: en("navMeet") }).click();
-    const activeRoomRow = page.locator("li", { hasText: /active/ }).first();
+    await page.getByRole("tab", { name: t("navMeet") }).click();
+    const activeRoomRow = page.locator("li", { hasText: t("roomActive") }).first();
     if (await activeRoomRow.count()) {
       await activeRoomRow.getByRole("link").first().click();
     } else {
-      await page.getByRole("button", { name: /host a data room/i }).click();
+      await page.getByRole("button", { name: t("roomHostBtn") }).click();
     }
     // Landed on the standalone room page (no app-shell tabs): the members list —
     // the room's point, a directory of names + the WebIDs you share with —
     // appears once membership has folded.
     await expect(page).toHaveURL(/\/room\?/, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: en("secMembers") }))
+    await expect(page.getByRole("heading", { name: t("secMembers") }))
       .toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(1000);
     await page.evaluate(() => globalThis.scrollTo(0, 0));
@@ -226,9 +226,9 @@ test.describe("handbuch screenshots", () => {
     // Back to the app shell (the room page is a standalone route without tabs) so
     // the Buildings Map is reachable.
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: en("navBuildings") }))
+    await expect(page.getByRole("tab", { name: t("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
-    await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await page.getByLabel(t("bldgsViewAria")).getByRole("button", { name: t("btnMap"), exact: true }).click();
 
     // Dismiss any lingering toast, then import the example buildings the
     // same way a reader does — Add building → "Autofill from file" (handbuch
@@ -261,23 +261,23 @@ test.describe("handbuch screenshots", () => {
         // C owns no buildings: dismiss C's fresh-Pod onboarding banner.
         await c.page.getByRole("button", { name: "No thanks" })
           .click({ timeout: 8_000 }).catch(() => {});
-        await c.page.getByRole("tab", { name: en("navAggregations") }).click();
+        await c.page.getByRole("tab", { name: t("navAggregations") }).click();
         const aggregationRow = c.page.locator("li").filter({ hasText: BENCHMARK_NAME })
           .first();
         await expect(aggregationRow).toBeVisible({ timeout: 60_000 });
-        await aggregationRow.getByRole("button", { name: en("aggShareAria") }).click();
+        await aggregationRow.getByRole("button", { name: t("aggShareAria") }).click();
         const shareDialog = c.page.getByRole("dialog");
         const addAll = shareDialog.getByRole("button", {
-          name: /add all \d+ contributors/i,
+          name: new RegExp(t("shareAddAllContributors", { count: "\\d+" })),
         });
         await expect(addAll).toBeEnabled({ timeout: 60_000 });
         await addAll.click();
         await c.page.waitForTimeout(500);
         await shot(c.page, "benchmark-share-back.png");
-        await shareDialog.getByRole("button", { name: "Review and Share" }).click();
-        await shareDialog.getByRole("button", { name: "Confirm Share" })
+        await shareDialog.getByRole("button", { name: t("shareReviewAndShare") }).click();
+        await shareDialog.getByRole("button", { name: t("shareConfirmShare") })
           .click({ timeout: 10_000 });
-        await expect(shareDialog.getByText(/shared successfully/i))
+        await expect(shareDialog.getByText(t("shareSuccessWith")))
           .toBeVisible({ timeout: 120_000 });
       } finally {
         await c.ctx.close();
@@ -289,7 +289,7 @@ test.describe("handbuch screenshots", () => {
       // (the app's reload drain archives the received grant), then return to
       // the Connect tab the next section expects.
       await page.reload();
-      const connectTab = page.getByRole("tab", { name: en("navAgents") });
+      const connectTab = page.getByRole("tab", { name: t("navAgents") });
       await expect(connectTab).toBeVisible({ timeout: 60_000 });
       await connectTab.click();
     }
@@ -303,10 +303,10 @@ test.describe("handbuch screenshots", () => {
     const webIdField = page.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await webIdField.fill(contactWebId, { timeout: 15_000 });
-    const saveAgent = page.getByRole("button", { name: en("agentAddAria") });
+    const saveAgent = page.getByRole("button", { name: t("agentAddAria") });
     await expect(saveAgent).toBeEnabled({ timeout: 10_000 });
     await saveAgent.click();
-    await expect(page.getByRole("list", { name: en("navAgents") }))
+    await expect(page.getByRole("list", { name: t("navAgents") }))
       .toBeVisible({ timeout: 30_000 }).catch(() => {});
     await dismissToasts(page);
     await page.waitForTimeout(1000);
@@ -316,8 +316,8 @@ test.describe("handbuch screenshots", () => {
     // --- Data: the example buildings (imported above) give
     //     every later figure its content; the Add Building dialog lives on the
     //     Buildings tab's List view ---
-    await page.getByRole("tab", { name: en("navBuildings") }).click();
-    await page.getByRole("button", { name: en("btnList") }).click();
+    await page.getByRole("tab", { name: t("navBuildings") }).click();
+    await page.getByRole("button", { name: t("btnList") }).click();
     const dialog = page.getByRole("dialog");
     // Wait for a building ROW to be present (only present once buildings have
     // loaded) so no figure captures a "Loading…" panel. The redesign collapsed
@@ -328,7 +328,7 @@ test.describe("handbuch screenshots", () => {
 
     // Add Building dialog — capture the one generic form, then close (the demo
     // buildings are the data; nothing is added manually).
-    await page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
+    await page.getByRole("button", { name: t("addBuildingBtn"), exact: true })
       .first().click();
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.waitForTimeout(500);
@@ -344,9 +344,9 @@ test.describe("handbuch screenshots", () => {
     const firstRowId = await page.locator("li[data-building-id]").first()
       .getAttribute("data-building-id");
     await page.goto(buildingRoute("building", firstRowId));
-    await expect(page.getByRole("heading", { name: "Sharing" }))
+    await expect(page.getByRole("heading", { name: t("secSharing") }))
       .toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("button", { name: "Share", exact: true }))
+    await expect(page.getByRole("button", { name: t("btnShare"), exact: true }))
       .toBeVisible({ timeout: 30_000 });
     await page.waitForLoadState("networkidle").catch(() => {});
     await page.waitForTimeout(500);
@@ -360,14 +360,14 @@ test.describe("handbuch screenshots", () => {
     //     bearbeiten, Dateien … und löschen". Capture the same building page
     //     showing the header download action and the section affordances. ---
     await expect(
-      page.getByRole("button", { name: "Download building data (Excel)" }),
+      page.getByRole("button", { name: t("bhDownloadData") }),
     ).toBeVisible({ timeout: 30_000 });
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await page.waitForTimeout(300);
     await shot(page, "manage-actions.png");
     // Back to the app shell (the building page is a standalone route without tabs).
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: en("navBuildings") }))
+    await expect(page.getByRole("tab", { name: t("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
 
     // --- Energy-year editor: the per-year consumption form plus the "Stored
@@ -379,37 +379,37 @@ test.describe("handbuch screenshots", () => {
     //     OBSERVATION page (`/observation/:id`) AND replaced the modal with an
     //     INLINE editor that swaps out the charts; resolve the flagship id from
     //     the list, route there, click "Edit energy years". ---
-    await page.getByRole("tab", { name: en("navBuildings") }).click();
-    await page.getByRole("button", { name: en("btnList") }).click();
+    await page.getByRole("tab", { name: t("navBuildings") }).click();
+    await page.getByRole("button", { name: t("btnList") }).click();
     const flagshipRow = page.locator("li[data-building-id]")
       .filter({ hasText: "Thomas-Dachser-Str." }).first();
     await expect(flagshipRow).toBeVisible({ timeout: 30_000 });
     const flagshipId = await flagshipRow.getAttribute("data-building-id");
     await page.goto(buildingRoute("observation", flagshipId));
-    await page.getByRole("button", { name: en("btnEditEnergyYears") }).click();
+    await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
     // The editor is INLINE now (it replaces the charts view while open), not a
     // modal — wait for the year input (mirrors manage.ts addEnergyYear/closeEnergyEditor).
-    const yearInput = page.getByRole("spinbutton", { name: en("lblYear"), exact: true });
+    const yearInput = page.getByRole("spinbutton", { name: t("lblYear"), exact: true });
     await expect(yearInput).toBeVisible({ timeout: 10_000 });
     // The stored-years table loads the datasets — wait for the planned 2024 row.
     await expect(
-      page.getByRole("row", { name: /Planned/ }).first(),
+      page.getByRole("row").filter({ hasText: t("scenarioPlanned") }).first(),
     ).toBeVisible({ timeout: 60_000 });
     await page.waitForTimeout(500);
     await shot(page, "energy-year.png");
-    await page.getByRole("button", { name: en("btnClose"), exact: true }).click();
+    await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
     await expect(yearInput).toBeHidden({ timeout: 10_000 });
     // /observation/:id is a standalone route (no app-shell tabs) — return to the shell.
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: en("navBuildings") }))
+    await expect(page.getByRole("tab", { name: t("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
 
     // --- Aggregations: aggregations (Create aggregation lives here, with buildings) ---
-    await page.getByRole("tab", { name: en("navAggregations") }).click();
+    await page.getByRole("tab", { name: t("navAggregations") }).click();
     await page.waitForTimeout(500);
 
     // --- Create aggregation dialog (buildings are now selectable) ---
-    await page.getByRole("button", { name: /create aggregation/i }).click();
+    await page.getByRole("button", { name: t("aggCreateTitle") }).click();
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.waitForTimeout(500);
     await shot(page, "create-view.png");
@@ -423,14 +423,14 @@ test.describe("handbuch screenshots", () => {
     if (await aggregationRow.count()) {
       await page.keyboard.press("Escape"); // view exists from a prior run
     } else {
-      await dialog.getByLabel(en("aggNameLabel")).fill(VIEW_NAME);
-      await dialog.getByLabel(en("aggSelectBuildings")).click();
+      await dialog.getByLabel(t("aggNameLabel")).fill(VIEW_NAME);
+      await dialog.getByLabel(t("aggSelectBuildings")).click();
       for (const street of ["Thomas-Dachser-Str.", "Steinauer Weg"]) {
         await page.getByRole("option").filter({ hasText: street }).first()
           .click({ timeout: 10_000 }).catch(() => {});
       }
       await page.keyboard.press("Escape"); // close the building multi-select
-      await dialog.getByRole("button", { name: /create aggregation/i }).click();
+      await dialog.getByRole("button", { name: t("aggCreateTitle") }).click();
       // Create computes the snapshot synchronously — the dialog shows "Creating
       // aggregation and computing snapshot…" and stays open until done. Wait for it
       // to CLOSE (the durable signal), NOT the success toast (the FIFO snackbar
@@ -452,19 +452,19 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "aggregated-view.png");
     // Back to the app shell (the view page is a standalone route without tabs).
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: en("navBuildings") }))
+    await expect(page.getByRole("tab", { name: t("navBuildings") }))
       .toBeVisible({ timeout: 30_000 });
 
     // --- The Buildings map finder (map-tabs.png): the map is a pure finder now
     //     (a marker click navigates to /building/:id; there is no detail pane).
     //     Resolve the flagship demo's id from the List for the energy shots
     //     below, then show the map with the demo markers settled. ---
-    await page.getByRole("tab", { name: en("navBuildings") }).click();
-    await page.getByRole("button", { name: en("btnList") }).click();
+    await page.getByRole("tab", { name: t("navBuildings") }).click();
+    await page.getByRole("button", { name: t("btnList") }).click();
     const flagRow = page.locator("li").filter({ hasText: "Thomas-Dachser-Str." }).first();
     await expect(flagRow).toBeVisible({ timeout: 30_000 });
     const buildingId = await flagRow.getAttribute("data-building-id");
-    await page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await page.getByLabel(t("bldgsViewAria")).getByRole("button", { name: t("btnMap"), exact: true }).click();
     const markers = page.locator(".leaflet-marker-icon");
     await markers.first().waitFor({ timeout: 20_000 }).catch(() => {});
     await page.waitForLoadState("networkidle").catch(() => {});
@@ -526,7 +526,7 @@ test.describe("handbuch screenshots", () => {
     if (buildingId) {
       await page.goto(buildingRoute("observation", buildingId));
       await expect(
-        page.getByRole("row").filter({ hasText: en("aeOperatorAvg") }).first(),
+        page.getByRole("row").filter({ hasText: t("aePortfolioAvg") }).first(),
       ).toBeVisible({ timeout: 60_000 });
       await page.waitForLoadState("networkidle").catch(() => {});
       await waitForMapTiles(page);
@@ -540,7 +540,7 @@ test.describe("handbuch screenshots", () => {
       //     durchgespielt" walkthrough. ---
       await shotOf(
         page.locator("table").filter({
-          has: page.getByText(/\(planned\)/i),
+          has: page.getByText(t("aePlannedSuffix")),
         }).first(),
         "soll-ist-payoff.png",
       );
@@ -552,13 +552,13 @@ test.describe("handbuch screenshots", () => {
       // (The observation page titles by building name now; the comparison-row
       // assertion below is the load gate.)
       await expect(
-        page.getByRole("row").filter({ hasText: en("aeOperatorAvg") }).first(),
+        page.getByRole("row").filter({ hasText: t("aePortfolioAvg") }).first(),
       ).toBeVisible({ timeout: 60_000 });
       // Local tier: the seeded BSP benchmark must be on the page — the filled
       // Benchmark row plus the provider caption naming Charlie — before the
       // shot (the figure's caption promises all three comparison rows).
       if (E2E_LOCAL) {
-        await expect(page.getByText(/Benchmark provided by/i))
+        await expect(page.getByText(t("aeBenchmarkProvidedBy")))
           .toBeVisible({ timeout: 60_000 });
       }
       await page.waitForLoadState("networkidle").catch(() => {});
@@ -570,7 +570,7 @@ test.describe("handbuch screenshots", () => {
       //     primary energy …) for its Bundesland/Kreis — the open-data benchmark
       //     backdrop, as a table or an inset choropleth. Best-effort: depends on
       //     the external Regionalstatistik service being reachable. ---
-      const regionalSection = page.getByText(/Regional (context|statistics)/i).first();
+      const regionalSection = page.getByText(/Regional (context|statistics)|Regionaler Kontext|Regionalstatistik/i).first();
       const regionalShown = await regionalSection
         .waitFor({ state: "visible", timeout: 20_000 })
         .then(() => true).catch(() => false);
@@ -599,7 +599,7 @@ test.describe("handbuch screenshots", () => {
 
       // Back to the app shell (the detail page is a standalone route without tabs).
       await page.goto("/");
-      await expect(page.getByRole("tab", { name: en("navBuildings") }))
+      await expect(page.getByRole("tab", { name: t("navBuildings") }))
         .toBeVisible({ timeout: 30_000 });
     }
 
@@ -624,36 +624,35 @@ test.describe("handbuch screenshots", () => {
       // the finder row onto the building page's SharingSection: resolve the first
       // row's id, route to /building/:id, click the section's "Share" button,
       // then drive the same by-WebID dialog flow (mirrors manage.ts shareByWebId).
-      await page.getByRole("tab", { name: en("navBuildings") }).click();
-      await page.getByRole("button", { name: en("btnList") }).click();
+      await page.getByRole("tab", { name: t("navBuildings") }).click();
+      await page.getByRole("button", { name: t("btnList") }).click();
       const aRowId = await page.locator("li[data-building-id]").first()
         .getAttribute("data-building-id");
       await page.goto(buildingRoute("building", aRowId));
-      await page.getByRole("button", { name: "Share", exact: true }).click();
+      await page.getByRole("button", { name: t("btnShare"), exact: true }).click();
       const shareDialog = page.getByRole("dialog");
       await expect(shareDialog).toBeVisible({ timeout: 10_000 });
-      await shareDialog.getByRole("button", { name: /by webid/i }).click();
-      const recipientInput = shareDialog.getByLabel(/Recipient WebID/i);
+      const recipientInput = shareDialog.getByLabel(t("racLabel"));
       await recipientInput.fill(bWebId);
       await recipientInput.press("Enter");
-      const confirm = shareDialog.getByRole("button", { name: /confirm share/i });
+      const confirm = shareDialog.getByRole("button", { name: t("shareConfirmShare") });
       await expect(async () => {
-        await shareDialog.getByRole("button", { name: /review and share/i }).click();
+        await shareDialog.getByRole("button", { name: t("shareReviewAndShare") }).click();
         await expect(confirm).toBeVisible({ timeout: 10_000 });
       }).toPass({ timeout: 90_000 });
       await confirm.click();
-      await expect(shareDialog.getByText(/shared successfully/i))
-        .toBeVisible({ timeout: 120_000 });
-      await shareDialog.getByRole("button", { name: /done/i }).click();
+      const done = shareDialog.getByRole("button", { name: t("btnDone") });
+      await expect(done).toBeVisible({ timeout: 120_000 });
+      await done.click();
 
       // Cooldown, then B drains its inbox by reloading (Login restores the
       // session → drainInbox archives the grant into shared-in/).
       await page.waitForTimeout(COOLDOWN_MS);
       await b.page.reload();
-      await b.page.getByRole("tab", { name: en("navSharing") }).click();
+      await b.page.getByRole("tab", { name: t("navSharing") }).click();
       await expect(
-        b.page.getByRole("list", { name: /buildings shared with you/i })
-          .getByText(/^Building /),
+        b.page.getByRole("list", { name: t("sharedBuildingsHeading") })
+          .getByText(new RegExp(`^${t("shareBuildingN", { id: "" }).trim()} `)),
       ).toBeVisible({ timeout: 120_000 });
       // Local tier: B also contributed to the seeded benchmark. The redesign moved
       // shared aggregations OFF the Sharing page onto the Aggregations finder (its
@@ -661,10 +660,10 @@ test.describe("handbuch screenshots", () => {
       // Charlie's benchmark snapshot THERE (mirrors palette-benchmark-share), then
       // return to the Sharing page for the shared-with-you figure.
       if (E2E_LOCAL) {
-        await b.page.getByRole("tab", { name: en("navAggregations") }).click();
+        await b.page.getByRole("tab", { name: t("navAggregations") }).click();
         await expect(b.page.getByText(BENCHMARK_NAME).first())
           .toBeVisible({ timeout: 120_000 });
-        await b.page.getByRole("tab", { name: en("navSharing") }).click();
+        await b.page.getByRole("tab", { name: t("navSharing") }).click();
       }
       // Dismiss B's fresh-Pod "No buildings yet" banner if present (B owns
       // nothing on the remote tier; bounded no-op when absent) and let the
@@ -683,24 +682,37 @@ test.describe("handbuch screenshots", () => {
       //     live from A's Pod. Local-only: it needs the seeded share (remote
       //     keeps the committed figure). ---
       if (E2E_LOCAL) {
-        await b.page.getByRole("tab", { name: en("navBuildings") }).click();
+        await b.page.getByRole("tab", { name: t("navBuildings") }).click();
         // Establish the List finder first and wait for B's rows (own + A's shared)
         // to load BEFORE toggling to the map — mirrors map-tabs.png; otherwise the
         // map can render before the shared building is in the finder and its pin
         // never appears.
-        await b.page.getByRole("button", { name: en("btnList") }).click();
+        await b.page.getByRole("button", { name: t("btnList") }).click();
         await expect(b.page.locator("li[data-building-id]").first())
           .toBeVisible({ timeout: 60_000 });
-        await b.page.getByLabel(en("bldgsViewAria")).getByRole("button", { name: en("btnMap"), exact: true }).click();
+        await b.page.getByLabel(t("bldgsViewAria")).getByRole("button", { name: t("btnMap"), exact: true }).click();
         const sharedMarker = b.page
           .locator(".leaflet-marker-icon.pin-shared").first();
+        // The map frames B's own objects; A's hall can sit outside that viewport, and
+        // markercluster renders only in-view pins — zoom out (Leaflet's own,
+        // language-free control) until the shared pin is in view (as vertrieb.spec).
+        const zoomOut = b.page.getByRole("button", { name: "Zoom out" });
+        for (let i = 0; i < 7 && !(await sharedMarker.isVisible()); i++) {
+          await zoomOut.click();
+          await b.page.waitForTimeout(500);
+        }
         await sharedMarker.waitFor({ timeout: 60_000 });
         await b.page.waitForLoadState("networkidle").catch(() => {});
         await waitForMapTiles(b.page);
         await b.page.waitForTimeout(1500); // let markers/logos settle
-        await sharedMarker.click();
-        await b.page.waitForURL(/\/building\?/, { timeout: 60_000 });
+        // Click → nav, retried: a click can race the map's zoom/settle.
+        await expect(async () => {
+          // dispatchEvent, not click(): the map may extend past the page viewport.
+          await sharedMarker.dispatchEvent("click");
+          await expect(b.page).toHaveURL(/\/building\?/, { timeout: 2_000 });
+        }).toPass({ timeout: 60_000, intervals: [500] });
         await b.page.waitForLoadState("networkidle").catch(() => {});
+        await waitForMapTiles(b.page); // the building page's own aerial inset
         await b.page.waitForTimeout(800);
         await b.page.evaluate(() => globalThis.scrollTo(0, 0));
         await shot(b.page, "teilen-payoff.png");

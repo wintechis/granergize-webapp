@@ -39,12 +39,15 @@ clips (capture `--project=video`, then trim/convert/concat).
 
 The two tasks are **fully isolated** from each other and from a normal spec run, so
 any of them may run concurrently. Each carries its own `LOCAL_PORT_OFFSET` (handbuch
-40, videos 60; spec runs 0), which shifts its whole Tier-3 port set — pod, control
+50, videos 60; spec runs 0), which shifts its whole Tier-3 port set — pod, control
 server, app preview — off the others, and builds into its own `--outDir`
 (`dist-handbuch` / `dist-videos`, with `PREVIEW_OUTDIR` pointing the preview at it)
 so the bundle builds never race on the shared `dist/`. The pod's data dir is a fresh
 temp dir per boot, so that never collides either. To rebuild the document from the
 existing figures without recapturing, run `bash docs/build-handbuch.sh` directly.
+
+The task sets `E2E_LANG=de`, so the screenshots show the German UI, matching the
+German handbuch text.
 
 Recommended: ~1200px-wide light-theme PNGs; keep file sizes modest (they ship in
 the static build). The shown URLs are then `localhost` (the local CSS); to capture

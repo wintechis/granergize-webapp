@@ -65,7 +65,7 @@ test.describe("handbuch video: Datenzimmer", () => {
     mkdirSync(OUT, { recursive: true });
 
     // --- Setup A (fixture page; its video is discarded): login, identities, and
-    //     demo buildings (Alice needs one to share by role). ---
+    //     demo buildings (Alice needs one to share). ---
     await login(page, A);
     await controlSeed("/seed-profiles");
     await page.reload();
@@ -79,7 +79,7 @@ test.describe("handbuch video: Datenzimmer", () => {
     await importExampleBuildings(page, { lang: VID_LANG });
 
     // --- Setup B: a logged-in context of B's own (German; self-provisions B's
-    //     inbox so the role-targeted grant can be delivered). ---
+    //     inbox so the grant can be delivered). ---
     const bCtx = await browser.newContext({
       viewport: { width: 1280, height: 720 },
       locale: VID_LOCALE,
@@ -101,15 +101,15 @@ test.describe("handbuch video: Datenzimmer", () => {
     await dismissToasts(stageA);
     const demoA = await Demo.install(stageA, "A", t0a);
 
-    await demoA.intro("Das Datenzimmer: einmal teilen, an eine Rolle", [
+    await demoA.intro("Das Datenzimmer: wer ist wer, und wie lautet die WebID?", [
       {
         slot: "A",
         tagline:
-          "Alice Ahlmann: eröffnet ein Datenzimmer und teilt Daten an eine Rolle statt an jede WebID",
+          "Alice Ahlmann: eröffnet ein Datenzimmer, damit Partner einander samt WebID finden",
       },
       {
         slot: "B",
-        tagline: "Partner: tritt dem Datenzimmer bei und erhält so Zugriff",
+        tagline: "Partner: tritt dem Datenzimmer bei und wird so auffindbar",
       },
     ]);
 
@@ -146,7 +146,7 @@ test.describe("handbuch video: Datenzimmer", () => {
     await stageA.close();
     await videoA?.saveAs(`${OUT}/datenzimmer-a.webm`);
 
-    // ============ Clip B: Bob joins the room and takes a role. ============
+    // ============ Clip B: Bob joins the room. ============
     const stageB = await bCtx.newPage();
     const t0b = Date.now();
     await stageB.goto("/");
@@ -188,7 +188,7 @@ test.describe("handbuch video: Datenzimmer", () => {
     await stageB.close();
     await videoB?.saveAs(`${OUT}/datenzimmer-b.webm`);
 
-    // ============ Clip A2: Alice shares a building BY ROLE to the room. ============
+    // ============ Clip A2: Alice shares a building with a room member. ============
     const stageA2 = await page.context().newPage();
     const t0a2 = Date.now();
     await stageA2.goto("/");
@@ -244,14 +244,14 @@ test.describe("handbuch video: Datenzimmer", () => {
     await stageA2.close();
     await videoA2?.saveAs(`${OUT}/datenzimmer-a2.webm`);
 
-    // --- Drain the role-targeted grant on the DISCARDED setup page first. ---
+    // --- Drain the grant on the DISCARDED setup page first. ---
     await bSetup.reload();
     await bSetup.getByRole("tab", { name: vt("navSharing") }).click();
     await expect(
       bSetup.getByText(new RegExp(`^${vt("shareBuildingN", { id: "" }).trim()} `)).first(),
     ).toBeVisible({ timeout: 120_000 });
 
-    // ============ Clip B2: Bob, a Benutzer member, receives the building. ============
+    // ============ Clip B2: Bob, a room member, receives the building. ============
     const stageB2 = await bCtx.newPage();
     const t0b2 = Date.now();
     await stageB2.goto("/");
@@ -265,14 +265,14 @@ test.describe("handbuch video: Datenzimmer", () => {
       .getByText(new RegExp(`^${vt("shareBuildingN", { id: "" }).trim()} `)).first();
     await demoB2.scene(
       "received",
-      "Schritt 4: B (Benutzer-Mitglied) findet Alices Gebäude unter „Freigaben“",
+      "Schritt 4: B findet Alices Gebäude unter „Freigaben“",
     );
     await demoB2.click(stageB2.getByRole("tab", { name: vt("navSharing") }));
     await expect(sharedEntry).toBeVisible({ timeout: 120_000 });
     await demoB2.moveTo(sharedEntry);
     await demoB2.pause(2_000);
     await demoB2.caption(
-      "Einmal an die Rolle geteilt – jedes „Benutzer“-Mitglied erhält Zugriff.",
+      "Das Datenzimmer selbst vergibt keine Rechte – die Freigabe ging an B's WebID.",
       4_000,
     );
     await demoB2.caption("");
