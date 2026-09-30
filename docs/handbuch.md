@@ -6,7 +6,7 @@ author:
   - "Heike Weber, Bereich Supply Chain Services des Fraunhofer IIS"
   - "Prof. Dr. Andreas Harth, Friedrich-Alexander-Universität Erlangen-Nürnberg"
   - "Thomas Wehr, Friedrich-Alexander-Universität Erlangen-Nürnberg"
-date: "Juni 2026"
+date: "September 2026"
 lang: de
 documentclass: report
 geometry: "a4paper, margin=2.5cm"
@@ -1095,42 +1095,48 @@ Die App bietet vier Aggregationsfunktionen:
 - **Minimum (minimum):** zeigt den niedrigsten Wert.
 - **Maximum (maximum):** zeigt den höchsten Wert.
 
-### Datenräume als WebID-Verzeichnis
+### Datenzimmer als WebID-Verzeichnis
 
 Eine Freigabe geht immer an eine **WebID** – also an eine bestimmte Person oder
 Organisation. Damit stellt sich in der Praxis zuerst eine ganz andere Frage: *Mit
-wem eigentlich, und wie lautet deren WebID?* Genau dafür gibt es **Datenräume**.
+wem eigentlich, und wie lautet deren WebID?* Genau dafür gibt es **Datenzimmer**.
 
-Ein Datenraum ist ein gemeinsamer Raum, dem Partner beitreten, und er zeigt
-schlicht, **wer darin ist**: Name und zugehörige WebID jedes Mitglieds. Aus dieser
-Liste übernehmen Sie die WebID (ein Klick auf „WebID kopieren") und geben Ihre
-Daten anschließend ganz normal für diese Person frei. Beim Teilen schlägt Ihnen
-das Empfängerfeld die Mitglieder Ihres Datenraums ohnehin direkt zur Auswahl vor.
+Ein Datenzimmer ist ein gemeinsamer Raum, dem Partner über einen Einladungslink
+beitreten, und es zeigt schlicht, **wer darin ist**: Name und zugehörige WebID
+jedes Mitglieds. Aus dieser Liste übernehmen Sie die WebID (ein Klick auf „WebID
+kopieren"); beim Teilen schlägt Ihnen das Empfängerfeld die Mitglieder Ihrer
+Datenzimmer ohnehin direkt zur Auswahl vor.
 
-Wichtig: **Ein Datenraum vergibt selbst keine Berechtigungen.** Wer in einem Raum
-ist, sieht dadurch keine Daten – er ist auffindbar, mehr nicht. Jede Freigabe
-bleibt eine einzelne, jederzeit widerrufbare Entscheidung für eine bestimmte
-WebID und ein bestimmtes Gebäude.
+Wichtig: **Ein Datenzimmer vergibt selbst keine Berechtigungen.** Wer in einem
+Datenzimmer ist, sieht dadurch keine Daten – er ist auffindbar, mehr nicht. Jede
+Freigabe geht an die WebID eines Mitglieds und bleibt eine einzelne, jederzeit
+widerrufbare Entscheidung für eine bestimmte WebID und ein bestimmtes Gebäude.
 
 ## Vorgehensweise beim Datenteilen
 
-### Einem Datenraum beitreten oder einen Raum erstellen
+### Ein Datenzimmer eröffnen und beitreten
 
-Ein **Datenraum** bündelt die Akteure, die untereinander Daten teilen, und macht
-ihre WebIDs auffindbar. Im Tab **Treffen** versammelt der Rooms-Finder alle
-Datenraum-Aktionen in einer Leiste über der Liste:
+Der Ablauf in vier Schritten, am Beispiel von A (Alice Ahlmann) und ihrem Partner
+B (Bob Bauer):
 
-- **Raum erstellen:** „Host a data room" legt einen Raum auf Ihrem Pod an. Teilen
-  Sie dessen Link oder QR-Code, damit andere beitreten können.
-- **Beitreten:** Fügen Sie eine Raum-URI in das Feld ein und klicken Sie auf
-  „Add", oder nutzen Sie „Scan QR code". Verweigert der Browser den
-  Kamerazugriff, erscheint ein verständlicher Hinweis; „Cancel" unter dem
-  Kamerabild beendet das Scannen.
-- **Mitglieder einsehen:** Die Raumseite listet alle Mitglieder mit Namen und
-  WebID. Mit „WebID kopieren" übernehmen Sie die Adresse eines Partners und
-  verwenden sie beim Teilen.
+1. **Datenzimmer eröffnen:** A wechselt in den Tab **Treffen** und klickt
+   **„Datenzimmer hosten"**. Die App legt das Datenzimmer auf A's Pod an und
+   öffnet seine Seite.
+2. **Einladen:** Im Abschnitt **„Einladung"** stehen Einladungslink und QR-Code.
+   Mit **„Einladungslink kopieren"** übernimmt A den Link und gibt ihn an B weiter
+   – wie eine Einladung per E-Mail.
+3. **Beitreten:** B fügt im Tab **Treffen** den Link in das Feld
+   **„Datenzimmer-URI"** ein und klickt **„Hinzufügen"** – alternativ über
+   **„QR-Code scannen"**. Verweigert der Browser den Kamerazugriff, erscheint ein
+   verständlicher Hinweis. Auf der Seite des Datenzimmers listet der Abschnitt
+   **„Mitglieder"** nun alle Mitglieder mit Namen und WebID – genau die
+   Adressen, an die andere Daten freigeben.
+4. **Teilen über das Datenzimmer:** Öffnet A beim Teilen eines Gebäudes (siehe
+   „Ein Gebäude teilen") das Feld **„Empfänger-WebID(s)"**, steht B dort mit
+   Namen zur Auswahl, weil beide im selben Datenzimmer sind. Freigegeben wird an
+   B's WebID; B findet das Gebäude anschließend im Tab **Freigaben**.
 
-![Die Raumseite: Einladung per QR-Code und die Mitgliederliste mit Namen und WebIDs](figures/room.png){width=100%}
+![Die Seite eines Datenzimmers: Einladung per Link und QR-Code und die Mitgliederliste mit Namen und WebIDs](figures/room.png){width=100%}
 
 ### Kontakte verwalten
 
@@ -1154,7 +1160,7 @@ Löschen (siehe Abschnitt „Gebäude bearbeiten, Dateien verwalten und löschen
 1. Klicken Sie beim gewünschten Gebäude auf das Teilen-Symbol. Der Dialog „Share
    Building Data" öffnet sich.
 2. Wählen Sie, an wen geteilt wird: eine oder mehrere **WebIDs**. Das Feld
-   schlägt Ihre Kontakte und die Mitglieder Ihres Datenraums vor; eine unbekannte
+   schlägt Ihre Kontakte und die Mitglieder Ihrer Datenzimmer vor; eine unbekannte
    WebID tippen Sie ein und bestätigen mit Enter.
 3. Wählen Sie unter „What to share" den Freigabeumfang – nur Stammdaten, Stammdaten
    mit allen Energiejahren oder Stammdaten mit ausgewählten Jahren (siehe Abschnitt
@@ -1254,142 +1260,156 @@ Zahl der Beteiligten: der Soll-Ist-Vergleich allein auf dem eigenen Pod, die
 Vertriebsunterstützung zu zweit (A teilt an B), das Energieverbrauchsbenchmark
 zu dritt (A, B und der Dienstleister C). A, B und C sind dabei wieder Alice
 Ahlmann, Bob Bauer und Charlie Conrad mit ihren Firmen, wie eingangs im
-Abschnitt „Praxisbeispiele: Use Cases für die Anwendung" vorgestellt – in den
-Bildschirmfotos etwa als „Shared by: Alice Ahlmann" beim Empfänger oder als
-Absender des zurückgeteilten Benchmarks.
+Abschnitt „Praxisbeispiele: Use Cases für die Anwendung" vorgestellt. Als
+Gebäude dient jeweils A's Logistikhalle „Thomas-Dachser-Str." aus den
+Beispieldaten.
 
 ## Soll-Ist-Vergleich durchgespielt: Plan und Verbrauch nebeneinander
 
-Beteiligt ist eine einzige Person: **A**, die für ihr Gebäude neben den
-tatsächlichen Verbräuchen auch Planwerte führt. Alles spielt sich auf A's
-eigenem Pod ab – geteilt wird nichts.
+Beteiligt ist eine einzige Person: **A**, Bestandshalterin und Betreiberin ihrer
+Hallen. Sie hat sich Einsparungen vorgenommen und möchte prüfen, ob der Betrieb
+sie auch liefert. Alles spielt sich auf A's eigenem Pod ab – geteilt wird nichts.
 
-1. A öffnet im Tab **Manage** beim Gebäude den Dialog **„Add / edit energy
-   year"** und erfasst ein Jahr mit den **tatsächlichen** (Ist-)Werten (siehe
-   „Energiedaten erfassen und aktualisieren").
-2. Für dasselbe Jahr legt A einen zweiten Eintrag an und wählt dabei unter
-   **Scenario** den Eintrag **Planned (Soll)** – etwa die erwarteten Verbräuche
-   aus dem Energieausweis oder nach einer Umrüstung auf LED-Beleuchtung.
-3. Im Tab **Explore** wählt A das Gebäude und wechselt zu **Energy data**: Die
-   Jahresübersicht zeigt den Soll-Eintrag neben den Ist-Jahren – auf einen
-   Blick, wie nah der reale Verbrauch am Plan liegt.
+1. **Zuerst das Ist:** A öffnet im Tab **Gebäude** (Ansicht **Liste**) ihre
+   Halle und wechselt auf deren Energie-Detailseite. Dort klickt sie
+   **„Energiejahre bearbeiten"**; der Jahres-Editor öffnet sich direkt auf der
+   Seite. A trägt das **Jahr** (2025) und die tatsächlichen Jahresverbräuche ein
+   – etwa **Stromverbrauch** 98.000 kWh und **Wärmeverbrauch** 64.000 kWh –,
+   klickt **„Speichern"** (Meldung „Energiedaten gespeichert") und schließt den
+   Editor (siehe „Energiedaten erfassen und aktualisieren").
+2. **Dann das Soll:** Über **„Energiejahre bearbeiten"** legt A für dasselbe
+   Jahr einen zweiten Eintrag an und wählt unter **Szenario** den Eintrag
+   **„Geplant (Soll)"** – etwa 90.000 kWh Strom und 60.000 kWh Wärme als
+   Zielwerte, z. B. aus dem Energieausweis oder nach einer Umrüstung auf
+   LED-Beleuchtung. Das Szenario hält den Planwert getrennt vom Ist.
+3. **Die Gegenüberstellung:** Die Jahresübersicht auf der Energie-Detailseite
+   zeigt den Soll-Eintrag (markiert mit „planned") direkt neben dem Ist
+   desselben Jahres – auf einen Blick, ob der Verbrauch den Plan einhält.
+   Das ist die Grundlage für Nachsteuern und Budgetplanung.
 
-![Die Pointe des Soll-Ist-Vergleichs: In der Jahresübersicht steht der Plan-Eintrag („planned") neben den Ist-Jahren desselben Gebäudes](figures/soll-ist-payoff.png){width=100%}
+![Die Pointe des Soll-Ist-Vergleichs: In der Jahresübersicht steht der Plan-Eintrag („planned") neben dem Ist desselben Jahres](figures/soll-ist-payoff.png){width=100%}
 
 ## Vertriebsunterstützung durchgespielt: Ein Gebäude teilen – aus beiden Perspektiven
 
 Beteiligt sind zwei Personen mit jeweils eigenem Solid Pod: **A**, eine
-Bestandshalterin, die ein Gebäude mit erfassten Energiejahren verwaltet, und
-**B**, ihr Makler bzw. Berater, der diese Energiedaten für die Vermarktung des
-Objekts einsehen soll (der Anwendungsfall „Vertriebsunterstützung") – ohne dass
-A dafür die Hoheit über ihre Daten aufgibt.
-Wichtig vorab: Die Daten werden zu keinem Zeitpunkt kopiert oder an einen
-zentralen Dienst übertragen – sie bleiben auf A's Pod, und B liest sie dort
-direkt mit seiner eigenen WebID.
+Bestandshalterin, deren energieeffiziente Halle ein Verkaufsargument ist –
+wenn es belegbar ist –, und **B**, ihr Makler bzw. Berater, der die Halle
+vermarktet und dafür belastbare Energiedaten braucht (der Anwendungsfall
+„Vertriebsunterstützung"). A soll dafür die Hoheit über ihre Daten nicht
+aufgeben. Wichtig vorab: Die Daten werden zu keinem Zeitpunkt kopiert oder an
+einen zentralen Dienst übertragen – sie bleiben auf A's Pod, und B liest sie
+dort direkt mit seiner eigenen WebID.
 
 **Was A tut (die teilende Seite):**
 
-1. A öffnet im Tab **Manage** unter „Your buildings" das Teilen-Symbol des
-   Gebäudes. Der Dialog „Share Building Data" erscheint.
-2. A trägt **B's WebID** als Empfänger ein. Diese hat A von B selbst erhalten –
-   eine WebID gibt man weiter wie eine E-Mail-Adresse, etwa in der Signatur oder
-   auf der Visitenkarte. Einmal unter „Contacts" abgelegt (siehe „Kontakte
-   verwalten"), schlägt die App B fortan mit Namen und Profilbild als
-   Empfänger vor – die WebID muss nie wieder eingetippt werden. Sind beide
-   Mitglied desselben Datenraums, steht B dort ohnehin zur Auswahl (siehe
-   „Datenräume als WebID-Verzeichnis").
-3. A legt unter „What to share" den Umfang fest – etwa nur Stammdaten oder
-   Stammdaten mit ausgewählten Energiejahren – und bestätigt mit **Share**.
+1. **B ins Adressbuch aufnehmen:** B's WebID hat A von B selbst erhalten – eine
+   WebID gibt man weiter wie eine E-Mail-Adresse, etwa in der Signatur oder auf
+   der Visitenkarte. A trägt sie im Tab **Akteure** in das Feld **WebID** ein und
+   klickt **„Akteur hinzufügen"**. Der Eintrag erscheint sofort mit B's Namen
+   und Profilbild statt der rohen Adresse (siehe „Kontakte verwalten"). Sind
+   beide Mitglied desselben Datenzimmers, entfällt dieser Schritt (siehe
+   „Datenzimmer als WebID-Verzeichnis").
+2. **Teilen öffnen:** A öffnet im Tab **Gebäude** (Ansicht **Liste**) die
+   Detailseite ihrer Halle und klickt dort **„Teilen"**.
+3. **Empfänger wählen:** Im Feld **„Empfänger-WebID(s)"** schlägt die App B aus
+   dem Adressbuch mit Namen vor – die WebID muss nicht erneut eingetippt werden.
+   Den Umfang der Freigabe (nur Stammdaten, alle Energiewerte oder bestimmte
+   Jahre) legt A wie unter „Individuelle Gebäudedaten teilen" beschrieben fest.
+4. **Bestätigen:** Mit **„Prüfen und teilen"** zeigt der Dialog eine
+   Zusammenfassung; **„Teilen bestätigen"** erteilt B Lesezugriff, **„Fertig"**
+   schließt den Dialog.
 
-Anschließend sieht A die Freigabe direkt beim Gebäude unter „Shared with:" und
-kann sie dort jederzeit wieder entfernen. B wird automatisch in A's Kontakte
-aufgenommen.
+Anschließend sieht A die Freigabe direkt auf der Detailseite des Gebäudes und
+kann sie dort jederzeit wieder entfernen.
 
 **Was B sieht (die empfangende Seite):**
 
-1. Die Freigabe-Benachrichtigung landet im Posteingang von B's Pod. Beim
-   nächsten Öffnen oder Neuladen der App verarbeitet B's Anwendung sie
-   automatisch – B muss dafür nichts tun.
-2. Das Gebäude erscheint bei B im Tab **Share** unter „Buildings shared with
-   you" und zusätzlich auf der Karte im Tab **Beobachtungen**, dort als geteiltes
-   Gebäude gekennzeichnet und neben B's eigenen Gebäuden auswertbar – auch in
-   der Energie-Linse, die geteilte Gebäude in B's Marktüberblick einbezieht.
-3. B öffnet das Gebäude und sieht genau das, was A freigegeben hat: die
-   Stammdaten und – je nach gewähltem Umfang – die Energiejahre. Hat A „alle
-   Energiejahre" freigegeben, sieht B auch Jahre, die A erst später erfasst.
-4. Möchte B das Gebäude vorübergehend nicht in seinen Listen sehen, blendet er
-   es über das Augen-Symbol aus – die Freigabe selbst bleibt bestehen.
+1. **Die Freigabe kommt an:** Die Freigabe-Benachrichtigung landet im Posteingang
+   von B's Pod. Beim nächsten Öffnen der App verarbeitet B's Anwendung sie
+   automatisch; A's Gebäude liegt nun im Tab **Freigaben**.
+2. **Auf der Karte:** Im Tab **Gebäude**, Ansicht **Karte**, steht A's Halle –
+   orange markiert – neben B's eigenen Objekten; gegebenenfalls zoomt B etwas
+   heraus, um sie ins Bild zu holen. Das Hinweisfenster zum Marker nennt A's
+   Firma samt Logo.
+3. **Live von A's Pod:** Ein Klick auf den Marker öffnet die Detailseite des
+   Gebäudes. B sieht genau das, was A freigegeben hat – Stammdaten und, je nach
+   Umfang, die Energiedaten –, live aus A's Pod gelesen. Damit kann B die
+   Effizienz der Halle im Vertrieb belegen; die Datenhoheit bleibt bei der
+   Eigentümerin.
 
-![Die Pointe des Teilens bei B: Auf B's Karte steht A's freigegebenes Gebäude neben B's eigenen Beständen – an der orangefarbenen Markierung zu erkennen, das Hinweisfenster nennt A's Firma samt Logo –, und die Detailansicht zeigt A's Stammdaten, live von A's Pod gelesen](figures/teilen-payoff.png){width=100%}
+![Die Pointe des Teilens bei B: Auf B's Karte steht A's freigegebenes Gebäude neben B's eigenen Beständen – an der orangefarbenen Markierung zu erkennen, das Hinweisfenster nennt A's Firma samt Logo –, und die Detailseite zeigt A's Daten, live von A's Pod gelesen](figures/teilen-payoff.png){width=100%}
 
 Widerruft A die Freigabe später (siehe „Zugriff widerrufen"), wird B
 benachrichtigt, und das Gebäude verschwindet beim nächsten Abruf aus B's
 Ansicht. Beide Seiten behalten so jederzeit den Überblick: A sieht in ihrem Pod,
-was sie an wen freigegeben hat; B sieht, was mit ihm geteilt wurde – und beides
-bleibt auch nach dem Widerruf nachvollziehbar.
+was sie an wen freigegeben hat; B sieht, was mit ihm geteilt wurde.
 
 ![Gebäude teilen aus beiden Perspektiven: A vergibt die Freigabe auf dem eigenen Pod, B wird benachrichtigt und liest die Daten direkt von A's Pod](figures/szenario-teilen.png){width=100%}
 
 ## Energieverbrauchsbenchmark durchgespielt: Peer-Benchmarking mit einem Benchmark-Dienstleister
 
 Ein einzelner Bestandshalter kann seine Gebäude nur mit dem eigenen Portfolio
-vergleichen. Ein echter **Peer-Vergleich** – „Wie steht mein Gebäude im
-Branchendurchschnitt da?", der eingangs beschriebene Anwendungsfall
+vergleichen. Ein echter **Peer-Vergleich** – „Wo steht meine Halle im
+Branchenvergleich?", der eingangs beschriebene Anwendungsfall
 „Energieverbrauchsbenchmark" – braucht Daten mehrerer Eigentümer, ohne dass
 diese ihre Gebäude einander offenlegen müssen. Genau das leistet das
-Zusammenspiel von Gebäude-Freigabe und aggregierten Ansichten, mit drei
-Beteiligten:
+Zusammenspiel von Gebäude-Freigabe und Aggregationen, mit drei Beteiligten:
 
-- **A** und **B** sind Bestandshalter mit eigenen Gebäuden und Energiedaten.
-  Sie kennen einander nicht notwendigerweise und sehen gegenseitig keine Daten.
-- **C** ist ein **Benchmark-Dienstleister** (Benchmark Service Provider) – kein
-  Server und kein Sonderkonto, sondern ein gewöhnlicher Nutzer derselben App
-  mit eigenem Pod.
+- **A** ist Bestandshalterin und möchte wissen, wo ihre Halle im
+  Branchenvergleich steht.
+- **B** ist ebenfalls Bestandshalter und will denselben Vergleich – ohne A seine
+  Zahlen zu zeigen. A und B sehen gegenseitig keine Daten.
+- **C** ist ein **Benchmark-Dienstleister**, der den Branchenwert aus geteilten
+  Gebäuden berechnet – kein Server und kein Sonderkonto, sondern ein
+  gewöhnlicher Nutzer derselben App mit eigenem Pod.
 
 **Was A und B tun (die beitragende Seite):**
 
-1. Jeder teilt seine Gebäude über den normalen Teilen-Dialog an C – genau die
-   Schritte aus „Vertriebsunterstützung durchgespielt", nur dass A unter „What to share" diesmal
-   **einschließlich Energiedaten** freigibt, wahlweise alle Jahre oder gezielt
-   ausgewählte. C's WebID liegt dabei längst im Adressbuch – sie kam mit der
-   Beauftragung des Dienstleisters, wie eine E-Mail-Adresse –, sodass der
-   Teilen-Dialog C mit Namen und Profilbild vorschlägt.
-2. Sind alle drei Mitglied desselben Datenraums, finden A und B C dort mit Namen
-   und WebID – der Teilen-Dialog bietet C dann direkt zur Auswahl an, ohne dass
-   die WebID vorher ausgetauscht werden musste.
+1. A teilt ihre Halle an C – genau die Schritte aus „Vertriebsunterstützung
+   durchgespielt", nur dass sie als Umfang diesmal **„Statische Gebäudedaten und
+   alle Energiewerte"** wählt. C's WebID liegt dabei längst im Adressbuch – sie
+   kam mit der Beauftragung des Dienstleisters, wie eine E-Mail-Adresse –, sodass
+   das Feld „Empfänger-WebID(s)" C mit Namen vorschlägt. Sind alle Beteiligten
+   Mitglied desselben Datenzimmers, steht C dort ohnehin zur Auswahl.
+2. B teilt sein Gebäude auf dieselbe Weise an C. Keiner der beiden sieht dabei
+   die Daten des anderen.
 
 **Was C tut (der Dienstleister):**
 
 1. Die Beiträge von A und B erreichen C wie jedes geteilte Gebäude: Sie
-   erscheinen im Tab **Share** unter „Buildings shared with you".
-2. C wechselt im Tab **Manage** zum Abschnitt „Aggregated views", klickt
-   **Create View** und wählt die Art **Compare shared buildings**. Zur Auswahl
-   stehen genau die Gebäude, die **mit C geteilt** wurden – also die Beiträge
-   von A und B.
-3. C vergibt einen Namen, wählt die Kennzahlen (jährlicher Strom-, Wärme-,
-   Wasser- und Abwasserverbrauch) und die Aggregatsfunktion **Durchschnitt**
-   und erstellt die Ansicht; beim ersten Öffnen berechnet die App das Ergebnis
-   als Snapshot (siehe „Aggregierte Ansicht erstellen und teilen").
-4. C teilt die fertige Ansicht über das Teilen-Symbol an alle Beitragenden
-   zurück. Im Teilen-Dialog bietet die App dafür eine Ein-Klick-Hilfe an:
-   **Add all contributors** trägt automatisch alle ein, deren Gebäude in den
-   Benchmark eingeflossen sind – hier A und B.
+   erscheinen im Tab **Freigaben**.
+2. C wechselt in den Tab **Aggregationen** und klickt **„Aggregation
+   erstellen"**. Als **Aggregationsart** wählt C **„Geteilte Gebäude
+   vergleichen"**; zur Auswahl stehen dann genau die Gebäude, die **mit C
+   geteilt** wurden.
+3. C vergibt unter **„Name der Aggregation"** einen Namen (etwa
+   „Energie-Benchmark") und wählt unter **„Gebäude auswählen"** die beiden
+   Beiträge von A und B. Die Verbrauchskennzahlen und die Aggregatsfunktion
+   **Durchschnitt** sind für diese Art bereits voreingestellt. Ein Klick auf
+   **„Aggregation erstellen"** berechnet das Ergebnis als Snapshot (siehe
+   „Aggregierte Ansicht erstellen und teilen").
+4. C teilt die fertige Aggregation über ihr Teilen-Symbol („Aggregation teilen")
+   an alle Beitragenden zurück. Im Teilen-Dialog trägt **„Alle Beitragenden
+   hinzufügen"** mit einem Klick alle ein, deren Gebäude in den Benchmark
+   eingeflossen sind – hier A und B. Nach **„Prüfen und teilen"** und **„Teilen
+   bestätigen"** meldet der Dialog „Erfolgreich geteilt mit …". Zurück wandert
+   nur der berechnete Snapshot – nicht die Gebäude der Beitragenden.
+
+![Die Sicht des Benchmark-Dienstleisters beim Zurückteilen: „Alle Beitragenden hinzufügen" trägt alle Beitragenden mit einem Klick als Empfänger ein](figures/benchmark-share-back.png){width=100%}
 
 **Was A und B sehen (der Rückfluss):**
 
-1. Die zurückerhaltene Ansicht erscheint im Tab **Share** unter „Views shared
-   with you" – mit den empfangenen Durchschnittswerten zum Aufklappen (siehe
-   die Abbildung im Abschnitt „Mit Ihnen geteilte Daten").
+1. Die zurückerhaltene Aggregation erscheint im Tab **Aggregationen** unter
+   **„Mit mir geteilt"**.
 2. Vor allem aber füllt sich auf der Energie-Detailseite der eigenen Gebäude
-   die Spalte **Benchmark**: Der eigene Verbrauch wird nun gegen den externen
-   Branchenwert eingefärbt statt nur gegen den eigenen Portfolio-Durchschnitt,
-   und ein Hinweis nennt den Dienstleister, der den Benchmark berechnet hat.
+   die Zeile **Benchmark**: Der eigene Verbrauch steht nun dem externen
+   Branchenwert gegenüber statt nur dem eigenen Portfolio-Durchschnitt, und der
+   Hinweis „Benchmark bereitgestellt von …" nennt den Dienstleister, der den
+   Benchmark berechnet hat.
 
-![Die Pointe des Roundtrips: Auf der Energie-Detailseite von A (und ebenso von B) steht der eigene Verbrauch jetzt einer gefüllten Spalte „Benchmark" gegenüber – den von C zurückgeteilten Branchenwerten über die Gebäude aller Beitragenden](figures/benchmark-payoff.png){width=100%}
+![Die Pointe des Roundtrips: Auf der Energie-Detailseite von A (und ebenso von B) steht der eigene Verbrauch jetzt einer gefüllten Zeile „Benchmark" gegenüber – den von C zurückgeteilten Branchenwerten über die Gebäude aller Beitragenden](figures/benchmark-payoff.png){width=100%}
 
 ![Der Benchmark-Roundtrip: A und B teilen Gebäude an den Dienstleister C, C berechnet den Durchschnitt und teilt nur den Snapshot zurück](figures/szenario-benchmark.png){width=100%}
-
-![Die Sicht des Benchmark-Dienstleisters beim Zurückteilen: „Add all contributors" trägt alle Beitragenden mit einem Klick als Empfänger ein](figures/benchmark-share-back.png){width=100%}
 
 Entscheidend ist, was dabei **nicht** sichtbar wird: A und B sehen zu keinem
 Zeitpunkt die Gebäude des jeweils anderen. Der zurückgeteilte Snapshot enthält
@@ -1400,11 +1420,11 @@ Benchmark-Berechnungen aus.
 
 > **Technische Details (für Administratoren)**
 >
-> Die View-Definition – sie enthält die IRIs der beitragenden Gebäude – bleibt
-> auf C's Pod und wird nie geteilt; nur der berechnete Snapshot wandert zu den
-> Empfängern. Der Snapshot ist dabei als Benchmark-Ergebnis typisiert und
+> Die Aggregationsdefinition – sie enthält die IRIs der beitragenden Gebäude –
+> bleibt auf C's Pod und wird nie geteilt; nur der berechnete Snapshot wandert
+> zu den Empfängern. Der Snapshot ist dabei als Benchmark-Ergebnis typisiert und
 > vermerkt den berechnenden Akteur und den abgedeckten Zeitraum, sodass die
-> Energie-Ansicht der Empfänger ihn von gewöhnlichen geteilten Ansichten
+> Energie-Ansicht der Empfänger ihn von gewöhnlichen geteilten Aggregationen
 > unterscheiden und als Vergleichswert bevorzugen kann (Reihenfolge: externer
 > Benchmark vor Betreiber-Durchschnitt vor Portfolio-Durchschnitt).
 
@@ -1421,7 +1441,7 @@ Funktionen schneller – und können Ihren Gebäudebestand gezielt **durchsuchen
 
 Hinter jeder Aktion steht ein benannter **Intent** (eine „Absicht"). Die App kennt rund
 vier Dutzend davon, gruppiert nach dem Gegenstand, auf den sie sich beziehen – Gebäude,
-Energiedaten, Anhänge, Aggregationen, Freigaben, Datenräume, Akteure und Kontodaten. Ein
+Energiedaten, Anhänge, Aggregationen, Freigaben, Datenzimmer, Akteure und Kontodaten. Ein
 Intent ist entweder
 
 - eine **Aktion**, die etwas verändert (etwa *Gebäude anlegen*, *Gebäude teilen*,
@@ -1489,7 +1509,7 @@ mit **„{"** auch direkt einen Intent als JSON einfügen und starten.
 - **Bob** sucht mit **„> Bürogebäude in Bayern vor 2000"** die passenden Objekte, fasst die
   Treffer über ***Aggregation erstellen*** zu einer Auswertung zusammen und teilt deren
   Momentaufnahme.
-- **Charlie** richtet über ***Datenraum erstellen*** eine Arbeitsgruppe ein, pflegt mit
+- **Charlie** richtet über ***Datenzimmer hosten*** eine Arbeitsgruppe ein, pflegt mit
   ***Organisation speichern*** Name und Logo seines Benchmark-Dienstes und sichert seinen
   Bestand über den Archiv-Export.
 
