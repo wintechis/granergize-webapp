@@ -24,7 +24,7 @@ urlcolor: "blue"
   App-Screenshots liegen unter docs/figures/ (erzeugt von e2e/screenshots.spec.ts);
   die konzeptionellen Abbildungen (Architektur, WAC, Wissensgraph, Sharing-
   Vergleich) wurden aus dem ursprünglichen Handbuch übernommen.
-  Abschnitte mit der Überschrift „Technische Details" richten sich an technische
+  Abschnitte mit der Überschrift „Technische Details“ richten sich an technische
   Anwender und Administratoren und können beim Lesen übersprungen werden.
 -->
 
@@ -115,7 +115,7 @@ Bestand ab, die Vertriebsunterstützung lebt vom Teilen zwischen zwei Parteien,
 und das Energieverbrauchsbenchmark bringt mit dem Benchmark-Dienstleister
 einen dritten Akteur ins Spiel. Am Ende des praktischen Teils läuft jeder der
 drei noch einmal als durchgehender Ablauf ab (Kapitel „Die Anwendungsfälle
-durchgespielt").
+durchgespielt“).
 
 Durch das gesamte Handbuch begleitet dabei ein festes Beispiel-Ensemble aus
 drei Personen mit ihren Firmen:
@@ -163,17 +163,17 @@ Projektentwickler.
 Die Granergize-App unterstützt diesen Anwendungsfall direkt: Zu jedem Gebäude und Jahr
 können neben den Ist-Werten auch geplante (Soll-)Werte erfasst und in der
 Energieansicht nebeneinander dargestellt werden (siehe Abschnitt „Energiedaten
-erfassen und aktualisieren"). Dafür genügt der eigene Pod – weitere Beteiligte
+erfassen und aktualisieren“). Dafür genügt der eigene Pod – weitere Beteiligte
 sind nicht erforderlich. Den durchgehenden Ablauf zeigt der Abschnitt
-„Soll-Ist-Vergleich durchgespielt" im Kapitel „Die Anwendungsfälle
-durchgespielt".
+„Soll-Ist-Vergleich durchgespielt“ im Kapitel „Die Anwendungsfälle
+durchgespielt“.
 
 **Mit offenen Daten:** Den Soll-Wert müssen Sie nicht raten. Das
 **Standort-Energieprofil** zeigt aus offenen Daten, wie viel Photovoltaik-Potenzial das
-Dach noch hergibt (die „Ausbaulücke") – ein belastbares Ziel, an dem sich die geplante
+Dach noch hergibt (die „Ausbaulücke“) – ein belastbares Ziel, an dem sich die geplante
 Eigenerzeugung ausrichten lässt. Die **regionale Statistik** ordnet Ihren Plan zudem in
 den Trend des Bundeslands ein, etwa den steigenden Anteil erneuerbaren Stroms (siehe
-Abschnitt „Regionale Statistiken als Vergleichsmaßstab"). Bereits nutzbar sind die
+Abschnitt „Regionale Statistiken als Vergleichsmaßstab“). Bereits nutzbar sind die
 Wetterdaten je Gebäude; in Vorbereitung ist, den Ist-Verbrauch darüber automatisch um
 Witterungseinflüsse (Heizgradtage) zu bereinigen – erst dann zeigt der Vergleich die
 reine Wirkung einer Maßnahme, unabhängig von einem kalten oder milden Jahr.
@@ -196,15 +196,15 @@ Die Granergize-App löst das über zwei ineinandergreifende Wege ein. Erstens di
 gezielte Freigabe: Ein Eigentümer teilt sein Gebäude einschließlich der
 Energiedaten mit seinem Makler oder Berater – die Daten bleiben dabei auf dem
 Pod des Eigentümers, werden nicht kopiert und können jederzeit wieder entzogen
-werden (siehe Abschnitt „Vorgehensweise beim Datenteilen"). Zweitens die
+werden (siehe Abschnitt „Vorgehensweise beim Datenteilen“). Zweitens die
 Energie-Linse der Karte: Sie färbt die Gebäude-Marker nach Energieintensität ein
 und ordnet ein Objekt – einschließlich der mit Ihnen geteilten Gebäude – auf
 einen Blick in sein sichtbares Umfeld ein (siehe Abschnitt „Gebäude nach
-Energieverbrauch einordnen"). So wird die belegte Effizienz einer Halle zum
+Energieverbrauch einordnen“). So wird die belegte Effizienz einer Halle zum
 sichtbaren Argument gegenüber ihren Nachbarn. Wie eine solche Freigabe abläuft
 und beim Empfänger auf der Karte landet, führt der Abschnitt
-„Vertriebsunterstützung durchgespielt" im Kapitel „Die Anwendungsfälle
-durchgespielt" aus.
+„Vertriebsunterstützung durchgespielt“ im Kapitel „Die Anwendungsfälle
+durchgespielt“ aus.
 
 **Mit offenen Daten:** Aus der Bestandsaufnahme wird so eine Chancen-Darstellung. Geben
 Sie ein Gebäude samt seinem **Standort-Energieprofil** frei, sieht der Makler oder
@@ -212,11 +212,11 @@ Investor nicht nur den heutigen Verbrauch, sondern auch das ungenutzte Dach- und
 Freiflächen-Photovoltaik-Potenzial, den lokalen Grünstrom-Mix und die Erzeugung in der
 Nähe – konkrete Hebel zur Wertsteigerung. Die **regionale Statistik** liefert die
 Einordnung gleich mit (Wärmepumpen-Quote im Landkreis, Treibhausgase je Einwohner; siehe
-Abschnitt „Regionale Statistiken als Vergleichsmaßstab"), ohne eigene Recherche. Weil
+Abschnitt „Regionale Statistiken als Vergleichsmaßstab“), ohne eigene Recherche. Weil
 diese Zahlen aus **amtlichen, offenen Quellen** stammen, sind sie unabhängig von Ihren
 eigenen Angaben überprüfbar – ein stärkeres Argument im Vertrieb. In Vorbereitung ist,
 die Befehlspalette so zu erweitern, dass sich ein geteilter Bestand gezielt nach Potenzial
-durchsuchen lässt („Hallen mit hohem ungenutztem PV-Potenzial").
+durchsuchen lässt („Hallen mit hohem ungenutztem PV-Potenzial“).
 
 ### Energieverbrauchsbenchmark
 
@@ -236,12 +236,12 @@ Bestandshalter, Facility Manager und spezialisierte Benchmarking-Anbieter.
 Die Granergize-App löst diesen Anwendungsfall auf zwei Ebenen ein: Innerhalb
 des eigenen Bestands stellt die Energie-Detailseite jeden Verbrauchswert dem
 Portfolio- und dem Betreiber-Durchschnitt gegenüber (siehe Abschnitt
-„Energie-Detailseite eines Gebäudes"). Über den eigenen Bestand hinaus kommt
+„Energie-Detailseite eines Gebäudes“). Über den eigenen Bestand hinaus kommt
 der Vergleichswert von einem Benchmark-Dienstleister – in der App die Rolle
-„Benchmark Service Provider" –, der über die Gebäude mehrerer Eigentümer
+„Benchmark Service Provider“ –, der über die Gebäude mehrerer Eigentümer
 aggregiert; das vollständige Zusammenspiel führt der Abschnitt
-„Energieverbrauchsbenchmark durchgespielt" im Kapitel „Die Anwendungsfälle
-durchgespielt" aus.
+„Energieverbrauchsbenchmark durchgespielt“ im Kapitel „Die Anwendungsfälle
+durchgespielt“ aus.
 
 **Mit offenen Daten:** Neben die privaten Vergleichswerte (Portfolio, Betreiber,
 Benchmark-Dienstleister) tritt ein **öffentlicher** Maßstab, den niemand schönrechnen
@@ -249,7 +249,7 @@ kann. Die **amtliche Regionalstatistik** stellt den Verbrauch dem Durchschnitt d
 Bundeslands bzw. der Branche gegenüber, und eine **Choropleth-Karte** verortet die
 verglichenen Gebäude in ihren Regionen – so werden unterschiedliche Ausgangslagen (etwa
 ein grünerer oder schmutzigerer Netzstrom je Kreis) sichtbar (siehe Abschnitt „Regionale
-Statistiken als Vergleichsmaßstab"). Zusätzlich lassen sich die **offen verfügbaren
+Statistiken als Vergleichsmaßstab“). Zusätzlich lassen sich die **offen verfügbaren
 Gebäude** (frei zugängliche LoD2-/MaStR-Objekte auf der Karte) als öffentliche Basislinie
 heranziehen – ein breiteres Vergleichsfeld, ohne dass jemand mehr teilen muss. In
 Vorbereitung ist, den amtlichen Wert als eigene Vergleichszeile direkt neben Portfolio-
@@ -314,7 +314,7 @@ bzw. der EU (z. B. Hetzner) oder auf eigener Infrastruktur, um Datenschutz und
 DSGVO-Konformität sicherzustellen. Das Souveränitäts- und Zugriffsmodell bleibt
 dabei unverändert, und die Anwendung muss dafür nicht angepasst werden, da sie
 unabhängig vom Pod-Anbieter arbeitet. Wie Sie einen solchen Server selbst
-aufsetzen, beschreibt der Abschnitt „Einen eigenen Solid-Server betreiben".
+aufsetzen, beschreibt der Abschnitt „Einen eigenen Solid-Server betreiben“.
 
 # Die Granergize-App in der Praxis nutzen
 
@@ -349,9 +349,9 @@ Bevor Sie die Granergize-App nutzen können, benötigen Sie einen Solid Pod. Ein
 einzurichten ist einfach und kostenlos. Für den Einstieg empfehlen wir
 [solidcommunity.net](https://solidcommunity.net/) – einen öffentlich
 zugänglichen, kostenlosen Service. Später können Sie bei Bedarf einen eigenen
-Solid-Server betreiben (siehe Abschnitt „Einen eigenen Solid-Server betreiben")
+Solid-Server betreiben (siehe Abschnitt „Einen eigenen Solid-Server betreiben“)
 oder auf einen kommerziellen Anbieter umsteigen; die Hintergründe erläutert der
-Abschnitt „Datenschutz".
+Abschnitt „Datenschutz“.
 
 So erstellen Sie Ihren Solid Pod bei solidcommunity.net:
 
@@ -390,14 +390,14 @@ Anwendung übernimmt das für Sie.
 Für die Funktionserprobung genügt ein öffentlicher Dienst wie
 solidcommunity.net. Sobald reale, sensible Daten ins Spiel kommen, sollten die
 Pods dagegen auf Infrastruktur liegen, die Sie selbst kontrollieren (siehe
-Abschnitt „Datenschutz"). Da die Granergize-App unabhängig vom Pod-Anbieter arbeitet,
+Abschnitt „Datenschutz“). Da die Granergize-App unabhängig vom Pod-Anbieter arbeitet,
 brauchen Sie dafür nur einen spezifikationskonformen Solid-Server – an der
 Anwendung selbst ändert sich nichts, und auch die Bedienung bleibt identisch:
 Bei der Anmeldung geben Sie statt solidcommunity.net einfach die Adresse Ihres
 eigenen Servers als Identity Provider ein. Ein so betriebener Server übernimmt
 – wie solidcommunity.net – beide Rollen zugleich: Er ist Identity Provider und
 Speicheranbieter für die Pods, die auf ihm liegen (siehe Abschnitt „Solid Pod
-einrichten").
+einrichten“).
 
 Wir empfehlen den [Community Solid
 Server](https://communitysolidserver.github.io/CommunitySolidServer/) (CSS) –
@@ -425,7 +425,7 @@ Die drei Optionen bedeuten:
 
 Öffnen Sie anschließend `http://localhost:3000/` im Browser, legen Sie dort ein
 Konto und einen Pod an (der Ablauf entspricht dem im Abschnitt „Solid Pod
-einrichten" beschriebenen), und melden Sie sich in der Granergize-App mit
+einrichten“ beschriebenen), und melden Sie sich in der Granergize-App mit
 `http://localhost:3000` als Identity Provider an.
 
 **Produktiver Betrieb:** Für den Dauerbetrieb auf einem eigenen Server kommen
@@ -454,7 +454,7 @@ einige Punkte hinzu:
 
 **Auch die Anwendung selbst können Sie betreiben:** Die Granergize-App
 ist quelloffen
-(siehe Abschnitt „Was steckt hinter Granergize"); der Quellcode liegt auf GitHub
+(siehe Abschnitt „Was steckt hinter Granergize“); der Quellcode liegt auf GitHub
 unter
 [github.com/wintechis/granergize-webapp](https://github.com/wintechis/granergize-webapp).
 Die Anwendung läuft vollständig im Browser und hat kein eigenes Backend:
@@ -476,14 +476,14 @@ installieren.
 
 1. Öffnen Sie die Granergize-App in Ihrem Browser. Auf der Startseite
    sehen Sie eine kurze Erklärung der Anwendung sowie die Schaltflächen
-   **„Anmelden"** und **„Konto erstellen"**.
+   **„Anmelden“** und **„Konto erstellen“**.
 2. Wählen Sie Ihren Identity Provider – den Dienst, der Ihre WebID verwaltet
    und beim Anmelden bestätigt, dass Sie deren Inhaber sind (in der Regel
    derselbe Dienst, bei dem auch Ihr Pod liegt). Wenn Sie Ihren Pod bei
    solidcommunity.net erstellt haben, wählen Sie diesen
    aus der Liste oder geben Sie die Adresse `solidcommunity.net` ein. Einzugeben
    ist die Adresse des Anbieters – nicht Ihre E-Mail-Adresse und nicht Ihre
-   WebID. Bereits genutzte Anbieter bietet die App unter **„Zuletzt verwendet"**
+   WebID. Bereits genutzte Anbieter bietet die App unter **„Zuletzt verwendet“**
    direkt an.
 3. Melden Sie sich beim Identity Provider an und **bestätigen** Sie, dass die
    Granergize-App Zugriff auf Ihren Pod erhalten darf. Ohne diese Berechtigung kann die
@@ -492,9 +492,9 @@ installieren.
 
 > **Hinweis:** Läuft Ihre Anmeldung nach längerer Nutzung ab, zeigt die
 > Anwendung einmalig den Hinweis „Sitzung abgelaufen — bitte melde dich erneut
-> an" und meldet Sie ab. Melden Sie sich danach einfach erneut an – Ihre Daten
+> an“ und meldet Sie ab. Melden Sie sich danach einfach erneut an – Ihre Daten
 > sind davon nicht betroffen. Schlägt die Anmeldung wiederholt fehl, hilft auf
-> der Anmeldeseite **„Probleme bei der Anmeldung? Lokale Daten löschen"**: Das
+> der Anmeldeseite **„Probleme bei der Anmeldung? Lokale Daten löschen“**: Das
 > entfernt nur die im Browser gespeicherten Anmeldedaten, nicht die Daten in
 > Ihrem Pod.
 
@@ -503,8 +503,8 @@ installieren.
 **Was beim ersten Start passiert:** Bei der ersten Anmeldung ist Ihr Bestand
 zunächst leer – es werden keine Daten vorausgesetzt und nichts im Voraus
 angelegt. Für einen schnellen Einstieg liegen der Anwendung **Beispieldateien**
-bei: Öffnen Sie im Tab **Gebäude** „Aus Datei ausfüllen" und wählen Sie unter
-„…oder eine der mitgelieferten Beispieldateien ausprobieren" eine davon aus. Sie
+bei: Öffnen Sie im Tab **Gebäude** „Aus Datei ausfüllen“ und wählen Sie unter
+„…oder eine der mitgelieferten Beispieldateien ausprobieren“ eine davon aus. Sie
 werden genauso eingelesen wie eine eigene Excel-Datei – Sie sehen die erkannten
 Gebäude also vor dem Speichern und bestätigen mit dem Hinzufügen-Knopf, der die
 Zahl der Gebäude nennt. Zur Wahl stehen ein **Logistikportfolio
@@ -522,36 +522,36 @@ oder Karte), **Beobachtungen** (Energiedaten, Energie-Linse und Zeitverlauf),
 **Akteure** (Ihr Adressbuch), **Aggregationen** (Auswertungen über mehrere
 Gebäude), **Freigaben** (was mit Ihnen geteilt wurde) und **Treffen**
 (Datenzimmer). Über das Avatar-Symbol oben rechts erreichen Sie die Seite
-**Organisation**, **„Datenquellen und Lizenzen"**, die **Sprache** der Oberfläche
+**Organisation**, **„Datenquellen und Lizenzen“**, die **Sprache** der Oberfläche
 (Deutsch, Englisch, Französisch) und das Abmelden.
 
-![Nach der Anmeldung: Die App öffnet sich im Tab „Gebäude"; auf einem leeren Pod ist er noch leer – der Einstieg beginnt mit dem Anlegen oder Einlesen von Gebäuden.](figures/erster-start.png){width=100%}
+![Nach der Anmeldung: Die App öffnet sich im Tab „Gebäude“; auf einem leeren Pod ist er noch leer – der Einstieg beginnt mit dem Anlegen oder Einlesen von Gebäuden.](figures/erster-start.png){width=100%}
 
 ## Ihre Organisation festlegen
 
 Bevor Sie Gebäude anlegen, hinterlegen Sie einmalig Ihre **Organisation** – Ihr
 Unternehmen samt Logo. Diese Angaben gelten danach für alle Gebäude, die Sie
 erfassen; Sie müssen sie nicht bei jeder Dateneingabe wiederholen. Öffnen Sie über
-das Avatar-Symbol (oben rechts) den Eintrag **„Organisation…"**. Auf der Seite
-**Organisation** klicken Sie auf **„Bearbeiten"** und füllen die Felder aus:
+das Avatar-Symbol (oben rechts) den Eintrag **„Organisation…“**. Auf der Seite
+**Organisation** klicken Sie auf **„Bearbeiten“** und füllen die Felder aus:
 
-1. **Firmenname:** der Name Ihres Unternehmens – etwa „Granergize AG".
-2. **Firmenlogo** („Logo wählen…"): wählen Sie eine Bilddatei (PNG, JPG, SVG,
+1. **Firmenname:** der Name Ihres Unternehmens – etwa „Granergize AG“.
+2. **Firmenlogo** („Logo wählen…“): wählen Sie eine Bilddatei (PNG, JPG, SVG,
    WEBP oder GIF); die Vorschau zeigt das Bild sofort.
 3. **Homepage-URI** (optional): die Website Ihres Unternehmens.
 4. **Organisations-WebID** (optional): besitzt Ihr Unternehmen eine eigene
    WebID, verknüpfen Sie sie hier.
-5. **Speichern:** Bestätigen Sie mit „Speichern".
+5. **Speichern:** Bestätigen Sie mit „Speichern“.
 
 Sie müssen **keine Rolle** festlegen, um Gebäude anzulegen: Jedes Gebäude und seine
 Energiedaten werden ohne Rollenzuordnung erfasst, lediglich mit Ihrer WebID als
 Datenproduzent vermerkt. Die App kennt überhaupt keine Rollen – wer Sie sind,
-sagt Ihre WebID. Das Formular „Gebäude erstellen" zeigt für alle Gebäude
+sagt Ihre WebID. Das Formular „Gebäude erstellen“ zeigt für alle Gebäude
 dieselbe, einheitliche Eingabemaske.
 
 Das Firmenlogo erscheint anschließend im Hinweisfenster, das sich öffnet, wenn
 man auf der Karte mit der Maus über eine Gebäude-Markierung fährt (siehe
-Abschnitt „Daten ansehen"), und steigert so die Wiedererkennbarkeit gegenüber
+Abschnitt „Daten ansehen“), und steigert so die Wiedererkennbarkeit gegenüber
 Geschäftspartnern.
 
 > **Hinweis:** Ihr persönlicher **Anzeigename** und Ihr Profilbild stammen aus
@@ -573,7 +573,7 @@ beliebig vielen Anwendungen, die – jeweils nur mit Ihrer Erlaubnis – auf die
 Daten zugreifen können; keiner der drei Bausteine bindet Sie an die anderen.
 Die Anwendung selbst ist quelloffen und kann wie Identität und Speicher auf
 eigener Infrastruktur betrieben werden (siehe Abschnitt „Was steckt hinter
-Granergize").
+Granergize“).
 
 ### Zugriffskontrolle über Web Access Control (WAC)
 
@@ -582,7 +582,7 @@ Energiezertifikat im PDF-Format oder die Verbrauchsdaten eines Gebäudes – leg
 Sie fest, welche Rechte diese Person erhält: nur lesen oder auch ändern. Diese
 Berechtigungen werden technisch über Zugriffskontroll-Dateien (Access Control
 Lists, ACL) geregelt, die die App automatisch im Hintergrund erstellt, wenn
-Sie auf „Teilen" klicken.
+Sie auf „Teilen“ klicken.
 
 Stellen Sie sich das wie ein digitales Dokumentenmanagementsystem vor: Jede Datei
 in Ihrem Pod kann individuell freigegeben werden. Sie können einem
@@ -666,7 +666,7 @@ von Wetterdaten ist Gegenstand der Weiterentwicklung.
 >   Profil)
 > - **org** (`http://www.w3.org/ns/org#`) – Mitgliedschaft Person ↔ Organisation
 > - **vcard** (`http://www.w3.org/2006/vcard/ns#`) – Postadressen und Kontaktdaten
-> - **prov** (`http://www.w3.org/ns/prov#`) – Datenherkunft/Provenienz („Datenquelle")
+> - **prov** (`http://www.w3.org/ns/prov#`) – Datenherkunft/Provenienz („Datenquelle“)
 > - **schema** (`http://schema.org/`) – Datei-Metadaten von Anhängen (`MediaObject`)
 > - **geo** (`http://www.w3.org/2003/01/geo/wgs84_pos#`) – GPS-Koordinaten (WGS84)
 > - **xsd** (`http://www.w3.org/2001/XMLSchema#`) – Datentypen (integer, decimal,
@@ -681,14 +681,14 @@ von Wetterdaten ist Gegenstand der Weiterentwicklung.
 
 Rund um jedes Gebäude stehen **Akteure** – Personen oder Organisationen, die in der
 Anwendung über ihre **WebID** (eine weltweit eindeutige Web-Adresse, vgl. den Abschnitt
-„Solid Pod einrichten") eindeutig benannt sind. Ein Gebäude verweist auf solche Akteure
+„Solid Pod einrichten“) eindeutig benannt sind. Ein Gebäude verweist auf solche Akteure
 in klar benannten **Beziehungen**, nicht als freien Text: **Eigentümer**, **Betreiber**
 (maßgeblich für Benchmarks), **Investor**, **Facility-Management**, **Projektentwickler**
 und **Berater**. Der Betreiber eines Gebäudes ist damit ein Verweis auf dessen WebID –
 und nicht bloß ein Name, der sich nirgendwo wiederfindet.
 
 Daneben hält jedes Gebäude fest, **wer seine Daten erstellt hat** (die Datenherkunft).
-Diese Angabe erscheint als Zeile **„Datenquelle"** und – sofern hinterlegt – mit **Name
+Diese Angabe erscheint als Zeile **„Datenquelle“** und – sofern hinterlegt – mit **Name
 und Logo der Organisation** in der Sprechblase des Kartenmarkers. So ist auf einen Blick
 erkennbar, aus welcher Quelle ein Gebäude stammt, gerade wenn Sie Daten mehrerer Partner
 nebeneinander betrachten.
@@ -698,11 +698,11 @@ Organisationen mit Name, Art (Person/Organisation) und Logo. Akteure, die in Ihr
 Gebäuden auftauchen, Sie aber noch nicht gespeichert haben, listet die App gesondert als
 **referenzierte** Akteure – Sie können sie mit einem Klick ins Adressbuch übernehmen. Auch
 beim **Teilen** eines Gebäudes ist der Empfänger ein Akteur: Sie geben dessen WebID an. Und
-**Ihre eigene Organisation** (Name und Logo, siehe Abschnitt „Ihre Organisation festlegen")
+**Ihre eigene Organisation** (Name und Logo, siehe Abschnitt „Ihre Organisation festlegen“)
 hinterlegen Sie einmalig in Ihrem Profil; sie erscheint dann in der Kopfzeile und an den
 Gebäuden, deren Daten Sie erstellen.
 
-Wichtig: Eine Beziehung wie **„Eigentümer"** ist eine Verbindung **zwischen Gebäude und
+Wichtig: Eine Beziehung wie **„Eigentümer“** ist eine Verbindung **zwischen Gebäude und
 Akteur** – keine feste Eigenschaft des Akteurs. Dieselbe Organisation kann bei einem
 Gebäude Eigentümer und bei einem anderen nur Betreiber sein. Eine **Rolle**, die einer
 Person dauerhaft anhaftet, gibt es in der App nicht.
@@ -740,7 +740,7 @@ Die **Stammdaten** umfassen unter anderem:
   vorigen Abschnitt beschriebenen Akteure (Eigentümer, Betreiber …).
 
 Die **Verbrauchsdaten** werden je **Jahr** geführt (siehe Abschnitt „Energiedaten erfassen
-und aktualisieren"). Pro Jahr erfasst die App die folgenden Größen:
+und aktualisieren“). Pro Jahr erfasst die App die folgenden Größen:
 
 - **Stromverbrauch** (kWh)
 - **Wärmeverbrauch** (kWh)
@@ -775,37 +775,37 @@ Verfügung:
 - **Gebäude erstellen:** Ein einzelnes Gebäude über das Formular erfassen
   (Adresse, Koordinaten, Fläche usw.). Für alle Gebäude erscheint dieselbe,
   einheitliche Eingabemaske – es gibt keine Rollen- oder Vorlagenauswahl. Über
-  „Koordinaten ermitteln" bestimmt die App die Koordinaten aus der Adresse; dazu
+  „Koordinaten ermitteln“ bestimmt die App die Koordinaten aus der Adresse; dazu
   gleicht sie die Adresse mit dem amtlichen Adressregister ab. Angegeben sein
   müssen Straße und Hausnummer sowie Postleitzahl oder Ort – eine unvollständige
   Adresse liefert keine Koordinaten.
 - **Aus Datei ausfüllen:** Mehrere Gebäude auf einmal aus einer Excel-Datei
   einlesen. Das Tabellenformat wird beim Hochladen **automatisch erkannt** (bei
-  Bedarf über „Dateiformat" manuell überschreibbar); enthält die Datei auch
+  Bedarf über „Dateiformat“ manuell überschreibbar); enthält die Datei auch
   Energiedaten, werden diese mit übernommen – sowohl **Jahreswerte** als auch
   **15-Minuten-Lastgänge** (das Hochladen einer langen Messreihe lässt sich
   jederzeit abbrechen). Die eingelesenen Gebäude können Sie vor dem Speichern
   prüfen und anpassen; fehlende Koordinaten ergänzt die App, sofern die Adresse
   dafür vollständig genug ist.
 
-Daneben bietet die Aktionsleiste **„Alle herunterladen (Excel)"**: Damit laden
+Daneben bietet die Aktionsleiste **„Alle herunterladen (Excel)“**: Damit laden
 Sie alle eigenen Gebäude samt ihrer Jahreswerte in eine gemeinsame Excel-Datei
 herunter – etwa zur Weitergabe oder als Sicherung.
 
 Ein gesondertes Template wird **nicht benötigt**: Laden Sie ein vorhandenes
-Gebäude über „Gebäudedaten herunterladen (Excel)" herunter – diese Datei lässt
-sich (auch ausgefüllt mit eigenen Werten) über „Aus Datei ausfüllen" wieder
+Gebäude über „Gebäudedaten herunterladen (Excel)“ herunter – diese Datei lässt
+sich (auch ausgefüllt mit eigenen Werten) über „Aus Datei ausfüllen“ wieder
 einlesen und dient damit zugleich als Vorlage. Für einen schnellen Start eignen
-sich auch die mitgelieferten Beispieldateien, die „Aus Datei ausfüllen" direkt
+sich auch die mitgelieferten Beispieldateien, die „Aus Datei ausfüllen“ direkt
 zum Ausprobieren anbietet.
 
 Nachdem Sie die Felder ausgefüllt bzw. die Datei eingelesen haben, bestätigen Sie
-mit „Gebäude erstellen" (bei einer Datei mit dem Hinzufügen-Knopf, der die Zahl
+mit „Gebäude erstellen“ (bei einer Datei mit dem Hinzufügen-Knopf, der die Zahl
 der erkannten Gebäude nennt). Die eingegebenen Daten werden automatisch in das
 richtige Format (RDF) überführt und in Ihrem Solid Pod gespeichert; anschließend
 erscheint das Gebäude in der Liste und auf der Karte.
 
-![Tab „Gebäude": das Formular „Gebäude erstellen" zum Erfassen eines Gebäudes](figures/add-building.png){width=100%}
+![Tab „Gebäude“: das Formular „Gebäude erstellen“ zum Erfassen eines Gebäudes](figures/add-building.png){width=100%}
 
 > **Technische Details (für Administratoren)**
 >
@@ -817,7 +817,7 @@ erscheint das Gebäude in der Liste und auf der Karte.
 ## Die Gebäudeseite: bearbeiten, Dateien verwalten und löschen
 
 In der Liste des Tabs **Gebäude** bietet jede Zeile zwei Symbole: **Teilen**
-(siehe Kapitel „Daten gemeinsam nutzen und Mehrwerte schaffen") und **Gebäude
+(siehe Kapitel „Daten gemeinsam nutzen und Mehrwerte schaffen“) und **Gebäude
 löschen**. Beim Löschen werden nach einer Sicherheitsabfrage die Gebäudedatei
 sowie die zugehörigen Energie- und Freigabedaten aus Ihrem Pod entfernt.
 
@@ -826,22 +826,22 @@ Gebäudenamen in der Liste oder auf einen Marker in der Karte öffnet sie. Die
 Seite ist eine durchgehende Ansicht mit folgenden Abschnitten:
 
 - **Kopfbereich:** Name, Adresse und Koordinaten des Gebäudes sowie das Symbol
-  **„Gebäudedaten herunterladen (Excel)"**.
-- **Freigabe:** mit wem das Gebäude geteilt ist („Geteilt mit:") und die
-  Schaltfläche **„Teilen"**.
+  **„Gebäudedaten herunterladen (Excel)“**.
+- **Freigabe:** mit wem das Gebäude geteilt ist („Geteilt mit:“) und die
+  Schaltfläche **„Teilen“**.
 - **Stammdaten:** Adresse, Lage, Gebäudedetails, Betriebskosten und
-  Zertifizierungen. Über **„Bearbeiten"** ändern oder ergänzen Sie die Angaben
+  Zertifizierungen. Über **„Bearbeiten“** ändern oder ergänzen Sie die Angaben
   nachträglich.
 - **Dateien:** Beliebige Dateien jeden Typs zum Gebäude hinterlegen („Dateien
-  hinzufügen") – etwa PDFs, Word-Dokumente, Pläne oder Fotos –, herunterladen und
-  wieder löschen. Genau eine Datei können Sie über „Als Ausweis festlegen" als
+  hinzufügen“) – etwa PDFs, Word-Dokumente, Pläne oder Fotos –, herunterladen und
+  wieder löschen. Genau eine Datei können Sie über „Als Ausweis festlegen“ als
   **Energieausweis** markieren. Angehängte Dateien werden beim Teilen des
   Gebäudes standardmäßig mitgeteilt.
 - **Energieanlagen und Wärmeerzeugung:** die technischen Anlagen des Gebäudes,
   etwa PV-Anlage, Batteriespeicher, BHKW, Wärmepumpe oder Fernwärme, jeweils mit
   Betreiber.
-- **„Beobachtungen ansehen →"** führt zur Energieseite des Gebäudes (siehe
-  „Daten ansehen").
+- **„Beobachtungen ansehen →“** führt zur Energieseite des Gebäudes (siehe
+  „Daten ansehen“).
 - **Dachfläche und Umgebung:** der Grundriss des Dachs aus dem amtlichen
   3D-Gebäudemodell (LoD2, Bayern), das daraus berechnete
   **Photovoltaik-Potenzial** des Dachs sowie im Abschnitt **Umgebung** die
@@ -852,33 +852,33 @@ Seite ist eine durchgehende Ansicht mit folgenden Abschnitten:
 ## Energiedaten erfassen und aktualisieren
 
 Energieverbrauchsdaten werden je Gebäude und **Jahr** gepflegt. Öffnen Sie die
-Energieseite des Gebäudes (auf der Gebäudeseite „Beobachtungen ansehen →") und
-klicken Sie auf **„Energiejahre bearbeiten"**. Der Jahres-Editor öffnet sich
+Energieseite des Gebäudes (auf der Gebäudeseite „Beobachtungen ansehen →“) und
+klicken Sie auf **„Energiejahre bearbeiten“**. Der Jahres-Editor öffnet sich
 direkt auf der Seite anstelle der Diagramme; der Kopfbereich nennt weiterhin
 **Name und Anschrift des Gebäudes**, sodass Sie stets sehen, wessen Daten Sie
-gerade bearbeiten. Die Tabelle **„Gespeicherte Jahre"** listet alle bereits
+gerade bearbeiten. Die Tabelle **„Gespeicherte Jahre“** listet alle bereits
 erfassten Jahre mit ihren Werten auf; darunter steht das Eingabeformular.
 
 - **Jahr erfassen:** Tragen Sie das **Jahr** und die Verbrauchswerte ein und
-  klicken Sie auf **„Speichern"** (Meldung „Energiedaten gespeichert"). Das neue
-  Jahr erscheint sofort in der Tabelle; **„Schließen"** kehrt zu den Diagrammen
+  klicken Sie auf **„Speichern“** (Meldung „Energiedaten gespeichert“). Das neue
+  Jahr erscheint sofort in der Tabelle; **„Schließen“** kehrt zu den Diagrammen
   zurück. Welche Kennzahlen das Formular anbietet, richtet sich nach den
   Anlagen, die für das Gebäude hinterlegt sind; bei mehreren Anlagen (z. B.
-  PV-Anlage, Batteriespeicher, BHKW) wählen Sie unter **„Beobachten für"**, ob
+  PV-Anlage, Batteriespeicher, BHKW) wählen Sie unter **„Beobachten für“**, ob
   ein Wert das Gebäude insgesamt oder eine bestimmte Anlage betrifft.
 - **Jahr aktualisieren oder löschen:** Über die Schaltflächen je Tabellenzeile
   laden Sie ein gespeichertes Jahr zum **Bearbeiten** zurück ins Formular – die
   vorhandenen Werte werden vorbefüllt, sodass das Ergänzen einzelner Kennzahlen
   die übrigen nicht überschreibt – oder **löschen** es.
 - **Soll-Ist-Vergleich:** Erfassen Sie neben den **tatsächlichen** (Ist-)Werten
-  unter **Szenario** auch **„Geplant (Soll)"**-Werte. In der Jahresübersicht
+  unter **Szenario** auch **„Geplant (Soll)“**-Werte. In der Jahresübersicht
   werden Soll und Ist je Jahr nebeneinander dargestellt.
 
 Einen **Energieausweis** hinterlegen Sie als Datei-Anhang des Gebäudes: Laden Sie
 ihn auf der Gebäudeseite im Abschnitt **Dateien** hoch und markieren Sie ihn dort
-über „Als Ausweis festlegen" (siehe „Die Gebäudeseite").
+über „Als Ausweis festlegen“ (siehe „Die Gebäudeseite“).
 
-![„Energiejahre bearbeiten": Jahresverbrauch erfassen – mit geplanten (Soll) und tatsächlichen (Ist) Werten](figures/energy-year.png){width=100%}
+![„Energiejahre bearbeiten“: Jahresverbrauch erfassen – mit geplanten (Soll) und tatsächlichen (Ist) Werten](figures/energy-year.png){width=100%}
 
 ## Daten ansehen
 
@@ -890,12 +890,12 @@ Firmenname und -logo des jeweiligen Datenproduzenten, sofern diese auf der Seite
 Gebäudeseite. Über den Filter **Meine | Mit mir geteilt | Offene Daten** blenden
 Sie ein, welche Gebäude die Karte zeigt; **Offene Daten** ergänzt Gebäude aus dem
 amtlichen 3D-Gebäudemodell rund um Ihre eigenen Objekte (nur lesbar), und
-**„Diesen Bereich erkunden"** lädt sie für einen frei gewählten Kartenausschnitt.
+**„Diesen Bereich erkunden“** lädt sie für einen frei gewählten Kartenausschnitt.
 Weit herausgezoomt fasst die Karte die Gebäude zu eingefärbten Regionen
 zusammen.
 
 Die Verbrauchsdaten eines Gebäudes zeigt seine **Energieseite** (auf der
-Gebäudeseite „Beobachtungen ansehen →", oder im Tab **Beobachtungen**):
+Gebäudeseite „Beobachtungen ansehen →“, oder im Tab **Beobachtungen**):
 
 - **Jahresübersicht:** der Energieverbrauch je Jahr – zunächst als
   **Übersichtstabelle** mit den Jahreswerten, darunter als Diagramm. Haben Sie zu
@@ -903,7 +903,7 @@ Gebäudeseite „Beobachtungen ansehen →", oder im Tab **Beobachtungen**):
   werden beide **nebeneinander** dargestellt (Soll-Ist-Vergleich). Gibt es
   **mindestens ein weiteres Gebäude mit demselben Betreiber** und
   Verbrauchsdaten, erscheint in der Übersichtstabelle zusätzlich die Zeile
-  **„Betreiber-Durchschnitt"** als Benchmark. In den Durchschnitt geht jedes
+  **„Betreiber-Durchschnitt“** als Benchmark. In den Durchschnitt geht jedes
   Gebäude mit seinem **aktuellsten Ist-Jahr** ein; die Jahre müssen also nicht
   übereinstimmen. Maßgeblich ist allein der eingetragene Betreiber, nicht etwa
   gleiche Fläche oder gleiches Baujahr.
@@ -913,14 +913,14 @@ Gebäudeseite „Beobachtungen ansehen →", oder im Tab **Beobachtungen**):
   über **Jährlich | Zeitreihe** zwischen den Darstellungen um.
 - **Wetter:** die Messwerte der nächstgelegenen Station des Deutschen
   Wetterdienstes (offene DWD-Daten) samt Entfernung zum Gebäude. Mit **„Wetter
-  überlagern"** legen Sie die Jahresmitteltemperatur zur Einordnung des
+  überlagern“** legen Sie die Jahresmitteltemperatur zur Einordnung des
   Verbrauchs direkt über das Jahresdiagramm.
 - **Standort-Energieprofil:** Kennzahlen der Gemeinde zu erneuerbarer Erzeugung
   (Energie-Atlas Bayern), dazu eine Karte der Erzeugungsanlagen in der
   Nachbarschaft und die regionalen Statistiken (siehe „Regionale Statistiken
-  als Vergleichsmaßstab").
+  als Vergleichsmaßstab“).
 
-![Die Gebäudeseite, geöffnet über einen Marker im Tab „Gebäude"](figures/map-tabs.png){width=100%}
+![Die Gebäudeseite, geöffnet über einen Marker im Tab „Gebäude“](figures/map-tabs.png){width=100%}
 
 ![Energieseite: Jahresübersicht mit Soll-Eintrag und Portfolio-Durchschnitt](figures/energy-data-tab.png){width=100%}
 
@@ -936,7 +936,7 @@ der Adresszeile des Browsers. Die Übersichtstabelle stellt jedem Wert des
   aktuellsten Ist-Jahr (siehe oben).
 - **Benchmark** – ein extern berechneter Vergleichswert, den ein
   Benchmark-Dienstleister als Aggregation mit Ihnen geteilt hat; der Hinweis
-  „Benchmark bereitgestellt von …" nennt den Dienstleister.
+  „Benchmark bereitgestellt von …“ nennt den Dienstleister.
 
 Der eigene Wert wird farblich eingeordnet – grün, wenn er unter dem
 Vergleichswert liegt, rot darüber; je größer die Abweichung, desto kräftiger die
@@ -944,10 +944,10 @@ Färbung. Als Maßstab dient dabei der **spezifischste verfügbare Vergleich**: 
 externe Benchmark vor dem Betreiber-Durchschnitt vor dem Portfolio-Durchschnitt.
 Damit vereint diese Seite die drei Vergleichsperspektiven – eigenes Portfolio,
 Betreiber, externer Benchmark – in einer Ansicht: Hier löst die App den
-eingangs beschriebenen Anwendungsfall „Energieverbrauchsbenchmark" für das
+eingangs beschriebenen Anwendungsfall „Energieverbrauchsbenchmark“ für das
 einzelne Gebäude ein. Woher der externe Benchmark kommt, zeigt der Abschnitt
-„Energieverbrauchsbenchmark durchgespielt" im Kapitel „Die Anwendungsfälle
-durchgespielt".
+„Energieverbrauchsbenchmark durchgespielt“ im Kapitel „Die Anwendungsfälle
+durchgespielt“.
 
 ![Energieseite: eigener Verbrauch neben Portfolio-, Betreiber- und Benchmark-Vergleich](figures/energy-detail.png){width=100%}
 
@@ -958,11 +958,11 @@ Die beiden Karten färben die Gebäude-Marker unterschiedlich ein:
 - Die Karte im Tab **Gebäude** unterscheidet farblich Ihre **eigenen** Gebäude
   von solchen, die **andere mit Ihnen geteilt** haben.
 - Die Karte im Tab **Beobachtungen** färbt jeden Marker nach dem
-  **Energieverbrauch** ein (die **Energie-Linse**) – von „Effizienter" über
-  „Typisch" bis „Weniger effizient"; Gebäude ohne auswertbare Energiedaten
-  bleiben neutral („Keine Daten"). Ein Schieberegler wählt das Jahr, das die
+  **Energieverbrauch** ein (die **Energie-Linse**) – von „Effizienter“ über
+  „Typisch“ bis „Weniger effizient“; Gebäude ohne auswertbare Energiedaten
+  bleiben neutral („Keine Daten“). Ein Schieberegler wählt das Jahr, das die
   Karte zeigt; die Wiedergabe-Taste lässt die Jahre nacheinander ablaufen. Damit
-  setzt die Karte den Anwendungsfall „Vertriebsunterstützung" um: Ein Objekt ist
+  setzt die Karte den Anwendungsfall „Vertriebsunterstützung“ um: Ein Objekt ist
   auf einen Blick als energieeffizienter oder -ineffizienter als seine Nachbarn
   erkennbar.
 
@@ -981,9 +981,9 @@ Vergleichsmaßstab. Wichtig für die gemeinsame Nutzung: In diese Einordnung geh
 eine Fläche vorliegen. Sie vergleichen damit eigene und fremde Objekte im selben
 Wettbewerbsumfeld.
 
-![Tab „Beobachtungen": die Karte mit aktiver Energie-Linse – die Marker sind nach Energieintensität eingefärbt, die Legende zeigt die Kategorien](figures/energy-lens.png){width=100%}
+![Tab „Beobachtungen“: die Karte mit aktiver Energie-Linse – die Marker sind nach Energieintensität eingefärbt, die Legende zeigt die Kategorien](figures/energy-lens.png){width=100%}
 
-## Die Entwicklung über die Jahre lesen (Ansicht „Im Zeitverlauf")
+## Die Entwicklung über die Jahre lesen (Ansicht „Im Zeitverlauf“)
 
 Die Karte zeigt den gesamten Bestand in **einem** Jahr. Die Ansicht **Im
 Zeitverlauf** im Tab **Beobachtungen** dreht dieselben Daten um 90 Grad: Zeilen
@@ -992,8 +992,8 @@ Gebäude in einem Jahr. Eine abschließende Spalte **Trend** fasst die Richtung
 zusammen. So lesen Sie die gesamte zeitliche Entwicklung Ihres Portfolios auf
 einmal. Ein Klick auf eine Zelle führt zur Energie-Detailseite des Gebäudes.
 
-Die **Zellfarbe** benutzt dieselben Kategorien wie die Energie-Linse („Effizienter",
-„Typisch", „Weniger effizient"), berechnet sie aber **je Spalte neu**:
+Die **Zellfarbe** benutzt dieselben Kategorien wie die Energie-Linse („Effizienter“,
+„Typisch“, „Weniger effizient“), berechnet sie aber **je Spalte neu**:
 Ein Gebäude wird gegen die **im selben Jahr angezeigten** Gebäude eingeordnet.
 Maßgeblich ist wie auf der Karte die **Intensität** (kWh/m²/a bzw. m³/m²/a),
 nicht der absolute Verbrauch. Daraus folgt eine Eigenschaft, die man kennen
@@ -1004,17 +1004,17 @@ Zelle als gestrichelte Lücke stehen – ein Loch bleibt ein Loch und wird nicht
 als Null dargestellt.
 
 Wählen Sie als Kennzahl die **Stromerzeugung**, wechselt die Skala auf eine
-**neutrale** Rampe („Niedriger", „Mittel", „Höher"). Mehr Ertrag aus einer
-PV-Anlage ist nicht „ineffizient"; eine Effizienznote wäre hier sinnlos.
+**neutrale** Rampe („Niedriger“, „Mittel“, „Höher“). Mehr Ertrag aus einer
+PV-Anlage ist nicht „ineffizient“; eine Effizienznote wäre hier sinnlos.
 
 Die Spalte **Trend** vergleicht jedes Gebäude dagegen **mit sich selbst**:
 herangezogen werden die beiden **jüngsten vergleichbaren Jahre**. Jahre ohne
 auswertbaren Wert werden dabei übersprungen – es sind also nicht zwingend die
 beiden letzten Kalenderjahre. Eine Veränderung von **höchstens ±5 %** gilt als
-„Kaum Veränderung", damit Ablese- und Rundungsrauschen nicht als Trend
-erscheint. Eine sinkende Intensität bedeutet „Verbessert sich"; bei der
+„Kaum Veränderung“, damit Ablese- und Rundungsrauschen nicht als Trend
+erscheint. Eine sinkende Intensität bedeutet „Verbessert sich“; bei der
 Erzeugung ist es umgekehrt, dort ist mehr Ertrag die Verbesserung. Liegen
-weniger als zwei vergleichbare Jahre vor, steht dort „Noch kein Trend". Weil der
+weniger als zwei vergleichbare Jahre vor, steht dort „Noch kein Trend“. Weil der
 Trend selbstbezogen ist, **ändert er sich beim Filtern nicht** – anders als die
 Zellfarbe. Welche beiden Jahre verglichen wurden und wie groß die Veränderung
 tatsächlich ausfiel, nennt der Tooltip auf dem Trend-Punkt.
@@ -1030,7 +1030,7 @@ tatsächlich ausfiel, nennt der Tooltip auf dem Trend-Punkt.
 > (`TREND_FLAT_BAND`). Beide Berechnungen sind ohne Karte und ohne Oberfläche
 > unit-getestet.
 
-![Ansicht „Im Zeitverlauf": Gebäude (Zeilen) über die erfassten Jahre (Spalten), mit der Trend-Spalte und der Legende zu beiden Farbsystemen](figures/overtime-heatmap.png){width=100%}
+![Ansicht „Im Zeitverlauf“: Gebäude (Zeilen) über die erfassten Jahre (Spalten), mit der Trend-Spalte und der Legende zu beiden Farbsystemen](figures/overtime-heatmap.png){width=100%}
 
 ## Regionale Statistiken als Vergleichsmaßstab
 
@@ -1042,7 +1042,7 @@ im Bundesland? Wie viele Mehrfamilienhäuser im Landkreis entstehen mit Wärmepu
 
 Diese Zahlen stammen aus **offenen Daten der amtlichen Statistik** – konkret aus dem
 gemeinsamen Angebot der Statistischen Ämter des Bundes und der Länder
-(„Regionalstatistik"/GENESIS, u. a. Bayerisches Landesamt für Statistik und Statistisches
+(„Regionalstatistik“/GENESIS, u. a. Bayerisches Landesamt für Statistik und Statistisches
 Bundesamt). Sie sind öffentlich zugänglich: Für ihre Anzeige ist **kein Solid Pod und keine
 Anmeldung** erforderlich, und es werden **keine Daten Ihres Gebäudes übertragen**.
 
@@ -1101,7 +1101,7 @@ viel Vertrauen Sie dieser Person entgegenbringen.
 
 ### Individuelle Gebäudedaten teilen
 
-Beim Teilen individueller Gebäudedaten wählen Sie unter „Was geteilt wird", welchen
+Beim Teilen individueller Gebäudedaten wählen Sie unter „Was geteilt wird“, welchen
 Umfang Sie freigeben:
 
 - **Nur statische Gebäudedaten** – nur die Stammdaten des Gebäudes (Adresse,
@@ -1144,7 +1144,7 @@ wem eigentlich, und wie lautet deren WebID?* Genau dafür gibt es **Datenzimmer*
 Ein Datenzimmer ist ein gemeinsamer Raum, dem Partner über einen Einladungslink
 beitreten, und es zeigt schlicht, **wer darin ist**: Name und zugehörige WebID
 jedes Mitglieds. Aus dieser Liste übernehmen Sie die WebID (ein Klick auf „WebID
-kopieren"); beim Teilen schlägt Ihnen das Empfängerfeld die Mitglieder Ihrer
+kopieren“); beim Teilen schlägt Ihnen das Empfängerfeld die Mitglieder Ihrer
 Datenzimmer ohnehin direkt zur Auswahl vor.
 
 Wichtig: **Ein Datenzimmer vergibt selbst keine Berechtigungen.** Wer in einem
@@ -1160,19 +1160,19 @@ Der Ablauf in vier Schritten, am Beispiel von A (Alice Ahlmann) und ihrem Partne
 B (Bob Bauer):
 
 1. **Datenzimmer eröffnen:** A wechselt in den Tab **Treffen** und klickt
-   **„Datenzimmer hosten"**. Die App legt das Datenzimmer auf A's Pod an und
+   **„Datenzimmer hosten“**. Die App legt das Datenzimmer auf A's Pod an und
    öffnet seine Seite.
-2. **Einladen:** Im Abschnitt **„Einladung"** stehen Einladungslink und QR-Code.
-   Mit **„Einladungslink kopieren"** übernimmt A den Link und gibt ihn an B weiter
+2. **Einladen:** Im Abschnitt **„Einladung“** stehen Einladungslink und QR-Code.
+   Mit **„Einladungslink kopieren“** übernimmt A den Link und gibt ihn an B weiter
    – wie eine Einladung per E-Mail.
 3. **Beitreten:** B fügt im Tab **Treffen** den Link in das Feld
-   **„Datenzimmer-URI"** ein und klickt **„Hinzufügen"** – alternativ über
-   **„QR-Code scannen"**. Verweigert der Browser den Kamerazugriff, erscheint ein
+   **„Datenzimmer-URI“** ein und klickt **„Hinzufügen“** – alternativ über
+   **„QR-Code scannen“**. Verweigert der Browser den Kamerazugriff, erscheint ein
    verständlicher Hinweis. Auf der Seite des Datenzimmers listet der Abschnitt
-   **„Mitglieder"** nun alle Mitglieder mit Namen und WebID – genau die
+   **„Mitglieder“** nun alle Mitglieder mit Namen und WebID – genau die
    Adressen, an die andere Daten freigeben.
 4. **Teilen über das Datenzimmer:** Öffnet A beim Teilen eines Gebäudes (siehe
-   „Ein Gebäude teilen") das Feld **„Empfänger-WebID(s)"**, steht B dort mit
+   „Ein Gebäude teilen“) das Feld **„Empfänger-WebID(s)“**, steht B dort mit
    Namen zur Auswahl, weil beide im selben Datenzimmer sind. Freigegeben wird an
    B's WebID; B findet das Gebäude anschließend im Tab **Freigaben**.
 
@@ -1184,33 +1184,33 @@ Im Tab **Akteure** führen Sie ein persönliches Adressbuch Ihrer
 Geschäftspartner – jeder Eintrag ist eine WebID, zu der die App automatisch den
 hinterlegten Namen und das Profilbild auflöst. Geschäftspartner, mit denen Sie
 Daten teilen, werden hier automatisch gemerkt; zusätzlich können Sie eine WebID
-von Hand in das Feld **WebID** eintragen und mit **„Akteur hinzufügen"**
-aufnehmen oder einen Eintrag über **„Akteur entfernen"** wieder löschen. Ihre
+von Hand in das Feld **WebID** eintragen und mit **„Akteur hinzufügen“**
+aufnehmen oder einen Eintrag über **„Akteur entfernen“** wieder löschen. Ihre
 Akteure erscheinen anschließend als Vorschläge, wann immer Sie Empfänger für
 eine Freigabe auswählen – so müssen Sie eine WebID nicht jedes Mal neu eingeben.
 
-![Tab „Akteure": das persönliche Adressbuch](figures/contacts.png){width=100%}
+![Tab „Akteure“: das persönliche Adressbuch](figures/contacts.png){width=100%}
 
 ### Ein Gebäude teilen
 
 Teilen können Sie ein Gebäude an zwei Stellen: über das Teilen-Symbol in seiner
-Zeile in der Liste des Tabs **Gebäude** oder über die Schaltfläche **„Teilen"**
+Zeile in der Liste des Tabs **Gebäude** oder über die Schaltfläche **„Teilen“**
 im Abschnitt **Freigabe** der Gebäudeseite. Es öffnet sich der Dialog
-„Gebäudedaten teilen".
+„Gebäudedaten teilen“.
 
-1. Wählen Sie im Feld **„Empfänger-WebID(s)"**, an wen geteilt wird: eine oder
+1. Wählen Sie im Feld **„Empfänger-WebID(s)“**, an wen geteilt wird: eine oder
    mehrere WebIDs. Das Feld schlägt Ihre Akteure und die Mitglieder Ihrer
    Datenzimmer vor; eine unbekannte WebID tippen Sie ein und bestätigen mit
    Enter.
-2. Wählen Sie unter **„Was geteilt wird"** den Freigabeumfang – nur statische
+2. Wählen Sie unter **„Was geteilt wird“** den Freigabeumfang – nur statische
    Gebäudedaten, zusätzlich alle Energiewerte oder Energie für bestimmte Jahre
-   (siehe Abschnitt „Individuelle Gebäudedaten teilen"). Unter **„Zu teilende
-   Anhänge"** schränken Sie bei Bedarf ein, welche Dateien mitgeteilt werden.
-3. Klicken Sie auf **„Prüfen und teilen"**, kontrollieren Sie die
-   Zusammenfassung und bestätigen Sie mit **„Teilen bestätigen"**; **„Fertig"**
+   (siehe Abschnitt „Individuelle Gebäudedaten teilen“). Unter **„Zu teilende
+   Anhänge“** schränken Sie bei Bedarf ein, welche Dateien mitgeteilt werden.
+3. Klicken Sie auf **„Prüfen und teilen“**, kontrollieren Sie die
+   Zusammenfassung und bestätigen Sie mit **„Teilen bestätigen“**; **„Fertig“**
    schließt den Dialog.
 
-![Der Dialog „Gebäudedaten teilen"](figures/share-building.png){width=100%}
+![Der Dialog „Gebäudedaten teilen“](figures/share-building.png){width=100%}
 
 > **Technische Details (für Administratoren)**
 >
@@ -1224,14 +1224,14 @@ im Abschnitt **Freigabe** der Gebäudeseite. Es öffnet sich der Dialog
 > (`shared-out/`); die ACL-Dateien sind eine daraus abgeleitete Projektion.
 > Nach dem Speichern eines neuen Energiejahres gleicht die App die
 > Berechtigungen automatisch mit den bestehenden Freigaben ab: Eine
-> „alle Jahre"-Freigabe erhält Zugriff auf die neue Energiedatei, eine
+> „alle Jahre“-Freigabe erhält Zugriff auf die neue Energiedatei, eine
 > jahresbezogene Freigabe nicht. Da das Protokoll alle Freigabedimensionen
 > festhält, lassen sich die ACLs daraus jederzeit prüfen und wiederherstellen.
 
 ### Aggregation erstellen und teilen
 
 1. Wechseln Sie in den Tab **Aggregationen** und klicken Sie auf **„Aggregation
-   erstellen"**.
+   erstellen“**.
 2. Wählen Sie die **Aggregationsart**:
    - **Jahresportfolio** – Jahreskennzahlen über Ihre eigenen Gebäude
      aggregieren.
@@ -1240,24 +1240,24 @@ im Abschnitt **Freigabe** der Gebäudeseite. Es öffnet sich der Dialog
      tatsächlich Messwerte vorliegen.
    - **Geteilte Gebäude vergleichen** – Jahresverbräuche über die **mit Ihnen
      geteilten** Gebäude aggregieren (z. B. als Benchmark-Dienstleister).
-3. Geben Sie unter **„Name der Aggregation"** einen Namen ein, wählen Sie unter
-   **„Gebäude auswählen"** die Gebäude, unter **„Einzubeziehende Kennzahlen"**
-   die Kennzahlen und unter **„Aggregationsfunktion"** die Funktion
+3. Geben Sie unter **„Name der Aggregation“** einen Namen ein, wählen Sie unter
+   **„Gebäude auswählen“** die Gebäude, unter **„Einzubeziehende Kennzahlen“**
+   die Kennzahlen und unter **„Aggregationsfunktion“** die Funktion
    (Durchschnitt, Summe, Minimum, Maximum). Die **Regionsebene** (Automatisch,
    Gemeinde, Kreis, Bundesland, Deutschland) bestimmt, welcher Region die
-   Aggregation zugeordnet wird; „Automatisch" nimmt die feinste gemeinsame
+   Aggregation zugeordnet wird; „Automatisch“ nimmt die feinste gemeinsame
    Region der gewählten Gebäude. Zur Auswahl stehen genau die Kennzahlen, die
-   auch der Jahres-Editor („Energiejahre bearbeiten") erfasst.
-4. **„Aggregation erstellen"** berechnet das Ergebnis sofort als Snapshot; über
-   **„Snapshot aktualisieren"** können Sie ihn jederzeit neu berechnen, etwa
+   auch der Jahres-Editor („Energiejahre bearbeiten“) erfasst.
+4. **„Aggregation erstellen“** berechnet das Ergebnis sofort als Snapshot; über
+   **„Snapshot aktualisieren“** können Sie ihn jederzeit neu berechnen, etwa
    nachdem sich Energiedaten geändert haben. Enthält das Ergebnis keine Werte –
    z. B. weil die gewählten Gebäude zu den angekreuzten Kennzahlen keine Daten
    tragen –, weist ein Hinweis darauf hin, statt ein leeres Diagramm zu zeigen.
-5. Teilen Sie die fertige Aggregation über ihr Symbol **„Aggregation teilen"**
+5. Teilen Sie die fertige Aggregation über ihr Symbol **„Aggregation teilen“**
    mit der WebID des Empfängers. Empfänger sehen nur die berechneten
    Snapshot-Werte – keine Gebäudedetails.
 
-![Dialog „Aggregation erstellen"](figures/create-view.png){width=80%}
+![Dialog „Aggregation erstellen“](figures/create-view.png){width=80%}
 
 ![Geöffnete Aggregation: die berechnete Zusammenfassung als Diagramm und Tabelle](figures/aggregated-view.png){width=100%}
 
@@ -1271,14 +1271,14 @@ im Abschnitt **Freigabe** der Gebäudeseite. Es öffnet sich der Dialog
 ### Mit Ihnen geteilte Daten
 
 Gebäude, die andere mit Ihnen geteilt haben, finden Sie im Tab **Freigaben**
-unter „Mit dir geteilte Gebäude"; **„Alle herunterladen (Excel)"** lädt sie
+unter „Mit dir geteilte Gebäude“; **„Alle herunterladen (Excel)“** lädt sie
 gesammelt herunter. Sie erscheinen zusätzlich im Tab **Gebäude** (in der Karte
 orange markiert), sodass Sie sie gemeinsam mit Ihren eigenen Gebäuden auswerten
 können; der Filter **Mit mir geteilt** zeigt nur sie. Aggregationen, die andere
 mit Ihnen geteilt haben, finden Sie im Tab **Aggregationen** unter dem Filter
-**„Mit mir geteilt"**; „Werte anzeigen" klappt die empfangenen Werte auf.
+**„Mit mir geteilt“**; „Werte anzeigen“ klappt die empfangenen Werte auf.
 
-![Tab „Freigaben": ein mit Ihnen geteiltes Gebäude](figures/shared-with-you.png){width=100%}
+![Tab „Freigaben“: ein mit Ihnen geteiltes Gebäude](figures/shared-with-you.png){width=100%}
 
 Über das Augen-Symbol können Sie ein mit Ihnen geteiltes Gebäude bei Bedarf aus
 Ihrer eigenen Karten- und Listenansicht ausblenden und später wieder einblenden.
@@ -1288,8 +1288,8 @@ unberührt.
 ### Zugriff widerrufen
 
 Eine erteilte Freigabe können Sie jederzeit zurücknehmen: Entfernen Sie beim
-jeweiligen Gebäude (bzw. bei der Aggregation) unter „Geteilt mit:" den
-Empfänger über das Lösch-Symbol und bestätigen Sie mit **„Entziehen"**. Der
+jeweiligen Gebäude (bzw. bei der Aggregation) unter „Geteilt mit:“ den
+Empfänger über das Lösch-Symbol und bestätigen Sie mit **„Entziehen“**. Der
 Empfänger wird benachrichtigt; beim nächsten Abruf verschwindet das Gebäude bzw.
 die Aggregation aus seiner Liste der mit ihm geteilten Daten.
 
@@ -1310,8 +1310,8 @@ Zahl der Beteiligten: der Soll-Ist-Vergleich allein auf dem eigenen Pod, die
 Vertriebsunterstützung zu zweit (A teilt an B), das Energieverbrauchsbenchmark
 zu dritt (A, B und der Dienstleister C). A, B und C sind dabei wieder Alice
 Ahlmann, Bob Bauer und Charlie Conrad mit ihren Firmen, wie eingangs im
-Abschnitt „Praxisbeispiele: Use Cases für die Anwendung" vorgestellt. Als
-Gebäude dient jeweils A's Logistikhalle „Thomas-Dachser-Str." aus den
+Abschnitt „Praxisbeispiele: Use Cases für die Anwendung“ vorgestellt. Als
+Gebäude dient jeweils A's Logistikhalle „Thomas-Dachser-Str.“ aus den
 Beispieldaten.
 
 ## Soll-Ist-Vergleich durchgespielt: Plan und Verbrauch nebeneinander
@@ -1322,22 +1322,22 @@ sie auch liefert. Alles spielt sich auf A's eigenem Pod ab – geteilt wird nich
 
 1. **Zuerst das Ist:** A öffnet im Tab **Gebäude** (Ansicht **Liste**) ihre
    Halle und wechselt auf deren Energie-Detailseite. Dort klickt sie
-   **„Energiejahre bearbeiten"**; der Jahres-Editor öffnet sich direkt auf der
+   **„Energiejahre bearbeiten“**; der Jahres-Editor öffnet sich direkt auf der
    Seite. A trägt das **Jahr** (2025) und die tatsächlichen Jahresverbräuche ein
    – etwa **Stromverbrauch** 98.000 kWh und **Wärmeverbrauch** 64.000 kWh –,
-   klickt **„Speichern"** (Meldung „Energiedaten gespeichert") und schließt den
-   Editor (siehe „Energiedaten erfassen und aktualisieren").
-2. **Dann das Soll:** Über **„Energiejahre bearbeiten"** legt A für dasselbe
+   klickt **„Speichern“** (Meldung „Energiedaten gespeichert“) und schließt den
+   Editor (siehe „Energiedaten erfassen und aktualisieren“).
+2. **Dann das Soll:** Über **„Energiejahre bearbeiten“** legt A für dasselbe
    Jahr einen zweiten Eintrag an und wählt unter **Szenario** den Eintrag
-   **„Geplant (Soll)"** – etwa 90.000 kWh Strom und 60.000 kWh Wärme als
+   **„Geplant (Soll)“** – etwa 90.000 kWh Strom und 60.000 kWh Wärme als
    Zielwerte, z. B. aus dem Energieausweis oder nach einer Umrüstung auf
    LED-Beleuchtung. Das Szenario hält den Planwert getrennt vom Ist.
 3. **Die Gegenüberstellung:** Die Jahresübersicht auf der Energie-Detailseite
-   zeigt den Soll-Eintrag (markiert mit „(Soll)") direkt neben dem Ist
+   zeigt den Soll-Eintrag (markiert mit „(Soll)“) direkt neben dem Ist
    desselben Jahres – auf einen Blick, ob der Verbrauch den Plan einhält.
    Das ist die Grundlage für Nachsteuern und Budgetplanung.
 
-![Die Pointe des Soll-Ist-Vergleichs: In der Jahresübersicht steht der Plan-Eintrag („(Soll)") neben dem Ist desselben Jahres](figures/soll-ist-payoff.png){width=100%}
+![Die Pointe des Soll-Ist-Vergleichs: In der Jahresübersicht steht der Plan-Eintrag („(Soll)“) neben dem Ist desselben Jahres](figures/soll-ist-payoff.png){width=100%}
 
 ## Vertriebsunterstützung durchgespielt: Ein Gebäude teilen – aus beiden Perspektiven
 
@@ -1345,7 +1345,7 @@ Beteiligt sind zwei Personen mit jeweils eigenem Solid Pod: **A**, eine
 Bestandshalterin, deren energieeffiziente Halle ein Verkaufsargument ist –
 wenn es belegbar ist –, und **B**, ihr Makler bzw. Berater, der die Halle
 vermarktet und dafür belastbare Energiedaten braucht (der Anwendungsfall
-„Vertriebsunterstützung"). A soll dafür die Hoheit über ihre Daten nicht
+„Vertriebsunterstützung“). A soll dafür die Hoheit über ihre Daten nicht
 aufgeben. Wichtig vorab: Die Daten werden zu keinem Zeitpunkt kopiert oder an
 einen zentralen Dienst übertragen – sie bleiben auf A's Pod, und B liest sie
 dort direkt mit seiner eigenen WebID.
@@ -1355,18 +1355,18 @@ dort direkt mit seiner eigenen WebID.
 1. **B ins Adressbuch aufnehmen:** B's WebID hat A von B selbst erhalten – eine
    WebID gibt man weiter wie eine E-Mail-Adresse, etwa in der Signatur oder auf
    der Visitenkarte. A trägt sie im Tab **Akteure** in das Feld **WebID** ein und
-   klickt **„Akteur hinzufügen"**. Der Eintrag erscheint sofort mit B's Namen
-   und Profilbild statt der rohen Adresse (siehe „Akteure verwalten"). Sind
+   klickt **„Akteur hinzufügen“**. Der Eintrag erscheint sofort mit B's Namen
+   und Profilbild statt der rohen Adresse (siehe „Akteure verwalten“). Sind
    beide Mitglied desselben Datenzimmers, entfällt dieser Schritt (siehe
-   „Datenzimmer als WebID-Verzeichnis").
+   „Datenzimmer als WebID-Verzeichnis“).
 2. **Teilen öffnen:** A öffnet im Tab **Gebäude** (Ansicht **Liste**) die
-   Detailseite ihrer Halle und klickt dort **„Teilen"**.
-3. **Empfänger wählen:** Im Feld **„Empfänger-WebID(s)"** schlägt die App B aus
+   Detailseite ihrer Halle und klickt dort **„Teilen“**.
+3. **Empfänger wählen:** Im Feld **„Empfänger-WebID(s)“** schlägt die App B aus
    dem Adressbuch mit Namen vor – die WebID muss nicht erneut eingetippt werden.
    Den Umfang der Freigabe (nur Stammdaten, alle Energiewerte oder bestimmte
-   Jahre) legt A wie unter „Individuelle Gebäudedaten teilen" beschrieben fest.
-4. **Bestätigen:** Mit **„Prüfen und teilen"** zeigt der Dialog eine
-   Zusammenfassung; **„Teilen bestätigen"** erteilt B Lesezugriff, **„Fertig"**
+   Jahre) legt A wie unter „Individuelle Gebäudedaten teilen“ beschrieben fest.
+4. **Bestätigen:** Mit **„Prüfen und teilen“** zeigt der Dialog eine
+   Zusammenfassung; **„Teilen bestätigen“** erteilt B Lesezugriff, **„Fertig“**
    schließt den Dialog.
 
 Anschließend sieht A die Freigabe direkt auf der Detailseite des Gebäudes und
@@ -1387,9 +1387,9 @@ kann sie dort jederzeit wieder entfernen.
    Effizienz der Halle im Vertrieb belegen; die Datenhoheit bleibt bei der
    Eigentümerin.
 
-![Die Pointe des Teilens bei B: A's Gebäude, gekennzeichnet als „Mit mir geteilt" und mit A als Datenquelle, live von A's Pod gelesen](figures/teilen-payoff.png){width=100%}
+![Die Pointe des Teilens bei B: A's Gebäude, gekennzeichnet als „Mit mir geteilt“ und mit A als Datenquelle, live von A's Pod gelesen](figures/teilen-payoff.png){width=100%}
 
-Widerruft A die Freigabe später (siehe „Zugriff widerrufen"), wird B
+Widerruft A die Freigabe später (siehe „Zugriff widerrufen“), wird B
 benachrichtigt, und das Gebäude verschwindet beim nächsten Abruf aus B's
 Ansicht. Beide Seiten behalten so jederzeit den Überblick: A sieht in ihrem Pod,
 was sie an wen freigegeben hat; B sieht, was mit ihm geteilt wurde.
@@ -1400,8 +1400,8 @@ was sie an wen freigegeben hat; B sieht, was mit ihm geteilt wurde.
 
 Ein einzelner Bestandshalter kann seine Gebäude nur mit dem eigenen Portfolio
 vergleichen. Ein echter **Peer-Vergleich** – „Wo steht meine Halle im
-Branchenvergleich?", der eingangs beschriebene Anwendungsfall
-„Energieverbrauchsbenchmark" – braucht Daten mehrerer Eigentümer, ohne dass
+Branchenvergleich?“, der eingangs beschriebene Anwendungsfall
+„Energieverbrauchsbenchmark“ – braucht Daten mehrerer Eigentümer, ohne dass
 diese ihre Gebäude einander offenlegen müssen. Genau das leistet das
 Zusammenspiel von Gebäude-Freigabe und Aggregationen, mit drei Beteiligten:
 
@@ -1416,10 +1416,10 @@ Zusammenspiel von Gebäude-Freigabe und Aggregationen, mit drei Beteiligten:
 **Was A und B tun (die beitragende Seite):**
 
 1. A teilt ihre Halle an C – genau die Schritte aus „Vertriebsunterstützung
-   durchgespielt", nur dass sie als Umfang diesmal **„Statische Gebäudedaten und
-   alle Energiewerte"** wählt. C's WebID liegt dabei längst im Adressbuch – sie
+   durchgespielt“, nur dass sie als Umfang diesmal **„Statische Gebäudedaten und
+   alle Energiewerte“** wählt. C's WebID liegt dabei längst im Adressbuch – sie
    kam mit der Beauftragung des Dienstleisters, wie eine E-Mail-Adresse –, sodass
-   das Feld „Empfänger-WebID(s)" C mit Namen vorschlägt. Sind alle Beteiligten
+   das Feld „Empfänger-WebID(s)“ C mit Namen vorschlägt. Sind alle Beteiligten
    Mitglied desselben Datenzimmers, steht C dort ohnehin zur Auswahl.
 2. B teilt sein Gebäude auf dieselbe Weise an C. Keiner der beiden sieht dabei
    die Daten des anderen.
@@ -1429,35 +1429,35 @@ Zusammenspiel von Gebäude-Freigabe und Aggregationen, mit drei Beteiligten:
 1. Die Beiträge von A und B erreichen C wie jedes geteilte Gebäude: Sie
    erscheinen im Tab **Freigaben**.
 2. C wechselt in den Tab **Aggregationen** und klickt **„Aggregation
-   erstellen"**. Als **Aggregationsart** wählt C **„Geteilte Gebäude
-   vergleichen"**; zur Auswahl stehen dann genau die Gebäude, die **mit C
+   erstellen“**. Als **Aggregationsart** wählt C **„Geteilte Gebäude
+   vergleichen“**; zur Auswahl stehen dann genau die Gebäude, die **mit C
    geteilt** wurden.
-3. C vergibt unter **„Name der Aggregation"** einen Namen (etwa
-   „Energie-Benchmark") und wählt unter **„Gebäude auswählen"** die beiden
+3. C vergibt unter **„Name der Aggregation“** einen Namen (etwa
+   „Energie-Benchmark“) und wählt unter **„Gebäude auswählen“** die beiden
    Beiträge von A und B. Die Verbrauchskennzahlen und die Aggregatsfunktion
    **Durchschnitt** sind für diese Art bereits voreingestellt. Ein Klick auf
-   **„Aggregation erstellen"** berechnet das Ergebnis als Snapshot (siehe
-   „Aggregation erstellen und teilen").
-4. C teilt die fertige Aggregation über ihr Teilen-Symbol („Aggregation teilen")
+   **„Aggregation erstellen“** berechnet das Ergebnis als Snapshot (siehe
+   „Aggregation erstellen und teilen“).
+4. C teilt die fertige Aggregation über ihr Teilen-Symbol („Aggregation teilen“)
    an alle Beitragenden zurück. Im Teilen-Dialog trägt **„Alle Beitragenden
-   hinzufügen"** mit einem Klick alle ein, deren Gebäude in den Benchmark
-   eingeflossen sind – hier A und B. Nach **„Prüfen und teilen"** und **„Teilen
-   bestätigen"** meldet der Dialog „Erfolgreich geteilt mit …". Zurück wandert
+   hinzufügen“** mit einem Klick alle ein, deren Gebäude in den Benchmark
+   eingeflossen sind – hier A und B. Nach **„Prüfen und teilen“** und **„Teilen
+   bestätigen“** meldet der Dialog „Erfolgreich geteilt mit …“. Zurück wandert
    nur der berechnete Snapshot – nicht die Gebäude der Beitragenden.
 
-![Die Sicht des Benchmark-Dienstleisters beim Zurückteilen: „Alle Beitragenden hinzufügen" trägt alle Beitragenden mit einem Klick als Empfänger ein](figures/benchmark-share-back.png){width=100%}
+![Die Sicht des Benchmark-Dienstleisters beim Zurückteilen: „Alle Beitragenden hinzufügen“ trägt alle Beitragenden mit einem Klick als Empfänger ein](figures/benchmark-share-back.png){width=100%}
 
 **Was A und B sehen (der Rückfluss):**
 
 1. Die zurückerhaltene Aggregation erscheint im Tab **Aggregationen** unter
-   **„Mit mir geteilt"**.
+   **„Mit mir geteilt“**.
 2. Vor allem aber füllt sich auf der Energie-Detailseite der eigenen Gebäude
    die Zeile **Benchmark**: Der eigene Verbrauch steht nun dem externen
    Branchenwert gegenüber statt nur dem eigenen Portfolio-Durchschnitt, und der
-   Hinweis „Benchmark bereitgestellt von …" nennt den Dienstleister, der den
+   Hinweis „Benchmark bereitgestellt von …“ nennt den Dienstleister, der den
    Benchmark berechnet hat.
 
-![Die Pointe des Roundtrips: Auf der Energie-Detailseite von A (und ebenso von B) steht der eigene Verbrauch jetzt einer gefüllten Zeile „Benchmark" gegenüber – den von C zurückgeteilten Branchenwerten über die Gebäude aller Beitragenden](figures/benchmark-payoff.png){width=100%}
+![Die Pointe des Roundtrips: Auf der Energie-Detailseite von A (und ebenso von B) steht der eigene Verbrauch jetzt einer gefüllten Zeile „Benchmark“ gegenüber – den von C zurückgeteilten Branchenwerten über die Gebäude aller Beitragenden](figures/benchmark-payoff.png){width=100%}
 
 ![Der Benchmark-Roundtrip: A und B teilen Gebäude an den Dienstleister C, C berechnet den Durchschnitt und teilt nur den Snapshot zurück](figures/szenario-benchmark.png){width=100%}
 
@@ -1487,9 +1487,9 @@ einzelnes Suchfeld, das Sie jederzeit mit **Cmd+K** (macOS) bzw. **Strg+K** (Win
 oder über die Schaltfläche in der Kopfzeile öffnen. Darüber erreichen Sie dieselben
 Funktionen schneller – und können Ihren Gebäudebestand gezielt **durchsuchen**.
 
-## Was ein „Intent" ist
+## Was ein „Intent“ ist
 
-Hinter jeder Aktion steht ein benannter **Intent** (eine „Absicht"). Die App kennt rund
+Hinter jeder Aktion steht ein benannter **Intent** (eine „Absicht“). Die App kennt rund
 vier Dutzend davon, gruppiert nach dem Gegenstand, auf den sie sich beziehen – Gebäude,
 Energiedaten, Anhänge, Aggregationen, Freigaben, Datenzimmer, Akteure und Kontodaten. Ein
 Intent ist entweder
@@ -1528,18 +1528,18 @@ Filtern können Sie nach Feldern wie **Hallenfläche**, **Gebäudefläche**, **B
 **Eigentümer/Betreiber**. Als Vergleiche stehen je nach Feldart zur Verfügung: bei Zahlen
 **größer/kleiner/gleich**, bei Texten **gleich**, **enthält** oder **einer aus** einer
 Liste, dazu **vorhanden** bzw. **fehlt** für die An- oder Abwesenheit eines Werts. So findet
-etwa „Hallenfläche größer 5000 **und** Ort gleich Fürth" alle großen Hallen in Fürth. (Die
+etwa „Hallenfläche größer 5000 **und** Ort gleich Fürth“ alle großen Hallen in Fürth. (Die
 Filter beziehen sich auf die Stammdaten; nach Verbrauchswerten wird nicht unmittelbar
 gefiltert.)
 
 ## Abfragen in natürlicher Sprache
 
 Sie müssen Bedingungen nicht von Hand zusammenstellen. Beginnen Sie eine Eingabe in der
-Palette mit **„>"**, formulieren Sie Ihr Anliegen in **normaler Sprache** – etwa
-*„Bürogebäude in Bayern, gebaut vor 2000"* –, und die App übersetzt es in den passenden
+Palette mit **„>“**, formulieren Sie Ihr Anliegen in **normaler Sprache** – etwa
+*„Bürogebäude in Bayern, gebaut vor 2000“* –, und die App übersetzt es in den passenden
 Intent samt Filter. Das Ergebnis erscheint zunächst als **bearbeitbarer Vorschlag**, den Sie
 vor dem Ausführen prüfen (und bei Bedarf korrigieren) können. Wer die genaue Form kennt, kann
-mit **„{"** auch direkt einen Intent als JSON einfügen und starten.
+mit **„{“** auch direkt einen Intent als JSON einfügen und starten.
 
 > **Technische Details (für Administratoren)**
 >
@@ -1556,10 +1556,10 @@ mit **„{"** auch direkt einen Intent als JSON einfügen und starten.
 - **Alice** legt mit **Cmd+K → *Gebäude erstellen…*** eine neue Halle an, erfasst über
   ***Energie eingeben…*** den Verbrauch und gibt das Gebäude per ***Gebäude teilen*** an
   Bob frei – alles aus dem Suchfeld heraus.
-- **Bob** sucht mit **„> Bürogebäude in Bayern vor 2000"** die passenden Objekte, fasst die
+- **Bob** sucht mit **„> Bürogebäude in Bayern vor 2000“** die passenden Objekte, fasst die
   Treffer über ***Aggregation erstellen*** zu einer Auswertung zusammen und teilt deren
   Momentaufnahme.
-- **Charlie** richtet im Tab **Treffen** über „Datenzimmer hosten" eine Arbeitsgruppe ein,
+- **Charlie** richtet im Tab **Treffen** über „Datenzimmer hosten“ eine Arbeitsgruppe ein,
   pflegt auf der Seite **Organisation** Name und Logo seines Benchmark-Dienstes und sichert
   seinen Bestand über den Archiv-Export (sichtbar im Entwicklermodus).
 
@@ -1591,7 +1591,7 @@ General Public License, Version 3 (AGPL-3.0) auf GitHub zur Verfügung –
 [github.com/wintechis/granergize-webapp](https://github.com/wintechis/granergize-webapp).
 Die Lizenz erlaubt es jedem, die Anwendung frei zu nutzen, den Quellcode zu
 prüfen, sie anzupassen und selbst zu betreiben (siehe Abschnitt „Einen eigenen
-Solid-Server betreiben"); wer eine veränderte Fassung als Dienst anbietet, muss
+Solid-Server betreiben“); wer eine veränderte Fassung als Dienst anbietet, muss
 deren Quellcode ebenfalls offenlegen. Für die Trennung von Identität, Daten und
 Anwendung heißt das: Auch der dritte Baustein ist überprüfbar und liegt nicht
 in der Hand eines einzelnen Anbieters.
